@@ -126,6 +126,32 @@ class OpenAIMCPServer {
             required: ['parsed', 'duration', 'style'],
           },
         },
+        {
+          name: 'text_to_speech',
+          description: 'Convert text to speech using OpenAI TTS',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              text: {
+                type: 'string',
+                description: 'Text to convert to speech',
+              },
+              voice: {
+                type: 'string',
+                description: 'Voice to use (alloy, echo, fable, onyx, nova, shimmer)',
+                enum: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'],
+                default: 'alloy',
+              },
+              model: {
+                type: 'string',
+                description: 'Model to use (tts-1 or tts-1-hd)',
+                enum: ['tts-1', 'tts-1-hd'],
+                default: 'tts-1',
+              },
+            },
+            required: ['text'],
+          },
+        },
       ],
     }))
 
@@ -146,6 +172,13 @@ class OpenAIMCPServer {
           
           case 'plan_storyboard':
             return await this.planStoryboard(args.parsed, args.duration, args.style)
+          
+          case 'text_to_speech':
+            return await this.textToSpeech(
+              args.text,
+              args.voice || 'alloy',
+              args.model || 'tts-1'
+            )
           
           default:
             throw new Error(`Unknown tool: ${name}`)
@@ -286,6 +319,53 @@ Return JSON with a "segments" array.`
           text: completion.choices[0].message.content || '{}',
         },
       ],
+    }
+  }
+
+  private async textToSpeech(text: string, voice: string, model: string) {
+    try {
+      if (!process.env.OPENAI_API_KEY) {
+        throw new Error('OPENAI_API_KEY environment variable is not set')
+      }
+
+      if (!text || text.trim().length === 0) {
+        throw new Error('Text to convert is empty')
+      }
+
+      const response = await openai.audio.speech.create({
+        model: model as 'tts-1' | 'tts-1-hd',
+        voice: voice as 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer',
+        input: text,
+      })
+
+      // Convert the response buffer to base64
+      const buffer = Buffer.from(await response.arrayBuffer())
+      const audioBase64 = buffer.toString('base64')
+
+      if (!audioBase64 || audioBase64.length === 0) {
+        throw new Error('Failed to encode audio data to base64')
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              audioBase64,
+              format: 'mp3',
+              voice,
+              model,
+            }),
+          },
+        ],
+      }
+    } catch (error: any) {
+      console.error('[OpenAI MCP] textToSpeech error:', error.message)
+      if (error.response) {
+        console.error('[OpenAI MCP] API response status:', error.response.status)
+        console.error('[OpenAI MCP] API response data:', error.response.data)
+      }
+      throw error
     }
   }
 

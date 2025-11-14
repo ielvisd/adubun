@@ -25,25 +25,45 @@ async function saveVideoMetadata(video: Video) {
 
 export default defineEventHandler(async (event) => {
   const { clips, options } = composeVideoSchema.parse(await readBody(event))
+  
+  console.log('[Compose Video] Starting composition')
+  console.log('[Compose Video] Input clips count:', clips.length)
+  console.log('[Compose Video] Clips:', JSON.stringify(clips.map(c => ({
+    videoUrl: c.videoUrl,
+    voiceUrl: c.voiceUrl,
+    startTime: c.startTime,
+    endTime: c.endTime,
+    type: c.type,
+  })), null, 2))
+  console.log('[Compose Video] Options:', JSON.stringify(options, null, 2))
+  
   const outputPath = path.join(
     process.env.MCP_FILESYSTEM_ROOT || './data',
     'videos',
     `${nanoid()}.mp4`
   )
+  console.log('[Compose Video] Output path:', outputPath)
 
   const tempPaths: string[] = []
 
   try {
     // Download clips
+    console.log('[Compose Video] Downloading clips...')
     const localClips = await Promise.all(
-      clips.map(async (clip) => {
+      clips.map(async (clip, idx) => {
+        console.log(`[Compose Video] Downloading clip ${idx}:`, clip.videoUrl)
         const videoPath = await downloadFile(clip.videoUrl)
         tempPaths.push(videoPath)
+        console.log(`[Compose Video] Clip ${idx} video downloaded to:`, videoPath)
 
         let voicePath: string | undefined
         if (clip.voiceUrl) {
+          console.log(`[Compose Video] Downloading clip ${idx} audio:`, clip.voiceUrl)
           voicePath = await downloadFile(clip.voiceUrl)
           tempPaths.push(voicePath)
+          console.log(`[Compose Video] Clip ${idx} audio downloaded to:`, voicePath)
+        } else {
+          console.log(`[Compose Video] Clip ${idx} has no audio (voiceUrl is missing)`)
         }
 
         return {
@@ -55,20 +75,39 @@ export default defineEventHandler(async (event) => {
         }
       })
     )
+    console.log('[Compose Video] All clips downloaded. Local clips:', JSON.stringify(localClips.map(c => ({
+      localPath: c.localPath,
+      voicePath: c.voicePath,
+      hasAudio: !!c.voicePath,
+    })), null, 2))
 
     // Compose video
+    console.log('[Compose Video] Starting video composition with FFmpeg...')
     await composeVideo(localClips, {
       ...options,
       outputPath,
     })
+    console.log('[Compose Video] Video composition completed')
+
+    // Check if output file exists
+    try {
+      const stats = await fs.stat(outputPath)
+      console.log('[Compose Video] Output file exists, size:', stats.size, 'bytes')
+    } catch (statError) {
+      console.error('[Compose Video] Output file does not exist or cannot be read:', outputPath)
+    }
 
     // Read composed video
     const videoBuffer = await fs.readFile(outputPath)
+    console.log('[Compose Video] Video buffer read, size:', videoBuffer.length, 'bytes')
+    
     const videoId = nanoid()
     const finalPath = await saveVideo(videoBuffer, `${videoId}.mp4`)
+    console.log('[Compose Video] Video saved, videoId:', videoId, 'finalPath:', finalPath)
 
     // Calculate duration
     const duration = Math.max(...clips.map(c => c.endTime))
+    console.log('[Compose Video] Calculated duration:', duration, 'seconds')
 
     // Save video metadata
     const video: Video = {
@@ -83,6 +122,7 @@ export default defineEventHandler(async (event) => {
       jobId: '',
     }
     await saveVideoMetadata(video)
+    console.log('[Compose Video] Video metadata saved')
 
     // Track cost
     await trackCost('video-composition', 0.10, {
@@ -93,12 +133,25 @@ export default defineEventHandler(async (event) => {
 
     // Cleanup temp files
     await cleanupTempFiles(tempPaths)
+    console.log('[Compose Video] Temp files cleaned up')
+
+    // Return API URL instead of file path
+    const apiUrl = `/api/watch/${videoId}`
+    console.log('[Compose Video] Returning response:', {
+      videoUrl: apiUrl,
+      videoId,
+      originalPath: finalPath,
+    })
 
     return {
-      videoUrl: finalPath,
+      videoUrl: apiUrl,
       videoId,
     }
   } catch (error: any) {
+    console.error('[Compose Video] Error occurred:', error.message)
+    console.error('[Compose Video] Error stack:', error.stack)
+    console.error('[Compose Video] Error details:', JSON.stringify(error, null, 2))
+    
     // Cleanup on error
     await cleanupTempFiles(tempPaths)
     throw createError({

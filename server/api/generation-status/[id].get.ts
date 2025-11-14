@@ -32,6 +32,9 @@ export default defineEventHandler(async (event) => {
       status: asset.status,
       progress: asset.status === 'completed' ? 100 : asset.status === 'processing' ? 50 : 0,
       error: asset.error,
+      metadata: asset.metadata, // Include metadata for frontend access
+      videoUrl: asset.videoUrl, // Include video URL
+      voiceUrl: asset.voiceUrl, // Include voice URL
     })) || [],
     error: job.error,
   }

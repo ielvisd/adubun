@@ -210,5 +210,115 @@
       }
     ],
     "endTime": 1763142655383
+  },
+  {
+    "id": "yV0UyLseYIkSA_Xufp_nm",
+    "status": "failed",
+    "startTime": 1763143313991,
+    "storyboardId": "39zgDky8huyZkmvZwLvJU",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Voice synthesis completed but no audio data was returned"
+      }
+    ],
+    "endTime": 1763143497954
+  },
+  {
+    "id": "NYpxIfdjnSTqavMRi5j_Z",
+    "status": "completed",
+    "startTime": 1763144089210,
+    "storyboardId": "mGLoq7iCJK0vQT2L5VmN-",
+    "assets": [
+      {
+        "segmentId": 0,
+        "videoUrl": "https://replicate.delivery/xezq/ICxTb9fzxW2pHyXgCCxQeeEjfQjPTwfJAxIqJlxAZ4BFejUaF/tmp5gc0se0o.mp4",
+        "status": "completed"
+      }
+    ],
+    "endTime": 1763144178164
+  },
+  {
+    "id": "v88h1npvJDRegKWjTsfc4",
+    "status": "completed",
+    "startTime": 1763145719821,
+    "storyboardId": "k5rseq-QIEZxAMF1D53Ln",
+    "assets": [
+      {
+        "segmentId": 0,
+        "videoUrl": "https://replicate.delivery/xezq/hHxTMiKKrc7QN1VikX6LTEKNfxrlYu5xFEKkCZoDqGMIVp0KA/tmp182emi61.mp4",
+        "voiceUrl": "data/assets/Jdtk1MNWr_L2laXKbNVaR.mp3",
+        "status": "completed"
+      }
+    ],
+    "endTime": 1763145877337
+  },
+  {
+    "id": "IuruBiVleNZ1qihbdwraN",
+    "status": "failed",
+    "startTime": 1763146394966,
+    "storyboardId": "HHtpjyZANOBopIJE4A2Nw",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Invalid response from video generation: missing prediction ID"
+      }
+    ],
+    "endTime": 1763146396025
+  },
+  {
+    "id": "XptjjlCWxjvzyYbh5Qvwe",
+    "status": "failed",
+    "startTime": 1763146907630,
+    "storyboardId": "0GIn3jDbFvC49fvJujB0U",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Invalid response from video generation: missing prediction ID",
+        "metadata": {
+          "segmentId": 0,
+          "response": {
+            "error": "Request to https://api.replicate.com/v1/models/google/veo-3.1/predictions failed with status 422 Unprocessable Entity: {\"detail\":\"- input.duration: duration must be one of the following: 4, 6, 8\\n\",\"status\":422,\"title\":\"Input validation failed\",\"invalid_fields\":[{\"type\":\"enum\",\"field\":\"input.duration\",\"description\":\"duration must be one of the following: 4, 6, 8\"}]}\n."
+          },
+          "responseKeys": [
+            "error"
+          ],
+          "responseType": "object",
+          "isArray": false,
+          "stringified": "{\n  \"error\": \"Request to https://api.replicate.com/v1/models/google/veo-3.1/predictions failed with status 422 Unprocessable Entity: {\\\"detail\\\":\\\"- input.duration: duration must be one of the following: 4, 6, 8\\\\n\\\",\\\"status\\\":422,\\\"title\\\":\\\"Input validation failed\\\",\\\"invalid_fields\\\":[{\\\"type\\\":\\\"enum\\\",\\\"field\\\":\\\"input.duration\\\",\\\"description\\\":\\\"duration must be one of the following: 4, 6, 8\\\"}]}\\n.\"\n}"
+        }
+      }
+    ],
+    "endTime": 1763146908562
+  },
+  {
+    "id": "ogZef2lSzSL6Q0b2uw8xN",
+    "status": "completed",
+    "startTime": 1763147257580,
+    "storyboardId": "QToE5JkhEAIiLf9YWraX8",
+    "assets": [
+      {
+        "segmentId": 0,
+        "videoUrl": "https://replicate.delivery/xezq/yhnviCUAfAWqXalLY9iWXf6id3vLzejBtJQPWCQqk1l9CmSrA/tmp0uyl6phr.mp4",
+        "voiceUrl": "data/assets/1NbB3Xb57rfYBhfHHwTAo.mp3",
+        "status": "completed",
+        "metadata": {
+          "predictionId": "xhbzjp8s19rme0ctgf29zd0a3g",
+          "videoUrl": "https://replicate.delivery/xezq/yhnviCUAfAWqXalLY9iWXf6id3vLzejBtJQPWCQqk1l9CmSrA/tmp0uyl6phr.mp4",
+          "replicateVideoUrl": "https://replicate.delivery/xezq/yhnviCUAfAWqXalLY9iWXf6id3vLzejBtJQPWCQqk1l9CmSrA/tmp0uyl6phr.mp4",
+          "voiceUrl": "data/assets/1NbB3Xb57rfYBhfHHwTAo.mp3",
+          "segmentIndex": 0,
+          "segmentType": "hook",
+          "startTime": 0,
+          "endTime": 6,
+          "duration": 6,
+          "timestamp": 1763147363407
+        }
+      }
+    ],
+    "endTime": 1763147363408
   }
 ]

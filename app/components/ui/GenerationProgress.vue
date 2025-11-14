@@ -42,6 +42,58 @@
           >
             <p class="text-sm font-medium text-error-800">Segment {{ idx + 1 }} Error:</p>
             <p class="text-sm text-error-600 mt-1">{{ segment.error }}</p>
+            <UButton
+              v-if="segment.metadata"
+              size="xs"
+              variant="outline"
+              color="error"
+              class="mt-2"
+              @click="downloadMetadata(segment, idx)"
+            >
+              <UIcon name="i-heroicons-arrow-down-tray" class="mr-1" />
+              Download Error Metadata
+            </UButton>
+          </div>
+          
+          <!-- Success Metadata -->
+          <div
+            v-if="segment.status === 'completed' && segment.metadata"
+            class="mt-2 p-3 bg-success-50 border border-success-200 rounded-lg"
+          >
+            <div class="flex justify-between items-start">
+              <div class="flex-1">
+                <p class="text-sm font-medium text-success-800 mb-2">Segment {{ idx + 1 }} Metadata:</p>
+                <div class="text-xs text-success-700 space-y-1">
+                  <p v-if="segment.metadata.predictionId">
+                    <strong>Prediction ID:</strong> 
+                    <code class="bg-success-100 px-1 rounded">{{ segment.metadata.predictionId }}</code>
+                  </p>
+                  <p v-if="segment.metadata.replicateVideoUrl">
+                    <strong>Replicate Video URL:</strong>
+                    <a 
+                      :href="segment.metadata.replicateVideoUrl" 
+                      target="_blank" 
+                      class="text-blue-600 hover:underline ml-1"
+                    >
+                      View Video
+                    </a>
+                  </p>
+                  <p v-if="segment.metadata.videoUrl">
+                    <strong>Video URL:</strong> 
+                    <code class="bg-success-100 px-1 rounded break-all">{{ segment.metadata.videoUrl }}</code>
+                  </p>
+                </div>
+              </div>
+              <UButton
+                size="xs"
+                variant="outline"
+                color="success"
+                @click="downloadMetadata(segment, idx)"
+              >
+                <UIcon name="i-heroicons-arrow-down-tray" class="mr-1" />
+                Download Metadata
+              </UButton>
+            </div>
           </div>
         </template>
       </div>
@@ -67,12 +119,15 @@
 </template>
 
 <script setup lang="ts">
+import type { Asset } from '~/app/types/generation'
+
 const props = defineProps<{
   segments: Array<{
     type: string
     status: string
     progress?: number
     error?: string
+    metadata?: Asset['metadata']
   }>
   overallProgress: number
   status: string
@@ -80,6 +135,30 @@ const props = defineProps<{
   estimatedTotal: number
   overallError?: string
 }>()
+
+const downloadMetadata = (segment: any, index: number) => {
+  const metadata = {
+    segmentIndex: index,
+    segmentType: segment.type,
+    status: segment.status,
+    error: segment.error,
+    metadata: segment.metadata,
+    timestamp: new Date().toISOString(),
+  }
+  
+  const blob = new Blob([JSON.stringify(metadata, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `segment-${index + 1}-metadata-${Date.now()}.json`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+  
+  // Also log to console for easy access
+  console.log(`[GenerationProgress] Segment ${index + 1} Metadata:`, metadata)
+}
 
 const statusColor = computed(() => {
   if (props.status === 'completed') return 'success'

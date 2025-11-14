@@ -138,36 +138,61 @@ class ElevenLabsMCPServer {
   }
 
   private async textToSpeech(text: string, voiceId: string, modelId: string) {
-    const response = await axios.post(
-      `${ELEVENLABS_BASE_URL}/text-to-speech/${voiceId}`,
-      {
-        text,
-        model_id: modelId,
-      },
-      {
-        headers: {
-          'xi-api-key': ELEVENLABS_API_KEY,
-          'Content-Type': 'application/json',
-        },
-        responseType: 'arraybuffer',
+    try {
+      if (!ELEVENLABS_API_KEY) {
+        throw new Error('ElevenLabs API key is not configured')
       }
-    )
 
-    // Return base64 encoded audio
-    const audioBase64 = Buffer.from(response.data).toString('base64')
+      if (!text || text.trim().length === 0) {
+        throw new Error('Text to convert is empty')
+      }
 
-    return {
-      content: [
+      const response = await axios.post(
+        `${ELEVENLABS_BASE_URL}/text-to-speech/${voiceId}`,
         {
-          type: 'text',
-          text: JSON.stringify({
-            audioBase64,
-            format: 'mp3',
-            voiceId,
-            modelId,
-          }),
+          text,
+          model_id: modelId,
         },
-      ],
+        {
+          headers: {
+            'xi-api-key': ELEVENLABS_API_KEY,
+            'Content-Type': 'application/json',
+          },
+          responseType: 'arraybuffer',
+        }
+      )
+
+      if (!response.data || response.data.length === 0) {
+        throw new Error('Empty response from ElevenLabs API')
+      }
+
+      // Return base64 encoded audio
+      const audioBase64 = Buffer.from(response.data).toString('base64')
+
+      if (!audioBase64 || audioBase64.length === 0) {
+        throw new Error('Failed to encode audio data to base64')
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              audioBase64,
+              format: 'mp3',
+              voiceId,
+              modelId,
+            }),
+          },
+        ],
+      }
+    } catch (error: any) {
+      console.error('[ElevenLabs MCP] textToSpeech error:', error.message)
+      if (error.response) {
+        console.error('[ElevenLabs MCP] API response status:', error.response.status)
+        console.error('[ElevenLabs MCP] API response data:', error.response.data?.toString?.() || error.response.data)
+      }
+      throw error
     }
   }
 

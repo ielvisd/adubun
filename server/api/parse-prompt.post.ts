@@ -22,6 +22,8 @@ export default defineEventHandler(async (event) => {
             body.firstFrameImage = filePath
           } else if (item.name === 'subjectReference') {
             body.subjectReference = filePath
+          } else if (item.name === 'inputImage') {
+            body.inputImage = filePath
           }
         } else if (item.name) {
           // It's a form field
@@ -29,9 +31,12 @@ export default defineEventHandler(async (event) => {
           // Try to parse numbers
           if (item.name === 'duration') {
             body[item.name] = Number(value)
-          } else if (item.name === 'firstFrameImage' || item.name === 'subjectReference') {
+          } else if (item.name === 'firstFrameImage' || item.name === 'subjectReference' || item.name === 'inputImage') {
             // Could be a URL string
             body[item.name] = value || null
+          } else if (item.name === 'model') {
+            // Model ID
+            body[item.name] = value || undefined
           } else {
             body[item.name] = value
           }
@@ -161,11 +166,12 @@ export default defineEventHandler(async (event) => {
     return {
       ...parsedData,
       meta: {
-        duration: validated.duration,
+        duration: validated.duration || 30,
         aspectRatio: validated.aspectRatio,
         style: validated.style,
         mode: validated.mode || 'demo',
-        firstFrameImage: validated.firstFrameImage || undefined,
+        model: validated.model || 'google/veo-3.1', // Default to google/veo-3.1
+        firstFrameImage: validated.firstFrameImage || validated.inputImage || undefined,
         subjectReference: validated.subjectReference || undefined,
       },
     }

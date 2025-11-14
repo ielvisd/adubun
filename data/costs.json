@@ -550,5 +550,205 @@
       "segmentId": 0,
       "duration": 8
     }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763143274836,
+    "metadata": {
+      "prompt": "An ad for an AI bootcamp called \"Gauntlet\" with a robotics lab. "
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763143278802,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763143314862,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 5
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763144068094,
+    "metadata": {
+      "prompt": "Create a 30 second Instagram ad for luxury watches with elegant gold aesthetics"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763144070598,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763144089867,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 5
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763145688900,
+    "metadata": {
+      "prompt": "Generate a TikTok ad for energy drinks with extreme sports footage"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763145691689,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763145720672,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 5
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763145877336,
+    "metadata": {
+      "segmentId": 0,
+      "textLength": 96
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763146340910,
+    "metadata": {
+      "prompt": "Generate a TikTok ad for energy drinks with extreme sports footage"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763146343984,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763146396022,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 5
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763146650718,
+    "metadata": {
+      "prompt": "Generate a TikTok ad for energy drinks with extreme sports footage"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763146653598,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763146872841,
+    "metadata": {
+      "prompt": "Generate a TikTok ad for energy drinks with extreme sports footage"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763146875386,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763146908558,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 5
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763147015896,
+    "metadata": {
+      "prompt": "Generate a TikTok ad for energy drinks with extreme sports footage"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763147017655,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763147235276,
+    "metadata": {
+      "prompt": "Generate a TikTok ad for energy drinks with extreme sports footage"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763147237211,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763147258173,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 6
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763147363407,
+    "metadata": {
+      "segmentId": 0,
+      "textLength": 73
+    }
   }
 ]

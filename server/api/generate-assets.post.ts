@@ -1,5 +1,5 @@
 import { generateAssetsSchema } from '../utils/validation'
-import { callReplicateMCP, callElevenLabsMCP } from '../utils/mcp-client'
+import { callReplicateMCP, callOpenAIMCP } from '../utils/mcp-client'
 import { trackCost } from '../utils/cost-tracker'
 import { downloadFile, saveAsset, readFile } from '../utils/storage'
 import { uploadFileToReplicate } from '../utils/replicate-upload'
@@ -127,22 +127,46 @@ export default defineEventHandler(async (event) => {
         const firstFrameImage = segment.firstFrameImage || storyboard.meta.firstFrameImage
         const subjectReference = segment.subjectReference || storyboard.meta.subjectReference
 
-        // Video Generation (Replicate MCP) - always uses minimax/video-01
+        // Get model from storyboard meta, default to google/veo-3.1
+        const model = storyboard.meta.model || 'google/veo-3.1'
+
+        // Video Generation (Replicate MCP) - use model from storyboard
         const videoParams: any = {
+          model,
           prompt: segment.visualPrompt,
           duration: segment.endTime - segment.startTime,
           aspect_ratio: storyboard.meta.aspectRatio,
         }
 
         // Add image inputs if provided - upload to Replicate and get public URLs
-        if (firstFrameImage) {
-          videoParams.first_frame_image = await prepareImageInput(firstFrameImage)
-        }
-        if (subjectReference) {
-          videoParams.subject_reference = await prepareImageInput(subjectReference)
+        // Model-specific image handling
+        if (model === 'google/veo-3.1') {
+          // Veo 3.1 supports first_frame_image and subject_reference
+          if (firstFrameImage) {
+            videoParams.first_frame_image = await prepareImageInput(firstFrameImage)
+          }
+          if (subjectReference) {
+            videoParams.subject_reference = await prepareImageInput(subjectReference)
+          }
+        } else if (model === 'runway/gen-3-alpha-turbo' || model === 'anotherbyte/seedance-1.0') {
+          // These models support generic 'image' input
+          if (firstFrameImage) {
+            videoParams.image = await prepareImageInput(firstFrameImage)
+          } else if (subjectReference) {
+            videoParams.image = await prepareImageInput(subjectReference)
+          }
+        } else if (model === 'stability-ai/stable-video-diffusion') {
+          // Stable Video Diffusion requires image input
+          if (firstFrameImage) {
+            videoParams.image = await prepareImageInput(firstFrameImage)
+          } else if (subjectReference) {
+            videoParams.image = await prepareImageInput(subjectReference)
+          }
         }
 
+        console.log(`[Segment ${idx}] Calling Replicate MCP generate_video with params:`, JSON.stringify(videoParams, null, 2))
         const videoResult = await callReplicateMCP('generate_video', videoParams)
+        console.log(`[Segment ${idx}] Replicate MCP generate_video response:`, JSON.stringify(videoResult, null, 2))
 
         // Track cost
         await trackCost('video-generation', 0.15, {
@@ -152,11 +176,35 @@ export default defineEventHandler(async (event) => {
 
         // Poll for completion
         let predictionStatus = videoResult
-        // Get the prediction ID from the initial response
-        const predictionId = predictionStatus.predictionId || predictionStatus.id
+        console.log(`[Segment ${idx}] Initial prediction status:`, JSON.stringify(predictionStatus, null, 2))
+        
+        // Get the prediction ID from the initial response - try multiple possible fields
+        const predictionId = predictionStatus.predictionId || 
+                            predictionStatus.id || 
+                            predictionStatus.prediction?.id ||
+                            (predictionStatus as any)?.prediction_id
+                            
+        console.log(`[Segment ${idx}] Extracted prediction ID:`, predictionId)
+        console.log(`[Segment ${idx}] Full response keys:`, Object.keys(predictionStatus))
+        
         if (!predictionId) {
-          console.error('[Generate Assets] Invalid video result:', JSON.stringify(videoResult, null, 2))
-          throw new Error(`Invalid response from video generation: missing prediction ID`)
+          const errorDetails = {
+            segmentId: idx,
+            response: videoResult,
+            responseKeys: Object.keys(videoResult || {}),
+            responseType: typeof videoResult,
+            isArray: Array.isArray(videoResult),
+            stringified: JSON.stringify(videoResult, null, 2),
+          }
+          console.error(`[Segment ${idx}] Invalid video result - missing prediction ID:`, JSON.stringify(errorDetails, null, 2))
+          
+          // Store error details in asset for frontend access
+          return {
+            segmentId: idx,
+            status: 'failed',
+            error: `Invalid response from video generation: missing prediction ID`,
+            metadata: errorDetails,
+          } as Asset
         }
         
         console.log('[Generate Assets] Starting prediction with ID:', predictionId)
@@ -178,39 +226,85 @@ export default defineEventHandler(async (event) => {
 
         const videoUrl = videoResultFinal?.videoUrl
         if (!videoUrl) {
-          console.error('[Generate Assets] No videoUrl in result:', JSON.stringify(videoResultFinal, null, 2))
-          throw new Error(`Video generation completed but no video URL was returned. Result: ${JSON.stringify(videoResultFinal)}`)
+          const errorDetails = {
+            segmentId: idx,
+            predictionId,
+            finalResult: videoResultFinal,
+            finalResultKeys: Object.keys(videoResultFinal || {}),
+          }
+          console.error(`[Segment ${idx}] No videoUrl in result:`, JSON.stringify(errorDetails, null, 2))
+          
+          // Store error details in asset for frontend access
+          return {
+            segmentId: idx,
+            status: 'failed',
+            error: `Video generation completed but no video URL was returned`,
+            metadata: {
+              predictionId,
+              predictionStatus,
+              finalResult: videoResultFinal,
+            },
+          } as Asset
         }
 
-        // Voice Over (ElevenLabs MCP)
+        console.log(`[Segment ${idx}] Video URL obtained:`, videoUrl)
+        console.log(`[Segment ${idx}] Prediction ID:`, predictionId)
+
+        // Voice Over (OpenAI TTS)
         let voiceUrl: string | undefined
         if (segment.audioNotes) {
-          const voiceResult = await callElevenLabsMCP('text_to_speech', {
-            text: segment.audioNotes,
-            voice_id: '21m00Tcm4TlvDq8ikWAM',
-            model_id: 'eleven_monolingual_v1',
-          })
+          try {
+            const voiceResult = await callOpenAIMCP('text_to_speech', {
+              text: segment.audioNotes,
+              voice: 'alloy',
+              model: 'tts-1',
+            })
 
-          // Save audio file
-          if (!voiceResult?.audioBase64) {
-            console.error('[Generate Assets] No audioBase64 in voice result:', JSON.stringify(voiceResult, null, 2))
-            throw new Error('Voice synthesis completed but no audio data was returned')
+            // Save audio file
+            if (!voiceResult?.audioBase64) {
+              console.error('[Generate Assets] No audioBase64 in voice result:', JSON.stringify(voiceResult, null, 2))
+              console.error('[Generate Assets] Voice result keys:', voiceResult ? Object.keys(voiceResult) : 'null')
+              // Don't fail the entire segment if voice synthesis fails - just log and continue
+              console.warn(`[Segment ${idx}] Voice synthesis failed, continuing without audio`)
+            } else {
+              const audioBuffer = Buffer.from(voiceResult.audioBase64, 'base64')
+              const audioPath = await saveAsset(audioBuffer, 'mp3')
+              voiceUrl = audioPath
+
+              await trackCost('voice-synthesis', 0.05, {
+                segmentId: idx,
+                textLength: segment.audioNotes.length,
+              })
+            }
+          } catch (voiceError: any) {
+            // Don't fail the entire segment if voice synthesis fails - just log and continue
+            console.error(`[Segment ${idx}] Voice synthesis error:`, voiceError.message)
+            console.warn(`[Segment ${idx}] Continuing without audio due to voice synthesis failure`)
           }
-          const audioBuffer = Buffer.from(voiceResult.audioBase64, 'base64')
-          const audioPath = await saveAsset(audioBuffer, 'mp3')
-          voiceUrl = audioPath
-
-          await trackCost('voice-synthesis', 0.05, {
-            segmentId: idx,
-            textLength: segment.audioNotes.length,
-          })
         }
+
+        // Store metadata including prediction ID and video URL for frontend access
+        const metadata = {
+          predictionId,
+          videoUrl,
+          replicateVideoUrl: videoUrl, // Direct Replicate URL
+          voiceUrl,
+          segmentIndex: idx,
+          segmentType: segment.type,
+          startTime: segment.startTime,
+          endTime: segment.endTime,
+          duration: segment.endTime - segment.startTime,
+          timestamp: Date.now(),
+        }
+
+        console.log(`[Segment ${idx}] Asset metadata:`, JSON.stringify(metadata, null, 2))
 
         return {
           segmentId: idx,
           videoUrl,
           voiceUrl,
           status: 'completed',
+          metadata, // Include metadata for frontend access
         } as Asset
       } catch (error: any) {
         const errorMessage = error.message || 'Unknown error occurred'

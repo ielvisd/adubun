@@ -71,21 +71,36 @@ export async function callReplicateMCP(
       throw new Error('Replicate MCP client not initialized')
     }
 
+    console.log(`[Replicate MCP Client] Calling tool: ${tool}`)
+    console.log(`[Replicate MCP Client] Arguments:`, JSON.stringify(args, null, 2))
+
     const result = await clients.replicate.callTool({
       name: tool,
       arguments: args,
     })
 
+    console.log(`[Replicate MCP Client] Raw MCP result:`, JSON.stringify({
+      hasContent: !!result.content,
+      contentLength: result.content?.length,
+      firstContentType: result.content?.[0]?.type,
+      firstContentText: result.content?.[0]?.text?.substring(0, 500),
+    }, null, 2))
+
     if (!result.content || !result.content[0] || !result.content[0].text) {
+      console.error(`[Replicate MCP Client] Invalid MCP response structure:`, JSON.stringify(result, null, 2))
       throw new Error('Invalid MCP response structure')
     }
 
-    return JSON.parse(result.content[0].text)
+    const parsed = JSON.parse(result.content[0].text)
+    console.log(`[Replicate MCP Client] Parsed response:`, JSON.stringify(parsed, null, 2))
+    console.log(`[Replicate MCP Client] Parsed response keys:`, Object.keys(parsed || {}))
+
+    return parsed
   } catch (error: any) {
-    console.error(`[Replicate MCP] Call to ${tool} failed:`, error)
-    console.error(`[Replicate MCP] Tool: ${tool}, Args:`, JSON.stringify(args, null, 2))
+    console.error(`[Replicate MCP Client] Call to ${tool} failed:`, error)
+    console.error(`[Replicate MCP Client] Tool: ${tool}, Args:`, JSON.stringify(args, null, 2))
     if (error.stack) {
-      console.error(`[Replicate MCP] Stack trace:`, error.stack)
+      console.error(`[Replicate MCP Client] Stack trace:`, error.stack)
     }
     throw new Error(`Replicate MCP call failed: ${error.message || 'Unknown error'}`)
   }
@@ -190,7 +205,16 @@ export async function callElevenLabsMCP(
       throw new Error('Invalid MCP response structure')
     }
 
-    return JSON.parse(result.content[0].text)
+    const text = result.content[0].text
+    const parsed = JSON.parse(text)
+
+    // Check if the response contains an error
+    if (parsed && typeof parsed === 'object' && 'error' in parsed) {
+      console.error('[ElevenLabs MCP] Error response:', parsed)
+      throw new Error(`ElevenLabs MCP error: ${parsed.error}`)
+    }
+
+    return parsed
   } catch (error: any) {
     console.error(`[ElevenLabs MCP] Call to ${tool} failed:`, error)
     console.error(`[ElevenLabs MCP] Tool: ${tool}, Args:`, JSON.stringify(args, null, 2))

@@ -1,3 +1,19 @@
+export interface VideoModel {
+  id: string // Replicate model path (e.g., 'google/veo-3.1')
+  name: string // Display name
+  description?: string
+  supportsTextToVideo: boolean
+  supportsImageToVideo: boolean
+  supportsCharacterReference: boolean
+  supportsFirstFrame: boolean
+  supportsCustomDuration: boolean
+  defaultDuration?: number
+  durationOptions?: number[] // Valid duration values
+  aspectRatioOptions: ('16:9' | '9:16' | '1:1')[]
+  requiredInputs: string[] // e.g., ['prompt', 'image']
+  optionalInputs: string[] // e.g., ['first_frame_image', 'subject_reference']
+}
+
 export interface Segment {
   type: 'hook' | 'body' | 'cta'
   description: string
@@ -18,6 +34,7 @@ export interface Storyboard {
     aspectRatio: '16:9' | '9:16' | '1:1'
     style: string
     mode?: 'demo' | 'production'
+    model?: string // Video model ID (e.g., 'google/veo-3.1')
     firstFrameImage?: string // Global default first frame image path/URL
     subjectReference?: string // Global default subject reference image path/URL
   }
@@ -31,6 +48,18 @@ export interface Asset {
   voiceUrl?: string
   status: 'pending' | 'processing' | 'completed' | 'failed'
   error?: string
+  metadata?: {
+    predictionId?: string
+    replicateVideoUrl?: string
+    voiceUrl?: string
+    segmentIndex?: number
+    segmentType?: string
+    startTime?: number
+    endTime?: number
+    duration?: number
+    timestamp?: number
+    [key: string]: any // Allow additional metadata fields
+  }
 }
 
 export interface GenerationJob {
@@ -55,6 +84,7 @@ export interface ParsedPrompt {
     aspectRatio: '16:9' | '9:16' | '1:1'
     style: string
     mode?: 'demo' | 'production'
+    model?: string // Video model ID
     firstFrameImage?: string
     subjectReference?: string
   }

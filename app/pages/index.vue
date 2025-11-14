@@ -283,9 +283,20 @@ const handleSubmit = async (formData: any) => {
       formDataToSend.append('subjectReference', formData.subjectReference)
     }
     
+    if (formData.inputImage instanceof File) {
+      formDataToSend.append('inputImage', formData.inputImage)
+    } else if (formData.inputImage) {
+      formDataToSend.append('inputImage', formData.inputImage)
+    }
+    
     // Add other fields
     formDataToSend.append('prompt', formData.prompt)
-    formDataToSend.append('duration', formData.duration.toString())
+    if (formData.model) {
+      formDataToSend.append('model', formData.model)
+    }
+    if (formData.duration) {
+      formDataToSend.append('duration', formData.duration.toString())
+    }
     formDataToSend.append('aspectRatio', formData.aspectRatio)
     formDataToSend.append('style', formData.style)
     if (formData.mode) {
@@ -293,21 +304,17 @@ const handleSubmit = async (formData: any) => {
     }
     
     // Use FormData if we have file uploads, otherwise use JSON
-    const hasFiles = formData.firstFrameImage instanceof File || formData.subjectReference instanceof File
+    const hasFiles = formData.firstFrameImage instanceof File || formData.subjectReference instanceof File || formData.inputImage instanceof File
     
     const parsed = await $fetch('/api/parse-prompt', {
       method: 'POST',
       body: hasFiles ? formDataToSend : formData,
     })
 
-    const storyboard = await $fetch('/api/plan-storyboard', {
-      method: 'POST',
-      body: { parsed },
-    })
-
-    // Store storyboard in sessionStorage to pass to generate page
+    // Navigate immediately after parse-prompt response to show loading on generate page
+    // Store parsed data in sessionStorage for generate page
     if (process.client) {
-      sessionStorage.setItem('storyboard', JSON.stringify(storyboard))
+      sessionStorage.setItem('parsedPrompt', JSON.stringify(parsed))
     }
 
     await navigateTo('/generate')
@@ -318,7 +325,6 @@ const handleSubmit = async (formData: any) => {
       description: errorMessage,
       color: 'error',
     })
-  } finally {
     isLoading.value = false
   }
 }

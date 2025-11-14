@@ -1,5 +1,5 @@
 import { getJob, saveJob } from '../generate-assets.post'
-import { callReplicateMCP, callElevenLabsMCP } from '../../utils/mcp-client'
+import { callReplicateMCP, callOpenAIMCP } from '../../utils/mcp-client'
 import { trackCost } from '../../utils/cost-tracker'
 import { saveAsset, readStoryboard } from '../../utils/storage'
 import { uploadFileToReplicate } from '../../utils/replicate-upload'
@@ -116,7 +116,9 @@ export default defineEventHandler(async (event) => {
       videoParams.subject_reference = await prepareImageInput(subjectReference)
     }
 
+    console.log(`[Retry Segment ${segmentId}] Calling Replicate MCP generate_video with params:`, JSON.stringify(videoParams, null, 2))
     const videoResult = await callReplicateMCP('generate_video', videoParams)
+    console.log(`[Retry Segment ${segmentId}] Replicate MCP generate_video response:`, JSON.stringify(videoResult, null, 2))
 
     await trackCost('video-generation', 0.15, {
       segmentId,
@@ -125,11 +127,28 @@ export default defineEventHandler(async (event) => {
 
     // Poll for completion
     let predictionStatus = videoResult
-    // Get the prediction ID from the initial response
-    const predictionId = predictionStatus.predictionId || predictionStatus.id
+    console.log(`[Retry Segment ${segmentId}] Initial prediction status:`, JSON.stringify(predictionStatus, null, 2))
+    
+    // Get the prediction ID from the initial response - try multiple possible fields
+    const predictionId = predictionStatus.predictionId || 
+                        predictionStatus.id || 
+                        predictionStatus.prediction?.id ||
+                        (predictionStatus as any)?.prediction_id
+                        
+    console.log(`[Retry Segment ${segmentId}] Extracted prediction ID:`, predictionId)
+    console.log(`[Retry Segment ${segmentId}] Full response keys:`, Object.keys(predictionStatus))
+    
     if (!predictionId) {
-      console.error('[Retry Segment] Invalid video result:', JSON.stringify(videoResult, null, 2))
-      throw new Error(`Invalid response from video generation: missing prediction ID`)
+      const errorDetails = {
+        segmentId,
+        response: videoResult,
+        responseKeys: Object.keys(videoResult || {}),
+        responseType: typeof videoResult,
+        isArray: Array.isArray(videoResult),
+        stringified: JSON.stringify(videoResult, null, 2),
+      }
+      console.error(`[Retry Segment ${segmentId}] Invalid video result - missing prediction ID:`, JSON.stringify(errorDetails, null, 2))
+      throw new Error(`Invalid response from video generation: missing prediction ID. Response: ${JSON.stringify(errorDetails)}`)
     }
     
     console.log('[Retry Segment] Starting prediction with ID:', predictionId)
@@ -158,25 +177,51 @@ export default defineEventHandler(async (event) => {
     // Retry voice if needed
     let voiceUrl: string | undefined
     if (segment.audioNotes) {
-      const voiceResult = await callElevenLabsMCP('text_to_speech', {
-        text: segment.audioNotes,
-        voice_id: '21m00Tcm4TlvDq8ikWAM',
-        model_id: 'eleven_monolingual_v1',
-      })
+      try {
+        const voiceResult = await callOpenAIMCP('text_to_speech', {
+          text: segment.audioNotes,
+          voice: 'alloy',
+          model: 'tts-1',
+        })
 
-      if (!voiceResult?.audioBase64) {
-        console.error('[Retry Segment] No audioBase64 in voice result:', JSON.stringify(voiceResult, null, 2))
-        throw new Error('Voice synthesis completed but no audio data was returned')
+        if (!voiceResult?.audioBase64) {
+          console.error('[Retry Segment] No audioBase64 in voice result:', JSON.stringify(voiceResult, null, 2))
+          console.error('[Retry Segment] Voice result keys:', voiceResult ? Object.keys(voiceResult) : 'null')
+          // Don't fail the entire segment if voice synthesis fails - just log and continue
+          console.warn(`[Retry Segment ${segmentId}] Voice synthesis failed, continuing without audio`)
+        } else {
+          const audioBuffer = Buffer.from(voiceResult.audioBase64, 'base64')
+          const audioPath = await saveAsset(audioBuffer, 'mp3')
+          voiceUrl = audioPath
+
+          await trackCost('voice-synthesis', 0.05, {
+            segmentId,
+            retry: true,
+          })
+        }
+      } catch (voiceError: any) {
+        // Don't fail the entire segment if voice synthesis fails - just log and continue
+        console.error(`[Retry Segment ${segmentId}] Voice synthesis error:`, voiceError.message)
+        console.warn(`[Retry Segment ${segmentId}] Continuing without audio due to voice synthesis failure`)
       }
-      const audioBuffer = Buffer.from(voiceResult.audioBase64, 'base64')
-      const audioPath = await saveAsset(audioBuffer, 'mp3')
-      voiceUrl = audioPath
-
-      await trackCost('voice-synthesis', 0.05, {
-        segmentId,
-        retry: true,
-      })
     }
+
+    // Store metadata including prediction ID and video URL for frontend access
+    const metadata = {
+      predictionId,
+      videoUrl,
+      replicateVideoUrl: videoUrl, // Direct Replicate URL
+      voiceUrl,
+      segmentIndex: segmentId,
+      segmentType: segment.type,
+      startTime: segment.startTime,
+      endTime: segment.endTime,
+      duration: segment.endTime - segment.startTime,
+      timestamp: Date.now(),
+      retry: true,
+    }
+
+    console.log(`[Retry Segment ${segmentId}] Asset metadata:`, JSON.stringify(metadata, null, 2))
 
     // Update job asset
     if (job.assets) {
@@ -185,6 +230,7 @@ export default defineEventHandler(async (event) => {
         videoUrl,
         voiceUrl,
         status: 'completed',
+        metadata, // Include metadata for frontend access
       }
       job.status = job.assets.every(a => a.status === 'completed') ? 'completed' : 'processing'
       await saveJob(job)

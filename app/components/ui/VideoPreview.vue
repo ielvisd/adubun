@@ -95,6 +95,101 @@ const props = defineProps<{
 const videoRef = ref<HTMLVideoElement>()
 const toast = useToast()
 
+console.log('[VideoPreview] Component created')
+console.log('[VideoPreview] Props:', {
+  videoUrl: props.videoUrl,
+  duration: props.duration,
+  cost: props.cost,
+})
+
+onMounted(() => {
+  console.log('[VideoPreview] Component mounted')
+  console.log('[VideoPreview] Video element ref:', videoRef.value)
+  console.log('[VideoPreview] Video URL prop:', props.videoUrl)
+  
+  if (videoRef.value) {
+    console.log('[VideoPreview] Video element found in DOM')
+    console.log('[VideoPreview] Video element src:', videoRef.value.src)
+    console.log('[VideoPreview] Video element currentSrc:', videoRef.value.currentSrc)
+    
+    // Add event listeners
+    videoRef.value.addEventListener('loadstart', () => {
+      console.log('[VideoPreview] Video loadstart event')
+    })
+    
+    videoRef.value.addEventListener('loadedmetadata', () => {
+      console.log('[VideoPreview] Video loadedmetadata event')
+      console.log('[VideoPreview] Video duration:', videoRef.value?.duration)
+      console.log('[VideoPreview] Video videoWidth:', videoRef.value?.videoWidth)
+      console.log('[VideoPreview] Video videoHeight:', videoRef.value?.videoHeight)
+    })
+    
+    videoRef.value.addEventListener('loadeddata', () => {
+      console.log('[VideoPreview] Video loadeddata event')
+    })
+    
+    videoRef.value.addEventListener('canplay', () => {
+      console.log('[VideoPreview] Video canplay event - video is ready to play')
+    })
+    
+    videoRef.value.addEventListener('canplaythrough', () => {
+      console.log('[VideoPreview] Video canplaythrough event - video can play through without buffering')
+    })
+    
+    videoRef.value.addEventListener('play', () => {
+      console.log('[VideoPreview] Video play event')
+    })
+    
+    videoRef.value.addEventListener('playing', () => {
+      console.log('[VideoPreview] Video playing event')
+    })
+    
+    videoRef.value.addEventListener('pause', () => {
+      console.log('[VideoPreview] Video pause event')
+    })
+    
+    videoRef.value.addEventListener('waiting', () => {
+      console.warn('[VideoPreview] Video waiting event - buffering')
+    })
+    
+    videoRef.value.addEventListener('stalled', () => {
+      console.warn('[VideoPreview] Video stalled event - loading stalled')
+    })
+    
+    videoRef.value.addEventListener('error', (e) => {
+      console.error('[VideoPreview] Video error event')
+      console.error('[VideoPreview] Video error code:', videoRef.value?.error?.code)
+      console.error('[VideoPreview] Video error message:', videoRef.value?.error?.message)
+      console.error('[VideoPreview] Video error details:', {
+        code: videoRef.value?.error?.code,
+        message: videoRef.value?.error?.message,
+        MEDIA_ERR_ABORTED: videoRef.value?.error?.code === 1,
+        MEDIA_ERR_NETWORK: videoRef.value?.error?.code === 2,
+        MEDIA_ERR_DECODE: videoRef.value?.error?.code === 3,
+        MEDIA_ERR_SRC_NOT_SUPPORTED: videoRef.value?.error?.code === 4,
+      })
+    })
+    
+    videoRef.value.addEventListener('abort', () => {
+      console.warn('[VideoPreview] Video abort event')
+    })
+    
+    videoRef.value.addEventListener('emptied', () => {
+      console.warn('[VideoPreview] Video emptied event')
+    })
+  } else {
+    console.error('[VideoPreview] Video element not found in DOM')
+  }
+})
+
+watch(() => props.videoUrl, (newUrl) => {
+  console.log('[VideoPreview] Video URL prop changed:', newUrl)
+  if (videoRef.value) {
+    console.log('[VideoPreview] Updating video element src to:', newUrl)
+    videoRef.value.src = newUrl
+  }
+})
+
 const shareUrl = computed(() => {
   if (process.client) {
     return `${window.location.origin}/watch/${props.videoUrl.split('/').pop()}`

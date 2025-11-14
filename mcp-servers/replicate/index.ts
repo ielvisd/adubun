@@ -50,22 +50,75 @@ class ReplicateMCPServer {
     this.setupHandlers()
   }
 
+  /**
+   * Rounds duration to the nearest valid value for a specific model.
+   * 
+   * @param model - Model ID
+   * @param duration - Original duration in seconds
+   * @returns Rounded duration
+   */
+  private roundDurationToValidValue(model: string, duration: number): number {
+    // google/veo-3.1 only supports 4, 6, or 8 seconds
+    if (model === 'google/veo-3.1') {
+      if (duration < 4) {
+        return 4
+      }
+      if (duration > 8) {
+        return 8
+      }
+      // Round to nearest valid value: 4 if ≤5, 6 if 5-7, 8 if ≥7
+      if (duration <= 5) {
+        return 4
+      } else if (duration <= 7) {
+        return 6
+      } else {
+        return 8
+      }
+    }
+    
+    // minimax/hailuo-ai-v2.3 supports 3, 5, or 10 seconds
+    if (model === 'minimax/hailuo-ai-v2.3') {
+      if (duration < 3) {
+        return 3
+      }
+      if (duration > 10) {
+        return 10
+      }
+      // Round to nearest: 3 if ≤4, 5 if 4-7.5, 10 if ≥7.5
+      if (duration <= 4) {
+        return 3
+      } else if (duration <= 7.5) {
+        return 5
+      } else {
+        return 10
+      }
+    }
+    
+    // For other models, return as-is or apply default constraints
+    return duration
+  }
+
   private setupHandlers() {
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: [
         {
           name: 'generate_video',
-          description: 'Generate video using Replicate minimax/video-01 model',
+          description: 'Generate video using Replicate models (google/veo-3.1, runway/gen-3-alpha-turbo, stability-ai/stable-video-diffusion, minimax/hailuo-ai-v2.3, anotherbyte/seedance-1.0)',
           inputSchema: {
             type: 'object',
             properties: {
+              model: {
+                type: 'string',
+                description: 'Replicate model ID (e.g., google/veo-3.1). Defaults to google/veo-3.1',
+                default: 'google/veo-3.1',
+              },
               prompt: {
                 type: 'string',
-                description: 'Video generation prompt',
+                description: 'Video generation prompt (required for text-to-video models)',
               },
               duration: {
                 type: 'number',
-                description: 'Duration in seconds',
+                description: 'Duration in seconds (model-specific constraints apply)',
                 default: 6,
               },
               aspect_ratio: {
@@ -75,14 +128,26 @@ class ReplicateMCPServer {
               },
               first_frame_image: {
                 type: 'string',
-                description: 'File path or URL to first frame image for video generation. The output video will have the same aspect ratio as this image.',
+                description: 'File path or URL to first frame image for video generation (for models that support it).',
               },
               subject_reference: {
                 type: 'string',
-                description: 'An optional character reference image to use as the subject in the generated video (uses S2V-01 model). File path or URL.',
+                description: 'An optional character reference image to use as the subject in the generated video (for models that support it). File path or URL.',
+              },
+              image: {
+                type: 'string',
+                description: 'Input image for image-to-video generation (for models that support image-to-video). File path or URL.',
+              },
+              motion_bucket_id: {
+                type: 'number',
+                description: 'Motion bucket ID for stable-video-diffusion model',
+              },
+              cond_aug: {
+                type: 'number',
+                description: 'Condition augmentation for stable-video-diffusion model',
               },
             },
-            required: ['prompt'],
+            required: [],
           },
         },
         {
@@ -123,11 +188,15 @@ class ReplicateMCPServer {
         switch (name) {
           case 'generate_video':
             return await this.generateVideo(
+              args.model || 'google/veo-3.1',
               args.prompt,
               args.duration || 6,
               args.aspect_ratio || '16:9',
               args.first_frame_image,
-              args.subject_reference
+              args.subject_reference,
+              args.image,
+              args.motion_bucket_id,
+              args.cond_aug
             )
           
           case 'check_prediction_status':
@@ -155,39 +224,133 @@ class ReplicateMCPServer {
   }
 
   private async generateVideo(
-    prompt: string,
-    duration: number,
-    aspectRatio: string,
+    model: string,
+    prompt?: string,
+    duration?: number,
+    aspectRatio?: string,
     firstFrameImage?: string,
-    subjectReference?: string
+    subjectReference?: string,
+    image?: string,
+    motionBucketId?: number,
+    condAug?: number
   ) {
-    const input: any = {
-      prompt,
-      duration,
-      aspect_ratio: aspectRatio,
+    // Default model
+    const modelId = model || 'google/veo-3.1'
+    
+    // Build input based on model requirements
+    const input: any = {}
+    
+    // Handle duration - round if needed
+    if (duration !== undefined) {
+      const originalDuration = duration
+      const roundedDuration = this.roundDurationToValidValue(modelId, duration)
+      
+      // Log duration adjustment if it changed
+      if (roundedDuration !== originalDuration) {
+        const difference = Math.abs(roundedDuration - originalDuration)
+        if (difference > 2) {
+          console.error(`[Replicate MCP] WARNING: Significant duration adjustment: ${originalDuration}s → ${roundedDuration}s (difference: ${difference}s)`)
+        } else {
+          console.error(`[Replicate MCP] Duration adjusted: ${originalDuration}s → ${roundedDuration}s`)
+        }
+      }
+      
+      // Only add duration if model supports it
+      if (modelId === 'google/veo-3.1' || modelId === 'minimax/hailuo-ai-v2.3') {
+        input.duration = roundedDuration
+      }
     }
-
-    // Add image inputs if provided (should already be URLs from API endpoint)
-    if (firstFrameImage) {
-      input.first_frame_image = firstFrameImage
+    
+    // Handle aspect ratio
+    if (aspectRatio) {
+      input.aspect_ratio = aspectRatio
     }
-    if (subjectReference) {
-      input.subject_reference = subjectReference
+    
+    // Model-specific input handling
+    if (modelId === 'google/veo-3.1') {
+      // Veo 3.1 supports prompt, first_frame_image, subject_reference
+      if (prompt) {
+        input.prompt = prompt
+      }
+      if (firstFrameImage) {
+        input.first_frame_image = firstFrameImage
+      }
+      if (subjectReference) {
+        input.subject_reference = subjectReference
+      }
+    } else if (modelId === 'runway/gen-3-alpha-turbo') {
+      // Runway Gen-3 supports prompt and optional image
+      if (prompt) {
+        input.prompt = prompt
+      }
+      if (image) {
+        input.image = image
+      }
+    } else if (modelId === 'stability-ai/stable-video-diffusion') {
+      // Stable Video Diffusion requires image, optional motion_bucket_id and cond_aug
+      if (image) {
+        input.image = image
+      }
+      if (motionBucketId !== undefined) {
+        input.motion_bucket_id = motionBucketId
+      }
+      if (condAug !== undefined) {
+        input.cond_aug = condAug
+      }
+    } else if (modelId === 'minimax/hailuo-ai-v2.3') {
+      // Hailuo supports prompt and duration
+      if (prompt) {
+        input.prompt = prompt
+      }
+    } else if (modelId === 'anotherbyte/seedance-1.0') {
+      // Seedance supports prompt and optional image
+      if (prompt) {
+        input.prompt = prompt
+      }
+      if (image) {
+        input.image = image
+      }
+    } else {
+      // Default: try to use prompt and common fields
+      if (prompt) {
+        input.prompt = prompt
+      }
+      if (image) {
+        input.image = image
+      }
     }
+    
+    console.error(`[Replicate MCP] Creating prediction with model: ${modelId}`)
+    console.error('[Replicate MCP] Input params:', JSON.stringify(input, null, 2))
+    
     const prediction = await replicate.predictions.create({
-      model: 'minimax/video-01',
+      model: modelId,
       input,
     })
+
+    console.error('[Replicate MCP] Prediction created:', JSON.stringify({
+      id: prediction.id,
+      status: prediction.status,
+      createdAt: prediction.created_at,
+      urls: prediction.urls,
+      model: prediction.model,
+      version: prediction.version,
+    }, null, 2))
+
+    const response = {
+      predictionId: prediction.id,
+      id: prediction.id, // Also include as 'id' for compatibility
+      status: prediction.status,
+      createdAt: prediction.created_at,
+    }
+
+    console.error('[Replicate MCP] Returning response:', JSON.stringify(response, null, 2))
 
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify({
-            predictionId: prediction.id,
-            status: prediction.status,
-            createdAt: prediction.created_at,
-          }),
+          text: JSON.stringify(response),
         },
       ],
     }

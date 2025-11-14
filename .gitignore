@@ -22,3 +22,7 @@ logs
 .env
 .env.*
 !.env.example
+
+# Generated assets and storyboards
+data/assets/
+data/storyboards/

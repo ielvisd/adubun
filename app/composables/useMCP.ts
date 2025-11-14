@@ -1,4 +1,4 @@
-import { callReplicateMCP, callOpenAIMCP, callElevenLabsMCP } from '~/server/utils/mcp-client'
+import { callReplicateMCP, callOpenAIMCP } from '~/server/utils/mcp-client'
 
 export const useMCP = () => {
   // Replicate operations
@@ -55,25 +55,17 @@ export const useMCP = () => {
     return JSON.parse(result.content)
   }
 
-  // ElevenLabs operations
+  // OpenAI TTS operations
   const textToSpeech = async (
     text: string,
-    voiceId: string = '21m00Tcm4TlvDq8ikWAM',
-    modelId: string = 'eleven_monolingual_v1'
+    voice: string = 'alloy',
+    model: string = 'tts-1'
   ) => {
-    return await callElevenLabsMCP('text_to_speech', {
+    return await callOpenAIMCP('text_to_speech', {
       text,
-      voice_id: voiceId,
-      model_id: modelId,
+      voice,
+      model,
     })
-  }
-
-  const getVoiceList = async () => {
-    return await callElevenLabsMCP('get_voice_list', {})
-  }
-
-  const getVoiceSettings = async (voiceId: string) => {
-    return await callElevenLabsMCP('get_voice_settings', { voice_id: voiceId })
   }
 
   return {
@@ -85,10 +77,7 @@ export const useMCP = () => {
     chatCompletion,
     parsePrompt,
     planStoryboard,
-    // ElevenLabs
     textToSpeech,
-    getVoiceList,
-    getVoiceSettings,
   }
 }
 

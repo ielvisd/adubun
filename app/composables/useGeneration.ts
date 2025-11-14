@@ -44,10 +44,22 @@ export const useGeneration = () => {
       try {
         const progress = await $fetch(`/api/generation-status/${jobId.value}`)
         
-        segments.value = progress.segments.map((seg: any) => ({
-          ...segments.value.find(s => s.segmentId === seg.segmentId),
-          ...seg,
-        }))
+        segments.value = progress.segments.map((seg: any) => {
+          const existing = segments.value.find(s => s.segmentId === seg.segmentId)
+          const merged = {
+            ...existing,
+            ...seg,
+            // Preserve metadata if present
+            metadata: seg.metadata || existing?.metadata,
+          }
+          
+          // Log metadata when available
+          if (seg.metadata) {
+            console.log(`[Generation] Segment ${seg.segmentId} metadata:`, seg.metadata)
+          }
+          
+          return merged
+        })
         overallProgress.value = progress.overallProgress
         overallError.value = progress.error
         

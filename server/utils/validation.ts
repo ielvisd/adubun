@@ -2,12 +2,14 @@ import { z } from 'zod'
 
 export const parsePromptSchema = z.object({
   prompt: z.string().min(10).max(1000),
-  duration: z.number().min(15).max(180),
+  model: z.string().optional(), // Video model ID
+  duration: z.number().min(15).max(180).optional(),
   aspectRatio: z.enum(['16:9', '9:16', '1:1']),
   style: z.string().min(1),
   mode: z.enum(['demo', 'production']).optional(),
   firstFrameImage: z.string().optional().nullable(),
   subjectReference: z.string().optional().nullable(),
+  inputImage: z.string().optional().nullable(), // Generic image input for some models
 })
 
 export const planStoryboardSchema = z.object({
@@ -25,6 +27,7 @@ export const planStoryboardSchema = z.object({
       mode: z.enum(['demo', 'production']).optional(),
       firstFrameImage: z.string().optional().nullable(),
       subjectReference: z.string().optional().nullable(),
+      model: z.string().optional(), // Video model ID
     }),
   }),
 })
@@ -51,6 +54,7 @@ export const generateAssetsSchema = z.object({
       mode: z.enum(['demo', 'production']).optional(),
       firstFrameImage: z.string().optional().nullable(),
       subjectReference: z.string().optional().nullable(),
+      model: z.string().optional(), // Video model ID
     }),
   }),
 })

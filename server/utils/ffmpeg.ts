@@ -21,10 +21,16 @@ export async function composeVideo(
   options: CompositionOptions
 ): Promise<string> {
   return new Promise((resolve, reject) => {
+    console.log('[FFmpeg] Starting video composition')
+    console.log('[FFmpeg] Clips count:', clips.length)
+    console.log('[FFmpeg] Clips with audio:', clips.filter(c => c.voicePath).length)
+    console.log('[FFmpeg] Options:', JSON.stringify(options, null, 2))
+    
     const command = ffmpeg()
 
     // Add video inputs
-    clips.forEach((clip) => {
+    clips.forEach((clip, idx) => {
+      console.log(`[FFmpeg] Adding input ${idx}: video=${clip.localPath}, audio=${clip.voicePath || 'none'}`)
       command.input(clip.localPath)
       if (clip.voicePath) {
         command.input(clip.voicePath)
@@ -33,6 +39,7 @@ export async function composeVideo(
 
     // Build filter complex
     const filterComplex = buildFilterComplex(clips, options)
+    console.log('[FFmpeg] Filter complex:', filterComplex)
     command.complexFilter(filterComplex)
 
     // Output settings
@@ -48,8 +55,22 @@ export async function composeVideo(
         '-map [outa]',
       ])
       .output(options.outputPath)
-      .on('end', () => resolve(options.outputPath))
-      .on('error', (err) => reject(err))
+      .on('start', (commandLine) => {
+        console.log('[FFmpeg] Command started:', commandLine)
+      })
+      .on('progress', (progress) => {
+        console.log('[FFmpeg] Progress:', JSON.stringify(progress, null, 2))
+      })
+      .on('end', () => {
+        console.log('[FFmpeg] Composition completed successfully')
+        resolve(options.outputPath)
+      })
+      .on('error', (err, stdout, stderr) => {
+        console.error('[FFmpeg] Error occurred:', err.message)
+        console.error('[FFmpeg] Stdout:', stdout)
+        console.error('[FFmpeg] Stderr:', stderr)
+        reject(err)
+      })
       .run()
   })
 }
@@ -88,15 +109,21 @@ function buildFilterComplex(clips: Clip[], options: CompositionOptions): string[
   clips.forEach((clip, idx) => {
     if (clip.voicePath) {
       const audioIdx = clips.length + idx
-      filters.push(`[${audioIdx}:a]volume=${options.musicVolume / 100}[a${idx}]`)
+      const volume = options.musicVolume / 100
+      console.log(`[FFmpeg] Adding audio input ${idx} from clip ${idx}, audio index ${audioIdx}, volume ${volume}`)
+      filters.push(`[${audioIdx}:a]volume=${volume}[a${idx}]`)
       audioInputs.push(`[a${idx}]`)
+    } else {
+      console.log(`[FFmpeg] Clip ${idx} has no audio (voicePath missing)`)
     }
   })
 
   if (audioInputs.length > 0) {
+    console.log(`[FFmpeg] Mixing ${audioInputs.length} audio inputs`)
     filters.push(`${audioInputs.join('')}amix=inputs=${audioInputs.length}:duration=longest[outa]`)
   } else {
     // No audio, create silent track
+    console.log('[FFmpeg] No audio inputs found, creating silent track')
     filters.push(`anullsrc=channel_layout=stereo:sample_rate=48000[outa]`)
   }
 
