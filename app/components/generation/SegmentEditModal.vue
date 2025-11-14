@@ -37,12 +37,26 @@
           </UFormField>
         </div>
 
+        <!-- Prompt Selection -->
+        <div v-if="form.visualPromptAlternatives && form.visualPromptAlternatives.length > 0" class="mb-4">
+          <UFormField label="Select Visual Prompt" name="selectedPromptIndex">
+            <URadioGroup
+              v-model="form.selectedPromptIndex"
+              :options="promptOptions"
+              @update:model-value="updateSelectedPrompt"
+            />
+          </UFormField>
+        </div>
+
         <UFormField label="Visual Prompt" name="visualPrompt" required>
           <UTextarea
             v-model="form.visualPrompt"
             placeholder="Detailed visual description for video generation..."
             :rows="4"
           />
+          <p v-if="form.visualPromptAlternatives && form.visualPromptAlternatives.length > 0" class="text-xs text-gray-500 mt-1">
+            You can edit the selected prompt above, or choose a different alternative.
+          </p>
         </UFormField>
 
         <UFormField label="Audio Notes" name="audioNotes">
@@ -152,10 +166,52 @@ const form = reactive<Segment & { audioNotes?: string }>({
   startTime: 0,
   endTime: 0,
   visualPrompt: '',
+  visualPromptAlternatives: undefined,
+  selectedPromptIndex: undefined,
   audioNotes: '',
   firstFrameImage: undefined,
   subjectReference: undefined,
 })
+
+// Prompt options for radio group
+const promptOptions = computed(() => {
+  const options: Array<{ label: string; value: number }> = []
+  
+  // Add primary prompt option
+  options.push({
+    label: 'Primary Prompt',
+    value: 0,
+  })
+  
+  // Add alternative prompts
+  if (form.visualPromptAlternatives && form.visualPromptAlternatives.length > 0) {
+    form.visualPromptAlternatives.forEach((alt, idx) => {
+      options.push({
+        label: `Alternative ${idx + 1}`,
+        value: idx + 1,
+      })
+    })
+  }
+  
+  return options
+})
+
+// Update selected prompt when radio selection changes
+const updateSelectedPrompt = (value: number) => {
+  if (value === 0) {
+    // Use primary prompt - restore original if it was changed
+    if (props.segment) {
+      form.visualPrompt = props.segment.visualPrompt
+    }
+  } else {
+    // Use alternative prompt
+    const altIndex = value - 1
+    if (form.visualPromptAlternatives && form.visualPromptAlternatives[altIndex]) {
+      form.visualPrompt = form.visualPromptAlternatives[altIndex]
+    }
+  }
+  form.selectedPromptIndex = value
+}
 
 // Watch for segment changes and populate form
 watch(() => props.segment, (newSegment) => {
@@ -164,7 +220,21 @@ watch(() => props.segment, (newSegment) => {
     form.description = newSegment.description
     form.startTime = newSegment.startTime
     form.endTime = newSegment.endTime
-    form.visualPrompt = newSegment.visualPrompt
+    form.visualPromptAlternatives = newSegment.visualPromptAlternatives
+    form.selectedPromptIndex = newSegment.selectedPromptIndex ?? 0
+    
+    // Set visual prompt based on selected index
+    if (form.selectedPromptIndex === 0 || form.selectedPromptIndex === undefined) {
+      form.visualPrompt = newSegment.visualPrompt
+    } else {
+      const altIndex = form.selectedPromptIndex - 1
+      if (form.visualPromptAlternatives && form.visualPromptAlternatives[altIndex]) {
+        form.visualPrompt = form.visualPromptAlternatives[altIndex]
+      } else {
+        form.visualPrompt = newSegment.visualPrompt
+      }
+    }
+    
     form.audioNotes = newSegment.audioNotes || ''
     form.firstFrameImage = newSegment.firstFrameImage
     form.subjectReference = newSegment.subjectReference
@@ -216,6 +286,8 @@ const handleSave = async (event: any) => {
       startTime: validated.startTime,
       endTime: validated.endTime,
       visualPrompt: validated.visualPrompt,
+      ...(form.visualPromptAlternatives ? { visualPromptAlternatives: form.visualPromptAlternatives } : {}),
+      ...(form.selectedPromptIndex !== undefined ? { selectedPromptIndex: form.selectedPromptIndex } : {}),
       ...(validated.audioNotes ? { audioNotes: validated.audioNotes } : {}),
       ...(validated.firstFrameImage ? { firstFrameImage: validated.firstFrameImage } : {}),
       ...(validated.subjectReference ? { subjectReference: validated.subjectReference } : {}),

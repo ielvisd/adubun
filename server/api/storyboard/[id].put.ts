@@ -16,6 +16,11 @@ export default defineEventHandler(async (event) => {
     const updated = {
       ...existing,
       ...body,
+      // Merge meta object if provided
+      meta: body.meta ? {
+        ...existing.meta,
+        ...body.meta,
+      } : existing.meta,
       updatedAt: Date.now(),
     }
 

@@ -11,15 +11,29 @@
       <!-- Storyboard content -->
       <template v-else>
         <div v-if="storyboard" class="mb-6">
-          <UBadge 
-            :color="storyboard.meta.mode === 'demo' ? 'yellow' : 'green'"
-            variant="subtle"
-            size="lg"
-          >
-            {{ storyboard.meta.mode === 'demo' ? 'Demo Mode' : 'Production Mode' }}
-          </UBadge>
-          <p v-if="storyboard.meta.mode === 'demo'" class="text-sm text-gray-600 mt-2">
+          <div class="flex items-center gap-4 mb-2">
+            <UBadge 
+              :color="storyboard.meta.mode === 'demo' ? 'yellow' : 'green'"
+              variant="subtle"
+              size="lg"
+            >
+              {{ storyboard.meta.mode === 'demo' ? 'Demo Mode' : 'Production Mode' }}
+            </UBadge>
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium text-gray-700">Demo</span>
+              <USwitch
+                v-model="isProductionMode"
+                :disabled="generationStarted"
+                @update:model-value="handleModeChange"
+              />
+              <span class="text-sm font-medium text-gray-700">Production</span>
+            </div>
+          </div>
+          <p v-if="storyboard.meta.mode === 'demo'" class="text-sm text-gray-600">
             All scenes are shown in the storyboard, but only the first scene will be generated.
+          </p>
+          <p v-else class="text-sm text-gray-600">
+            All scenes in the storyboard will be generated.
           </p>
           <div v-if="storyboard.meta.firstFrameImage || storyboard.meta.subjectReference" class="mt-4 text-sm text-gray-600">
             <p v-if="storyboard.meta.firstFrameImage" class="mb-1">
@@ -34,7 +48,15 @@
         <StoryboardView
           v-if="storyboard"
           :storyboard="storyboard"
+          :assets="completedAssets"
           @edit="handleEditSegment"
+          @prompt-selected="handlePromptSelected"
+        />
+
+        <AudioScriptView
+          v-if="storyboard"
+          :segments="storyboard.segments"
+          class="mt-6"
         />
 
         <GenerationProgress
@@ -80,6 +102,7 @@
 
 <script setup lang="ts">
 import StoryboardView from '~/components/generation/StoryboardView.vue'
+import AudioScriptView from '~/components/generation/AudioScriptView.vue'
 import GenerationProgress from '~/components/ui/GenerationProgress.vue'
 import CompositionTimeline from '~/components/generation/CompositionTimeline.vue'
 import SegmentEditModal from '~/components/generation/SegmentEditModal.vue'
@@ -99,6 +122,70 @@ const selectedSegmentIndex = ref<number | null>(null)
 
 const { segments, overallProgress, status, overallError, startGeneration: startGen } = useGeneration()
 const { currentCost, estimatedTotal, startPolling } = useCostTracking()
+const toast = useToast()
+
+// Mode toggle state
+const isProductionMode = computed({
+  get: () => storyboard.value?.meta.mode === 'production',
+  set: (value) => {
+    // This will be handled by handleModeChange
+  }
+})
+
+// Handle mode change
+const handleModeChange = async (value: boolean) => {
+  if (!storyboard.value) return
+  
+  const newMode = value ? 'production' : 'demo'
+  const oldMode = storyboard.value.meta.mode
+  
+  // Optimistically update local state
+  storyboard.value.meta.mode = newMode
+  
+  try {
+    // Update backend
+    await $fetch(`/api/storyboard/${storyboard.value.id}`, {
+      method: 'PUT',
+      body: {
+        meta: {
+          ...storyboard.value.meta,
+          mode: newMode,
+        },
+      },
+    })
+    
+    toast.add({
+      title: 'Mode updated',
+      description: `Switched to ${newMode} mode`,
+      color: 'success',
+    })
+  } catch (error: any) {
+    // Revert on error
+    storyboard.value.meta.mode = oldMode
+    
+    toast.add({
+      title: 'Failed to update mode',
+      description: error.message || 'Could not update mode. Please try again.',
+      color: 'error',
+    })
+  }
+}
+
+// Map completed segments to assets format for StoryboardView
+const completedAssets = computed(() => {
+  if (!segments.value || segments.value.length === 0) {
+    return []
+  }
+  
+  return segments.value
+    .filter((s: any) => s.status === 'completed')
+    .map((s: any) => ({
+      segmentId: s.segmentId,
+      videoUrl: s.videoUrl || s.metadata?.videoUrl || s.metadata?.replicateVideoUrl,
+      voiceUrl: s.voiceUrl || s.metadata?.voiceUrl,
+      metadata: s.metadata,
+    }))
+})
 
 // Start cost polling and load storyboard
 onMounted(async () => {
@@ -308,7 +395,6 @@ const handleCompose = async (options: any) => {
 
 const handleEditSegment = (index: number) => {
   if (!storyboard.value || !storyboard.value.segments[index]) {
-    const toast = useToast()
     toast.add({
       title: 'Error',
       description: 'Segment not found',
@@ -320,6 +406,34 @@ const handleEditSegment = (index: number) => {
   selectedSegment.value = { ...storyboard.value.segments[index] }
   selectedSegmentIndex.value = index
   editModalOpen.value = true
+}
+
+const handlePromptSelected = async (segmentIdx: number, promptIndex: number) => {
+  if (!storyboard.value || !storyboard.value.segments[segmentIdx]) {
+    return
+  }
+
+  // Update local state
+  storyboard.value.segments[segmentIdx].selectedPromptIndex = promptIndex
+
+  try {
+    // Update backend
+    await $fetch(`/api/storyboard/${storyboard.value.id}`, {
+      method: 'PUT',
+      body: {
+        segments: storyboard.value.segments,
+      },
+    })
+  } catch (error: any) {
+    // Revert on error
+    storyboard.value.segments[segmentIdx].selectedPromptIndex = undefined
+    
+    toast.add({
+      title: 'Failed to update prompt',
+      description: error.message || 'Could not update prompt selection. Please try again.',
+      color: 'error',
+    })
+  }
 }
 
 const handleSegmentSaved = async (updatedSegment: Segment, index: number) => {

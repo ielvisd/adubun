@@ -967,5 +967,184 @@
       "segmentId": 0,
       "textLength": 87
     }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763153991185,
+    "metadata": {
+      "prompt": "Make a product showcase video for minimalist skincare brand with clean white backgrounds"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763153991267,
+    "metadata": {
+      "duration": 5
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763154013307,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 1.5
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763154143779,
+    "metadata": {
+      "segmentId": 0,
+      "textLength": 55
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763154757012,
+    "metadata": {
+      "prompt": "Instagram ad for luxury watches with elegant gold aesthetics"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763154757066,
+    "metadata": {
+      "duration": 5
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763154788605,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 1.5
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763154919571,
+    "metadata": {
+      "segmentId": 0,
+      "textLength": 57
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763155793989,
+    "metadata": {
+      "prompt": "Generate a TikTok ad for energy drinks with extreme sports footage"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763155794061,
+    "metadata": {
+      "duration": 6
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763155867130,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 2
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763155946800,
+    "metadata": {
+      "segmentId": 0,
+      "textLength": 48
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763156260727,
+    "metadata": {
+      "prompt": "Generate a TikTok ad for energy drinks with extreme sports footage"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763156260788,
+    "metadata": {
+      "duration": 8
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763156302499,
+    "metadata": {
+      "segmentId": 2,
+      "duration": 2
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763156302500,
+    "metadata": {
+      "segmentId": 1,
+      "duration": 4
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763156302514,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 2
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763156394873,
+    "metadata": {
+      "segmentId": 2,
+      "textLength": 28
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763157883117,
+    "metadata": {
+      "prompt": "Make a product showcase video for minimalist skincare brand with clean white backgrounds"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763157883172,
+    "metadata": {
+      "duration": 10
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763157940051,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 2
+    }
   }
 ]

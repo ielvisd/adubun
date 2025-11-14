@@ -152,6 +152,21 @@ class OpenAIMCPServer {
             required: ['text'],
           },
         },
+        {
+          name: 'analyze_frames',
+          description: 'Analyze multiple video frames and select the best one for continuity',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              frameUrls: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Array of 3 frame image URLs or file paths',
+              },
+            },
+            required: ['frameUrls'],
+          },
+        },
       ],
     }))
 
@@ -179,6 +194,9 @@ class OpenAIMCPServer {
               args.voice || 'alloy',
               args.model || 'tts-1'
             )
+          
+          case 'analyze_frames':
+            return await this.analyzeFrames(args.frameUrls)
           
           default:
             throw new Error(`Unknown tool: ${name}`)
@@ -295,13 +313,42 @@ Return ONLY valid JSON, no other text. Example format:
 - description: Shot description
 - startTime: number (seconds)
 - endTime: number (seconds)
-- visualPrompt: Detailed prompt for image/video generation
-- audioNotes: VO script or music cues
+- visualPrompt: Detailed, specific prompt for video generation (this will be the primary/default prompt). Must include:
+  * Specific camera angles and movements (close-up, wide shot, pan, zoom, etc.)
+  * Lighting details (soft natural light, studio lighting, etc.)
+  * Composition and framing details
+  * Realistic, natural actions and movements
+  * Product placement and interaction details
+  * Background and setting specifics
+  * Avoid abstract or unrealistic descriptions - focus on professional, realistic product showcase
+- visualPromptAlternatives: Array of 3-5 alternative visual prompts for this segment. Each alternative should:
+  * Offer a different creative approach (different camera angle, lighting, composition, or perspective)
+  * Maintain the same core message and product focus
+  * Be equally detailed and specific as the primary visualPrompt
+  * Provide variety in visual style while staying true to the segment's purpose
+- audioNotes: Format as "Voiceover: [actual script text to be spoken]" OR "Music: [description of music/sound effects]". 
+  CRITICAL: For voiceover segments, provide ONLY the actual script text that will be spoken by a narrator, NOT descriptive notes.
+  The voiceover text will be converted to speech using text-to-speech, so it must be natural, conversational script text.
+  
+  CORRECT examples:
+  - "Voiceover: Discover the luxury watch collection that defines elegance. Each timepiece is crafted with precision and passion."
+  - "Voiceover: Transform your fitness journey today. Join thousands who have achieved their goals with our revolutionary program."
+  - "Music: Upbeat electronic music. Voiceover: Experience the future of technology in your hands."
+  
+  INCORRECT examples (DO NOT USE):
+  - "Voiceover: A narrator describes the product features" (this is a description, not script)
+  - "Voiceover: The voiceover explains the benefits" (this is a description, not script)
+  - "A professional voiceover discusses the product" (this is a description, not script)
+  
+  If there's both music and voiceover, format as: "Music: [description]. Voiceover: [actual script text to be spoken]"
+  If there's only music, format as: "Music: [description of music/sound effects]"
 
 Duration: ${duration}s
 Style: ${style}
 
-Return JSON with a "segments" array.`
+Return JSON with a "segments" array. Each segment must include:
+- visualPrompt (string): The primary/default visual prompt
+- visualPromptAlternatives (array of strings): 3-5 alternative visual prompts for user selection`
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -361,6 +408,128 @@ Return JSON with a "segments" array.`
       }
     } catch (error: any) {
       console.error('[OpenAI MCP] textToSpeech error:', error.message)
+      if (error.response) {
+        console.error('[OpenAI MCP] API response status:', error.response.status)
+        console.error('[OpenAI MCP] API response data:', error.response.data)
+      }
+      throw error
+    }
+  }
+
+  private async analyzeFrames(frameUrls: string[]) {
+    try {
+      if (!process.env.OPENAI_API_KEY) {
+        throw new Error('OPENAI_API_KEY environment variable is not set')
+      }
+
+      if (!frameUrls || frameUrls.length !== 3) {
+        throw new Error('analyze_frames requires exactly 3 frame URLs')
+      }
+
+      // Helper function to convert file path or URL to base64 image
+      const getImageBase64 = async (urlOrPath: string): Promise<string> => {
+        // If it's a URL (http/https), fetch it
+        if (urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://')) {
+          const response = await fetch(urlOrPath)
+          if (!response.ok) {
+            throw new Error(`Failed to fetch image from URL: ${urlOrPath}`)
+          }
+          const buffer = Buffer.from(await response.arrayBuffer())
+          return buffer.toString('base64')
+        }
+        
+        // If it's a local file path, read it
+        const fs = await import('fs/promises')
+        const fileBuffer = await fs.readFile(urlOrPath)
+        return fileBuffer.toString('base64')
+      }
+
+      // Convert all frames to base64
+      const frameImages = await Promise.all(
+        frameUrls.map(async (url, index) => {
+          try {
+            const base64 = await getImageBase64(url)
+            return {
+              type: 'image_url' as const,
+              image_url: {
+                url: `data:image/jpeg;base64,${base64}`,
+              },
+            }
+          } catch (error: any) {
+            console.error(`[OpenAI MCP] Failed to load frame ${index + 1} from ${url}:`, error.message)
+            throw new Error(`Failed to load frame ${index + 1}: ${error.message}`)
+          }
+        })
+      )
+
+      const systemPrompt = `You are analyzing 3 frames extracted from the end of a video segment. Your task is to select the frame (1, 2, or 3) that best represents the final state and would work best as a starting point for the next video segment in a commercial advertisement.
+
+Consider:
+- Visual composition and clarity
+- Narrative continuity (how well it transitions to the next scene)
+- Product visibility and positioning
+- Overall aesthetic quality
+- Frame stability (avoid blurry or motion-blurred frames)
+
+Return your response as a JSON object with:
+- selectedFrame: 1, 2, or 3 (the index of the best frame)
+- reasoning: A brief explanation of why this frame was selected`
+
+      const userMessage = `Analyze these 3 frames from the end of a video segment. Frame 1 is 1 second from the end, Frame 2 is 0.5 seconds from the end, and Frame 3 is at the very end. Select the frame that would work best as a starting point for the next video segment.`
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: userMessage },
+              ...frameImages,
+            ],
+          },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.3,
+      })
+
+      const content = completion.choices[0]?.message?.content
+      if (!content) {
+        throw new Error('No content in OpenAI completion response')
+      }
+
+      // Parse and validate the response
+      let parsed: { selectedFrame: number; reasoning: string }
+      try {
+        parsed = JSON.parse(content)
+        if (typeof parsed.selectedFrame !== 'number' || parsed.selectedFrame < 1 || parsed.selectedFrame > 3) {
+          throw new Error('Invalid selectedFrame value (must be 1, 2, or 3)')
+        }
+        if (typeof parsed.reasoning !== 'string') {
+          throw new Error('Missing or invalid reasoning field')
+        }
+      } catch (parseError: any) {
+        console.error('[OpenAI MCP] Invalid JSON response from analyze_frames:', content)
+        throw new Error(`OpenAI returned invalid response: ${parseError.message}`)
+      }
+
+      // Convert to 0-based index for array access
+      const selectedFrameIndex = parsed.selectedFrame - 1
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              selectedFrame: parsed.selectedFrame,
+              selectedFrameIndex,
+              reasoning: parsed.reasoning,
+            }),
+          },
+        ],
+      }
+    } catch (error: any) {
+      console.error('[OpenAI MCP] analyzeFrames error:', error.message)
       if (error.response) {
         console.error('[OpenAI MCP] API response status:', error.response.status)
         console.error('[OpenAI MCP] API response data:', error.response.data)

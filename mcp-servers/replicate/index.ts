@@ -58,7 +58,7 @@ class ReplicateMCPServer {
    * @returns Rounded duration
    */
   private roundDurationToValidValue(model: string, duration: number): number {
-    if (model === 'google/veo-3.1') {
+    if (model === 'google/veo-3.1' || model === 'google/veo-3-fast') {
       if (duration < 4) {
         return 4
       }
@@ -296,7 +296,7 @@ class ReplicateMCPServer {
       }
       
       // Only add duration if model supports it
-      if (modelId === 'google/veo-3.1' || modelId === 'minimax/hailuo-ai-v2.3' || modelId === 'kwaivgi/kling-v2.5-turbo-pro') {
+      if (modelId === 'google/veo-3.1' || modelId === 'google/veo-3-fast' || modelId === 'minimax/hailuo-ai-v2.3' || modelId === 'kwaivgi/kling-v2.5-turbo-pro') {
         input.duration = roundedDuration
       }
     }
@@ -320,6 +320,27 @@ class ReplicateMCPServer {
       if (referenceImages && referenceImages.length > 0) {
         input.reference_images = referenceImages
       }
+      if (negativePrompt) {
+        input.negative_prompt = negativePrompt
+      }
+      if (resolution) {
+        input.resolution = resolution
+      }
+      if (generateAudio !== undefined) {
+        input.generate_audio = generateAudio
+      }
+      if (seed !== undefined && seed !== null) {
+        input.seed = seed
+      }
+    } else if (modelId === 'google/veo-3-fast') {
+      // Veo 3 Fast only supports: prompt, aspect_ratio, duration, image, negative_prompt, resolution, generate_audio, seed
+      if (prompt) {
+        input.prompt = prompt
+      }
+      if (image) {
+        input.image = image
+      }
+      // Note: Veo 3 Fast does NOT support last_frame or reference_images
       if (negativePrompt) {
         input.negative_prompt = negativePrompt
       }

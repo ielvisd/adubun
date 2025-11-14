@@ -20,6 +20,8 @@ export interface Segment {
   startTime: number
   endTime: number
   visualPrompt: string
+  visualPromptAlternatives?: string[] // Array of alternative visual prompts for user selection
+  selectedPromptIndex?: number // Index of selected prompt (0 = visualPrompt, 1+ = alternatives)
   audioNotes?: string
   firstFrameImage?: string // File path or URL for first frame image
   subjectReference?: string // File path or URL for subject reference image
