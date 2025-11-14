@@ -120,6 +120,12 @@ export default defineEventHandler(async (event) => {
     const videoResult = await callReplicateMCP('generate_video', videoParams)
     console.log(`[Retry Segment ${segmentId}] Replicate MCP generate_video response:`, JSON.stringify(videoResult, null, 2))
 
+    // Check if the response contains an error
+    if (videoResult && typeof videoResult === 'object' && 'error' in videoResult) {
+      console.error(`[Retry Segment ${segmentId}] Replicate MCP returned error:`, videoResult.error)
+      throw new Error(`Video generation error: ${videoResult.error}`)
+    }
+
     await trackCost('video-generation', 0.15, {
       segmentId,
       retry: true,
@@ -128,27 +134,54 @@ export default defineEventHandler(async (event) => {
     // Poll for completion
     let predictionStatus = videoResult
     console.log(`[Retry Segment ${segmentId}] Initial prediction status:`, JSON.stringify(predictionStatus, null, 2))
+    console.log(`[Retry Segment ${segmentId}] Response type:`, typeof predictionStatus)
+    console.log(`[Retry Segment ${segmentId}] Is array:`, Array.isArray(predictionStatus))
+    console.log(`[Retry Segment ${segmentId}] Response keys:`, predictionStatus ? Object.keys(predictionStatus) : 'null/undefined')
     
     // Get the prediction ID from the initial response - try multiple possible fields
-    const predictionId = predictionStatus.predictionId || 
-                        predictionStatus.id || 
-                        predictionStatus.prediction?.id ||
-                        (predictionStatus as any)?.prediction_id
+    // Handle different response structures that might come from different models
+    let predictionId: string | undefined
+    
+    if (predictionStatus) {
+      // Try direct properties first
+      predictionId = predictionStatus.predictionId || 
+                    predictionStatus.id || 
+                    (predictionStatus as any)?.prediction_id
+      
+      // Try nested structures
+      if (!predictionId && (predictionStatus as any).prediction) {
+        predictionId = (predictionStatus as any).prediction.id || 
+                      (predictionStatus as any).prediction.predictionId ||
+                      (predictionStatus as any).prediction.prediction_id
+      }
+      
+      // Try if response is wrapped in a data property
+      if (!predictionId && (predictionStatus as any).data) {
+        const data = (predictionStatus as any).data
+        predictionId = data.predictionId || data.id || data.prediction_id
+      }
+      
+      // Try if response is an array (some models might return arrays)
+      if (!predictionId && Array.isArray(predictionStatus) && predictionStatus.length > 0) {
+        const firstItem = predictionStatus[0]
+        predictionId = firstItem.predictionId || firstItem.id || firstItem.prediction_id
+      }
+    }
                         
     console.log(`[Retry Segment ${segmentId}] Extracted prediction ID:`, predictionId)
-    console.log(`[Retry Segment ${segmentId}] Full response keys:`, Object.keys(predictionStatus))
     
     if (!predictionId) {
       const errorDetails = {
         segmentId,
         response: videoResult,
-        responseKeys: Object.keys(videoResult || {}),
+        responseKeys: videoResult ? Object.keys(videoResult) : [],
         responseType: typeof videoResult,
         isArray: Array.isArray(videoResult),
         stringified: JSON.stringify(videoResult, null, 2),
+        model: videoParams.model,
       }
       console.error(`[Retry Segment ${segmentId}] Invalid video result - missing prediction ID:`, JSON.stringify(errorDetails, null, 2))
-      throw new Error(`Invalid response from video generation: missing prediction ID. Response: ${JSON.stringify(errorDetails)}`)
+      throw new Error(`Invalid response from video generation: missing prediction ID. Model: ${videoParams.model}. Please check the response structure for this model. Response: ${JSON.stringify(errorDetails)}`)
     }
     
     console.log('[Retry Segment] Starting prediction with ID:', predictionId)

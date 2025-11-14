@@ -320,5 +320,177 @@
       }
     ],
     "endTime": 1763147363408
+  },
+  {
+    "id": "4v3oI4D_-JmOukbr-UKN2",
+    "status": "completed",
+    "startTime": 1763148582734,
+    "storyboardId": "xasyLwppvSlNY3-Wr1ntG",
+    "assets": [
+      {
+        "segmentId": 0,
+        "videoUrl": "https://replicate.delivery/xezq/M0646X1ExfzjNaeWy9sDXIDJMpOR8kBI5nDr0gFAfomeXNlWB/tmpfngt3hj8.mp4",
+        "voiceUrl": "data/assets/2fAQNiItNl8iXmICn1Kvd.mp3",
+        "status": "completed",
+        "metadata": {
+          "predictionId": "sf770r2hznrm80ctgfcb77vapw",
+          "videoUrl": "https://replicate.delivery/xezq/M0646X1ExfzjNaeWy9sDXIDJMpOR8kBI5nDr0gFAfomeXNlWB/tmpfngt3hj8.mp4",
+          "replicateVideoUrl": "https://replicate.delivery/xezq/M0646X1ExfzjNaeWy9sDXIDJMpOR8kBI5nDr0gFAfomeXNlWB/tmpfngt3hj8.mp4",
+          "voiceUrl": "data/assets/2fAQNiItNl8iXmICn1Kvd.mp3",
+          "segmentIndex": 0,
+          "segmentType": "hook",
+          "startTime": 0,
+          "endTime": 2,
+          "duration": 2,
+          "timestamp": 1763148675979
+        }
+      }
+    ],
+    "endTime": 1763148675980
+  },
+  {
+    "id": "_nc1YdlM12P5pVrT2VmkU",
+    "status": "completed",
+    "startTime": 1763148776775,
+    "storyboardId": "ej9s_gjRQPPNyZkt6oB8k",
+    "assets": [
+      {
+        "segmentId": 0,
+        "videoUrl": "https://replicate.delivery/xezq/9fEVZZlwLLzfpUZS5lPWW2b32kdea8vZpoWh8IHHf1AwjNlWB/tmpz_qary71.mp4",
+        "voiceUrl": "data/assets/CAnp9mNXFnA2c3M4KQwvv.mp3",
+        "status": "completed",
+        "metadata": {
+          "predictionId": "6kczmzj7h9rmc0ctgfdr0sh36g",
+          "videoUrl": "https://replicate.delivery/xezq/9fEVZZlwLLzfpUZS5lPWW2b32kdea8vZpoWh8IHHf1AwjNlWB/tmpz_qary71.mp4",
+          "replicateVideoUrl": "https://replicate.delivery/xezq/9fEVZZlwLLzfpUZS5lPWW2b32kdea8vZpoWh8IHHf1AwjNlWB/tmpz_qary71.mp4",
+          "voiceUrl": "data/assets/CAnp9mNXFnA2c3M4KQwvv.mp3",
+          "segmentIndex": 0,
+          "segmentType": "hook",
+          "startTime": 0,
+          "endTime": 2,
+          "duration": 2,
+          "timestamp": 1763148865622
+        }
+      }
+    ],
+    "endTime": 1763148865623
+  },
+  {
+    "id": "NfifdMEiEYv-MuF3rGpam",
+    "status": "completed",
+    "startTime": 1763149517501,
+    "storyboardId": "eiRxCp7xoMwrfAAzRiV_r",
+    "assets": [
+      {
+        "segmentId": 0,
+        "videoUrl": "https://replicate.delivery/xezq/0A82LKS2eKQuI6NDhRVQbeJVefb5euw5eRQe2jEtk7viMyp0KA/tmp3zhdnfng.mp4",
+        "voiceUrl": "data/assets/XYFI7ualVcjmkA6r5nNky.mp3",
+        "status": "completed",
+        "metadata": {
+          "predictionId": "tq2rt3cnw5rme0ctgfk9d26ta8",
+          "videoUrl": "https://replicate.delivery/xezq/0A82LKS2eKQuI6NDhRVQbeJVefb5euw5eRQe2jEtk7viMyp0KA/tmp3zhdnfng.mp4",
+          "replicateVideoUrl": "https://replicate.delivery/xezq/0A82LKS2eKQuI6NDhRVQbeJVefb5euw5eRQe2jEtk7viMyp0KA/tmp3zhdnfng.mp4",
+          "voiceUrl": "data/assets/XYFI7ualVcjmkA6r5nNky.mp3",
+          "segmentIndex": 0,
+          "segmentType": "hook",
+          "startTime": 0,
+          "endTime": 2,
+          "duration": 2,
+          "timestamp": 1763149595412
+        }
+      }
+    ],
+    "endTime": 1763149595412
+  },
+  {
+    "id": "f-dl124H071Q0ZxSkIQqS",
+    "status": "failed",
+    "startTime": 1763151721871,
+    "storyboardId": "ZiDB-5Z741pu0Vnoize-x",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Invalid response from video generation: missing prediction ID",
+        "metadata": {
+          "segmentId": 0,
+          "response": {
+            "error": "Request to https://api.replicate.com/v1/models/runway/gen-3-alpha-turbo/predictions failed with status 404 Not Found: {\"detail\":\"The requested resource could not be found.\",\"status\":404}\n."
+          },
+          "responseKeys": [
+            "error"
+          ],
+          "responseType": "object",
+          "isArray": false,
+          "stringified": "{\n  \"error\": \"Request to https://api.replicate.com/v1/models/runway/gen-3-alpha-turbo/predictions failed with status 404 Not Found: {\\\"detail\\\":\\\"The requested resource could not be found.\\\",\\\"status\\\":404}\\n.\"\n}"
+        }
+      }
+    ],
+    "endTime": 1763151722609
+  },
+  {
+    "id": "p7hiljkJuPcn01l7tqqx7",
+    "status": "failed",
+    "startTime": 1763152152042,
+    "storyboardId": "jc2p8NVl1ipk-Rko5837s",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Video generation error: Request to https://api.replicate.com/v1/models/runway/gen-3-alpha-turbo/predictions failed with status 404 Not Found: {\"detail\":\"The requested resource could not be found.\",\"status\":404}\n.",
+        "metadata": {
+          "response": {
+            "error": "Request to https://api.replicate.com/v1/models/runway/gen-3-alpha-turbo/predictions failed with status 404 Not Found: {\"detail\":\"The requested resource could not be found.\",\"status\":404}\n."
+          }
+        }
+      }
+    ],
+    "endTime": 1763152152968
+  },
+  {
+    "id": "1b1brgclRlY1euxD2NrZW",
+    "status": "failed",
+    "startTime": 1763153117073,
+    "storyboardId": "XGOpMN1fcMNpYFud_ijBY",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Video generation error: Model \"kuaishou/kling-2.5-turbo\" is not available on Replicate. This model may have been removed or is not accessible. Please try a different model.",
+        "metadata": {
+          "response": {
+            "error": "Model \"kuaishou/kling-2.5-turbo\" is not available on Replicate. This model may have been removed or is not accessible. Please try a different model."
+          }
+        }
+      }
+    ],
+    "endTime": 1763153117851
+  },
+  {
+    "id": "6WNgyXSQUgfpa9GPKgPJj",
+    "status": "completed",
+    "startTime": 1763153227884,
+    "storyboardId": "Pis8sWvFMExvySLk9tgq6",
+    "assets": [
+      {
+        "segmentId": 0,
+        "videoUrl": "https://replicate.delivery/xezq/yUtf9mBGAbT4YagTpED4dwFcYeCtLnPq9imymMf3Auem8RlWB/tmpfkypkyfq.mp4",
+        "voiceUrl": "data/assets/aeWw9c6oBiiewxEKBXVZ5.mp3",
+        "status": "completed",
+        "metadata": {
+          "predictionId": "ck0g5e9kg9rm80ctggftd54x6c",
+          "videoUrl": "https://replicate.delivery/xezq/yUtf9mBGAbT4YagTpED4dwFcYeCtLnPq9imymMf3Auem8RlWB/tmpfkypkyfq.mp4",
+          "replicateVideoUrl": "https://replicate.delivery/xezq/yUtf9mBGAbT4YagTpED4dwFcYeCtLnPq9imymMf3Auem8RlWB/tmpfkypkyfq.mp4",
+          "voiceUrl": "data/assets/aeWw9c6oBiiewxEKBXVZ5.mp3",
+          "segmentIndex": 0,
+          "segmentType": "hook",
+          "startTime": 0,
+          "endTime": 1.5,
+          "duration": 1.5,
+          "timestamp": 1763153358945
+        }
+      }
+    ],
+    "endTime": 1763153358945
   }
 ]

@@ -58,7 +58,6 @@ class ReplicateMCPServer {
    * @returns Rounded duration
    */
   private roundDurationToValidValue(model: string, duration: number): number {
-    // google/veo-3.1 only supports 4, 6, or 8 seconds
     if (model === 'google/veo-3.1') {
       if (duration < 4) {
         return 4
@@ -66,7 +65,6 @@ class ReplicateMCPServer {
       if (duration > 8) {
         return 8
       }
-      // Round to nearest valid value: 4 if ≤5, 6 if 5-7, 8 if ≥7
       if (duration <= 5) {
         return 4
       } else if (duration <= 7) {
@@ -76,7 +74,6 @@ class ReplicateMCPServer {
       }
     }
     
-    // minimax/hailuo-ai-v2.3 supports 3, 5, or 10 seconds
     if (model === 'minimax/hailuo-ai-v2.3') {
       if (duration < 3) {
         return 3
@@ -84,7 +81,6 @@ class ReplicateMCPServer {
       if (duration > 10) {
         return 10
       }
-      // Round to nearest: 3 if ≤4, 5 if 4-7.5, 10 if ≥7.5
       if (duration <= 4) {
         return 3
       } else if (duration <= 7.5) {
@@ -94,7 +90,20 @@ class ReplicateMCPServer {
       }
     }
     
-    // For other models, return as-is or apply default constraints
+    if (model === 'kwaivgi/kling-v2.5-turbo-pro') {
+      if (duration < 5) {
+        return 5
+      }
+      if (duration > 10) {
+        return 10
+      }
+      if (duration <= 7.5) {
+        return 5
+      } else {
+        return 10
+      }
+    }
+    
     return duration
   }
 
@@ -103,7 +112,7 @@ class ReplicateMCPServer {
       tools: [
         {
           name: 'generate_video',
-          description: 'Generate video using Replicate models (google/veo-3.1, runway/gen-3-alpha-turbo, stability-ai/stable-video-diffusion, minimax/hailuo-ai-v2.3, anotherbyte/seedance-1.0)',
+          description: 'Generate video using Replicate models (google/veo-3.1, minimax/hailuo-ai-v2.3, kwaivgi/kling-v2.5-turbo-pro)',
           inputSchema: {
             type: 'object',
             properties: {
@@ -157,23 +166,15 @@ class ReplicateMCPServer {
               },
               first_frame_image: {
                 type: 'string',
-                description: 'File path or URL to first frame image for video generation (for legacy models).',
+                description: 'File path or URL to first frame image for video generation (for Kling and other models).',
               },
               subject_reference: {
                 type: 'string',
-                description: 'An optional character reference image to use as the subject in the generated video (for legacy models). File path or URL.',
+                description: 'An optional character reference image to use as the subject in the generated video. File path or URL.',
               },
               image_legacy: {
                 type: 'string',
-                description: 'Input image for image-to-video generation (for legacy models). File path or URL.',
-              },
-              motion_bucket_id: {
-                type: 'number',
-                description: 'Motion bucket ID for stable-video-diffusion model',
-              },
-              cond_aug: {
-                type: 'number',
-                description: 'Condition augmentation for stable-video-diffusion model',
+                description: 'Input image for image-to-video generation (for Kling and other models). File path or URL.',
               },
             },
             required: [],
@@ -230,9 +231,7 @@ class ReplicateMCPServer {
               args.seed,
               args.first_frame_image,
               args.subject_reference,
-              args.image_legacy,
-              args.motion_bucket_id,
-              args.cond_aug
+              args.image_legacy
             )
           
           case 'check_prediction_status':
@@ -273,9 +272,7 @@ class ReplicateMCPServer {
     seed?: number,
     firstFrameImage?: string,
     subjectReference?: string,
-    imageLegacy?: string,
-    motionBucketId?: number,
-    condAug?: number
+    imageLegacy?: string
   ) {
     // Default model
     const modelId = model || 'google/veo-3.1'
@@ -299,7 +296,7 @@ class ReplicateMCPServer {
       }
       
       // Only add duration if model supports it
-      if (modelId === 'google/veo-3.1' || modelId === 'minimax/hailuo-ai-v2.3') {
+      if (modelId === 'google/veo-3.1' || modelId === 'minimax/hailuo-ai-v2.3' || modelId === 'kwaivgi/kling-v2.5-turbo-pro') {
         input.duration = roundedDuration
       }
     }
@@ -311,7 +308,6 @@ class ReplicateMCPServer {
     
     // Model-specific input handling
     if (modelId === 'google/veo-3.1') {
-      // Veo 3.1 supports: prompt, image, last_frame, reference_images, negative_prompt, resolution, generate_audio, seed
       if (prompt) {
         input.prompt = prompt
       }
@@ -336,62 +332,45 @@ class ReplicateMCPServer {
       if (seed !== undefined && seed !== null) {
         input.seed = seed
       }
-    } else if (modelId === 'runway/gen-3-alpha-turbo') {
-      // Runway Gen-3 supports prompt and optional image
-      if (prompt) {
-        input.prompt = prompt
-      }
-      if (imageLegacy) {
-        input.image = imageLegacy
-      }
-    } else if (modelId === 'stability-ai/stable-video-diffusion') {
-      // Stable Video Diffusion requires image, optional motion_bucket_id and cond_aug
-      if (imageLegacy) {
-        input.image = imageLegacy
-      }
-      if (motionBucketId !== undefined) {
-        input.motion_bucket_id = motionBucketId
-      }
-      if (condAug !== undefined) {
-        input.cond_aug = condAug
-      }
     } else if (modelId === 'minimax/hailuo-ai-v2.3') {
-      // Hailuo supports prompt and duration
       if (prompt) {
         input.prompt = prompt
       }
-    } else if (modelId === 'anotherbyte/seedance-1.0') {
-      // Seedance supports prompt and optional image
+    } else if (modelId === 'kwaivgi/kling-v2.5-turbo-pro') {
       if (prompt) {
         input.prompt = prompt
       }
-      if (imageLegacy) {
-        input.image = imageLegacy
+      if (image || imageLegacy || firstFrameImage) {
+        input.image = image || imageLegacy || firstFrameImage
       }
     } else {
-      // Default: try to use prompt and common fields
+      // Default fallback for unknown models
       if (prompt) {
         input.prompt = prompt
       }
-      if (imageLegacy) {
-        input.image = imageLegacy
-      }
-      // Also support legacy firstFrameImage/subjectReference for backward compatibility
-      if (firstFrameImage) {
-        input.image = firstFrameImage
-      }
-      if (subjectReference) {
-        input.image = subjectReference
+      if (image || imageLegacy || firstFrameImage) {
+        input.image = image || imageLegacy || firstFrameImage
       }
     }
     
     console.error(`[Replicate MCP] Creating prediction with model: ${modelId}`)
     console.error('[Replicate MCP] Input params:', JSON.stringify(input, null, 2))
     
-    const prediction = await replicate.predictions.create({
-      model: modelId,
-      input,
-    })
+    let prediction
+    try {
+      prediction = await replicate.predictions.create({
+        model: modelId,
+        input,
+      })
+    } catch (error: any) {
+      // Handle 404 errors for missing models
+      if (error.status === 404 || error.message?.includes('404') || error.message?.includes('not found')) {
+        console.error(`[Replicate MCP] Model not found: ${modelId}`)
+        throw new Error(`Model "${modelId}" is not available on Replicate. This model may have been removed or is not accessible. Please try a different model.`)
+      }
+      // Re-throw other errors
+      throw error
+    }
 
     console.error('[Replicate MCP] Prediction created:', JSON.stringify({
       id: prediction.id,
@@ -568,11 +547,48 @@ class ReplicateMCPServer {
 
   async run() {
     const transport = new StdioServerTransport()
+    
+    // Handle transport errors gracefully
+    process.on('SIGPIPE', () => {
+      // EPIPE errors are common when the client disconnects - ignore them
+      console.error('Received SIGPIPE - client disconnected')
+    })
+    
+    // Handle uncaught errors
+    process.on('uncaughtException', (error) => {
+      if (error.code === 'EPIPE' || error.message?.includes('EPIPE')) {
+        // EPIPE errors are common when the client disconnects - ignore them
+        console.error('EPIPE error caught (client disconnected):', error.message)
+        return
+      }
+      console.error('Uncaught exception:', error)
+      process.exit(1)
+    })
+    
+    // Handle unhandled promise rejections
+    process.on('unhandledRejection', (reason, promise) => {
+      if (reason && typeof reason === 'object' && 'code' in reason && reason.code === 'EPIPE') {
+        // EPIPE errors are common when the client disconnects - ignore them
+        console.error('EPIPE rejection caught (client disconnected):', reason)
+        return
+      }
+      console.error('Unhandled rejection at:', promise, 'reason:', reason)
+    })
+    
     await this.server.connect(transport)
     console.error('Replicate MCP server running on stdio')
   }
 }
 
 const server = new ReplicateMCPServer()
-server.run().catch(console.error)
+server.run().catch((error) => {
+  if (error.code === 'EPIPE' || error.message?.includes('EPIPE')) {
+    // EPIPE errors are common when the client disconnects - ignore them
+    console.error('EPIPE error during server startup (client disconnected):', error.message)
+    process.exit(0) // Exit gracefully
+  } else {
+    console.error('Server startup error:', error)
+    process.exit(1)
+  }
+})
 

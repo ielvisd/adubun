@@ -235,11 +235,48 @@ class ElevenLabsMCPServer {
 
   async run() {
     const transport = new StdioServerTransport()
+    
+    // Handle transport errors gracefully
+    process.on('SIGPIPE', () => {
+      // EPIPE errors are common when the client disconnects - ignore them
+      console.error('Received SIGPIPE - client disconnected')
+    })
+    
+    // Handle uncaught errors
+    process.on('uncaughtException', (error) => {
+      if (error.code === 'EPIPE' || error.message?.includes('EPIPE')) {
+        // EPIPE errors are common when the client disconnects - ignore them
+        console.error('EPIPE error caught (client disconnected):', error.message)
+        return
+      }
+      console.error('Uncaught exception:', error)
+      process.exit(1)
+    })
+    
+    // Handle unhandled promise rejections
+    process.on('unhandledRejection', (reason, promise) => {
+      if (reason && typeof reason === 'object' && 'code' in reason && reason.code === 'EPIPE') {
+        // EPIPE errors are common when the client disconnects - ignore them
+        console.error('EPIPE rejection caught (client disconnected):', reason)
+        return
+      }
+      console.error('Unhandled rejection at:', promise, 'reason:', reason)
+    })
+    
     await this.server.connect(transport)
     console.error('ElevenLabs MCP server running on stdio')
   }
 }
 
 const server = new ElevenLabsMCPServer()
-server.run().catch(console.error)
+server.run().catch((error) => {
+  if (error.code === 'EPIPE' || error.message?.includes('EPIPE')) {
+    // EPIPE errors are common when the client disconnects - ignore them
+    console.error('EPIPE error during server startup (client disconnected):', error.message)
+    process.exit(0) // Exit gracefully
+  } else {
+    console.error('Server startup error:', error)
+    process.exit(1)
+  }
+})
 

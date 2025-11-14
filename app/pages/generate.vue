@@ -242,16 +242,55 @@ const handleCompose = async (options: any) => {
     console.log('[Generate] Video URL from API:', result.videoUrl)
     console.log('[Generate] Video ID from API:', result.videoId)
 
-    // Navigate with state instead of query params for better data passing
-    await navigateTo({
-      path: '/preview',
-      state: {
+    // Store video data in sessionStorage for preview page
+    if (process.client) {
+      // Merge generation segments with storyboard segments to preserve audioNotes
+      const mergedSegments = segments.value.map((genSeg: any) => {
+        // Find corresponding storyboard segment to get audioNotes
+        const storyboardSeg = storyboard.value?.segments?.[genSeg.segmentId]
+        return {
+          ...genSeg,
+          // Preserve audioNotes from storyboard if not in generation segment
+          audioNotes: genSeg.audioNotes || storyboardSeg?.audioNotes,
+          // Get voiceUrl from generation segment (either direct or from metadata)
+          voiceUrl: genSeg.voiceUrl || genSeg.metadata?.voiceUrl,
+          // Preserve type and timing from generation segment
+          type: genSeg.type || storyboardSeg?.type,
+          startTime: genSeg.startTime || storyboardSeg?.startTime,
+          endTime: genSeg.endTime || storyboardSeg?.endTime,
+        }
+      })
+      
+      // Collect segments with audio data (audioNotes and voiceUrl)
+      const segmentsWithAudio = mergedSegments
+        .filter((s: any) => s.audioNotes && s.voiceUrl)
+        .map((s: any) => ({
+          segmentId: s.segmentId,
+          type: s.type,
+          audioNotes: s.audioNotes,
+          voiceUrl: s.voiceUrl,
+          startTime: s.startTime,
+          endTime: s.endTime,
+        }))
+      
+      console.log('[Generate] Total segments:', segments.value.length)
+      console.log('[Generate] Merged segments:', mergedSegments.length)
+      console.log('[Generate] Segments with audio:', segmentsWithAudio.length)
+      console.log('[Generate] Segments with audio details:', JSON.stringify(segmentsWithAudio, null, 2))
+      
+      const videoData = {
         videoUrl: result.videoUrl,
         videoId: result.videoId,
         duration: totalDuration.value,
         cost: currentCost.value,
-      },
-    })
+        segments: segmentsWithAudio,
+      }
+      sessionStorage.setItem('videoPreview', JSON.stringify(videoData))
+      console.log('[Generate] Video data stored in sessionStorage:', JSON.stringify(videoData, null, 2))
+    }
+
+    // Navigate to preview page
+    await navigateTo('/preview')
     console.log('[Generate] Navigation to preview completed')
   } catch (error: any) {
     console.error('[Generate] Composition error:', error.message)

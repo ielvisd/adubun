@@ -65,10 +65,7 @@ export default defineEventHandler(async (event) => {
     
     const validated = parsePromptSchema.parse(body)
 
-    // Track cost
-    await trackCost('parse-prompt', 0.001, { prompt: validated.prompt })
-
-    // Parse with OpenAI MCP
+    // Parse with OpenAI MCP first (this is the slow part)
     const parsed = await callOpenAIMCP('parse_prompt', {
       prompt: validated.prompt,
     })
@@ -114,7 +111,7 @@ export default defineEventHandler(async (event) => {
     console.log('Parsed data keys:', Object.keys(parsedData || {}))
     console.log('Parsed data type:', typeof parsedData)
 
-    // Validate parsed response has required fields
+    // Quick validation - check if it's a valid object
     if (!parsedData || typeof parsedData !== 'object') {
       console.error('Invalid parsed data:', parsedData)
       console.error('Type of parsedData:', typeof parsedData)
@@ -128,16 +125,25 @@ export default defineEventHandler(async (event) => {
       throw new Error(`Failed to parse prompt: ${errorMessage}. Please check your OPENAI_API_KEY environment variable and ensure it's valid.`)
     }
 
-    // Validate required fields exist
+    // Track cost (do this after MCP call to not delay response)
+    // Use setImmediate to not block the response
+    setImmediate(async () => {
+      try {
+        await trackCost('parse-prompt', 0.001, { prompt: validated.prompt })
+      } catch (e) {
+        console.error('Failed to track cost:', e)
+      }
+    })
+
+    // Validate required fields exist (but don't fail if some are missing - let generate page handle it)
     const requiredFields = ['product', 'targetAudience', 'mood', 'keyMessages', 'visualStyle', 'callToAction']
     const missingFields = requiredFields.filter(field => !(field in parsedData))
     
     if (missingFields.length > 0) {
-      console.error('Missing required fields:', missingFields)
-      console.error('Available fields:', Object.keys(parsedData))
-      console.error('Full parsed data:', JSON.stringify(parsedData, null, 2))
+      console.warn('Missing required fields:', missingFields)
+      console.warn('Available fields:', Object.keys(parsedData))
       
-      // If the object is completely empty or has no expected fields, provide a more helpful error
+      // If the object is completely empty, throw error
       if (Object.keys(parsedData).length === 0) {
         throw new Error('OpenAI returned an empty response. Please check your API key and try again.')
       }
@@ -174,9 +180,8 @@ export default defineEventHandler(async (event) => {
         // Some fields were mapped, use the mapped data
         Object.assign(parsedData, mappedData)
         console.log('Successfully mapped some fields:', Object.keys(mappedData))
-      } else {
-        throw new Error(`Invalid response from prompt parser: missing fields: ${missingFields.join(', ')}. Available fields: ${Object.keys(parsedData).join(', ')}`)
       }
+      // Note: We don't throw here - let the generate page handle missing fields
     }
 
     return {

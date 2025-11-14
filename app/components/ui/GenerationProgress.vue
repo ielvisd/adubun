@@ -55,39 +55,98 @@
             </UButton>
           </div>
           
-          <!-- Success Metadata -->
+          <!-- Success Metadata with Video/Audio Players -->
           <div
-            v-if="segment.status === 'completed' && segment.metadata"
-            class="mt-2 p-3 bg-success-50 border border-success-200 rounded-lg"
+            v-if="segment.status === 'completed'"
+            class="mt-2 p-3 bg-success-50 border border-success-200 rounded-lg space-y-4"
           >
-            <div class="flex justify-between items-start">
+            <!-- Video Player -->
+            <div v-if="getVideoUrl(segment)">
+              <p class="text-sm font-medium text-success-800 mb-2">Video Preview:</p>
+              <div class="aspect-video bg-black rounded-lg overflow-hidden">
+                <video
+                  :ref="el => setVideoRef(el, idx)"
+                  :src="getVideoUrl(segment)"
+                  class="w-full h-full object-contain"
+                  controls
+                  @loadedmetadata="onVideoLoaded(idx)"
+                />
+              </div>
+            </div>
+
+            <!-- Audio Player -->
+            <div v-if="getVoiceUrl(segment)" class="flex items-center gap-3 p-3 bg-white rounded-lg border border-success-200">
+              <UButton
+                :icon="getAudioPlayingState(idx) ? 'i-heroicons-pause' : 'i-heroicons-play'"
+                color="primary"
+                variant="solid"
+                size="sm"
+                square
+                @click="toggleAudioPlay(idx, getVoiceUrl(segment))"
+              />
               <div class="flex-1">
-                <p class="text-sm font-medium text-success-800 mb-2">Segment {{ idx + 1 }} Metadata:</p>
-                <div class="text-xs text-success-700 space-y-1">
-                  <p v-if="segment.metadata.predictionId">
-                    <strong>Prediction ID:</strong> 
-                    <code class="bg-success-100 px-1 rounded">{{ segment.metadata.predictionId }}</code>
-                  </p>
-                  <p v-if="segment.metadata.replicateVideoUrl">
-                    <strong>Replicate Video URL:</strong>
-                    <a 
-                      :href="segment.metadata.replicateVideoUrl" 
-                      target="_blank" 
-                      class="text-blue-600 hover:underline ml-1"
-                    >
-                      View Video
-                    </a>
-                  </p>
-                  <p v-if="segment.metadata.videoUrl">
-                    <strong>Video URL:</strong> 
-                    <code class="bg-success-100 px-1 rounded break-all">{{ segment.metadata.videoUrl }}</code>
-                  </p>
+                <audio
+                  :ref="el => setAudioRef(el, idx)"
+                  :src="getAudioUrl(getVoiceUrl(segment))"
+                  class="hidden"
+                  @timeupdate="onAudioTimeUpdate(idx, $event)"
+                  @ended="onAudioEnded(idx)"
+                />
+                <div class="flex items-center gap-2">
+                  <USlider
+                    :model-value="getAudioProgress(idx)"
+                    :min="0"
+                    :max="100"
+                    :step="0.1"
+                    color="primary"
+                    size="sm"
+                    class="flex-1"
+                    @update:model-value="onAudioSeek(idx, $event)"
+                  />
+                  <span class="text-xs text-gray-500 min-w-[60px] text-right">
+                    {{ formatAudioTime(idx) }}
+                  </span>
                 </div>
+              </div>
+            </div>
+
+            <!-- Metadata Details (Collapsible) -->
+            <div v-if="segment.metadata">
+              <UButton
+                size="xs"
+                variant="ghost"
+                color="success"
+                @click="toggleMetadataExpanded(idx)"
+                class="mb-2"
+              >
+                <UIcon :name="isMetadataExpanded(idx) ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'" class="mr-1" />
+                {{ isMetadataExpanded(idx) ? 'Hide' : 'Show' }} Metadata
+              </UButton>
+              <div v-if="isMetadataExpanded(idx)" class="text-xs text-success-700 space-y-1 mt-2">
+                <p v-if="segment.metadata.predictionId">
+                  <strong>Prediction ID:</strong> 
+                  <code class="bg-success-100 px-1 rounded">{{ segment.metadata.predictionId }}</code>
+                </p>
+                <p v-if="segment.metadata.replicateVideoUrl">
+                  <strong>Replicate Video URL:</strong>
+                  <a 
+                    :href="segment.metadata.replicateVideoUrl" 
+                    target="_blank" 
+                    class="text-blue-600 hover:underline ml-1"
+                  >
+                    View Video
+                  </a>
+                </p>
+                <p v-if="segment.metadata.videoUrl">
+                  <strong>Video URL:</strong> 
+                  <code class="bg-success-100 px-1 rounded break-all">{{ segment.metadata.videoUrl }}</code>
+                </p>
               </div>
               <UButton
                 size="xs"
                 variant="outline"
                 color="success"
+                class="mt-2"
                 @click="downloadMetadata(segment, idx)"
               >
                 <UIcon name="i-heroicons-arrow-down-tray" class="mr-1" />
@@ -128,6 +187,8 @@ const props = defineProps<{
     progress?: number
     error?: string
     metadata?: Asset['metadata']
+    videoUrl?: string
+    voiceUrl?: string
   }>
   overallProgress: number
   status: string
@@ -135,6 +196,138 @@ const props = defineProps<{
   estimatedTotal: number
   overallError?: string
 }>()
+
+// Audio player state
+const audioRefs = ref<Record<number, HTMLAudioElement>>({})
+const videoRefs = ref<Record<number, HTMLVideoElement>>({})
+const audioPlaying = ref<Record<number, boolean>>({})
+const audioProgress = ref<Record<number, number>>({})
+const audioCurrentTime = ref<Record<number, number>>({})
+const audioDuration = ref<Record<number, number>>({})
+const metadataExpanded = ref<Record<number, boolean>>({})
+
+// Helper functions to get video/voice URLs
+const getVideoUrl = (segment: any): string | null => {
+  return segment.videoUrl || segment.metadata?.videoUrl || segment.metadata?.replicateVideoUrl || null
+}
+
+const getVoiceUrl = (segment: any): string | null => {
+  return segment.voiceUrl || segment.metadata?.voiceUrl || null
+}
+
+// Get audio URL from voiceUrl path
+const getAudioUrl = (voiceUrl: string | null): string => {
+  if (!voiceUrl) return ''
+  if (voiceUrl.startsWith('http')) return voiceUrl
+  if (voiceUrl.startsWith('/api/')) return voiceUrl
+  const filename = voiceUrl.split('/').pop() || voiceUrl
+  return `/api/assets/${filename}`
+}
+
+// Set video element ref
+const setVideoRef = (el: any, segmentIdx: number) => {
+  if (el) {
+    videoRefs.value[segmentIdx] = el
+  }
+}
+
+// Set audio element ref
+const setAudioRef = (el: any, segmentIdx: number) => {
+  if (el) {
+    audioRefs.value[segmentIdx] = el
+    el.addEventListener('loadedmetadata', () => {
+      audioDuration.value[segmentIdx] = el.duration
+    })
+  }
+}
+
+// Video loaded handler
+const onVideoLoaded = (segmentIdx: number) => {
+  console.log(`[GenerationProgress] Video loaded for segment ${segmentIdx + 1}`)
+}
+
+// Audio player functions
+const getAudioPlayingState = (segmentIdx: number): boolean => {
+  return audioPlaying.value[segmentIdx] || false
+}
+
+const getAudioProgress = (segmentIdx: number): number => {
+  return audioProgress.value[segmentIdx] || 0
+}
+
+const formatAudioTime = (segmentIdx: number): string => {
+  const current = audioCurrentTime.value[segmentIdx] || 0
+  const duration = audioDuration.value[segmentIdx] || 0
+  return `${formatTime(current)} / ${formatTime(duration)}`
+}
+
+const formatTime = (seconds: number): string => {
+  if (!isFinite(seconds) || isNaN(seconds)) return '0:00'
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins}:${secs.toString().padStart(2, '0')}`
+}
+
+const toggleAudioPlay = (segmentIdx: number, voiceUrl: string | null) => {
+  if (!voiceUrl) return
+  const audio = audioRefs.value[segmentIdx]
+  if (!audio) return
+
+  // Pause all other audio players
+  Object.keys(audioRefs.value).forEach((id) => {
+    const otherId = Number(id)
+    if (otherId !== segmentIdx && audioRefs.value[otherId]) {
+      audioRefs.value[otherId].pause()
+      audioPlaying.value[otherId] = false
+    }
+  })
+
+  if (audio.paused) {
+    audio.play().then(() => {
+      audioPlaying.value[segmentIdx] = true
+    }).catch((error) => {
+      console.error('Error playing audio:', error)
+    })
+  } else {
+    audio.pause()
+    audioPlaying.value[segmentIdx] = false
+  }
+}
+
+const onAudioTimeUpdate = (segmentIdx: number, event: Event) => {
+  const audio = event.target as HTMLAudioElement
+  if (audio) {
+    audioCurrentTime.value[segmentIdx] = audio.currentTime
+    const duration = audio.duration || 0
+    if (duration > 0) {
+      audioProgress.value[segmentIdx] = (audio.currentTime / duration) * 100
+    }
+  }
+}
+
+const onAudioEnded = (segmentIdx: number) => {
+  audioPlaying.value[segmentIdx] = false
+  audioProgress.value[segmentIdx] = 0
+  audioCurrentTime.value[segmentIdx] = 0
+}
+
+const onAudioSeek = (segmentIdx: number, value: number) => {
+  const audio = audioRefs.value[segmentIdx]
+  if (audio && audio.duration) {
+    audio.currentTime = (value / 100) * audio.duration
+    audioProgress.value[segmentIdx] = value
+    audioCurrentTime.value[segmentIdx] = audio.currentTime
+  }
+}
+
+// Metadata expansion
+const isMetadataExpanded = (segmentIdx: number): boolean => {
+  return metadataExpanded.value[segmentIdx] || false
+}
+
+const toggleMetadataExpanded = (segmentIdx: number) => {
+  metadataExpanded.value[segmentIdx] = !metadataExpanded.value[segmentIdx]
+}
 
 const downloadMetadata = (segment: any, index: number) => {
   const metadata = {
@@ -156,7 +349,6 @@ const downloadMetadata = (segment: any, index: number) => {
   document.body.removeChild(link)
   URL.revokeObjectURL(url)
   
-  // Also log to console for easy access
   console.log(`[GenerationProgress] Segment ${index + 1} Metadata:`, metadata)
 }
 

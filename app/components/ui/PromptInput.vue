@@ -93,8 +93,18 @@
           <MultiImageUpload v-model="form.referenceImages" :max-images="3" @upload="handleMultiImageUpload($event)" />
         </UFormField>
 
-        <!-- Legacy fields for other models -->
-        <div v-if="!isVeo31" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- For Kling: image input -->
+        <UFormField 
+          v-if="isKling"
+          label="Input Image (Optional)" 
+          name="firstFrameImage"
+          description="Input image for image-to-video generation. The output video will start from this image."
+        >
+          <ImageUpload v-model="form.firstFrameImage" @upload="handleImageUpload('firstFrameImage', $event)" />
+        </UFormField>
+
+        <!-- For other models (Hailuo doesn't support images) -->
+        <div v-if="!isVeo31 && !isKling" class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <UFormField 
             v-if="selectedModel?.supportsFirstFrame"
             label="First Frame Image (Optional)" 
@@ -111,15 +121,6 @@
             description="An optional character reference image to use as the subject in the generated video."
           >
             <ImageUpload v-model="form.subjectReference" @upload="handleImageUpload('subjectReference', $event)" />
-          </UFormField>
-
-          <UFormField 
-            v-if="selectedModel?.supportsImageToVideo && !selectedModel?.supportsFirstFrame && !selectedModel?.supportsCharacterReference"
-            label="Input Image (Optional)" 
-            name="inputImage"
-            description="Input image for image-to-video generation."
-          >
-            <ImageUpload v-model="form.inputImage" @upload="handleImageUpload('inputImage', $event)" />
           </UFormField>
         </div>
       </div>
@@ -203,7 +204,7 @@ const schema = z.object({
   resolution: z.string().optional(),
   generateAudio: z.boolean().optional(),
   seed: z.number().int().optional().nullable(),
-  // Legacy fields for other models
+  // Kling and other model fields
   firstFrameImage: z.union([z.instanceof(File), z.string()]).optional().nullable(),
   subjectReference: z.union([z.instanceof(File), z.string()]).optional().nullable(),
   inputImage: z.union([z.instanceof(File), z.string()]).optional().nullable(),
@@ -225,7 +226,7 @@ const getInitialFormState = () => ({
   resolution: '1080p',
   generateAudio: true,
   seed: null as number | null,
-  // Legacy fields for other models
+  // Kling and other model fields
   firstFrameImage: null as File | string | null,
   subjectReference: null as File | string | null,
   inputImage: null as File | string | null,
@@ -295,6 +296,9 @@ const resolutionOptions = [
 // Check if current model is Veo 3.1
 const isVeo31 = computed(() => form.model === 'google/veo-3.1')
 
+// Check if current model is Kling
+const isKling = computed(() => form.model === 'kwaivgi/kling-v2.5-turbo-pro')
+
 // Computed to show image inputs section
 const showImageInputs = computed(() => {
   return selectedModel.value && (
@@ -329,7 +333,7 @@ const handleModelChange = (modelId: string) => {
       form.lastFrame = null
       form.referenceImages = []
     }
-    if (!model.supportsFirstFrame) {
+    if (model.id !== 'kwaivgi/kling-v2.5-turbo-pro' && !model.supportsFirstFrame) {
       form.firstFrameImage = null
     }
     if (!model.supportsCharacterReference) {

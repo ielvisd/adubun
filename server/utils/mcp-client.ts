@@ -26,6 +26,12 @@ export async function initializeMCPClients(): Promise<MCPClients> {
       { name: 'adubun-client', version: '1.0.0' },
       { capabilities: {} }
     )
+    
+    // Add error handlers for transport
+    replicateTransport.onerror = (error) => {
+      console.error('[Replicate MCP Transport] Error:', error)
+    }
+    
     await clients.replicate.connect(replicateTransport)
 
     // OpenAI Client
@@ -37,6 +43,12 @@ export async function initializeMCPClients(): Promise<MCPClients> {
       { name: 'adubun-client', version: '1.0.0' },
       { capabilities: {} }
     )
+    
+    // Add error handlers for transport
+    openaiTransport.onerror = (error) => {
+      console.error('[OpenAI MCP Transport] Error:', error)
+    }
+    
     await clients.openai.connect(openaiTransport)
 
     // ElevenLabs Client
@@ -48,11 +60,24 @@ export async function initializeMCPClients(): Promise<MCPClients> {
       { name: 'adubun-client', version: '1.0.0' },
       { capabilities: {} }
     )
+    
+    // Add error handlers for transport
+    elevenlabsTransport.onerror = (error) => {
+      console.error('[ElevenLabs MCP Transport] Error:', error)
+    }
+    
     await clients.elevenlabs.connect(elevenlabsTransport)
 
     return clients
   } catch (error: any) {
     console.error('Failed to initialize MCP clients:', error)
+    
+    // Handle EPIPE errors during initialization
+    if (error.code === 'EPIPE' || error.message?.includes('EPIPE')) {
+      console.error('EPIPE error during MCP client initialization')
+      throw new Error('MCP server connection failed. Please try again.')
+    }
+    
     throw new Error(`MCP client initialization failed: ${error.message || 'Unknown error'}`)
   }
 }
@@ -99,6 +124,13 @@ export async function callReplicateMCP(
   } catch (error: any) {
     console.error(`[Replicate MCP Client] Call to ${tool} failed:`, error)
     console.error(`[Replicate MCP Client] Tool: ${tool}, Args:`, JSON.stringify(args, null, 2))
+    
+    // Handle EPIPE errors gracefully
+    if (error.code === 'EPIPE' || error.message?.includes('EPIPE')) {
+      console.error('EPIPE error detected - MCP server connection closed unexpectedly')
+      throw new Error('MCP server connection closed unexpectedly. Please try again.')
+    }
+    
     if (error.stack) {
       console.error(`[Replicate MCP Client] Stack trace:`, error.stack)
     }
@@ -179,6 +211,13 @@ export async function callOpenAIMCP(
   } catch (error: any) {
     console.error('OpenAI MCP call error:', error)
     console.error('Tool:', tool, 'Args:', args)
+    
+    // Handle EPIPE errors gracefully
+    if (error.code === 'EPIPE' || error.message?.includes('EPIPE')) {
+      console.error('EPIPE error detected - MCP server connection closed unexpectedly')
+      throw new Error('MCP server connection closed unexpectedly. Please try again.')
+    }
+    
     if (error.stack) {
       console.error('Stack trace:', error.stack)
     }
@@ -218,6 +257,13 @@ export async function callElevenLabsMCP(
   } catch (error: any) {
     console.error(`[ElevenLabs MCP] Call to ${tool} failed:`, error)
     console.error(`[ElevenLabs MCP] Tool: ${tool}, Args:`, JSON.stringify(args, null, 2))
+    
+    // Handle EPIPE errors gracefully
+    if (error.code === 'EPIPE' || error.message?.includes('EPIPE')) {
+      console.error('EPIPE error detected - MCP server connection closed unexpectedly')
+      throw new Error('MCP server connection closed unexpectedly. Please try again.')
+    }
+    
     if (error.stack) {
       console.error(`[ElevenLabs MCP] Stack trace:`, error.stack)
     }

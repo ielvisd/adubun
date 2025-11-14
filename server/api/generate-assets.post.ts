@@ -139,9 +139,7 @@ export default defineEventHandler(async (event) => {
         }
 
         // Add image inputs if provided - upload to Replicate and get public URLs
-        // Model-specific image handling
         if (model === 'google/veo-3.1') {
-          // Veo 3.1 supports: image, last_frame, reference_images, negative_prompt, resolution, generate_audio, seed
           if (storyboard.meta.image) {
             videoParams.image = await prepareImageInput(storyboard.meta.image)
           }
@@ -165,33 +163,32 @@ export default defineEventHandler(async (event) => {
           if (storyboard.meta.seed !== undefined && storyboard.meta.seed !== null) {
             videoParams.seed = storyboard.meta.seed
           }
-        } else if (model === 'runway/gen-3-alpha-turbo' || model === 'anotherbyte/seedance-1.0') {
-          // These models support generic 'image' input
+        } else if (model === 'kwaivgi/kling-v2.5-turbo-pro') {
           if (firstFrameImage) {
             videoParams.image_legacy = await prepareImageInput(firstFrameImage)
           } else if (subjectReference) {
             videoParams.image_legacy = await prepareImageInput(subjectReference)
+          } else if (storyboard.meta.image) {
+            videoParams.image_legacy = await prepareImageInput(storyboard.meta.image)
           }
-        } else if (model === 'stability-ai/stable-video-diffusion') {
-          // Stable Video Diffusion requires image input
-          if (firstFrameImage) {
-            videoParams.image_legacy = await prepareImageInput(firstFrameImage)
-          } else if (subjectReference) {
-            videoParams.image_legacy = await prepareImageInput(subjectReference)
-          }
-        } else {
-          // Legacy models - support firstFrameImage/subjectReference
-          if (firstFrameImage) {
-            videoParams.first_frame_image = await prepareImageInput(firstFrameImage)
-          }
-          if (subjectReference) {
-            videoParams.subject_reference = await prepareImageInput(subjectReference)
-          }
+        } else if (model === 'minimax/hailuo-ai-v2.3') {
+          // Hailuo doesn't support image inputs
         }
 
         console.log(`[Segment ${idx}] Calling Replicate MCP generate_video with params:`, JSON.stringify(videoParams, null, 2))
         const videoResult = await callReplicateMCP('generate_video', videoParams)
         console.log(`[Segment ${idx}] Replicate MCP generate_video response:`, JSON.stringify(videoResult, null, 2))
+
+        // Check if the response contains an error
+        if (videoResult && typeof videoResult === 'object' && 'error' in videoResult) {
+          console.error(`[Segment ${idx}] Replicate MCP returned error:`, videoResult.error)
+          return {
+            segmentId: idx,
+            status: 'failed',
+            error: `Video generation error: ${videoResult.error}`,
+            metadata: { response: videoResult },
+          } as Asset
+        }
 
         // Track cost
         await trackCost('video-generation', 0.15, {
@@ -202,24 +199,51 @@ export default defineEventHandler(async (event) => {
         // Poll for completion
         let predictionStatus = videoResult
         console.log(`[Segment ${idx}] Initial prediction status:`, JSON.stringify(predictionStatus, null, 2))
+        console.log(`[Segment ${idx}] Response type:`, typeof predictionStatus)
+        console.log(`[Segment ${idx}] Is array:`, Array.isArray(predictionStatus))
+        console.log(`[Segment ${idx}] Response keys:`, predictionStatus ? Object.keys(predictionStatus) : 'null/undefined')
         
         // Get the prediction ID from the initial response - try multiple possible fields
-        const predictionId = predictionStatus.predictionId || 
-                            predictionStatus.id || 
-                            predictionStatus.prediction?.id ||
-                            (predictionStatus as any)?.prediction_id
+        // Handle different response structures that might come from different models
+        let predictionId: string | undefined
+        
+        if (predictionStatus) {
+          // Try direct properties first
+          predictionId = predictionStatus.predictionId || 
+                        predictionStatus.id || 
+                        (predictionStatus as any)?.prediction_id
+          
+          // Try nested structures
+          if (!predictionId && (predictionStatus as any).prediction) {
+            predictionId = (predictionStatus as any).prediction.id || 
+                          (predictionStatus as any).prediction.predictionId ||
+                          (predictionStatus as any).prediction.prediction_id
+          }
+          
+          // Try if response is wrapped in a data property
+          if (!predictionId && (predictionStatus as any).data) {
+            const data = (predictionStatus as any).data
+            predictionId = data.predictionId || data.id || data.prediction_id
+          }
+          
+          // Try if response is an array (some models might return arrays)
+          if (!predictionId && Array.isArray(predictionStatus) && predictionStatus.length > 0) {
+            const firstItem = predictionStatus[0]
+            predictionId = firstItem.predictionId || firstItem.id || firstItem.prediction_id
+          }
+        }
                             
         console.log(`[Segment ${idx}] Extracted prediction ID:`, predictionId)
-        console.log(`[Segment ${idx}] Full response keys:`, Object.keys(predictionStatus))
         
         if (!predictionId) {
           const errorDetails = {
             segmentId: idx,
             response: videoResult,
-            responseKeys: Object.keys(videoResult || {}),
+            responseKeys: videoResult ? Object.keys(videoResult) : [],
             responseType: typeof videoResult,
             isArray: Array.isArray(videoResult),
             stringified: JSON.stringify(videoResult, null, 2),
+            model: videoParams.model,
           }
           console.error(`[Segment ${idx}] Invalid video result - missing prediction ID:`, JSON.stringify(errorDetails, null, 2))
           
@@ -227,7 +251,7 @@ export default defineEventHandler(async (event) => {
           return {
             segmentId: idx,
             status: 'failed',
-            error: `Invalid response from video generation: missing prediction ID`,
+            error: `Invalid response from video generation: missing prediction ID. Model: ${videoParams.model}. Please check the response structure for this model.`,
             metadata: errorDetails,
           } as Asset
         }
