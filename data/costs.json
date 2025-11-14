@@ -1,0 +1,554 @@
+[
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763101731399,
+    "metadata": {
+      "prompt": "Create a 30s Instagram ad for luxury watches with elegant gold aesthetics, slow-motion close-ups, and sophisticated background music"
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763102008037,
+    "metadata": {
+      "prompt": "Create a 30s Instagram ad for luxury watches with elegant gold aesthetics, slow-motion close-ups, and sophisticated background music"
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763134449465,
+    "metadata": {
+      "prompt": "A ad to sell cowboy boots"
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763134546773,
+    "metadata": {
+      "prompt": "An ad to sell cowboy boots"
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763134644263,
+    "metadata": {
+      "prompt": "An ad to sell cowboy boots"
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763134657154,
+    "metadata": {
+      "prompt": "An ad to sell cowboy boots"
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763135102832,
+    "metadata": {
+      "prompt": "Create a 30s Instagram ad for luxury watches with elegant gold aesthetics, slow-motion close-ups, and sophisticated background music"
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763135103866,
+    "metadata": {
+      "prompt": "Create a 30s Instagram ad for luxury watches with elegant gold aesthetics, slow-motion close-ups, and sophisticated background music"
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763135104637,
+    "metadata": {
+      "prompt": "Create a 30s Instagram ad for luxury watches with elegant gold aesthetics, slow-motion close-ups, and sophisticated background music"
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763135105138,
+    "metadata": {
+      "prompt": "Generate a high-energy 60s YouTube ad showcasing a new fitness product with dynamic workout scenes and motivational voiceover"
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763135105772,
+    "metadata": {
+      "prompt": "Create a 30s Instagram ad for luxury watches with elegant gold aesthetics, slow-motion close-ups, and sophisticated background music"
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763135116835,
+    "metadata": {
+      "prompt": "Create an add to sell cowboy boots, western theme"
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763135226987,
+    "metadata": {
+      "prompt": "Create a 30s ad to sell cowboy boots, western style. "
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763135292359,
+    "metadata": {
+      "prompt": "Create a 30s Instagram ad for luxury watches with elegant gold aesthetics, slow-motion close-ups, and sophisticated background music"
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763135716771,
+    "metadata": {
+      "prompt": "Create a 30s Instagram ad for luxury watches with elegant gold aesthetics, slow-motion close-ups, and sophisticated background music"
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763135887446,
+    "metadata": {
+      "prompt": "Create a 30s Instagram ad for luxury watches with elegant gold aesthetics, slow-motion close-ups, and sophisticated background music"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763135891205,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763136182855,
+    "metadata": {
+      "prompt": "Create a 30s Instagram ad for luxury watches with elegant gold aesthetics, slow-motion close-ups, and sophisticated background music"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763136186248,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763136877900,
+    "metadata": {
+      "prompt": "Create a 30-second promotional video for a new eco-friendly water bottle. Show the product in various outdoor settings with people using it during hiking, cycling, and beach activities. Include upbeat music and emphasize sustainability and durability."
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763136881746,
+    "metadata": {
+      "duration": 60
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763137229845,
+    "metadata": {
+      "prompt": "Create a 30s Instagram ad for luxury watches with elegant gold aesthetics, slow-motion close-ups, and sophisticated background music"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763137232603,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763137678012,
+    "metadata": {
+      "prompt": "Create a 30s Instagram ad for luxury watches with elegant gold aesthetics, slow-motion close-ups, and sophisticated background music"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763137681204,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763137729708,
+    "metadata": {
+      "segmentId": 2,
+      "duration": 8
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763137729909,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 5
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763137729910,
+    "metadata": {
+      "segmentId": 1,
+      "duration": 8
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763137729911,
+    "metadata": {
+      "segmentId": 3,
+      "duration": 9
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763137951768,
+    "metadata": {
+      "prompt": "Create a 30s Instagram ad for luxury watches with elegant gold aesthetics, slow-motion close-ups, and sophisticated background music"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763137954831,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763137970080,
+    "metadata": {
+      "segmentId": 3,
+      "duration": 5
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763137970209,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 7
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763137970214,
+    "metadata": {
+      "segmentId": 1,
+      "duration": 10
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763137970307,
+    "metadata": {
+      "segmentId": 2,
+      "duration": 8
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763139719461,
+    "metadata": {
+      "prompt": "Create an ad for a pair of athletic shoes. "
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763139722845,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763139738068,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 6
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763140038166,
+    "metadata": {
+      "prompt": "Create an ad for basketball shoes."
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763140041335,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763140057907,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 6
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763140309246,
+    "metadata": {
+      "prompt": "Create an ad for baskteball shoes. "
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763140312384,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763140332265,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 6
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763140537343,
+    "metadata": {
+      "prompt": "Create an ad for basketball shoes. "
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763140538860,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763140557512,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 6
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763140737051,
+    "metadata": {
+      "prompt": "Create an ad for basketball shoes."
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763140740765,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763140809156,
+    "metadata": {
+      "prompt": "Create an ad for basketball shoes. "
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763140812393,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763141860833,
+    "metadata": {
+      "prompt": "Generate an ad for basketball shoes. "
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763141863514,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763141952636,
+    "metadata": {
+      "prompt": "Create an ad for basketball shoes. "
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763141956104,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763141973465,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 6
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763142033608,
+    "metadata": {
+      "prompt": "Create an ad for basketball shoes. "
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763142036211,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763142050400,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 6
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763142145202,
+    "metadata": {
+      "prompt": "Create an ad for basketball shoes"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763142149721,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763142168658,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 6
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763142388616,
+    "metadata": {
+      "prompt": "Create an ad for basketball shoes. "
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763142391789,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763142476615,
+    "metadata": {
+      "prompt": "Create an ad for basketball shoes. "
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763142480602,
+    "metadata": {
+      "duration": 30
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763142503095,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 8
+    }
+  }
+]

@@ -1,0 +1,86 @@
+import { promises as fs } from 'fs'
+import path from 'path'
+import { nanoid } from 'nanoid'
+
+const DATA_DIR = process.env.MCP_FILESYSTEM_ROOT || './data'
+const VIDEOS_DIR = path.join(DATA_DIR, 'videos')
+const ASSETS_DIR = path.join(DATA_DIR, 'assets')
+const STORYBOARDS_DIR = path.join(DATA_DIR, 'storyboards')
+
+// Ensure directories exist
+async function ensureDirectories() {
+  await fs.mkdir(VIDEOS_DIR, { recursive: true })
+  await fs.mkdir(ASSETS_DIR, { recursive: true })
+  await fs.mkdir(STORYBOARDS_DIR, { recursive: true })
+}
+
+export async function saveVideo(fileBuffer: Buffer, filename?: string): Promise<string> {
+  await ensureDirectories()
+  const videoId = filename || `${nanoid()}.mp4`
+  const filePath = path.join(VIDEOS_DIR, videoId)
+  await fs.writeFile(filePath, fileBuffer)
+  return filePath
+}
+
+export async function saveAsset(fileBuffer: Buffer, extension: string = 'tmp'): Promise<string> {
+  await ensureDirectories()
+  const assetId = `${nanoid()}.${extension}`
+  const filePath = path.join(ASSETS_DIR, assetId)
+  await fs.writeFile(filePath, fileBuffer)
+  return filePath
+}
+
+export async function saveStoryboard(storyboard: any): Promise<string> {
+  await ensureDirectories()
+  const storyboardId = storyboard.id || nanoid()
+  const filePath = path.join(STORYBOARDS_DIR, `${storyboardId}.json`)
+  await fs.writeFile(filePath, JSON.stringify(storyboard, null, 2))
+  return filePath
+}
+
+export async function readStoryboard(storyboardId: string): Promise<any> {
+  const filePath = path.join(STORYBOARDS_DIR, `${storyboardId}.json`)
+  const content = await fs.readFile(filePath, 'utf-8')
+  return JSON.parse(content)
+}
+
+export async function readFile(filePath: string): Promise<Buffer> {
+  return await fs.readFile(filePath)
+}
+
+export async function deleteFile(filePath: string): Promise<void> {
+  try {
+    await fs.unlink(filePath)
+  } catch (error: any) {
+    if (error.code !== 'ENOENT') {
+      throw error
+    }
+  }
+}
+
+export async function cleanupTempFiles(paths: string[]): Promise<void> {
+  await Promise.allSettled(paths.map(p => deleteFile(p)))
+}
+
+export async function downloadFile(url: string, outputPath?: string): Promise<string> {
+  if (!url) {
+    throw new Error('Cannot download file: URL is undefined or empty')
+  }
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new Error(`Failed to download file from ${url}: ${response.status} ${response.statusText}`)
+  }
+  const buffer = await response.arrayBuffer()
+  if (!buffer) {
+    throw new Error(`Failed to get file buffer from ${url}: response body is empty`)
+  }
+  const fileBuffer = Buffer.from(buffer)
+  
+  if (outputPath) {
+    await fs.writeFile(outputPath, fileBuffer)
+    return outputPath
+  }
+  
+  return await saveAsset(fileBuffer, url.split('.').pop() || 'tmp')
+}
+

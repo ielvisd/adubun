@@ -1,0 +1,214 @@
+[
+  {
+    "id": "o0oYutPPZx9_MG32smyEI",
+    "status": "failed",
+    "startTime": 1763137729427,
+    "storyboardId": "u-Xq3p5wjK6sZxA0nxIUh",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Video generation failed: Request to https://api.replicate.com/v1/models/minimax/hailuo-ai-v2.3/predictions failed with status 401 Unauthorized: {\"title\":\"Unauthenticated\",\"detail\":\"You did not pass an authentication token\",\"status\":401}\n."
+      },
+      {
+        "segmentId": 1,
+        "status": "failed",
+        "error": "Video generation failed: Request to https://api.replicate.com/v1/models/minimax/hailuo-ai-v2.3/predictions failed with status 401 Unauthorized: {\"title\":\"Unauthenticated\",\"detail\":\"You did not pass an authentication token\",\"status\":401}\n."
+      },
+      {
+        "segmentId": 2,
+        "status": "failed",
+        "error": "Video generation failed: Request to https://api.replicate.com/v1/models/minimax/hailuo-ai-v2.3/predictions failed with status 401 Unauthorized: {\"title\":\"Unauthenticated\",\"detail\":\"You did not pass an authentication token\",\"status\":401}\n."
+      },
+      {
+        "segmentId": 3,
+        "status": "failed",
+        "error": "Video generation failed: Request to https://api.replicate.com/v1/models/minimax/hailuo-ai-v2.3/predictions failed with status 401 Unauthorized: {\"title\":\"Unauthenticated\",\"detail\":\"You did not pass an authentication token\",\"status\":401}\n."
+      }
+    ],
+    "endTime": 1763137729912
+  },
+  {
+    "id": "o4Dk8dvobOTakqO6zIj9Y",
+    "status": "failed",
+    "startTime": 1763137969910,
+    "storyboardId": "g-W_nna0pzssc-7dAAxiC",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Video generation failed: Request to https://api.replicate.com/v1/models/minimax/hailuo-ai-v2.3/predictions failed with status 401 Unauthorized: {\"title\":\"Unauthenticated\",\"detail\":\"You did not pass an authentication token\",\"status\":401}\n."
+      },
+      {
+        "segmentId": 1,
+        "status": "failed",
+        "error": "Video generation failed: Request to https://api.replicate.com/v1/models/minimax/hailuo-ai-v2.3/predictions failed with status 401 Unauthorized: {\"title\":\"Unauthenticated\",\"detail\":\"You did not pass an authentication token\",\"status\":401}\n."
+      },
+      {
+        "segmentId": 2,
+        "status": "failed",
+        "error": "Video generation failed: Request to https://api.replicate.com/v1/models/minimax/hailuo-ai-v2.3/predictions failed with status 401 Unauthorized: {\"title\":\"Unauthenticated\",\"detail\":\"You did not pass an authentication token\",\"status\":401}\n."
+      },
+      {
+        "segmentId": 3,
+        "status": "failed",
+        "error": "Video generation failed: Request to https://api.replicate.com/v1/models/minimax/hailuo-ai-v2.3/predictions failed with status 401 Unauthorized: {\"title\":\"Unauthenticated\",\"detail\":\"You did not pass an authentication token\",\"status\":401}\n."
+      }
+    ],
+    "endTime": 1763137970309
+  },
+  {
+    "id": "01J1C4AgLT-i8M2ae1Vd2",
+    "status": "failed",
+    "startTime": 1763139737536,
+    "storyboardId": "qYQJ5v1UnEJ4aMNyYzpS9",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Video generation failed: Request to https://api.replicate.com/v1/models/minimax/video-01/predictions failed with status 422 Unprocessable Entity: {\"detail\":\"- input.first_frame_image: Does not match format 'uri'\\n- input.subject_reference: Does not match format 'uri'\\n\",\"status\":422,\"title\":\"Input validation failed\",\"invalid_fields\":[{\"type\":\"format\",\"field\":\"input.first_frame_image\",\"description\":\"Does not match format 'uri'\"},{\"type\":\"format\",\"field\":\"input.subject_reference\",\"description\":\"Does not match format 'uri'\"}]}\n."
+      }
+    ],
+    "endTime": 1763139738072
+  },
+  {
+    "id": "NRw4mauE-fVg2DfvOl9Ql",
+    "status": "failed",
+    "startTime": 1763140057624,
+    "storyboardId": "iDnPbu4dQbQykGJ7n43yI",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Video generation failed: HTTPConnectionPool(host='localhost', port=3000): Max retries exceeded with url: /api/assets/AGWqp-dJmoXYV5N6SPHw6.webp (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x741234285c70>: Failed to establish a new connection: [Errno 111] Connection refused'))"
+      }
+    ],
+    "endTime": 1763140060007
+  },
+  {
+    "id": "_W8hgFoFOqjPXbcDYVm2e",
+    "status": "failed",
+    "startTime": 1763140332033,
+    "storyboardId": "p9Vw_YGXZwH9c-iqVOsDk",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Video generation failed: Request to https://api.replicate.com/v1/models/minimax/video-01/predictions failed with status 422 Unprocessable Entity: {\"detail\":\"- input.first_frame_image: Does not match format 'uri'\\n- input.subject_reference: Does not match format 'uri'\\n\",\"status\":422,\"title\":\"Input validation failed\",\"invalid_fields\":[{\"type\":\"format\",\"field\":\"input.first_frame_image\",\"description\":\"Does not match format 'uri'\"},{\"type\":\"format\",\"field\":\"input.subject_reference\",\"description\":\"Does not match format 'uri'\"}]}\n."
+      }
+    ],
+    "endTime": 1763140332268
+  },
+  {
+    "id": "k3T8q1MNvg2S0j0v24IjS",
+    "status": "failed",
+    "startTime": 1763140557290,
+    "storyboardId": "7PWTE5IMoFQCKTSgiTB5Q",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Video generation failed: Request to https://api.replicate.com/v1/models/minimax/video-01/predictions failed with status 422 Unprocessable Entity: {\"detail\":\"- input.first_frame_image: Does not match format 'uri'\\n- input.subject_reference: Does not match format 'uri'\\n\",\"status\":422,\"title\":\"Input validation failed\",\"invalid_fields\":[{\"type\":\"format\",\"field\":\"input.first_frame_image\",\"description\":\"Does not match format 'uri'\"},{\"type\":\"format\",\"field\":\"input.subject_reference\",\"description\":\"Does not match format 'uri'\"}]}\n."
+      }
+    ],
+    "endTime": 1763140557515
+  },
+  {
+    "id": "GgUmt9BMhTIDNB-jbCchH",
+    "status": "failed",
+    "startTime": 1763140749580,
+    "storyboardId": "-SaQ2L-Tx6YkqulZbrRQn",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Failed to upload file to Replicate: REPLICATE_API_KEY environment variable is not set"
+      }
+    ],
+    "endTime": 1763140749584
+  },
+  {
+    "id": "QMcBX1IJxROhkExvmr6h2",
+    "status": "failed",
+    "startTime": 1763140834029,
+    "storyboardId": "3TOHShyIHrCHuz_LRg_xG",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Failed to upload file to Replicate: Replicate file upload failed: 500 {\"detail\":\"Internal server error\"}"
+      }
+    ],
+    "endTime": 1763140834490
+  },
+  {
+    "id": "A9efAJp3EKlQIQn7JRaAC",
+    "status": "failed",
+    "startTime": 1763141881564,
+    "storyboardId": "sdfx9_AWaiCeI5g5f0TfY",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Failed to get file URL: Failed to upload file to S3: The bucket does not allow ACLs"
+      }
+    ],
+    "endTime": 1763141881916
+  },
+  {
+    "id": "ulF2thSBRxusTb9Gvd33j",
+    "status": "failed",
+    "startTime": 1763141972865,
+    "storyboardId": "hecdA3ayK2ewfWAw7voqu",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Video generation failed: 403 Client Error: Forbidden for url: https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763141972867-aLnI99TWE9h_1IigYXHEi.webp"
+      }
+    ],
+    "endTime": 1763141975567
+  },
+  {
+    "id": "XEvpMQ9vy7QbjLEnr_Tqj",
+    "status": "failed",
+    "startTime": 1763142049750,
+    "storyboardId": "0UwQ-lVwQupoTfC0VZJm2",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Video generation failed: 403 Client Error: Forbidden for url: https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763142049754-kno1SenHVbg1rMrsGyEFE.webp"
+      }
+    ],
+    "endTime": 1763142052502
+  },
+  {
+    "id": "Du9fx6wsE0FAmhmHu2mGN",
+    "status": "failed",
+    "startTime": 1763142168005,
+    "storyboardId": "4N8Qb_TADRQ6c3jiAdn3n",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Video generation failed: Request to https://api.replicate.com/v1/predictions/undefined failed with status 404 Not Found: {\"detail\":\"The requested resource could not be found.\",\"status\":404}\n."
+      }
+    ],
+    "endTime": 1763142172818
+  },
+  {
+    "id": "_tFxHk-CAmD4sgyi-zaJ1",
+    "status": "failed",
+    "startTime": 1763142502459,
+    "storyboardId": "GOv2xYMB2KkVCsgzn4DMd",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "The first argument must be of type string or an instance of Buffer, ArrayBuffer, or Array or an Array-like Object. Received undefined"
+      }
+    ],
+    "endTime": 1763142655383
+  }
+]

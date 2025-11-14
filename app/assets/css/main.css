@@ -1,0 +1,98 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+/* Apply Nunito font globally */
+body {
+  font-family: 'Nunito', sans-serif;
+}
+
+/* Tailwind v4 Theme Configuration - Letsignit Inspired */
+@theme {
+  --color-letsignit-black: #000000;
+  --color-letsignit-white: #FFFFFF;
+  --color-letsignit-red: #E63946;
+  --color-letsignit-blue: #457B9D;
+  --color-letsignit-light-blue: #A8DADC;
+  --color-letsignit-light-yellow: #FFF9E6;
+  --color-letsignit-light-pink: #FFE5E5;
+  --color-letsignit-light-purple: #F0E6FF;
+  --color-letsignit-light-teal: #E0F7FA;
+  --color-letsignit-gray: #F5F5F5;
+}
+
+/* Letsignit-Inspired Brand Colors - CSS Variables */
+:root {
+  /* Primary Colors */
+  --letsignit-black: #000000;
+  --letsignit-white: #FFFFFF;
+  --letsignit-red: #E63946;
+  --letsignit-blue: #457B9D;
+  
+  /* Pastel Background Colors */
+  --letsignit-light-yellow: #FFF9E6;
+  --letsignit-light-pink: #FFE5E5;
+  --letsignit-light-blue: #A8DADC;
+  --letsignit-light-purple: #F0E6FF;
+  --letsignit-light-teal: #E0F7FA;
+  --letsignit-gray: #F5F5F5;
+  
+  /* Semantic Colors */
+  --adubun-primary: var(--letsignit-blue);
+  --adubun-secondary: var(--letsignit-red);
+  --adubun-accent: var(--letsignit-red);
+  --adubun-background: var(--letsignit-white);
+  
+  /* System Colors */
+  --adubun-success: #10b981;
+  --adubun-warning: #F59E0B;
+  --adubun-error: var(--letsignit-red);
+}
+
+/* Custom Utilities - Letsignit Style */
+.video-container {
+  @apply relative aspect-video bg-black rounded-xl overflow-hidden shadow-lg;
+}
+
+.generation-card {
+  @apply bg-white rounded-2xl shadow-md p-8 border border-gray-100;
+}
+
+/* Letsignit-Inspired Background Utilities */
+.bg-letsignit-hero {
+  @apply bg-black text-white;
+}
+
+.bg-letsignit-section-yellow {
+  background-color: var(--letsignit-light-yellow);
+}
+
+.bg-letsignit-section-pink {
+  background-color: var(--letsignit-light-pink);
+}
+
+.bg-letsignit-section-blue {
+  background-color: var(--letsignit-light-blue);
+}
+
+.bg-letsignit-section-purple {
+  background-color: var(--letsignit-light-purple);
+}
+
+.bg-letsignit-section-teal {
+  background-color: var(--letsignit-light-teal);
+}
+
+.bg-letsignit-section-gray {
+  background-color: var(--letsignit-gray);
+}
+
+/* Card Styles */
+.letsignit-card {
+  @apply bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-lg transition-shadow duration-300;
+}
+
+/* Button Styles */
+.letsignit-cta {
+  @apply bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors duration-200;
+}
+

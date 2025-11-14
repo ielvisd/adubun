@@ -1,0 +1,203 @@
+import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
+import { spawn } from 'child_process'
+import path from 'path'
+
+interface MCPClients {
+  replicate?: Client
+  openai?: Client
+  elevenlabs?: Client
+}
+
+let clients: MCPClients = {}
+
+export async function initializeMCPClients(): Promise<MCPClients> {
+  if (Object.keys(clients).length > 0) {
+    return clients
+  }
+
+  try {
+    // Replicate Client
+    const replicateTransport = new StdioClientTransport({
+      command: 'npx',
+      args: ['tsx', path.join(process.cwd(), 'mcp-servers/replicate/index.ts')],
+    })
+    clients.replicate = new Client(
+      { name: 'adubun-client', version: '1.0.0' },
+      { capabilities: {} }
+    )
+    await clients.replicate.connect(replicateTransport)
+
+    // OpenAI Client
+    const openaiTransport = new StdioClientTransport({
+      command: 'npx',
+      args: ['tsx', path.join(process.cwd(), 'mcp-servers/openai/index.ts')],
+    })
+    clients.openai = new Client(
+      { name: 'adubun-client', version: '1.0.0' },
+      { capabilities: {} }
+    )
+    await clients.openai.connect(openaiTransport)
+
+    // ElevenLabs Client
+    const elevenlabsTransport = new StdioClientTransport({
+      command: 'npx',
+      args: ['tsx', path.join(process.cwd(), 'mcp-servers/elevenlabs/index.ts')],
+    })
+    clients.elevenlabs = new Client(
+      { name: 'adubun-client', version: '1.0.0' },
+      { capabilities: {} }
+    )
+    await clients.elevenlabs.connect(elevenlabsTransport)
+
+    return clients
+  } catch (error: any) {
+    console.error('Failed to initialize MCP clients:', error)
+    throw new Error(`MCP client initialization failed: ${error.message || 'Unknown error'}`)
+  }
+}
+
+export function getMCPClients(): MCPClients {
+  return clients
+}
+
+export async function callReplicateMCP(
+  tool: string,
+  args: Record<string, any>
+): Promise<any> {
+  try {
+    const clients = await initializeMCPClients()
+    if (!clients.replicate) {
+      throw new Error('Replicate MCP client not initialized')
+    }
+
+    const result = await clients.replicate.callTool({
+      name: tool,
+      arguments: args,
+    })
+
+    if (!result.content || !result.content[0] || !result.content[0].text) {
+      throw new Error('Invalid MCP response structure')
+    }
+
+    return JSON.parse(result.content[0].text)
+  } catch (error: any) {
+    console.error(`[Replicate MCP] Call to ${tool} failed:`, error)
+    console.error(`[Replicate MCP] Tool: ${tool}, Args:`, JSON.stringify(args, null, 2))
+    if (error.stack) {
+      console.error(`[Replicate MCP] Stack trace:`, error.stack)
+    }
+    throw new Error(`Replicate MCP call failed: ${error.message || 'Unknown error'}`)
+  }
+}
+
+export async function callOpenAIMCP(
+  tool: string,
+  args: Record<string, any>
+): Promise<any> {
+  try {
+    const clients = await initializeMCPClients()
+    if (!clients.openai) {
+      throw new Error('OpenAI MCP client not initialized')
+    }
+
+    const result = await clients.openai.callTool({
+      name: tool,
+      arguments: args,
+    })
+
+    if (!result.content || !result.content[0]) {
+      console.error('Invalid MCP response structure:', result)
+      throw new Error('Invalid MCP response structure: no content')
+    }
+
+    const content = result.content[0]
+    const text = content.text || (typeof content === 'string' ? content : JSON.stringify(content))
+    
+    if (!text) {
+      console.error('No text content in MCP response:', content)
+      throw new Error('Invalid MCP response structure: no text content')
+    }
+
+    // Debug: log the raw text response
+    console.log('MCP raw text response:', text.substring(0, 500))
+
+    // Check if the response contains an error
+    if (text.trim().startsWith('{') && text.includes('"error"')) {
+      try {
+        const errorData = JSON.parse(text)
+        if (errorData.error) {
+          console.error('MCP returned error response:', errorData)
+          throw new Error(`MCP tool error: ${errorData.error}`)
+        }
+      } catch (e: any) {
+        // If it's our error, re-throw it
+        if (e.message && e.message.includes('MCP tool error')) {
+          throw e
+        }
+        // Otherwise, it's not a JSON error, continue
+      }
+    }
+
+    try {
+      const parsed = JSON.parse(text)
+      
+      // Check if parsed object only has an error field
+      if (parsed && typeof parsed === 'object' && Object.keys(parsed).length === 1 && 'error' in parsed) {
+        console.error('MCP returned error object:', parsed)
+        throw new Error(`MCP tool error: ${parsed.error}`)
+      }
+      
+      console.log('MCP parsed response:', JSON.stringify(parsed, null, 2))
+      console.log('MCP parsed response keys:', Object.keys(parsed || {}))
+      return parsed
+    } catch (parseError: any) {
+      // If it's our error, re-throw it
+      if (parseError.message && parseError.message.includes('MCP tool error')) {
+        throw parseError
+      }
+      // If it's not JSON, return as is (might be a string response)
+      console.warn('MCP response is not JSON, returning as string:', text.substring(0, 100))
+      console.warn('Parse error:', parseError.message)
+      return { content: text }
+    }
+  } catch (error: any) {
+    console.error('OpenAI MCP call error:', error)
+    console.error('Tool:', tool, 'Args:', args)
+    if (error.stack) {
+      console.error('Stack trace:', error.stack)
+    }
+    throw new Error(`OpenAI MCP call failed: ${error.message || 'Unknown error'}`)
+  }
+}
+
+export async function callElevenLabsMCP(
+  tool: string,
+  args: Record<string, any>
+): Promise<any> {
+  try {
+    const clients = await initializeMCPClients()
+    if (!clients.elevenlabs) {
+      throw new Error('ElevenLabs MCP client not initialized')
+    }
+
+    const result = await clients.elevenlabs.callTool({
+      name: tool,
+      arguments: args,
+    })
+
+    if (!result.content || !result.content[0] || !result.content[0].text) {
+      throw new Error('Invalid MCP response structure')
+    }
+
+    return JSON.parse(result.content[0].text)
+  } catch (error: any) {
+    console.error(`[ElevenLabs MCP] Call to ${tool} failed:`, error)
+    console.error(`[ElevenLabs MCP] Tool: ${tool}, Args:`, JSON.stringify(args, null, 2))
+    if (error.stack) {
+      console.error(`[ElevenLabs MCP] Stack trace:`, error.stack)
+    }
+    throw new Error(`ElevenLabs MCP call failed: ${error.message || 'Unknown error'}`)
+  }
+}
+
