@@ -141,26 +141,51 @@ export default defineEventHandler(async (event) => {
         // Add image inputs if provided - upload to Replicate and get public URLs
         // Model-specific image handling
         if (model === 'google/veo-3.1') {
-          // Veo 3.1 supports first_frame_image and subject_reference
+          // Veo 3.1 supports: image, last_frame, reference_images, negative_prompt, resolution, generate_audio, seed
+          if (storyboard.meta.image) {
+            videoParams.image = await prepareImageInput(storyboard.meta.image)
+          }
+          if (storyboard.meta.lastFrame) {
+            videoParams.last_frame = await prepareImageInput(storyboard.meta.lastFrame)
+          }
+          if (storyboard.meta.referenceImages && storyboard.meta.referenceImages.length > 0) {
+            videoParams.reference_images = await Promise.all(
+              storyboard.meta.referenceImages.map((img: string) => prepareImageInput(img))
+            )
+          }
+          if (storyboard.meta.negativePrompt) {
+            videoParams.negative_prompt = storyboard.meta.negativePrompt
+          }
+          if (storyboard.meta.resolution) {
+            videoParams.resolution = storyboard.meta.resolution
+          }
+          if (storyboard.meta.generateAudio !== undefined) {
+            videoParams.generate_audio = storyboard.meta.generateAudio
+          }
+          if (storyboard.meta.seed !== undefined && storyboard.meta.seed !== null) {
+            videoParams.seed = storyboard.meta.seed
+          }
+        } else if (model === 'runway/gen-3-alpha-turbo' || model === 'anotherbyte/seedance-1.0') {
+          // These models support generic 'image' input
+          if (firstFrameImage) {
+            videoParams.image_legacy = await prepareImageInput(firstFrameImage)
+          } else if (subjectReference) {
+            videoParams.image_legacy = await prepareImageInput(subjectReference)
+          }
+        } else if (model === 'stability-ai/stable-video-diffusion') {
+          // Stable Video Diffusion requires image input
+          if (firstFrameImage) {
+            videoParams.image_legacy = await prepareImageInput(firstFrameImage)
+          } else if (subjectReference) {
+            videoParams.image_legacy = await prepareImageInput(subjectReference)
+          }
+        } else {
+          // Legacy models - support firstFrameImage/subjectReference
           if (firstFrameImage) {
             videoParams.first_frame_image = await prepareImageInput(firstFrameImage)
           }
           if (subjectReference) {
             videoParams.subject_reference = await prepareImageInput(subjectReference)
-          }
-        } else if (model === 'runway/gen-3-alpha-turbo' || model === 'anotherbyte/seedance-1.0') {
-          // These models support generic 'image' input
-          if (firstFrameImage) {
-            videoParams.image = await prepareImageInput(firstFrameImage)
-          } else if (subjectReference) {
-            videoParams.image = await prepareImageInput(subjectReference)
-          }
-        } else if (model === 'stability-ai/stable-video-diffusion') {
-          // Stable Video Diffusion requires image input
-          if (firstFrameImage) {
-            videoParams.image = await prepareImageInput(firstFrameImage)
-          } else if (subjectReference) {
-            videoParams.image = await prepareImageInput(subjectReference)
           }
         }
 

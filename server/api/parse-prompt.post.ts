@@ -18,7 +18,17 @@ export default defineEventHandler(async (event) => {
           const filePath = await saveAsset(Buffer.from(item.data), extension)
           
           // Store the file path in body
-          if (item.name === 'firstFrameImage') {
+          // Veo 3.1 fields
+          if (item.name === 'image') {
+            if (!body.image) body.image = filePath
+          } else if (item.name === 'lastFrame') {
+            body.lastFrame = filePath
+          } else if (item.name === 'referenceImages') {
+            if (!body.referenceImages) body.referenceImages = []
+            body.referenceImages.push(filePath)
+          }
+          // Legacy fields
+          else if (item.name === 'firstFrameImage') {
             body.firstFrameImage = filePath
           } else if (item.name === 'subjectReference') {
             body.subjectReference = filePath
@@ -29,11 +39,17 @@ export default defineEventHandler(async (event) => {
           // It's a form field
           const value = item.data.toString('utf-8')
           // Try to parse numbers
-          if (item.name === 'duration') {
+          if (item.name === 'duration' || item.name === 'seed') {
             body[item.name] = Number(value)
-          } else if (item.name === 'firstFrameImage' || item.name === 'subjectReference' || item.name === 'inputImage') {
+          } else if (item.name === 'generateAudio') {
+            body[item.name] = value === 'true'
+          } else if (item.name === 'image' || item.name === 'lastFrame' || item.name === 'firstFrameImage' || item.name === 'subjectReference' || item.name === 'inputImage') {
             // Could be a URL string
             body[item.name] = value || null
+          } else if (item.name === 'referenceImages') {
+            // Handle array of reference images (URLs)
+            if (!body.referenceImages) body.referenceImages = []
+            if (value) body.referenceImages.push(value)
           } else if (item.name === 'model') {
             // Model ID
             body[item.name] = value || undefined
@@ -171,6 +187,15 @@ export default defineEventHandler(async (event) => {
         style: validated.style,
         mode: validated.mode || 'demo',
         model: validated.model || 'google/veo-3.1', // Default to google/veo-3.1
+        // Veo 3.1 fields
+        image: validated.image || undefined,
+        lastFrame: validated.lastFrame || undefined,
+        referenceImages: validated.referenceImages || undefined,
+        negativePrompt: validated.negativePrompt || undefined,
+        resolution: validated.resolution || '1080p',
+        generateAudio: validated.generateAudio !== undefined ? validated.generateAudio : true,
+        seed: validated.seed || undefined,
+        // Legacy fields for other models
         firstFrameImage: validated.firstFrameImage || validated.inputImage || undefined,
         subjectReference: validated.subjectReference || undefined,
       },

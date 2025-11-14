@@ -62,32 +62,98 @@
       </div>
 
       <!-- Image inputs - shown conditionally based on model capabilities -->
-      <div v-if="showImageInputs" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+      <div v-if="showImageInputs" class="space-y-4 mt-4">
+        <!-- For Veo 3.1: image (first frame) -->
         <UFormField 
-          v-if="selectedModel?.supportsFirstFrame"
-          label="First Frame Image (Optional)" 
-          name="firstFrameImage"
-          description="First frame image for video generation. The output video will have the same aspect ratio as this image."
-        >
-          <ImageUpload v-model="form.firstFrameImage" @upload="handleImageUpload('firstFrameImage', $event)" />
-        </UFormField>
-
-        <UFormField 
-          v-if="selectedModel?.supportsCharacterReference"
-          label="Subject Reference (Optional)" 
-          name="subjectReference"
-          description="An optional character reference image to use as the subject in the generated video."
-        >
-          <ImageUpload v-model="form.subjectReference" @upload="handleImageUpload('subjectReference', $event)" />
-        </UFormField>
-
-        <UFormField 
-          v-if="selectedModel?.supportsImageToVideo && !selectedModel?.supportsFirstFrame && !selectedModel?.supportsCharacterReference"
+          v-if="isVeo31"
           label="Input Image (Optional)" 
-          name="inputImage"
-          description="Input image for image-to-video generation."
+          name="image"
+          description="Input image to start generating from. Ideal images are 16:9 or 9:16 and 1280x720 or 720x1280, depending on the aspect ratio you choose."
         >
-          <ImageUpload v-model="form.inputImage" @upload="handleImageUpload('inputImage', $event)" />
+          <ImageUpload v-model="form.image" @upload="handleImageUpload('image', $event)" />
+        </UFormField>
+
+        <!-- For Veo 3.1: last_frame -->
+        <UFormField 
+          v-if="isVeo31"
+          label="Last Frame Image (Optional)" 
+          name="lastFrame"
+          description="Ending image for interpolation. When provided with an input image, creates a transition between the two images."
+        >
+          <ImageUpload v-model="form.lastFrame" @upload="handleImageUpload('lastFrame', $event)" />
+        </UFormField>
+
+        <!-- For Veo 3.1: reference_images (1-3 images) -->
+        <UFormField 
+          v-if="isVeo31"
+          label="Reference Images (Optional)" 
+          name="referenceImages"
+          description="1 to 3 reference images for subject-consistent generation (reference-to-video, or R2V). Reference images only work with 16:9 aspect ratio and 8-second duration. Last frame is ignored if reference images are provided."
+        >
+          <MultiImageUpload v-model="form.referenceImages" :max-images="3" @upload="handleMultiImageUpload($event)" />
+        </UFormField>
+
+        <!-- Legacy fields for other models -->
+        <div v-if="!isVeo31" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <UFormField 
+            v-if="selectedModel?.supportsFirstFrame"
+            label="First Frame Image (Optional)" 
+            name="firstFrameImage"
+            description="First frame image for video generation. The output video will have the same aspect ratio as this image."
+          >
+            <ImageUpload v-model="form.firstFrameImage" @upload="handleImageUpload('firstFrameImage', $event)" />
+          </UFormField>
+
+          <UFormField 
+            v-if="selectedModel?.supportsCharacterReference"
+            label="Subject Reference (Optional)" 
+            name="subjectReference"
+            description="An optional character reference image to use as the subject in the generated video."
+          >
+            <ImageUpload v-model="form.subjectReference" @upload="handleImageUpload('subjectReference', $event)" />
+          </UFormField>
+
+          <UFormField 
+            v-if="selectedModel?.supportsImageToVideo && !selectedModel?.supportsFirstFrame && !selectedModel?.supportsCharacterReference"
+            label="Input Image (Optional)" 
+            name="inputImage"
+            description="Input image for image-to-video generation."
+          >
+            <ImageUpload v-model="form.inputImage" @upload="handleImageUpload('inputImage', $event)" />
+          </UFormField>
+        </div>
+      </div>
+
+      <!-- Additional Veo 3.1 fields -->
+      <div v-if="isVeo31" class="space-y-4 mt-4">
+        <UFormField label="Negative Prompt (Optional)" name="negativePrompt">
+          <UTextarea
+            v-model="form.negativePrompt"
+            placeholder="Description of what to exclude from the generated video"
+            :rows="2"
+            class="w-full"
+          />
+        </UFormField>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <UFormField label="Resolution" name="resolution">
+            <USelect
+              v-model="form.resolution"
+              :items="resolutionOptions"
+            />
+          </UFormField>
+
+          <UFormField label="Generate Audio" name="generateAudio">
+            <UCheckbox v-model="form.generateAudio" label="Generate audio with the video" />
+          </UFormField>
+        </div>
+
+        <UFormField label="Seed (Optional)" name="seed">
+          <UInput
+            v-model.number="form.seed"
+            type="number"
+            placeholder="Random seed. Omit for random generations"
+          />
         </UFormField>
       </div>
 
@@ -118,6 +184,7 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import ImageUpload from './ImageUpload.vue'
+import MultiImageUpload from './MultiImageUpload.vue'
 import { VIDEO_MODELS, DEFAULT_MODEL_ID, getModelById } from '~/config/video-models'
 import type { VideoModel } from '~/types/generation'
 
@@ -128,6 +195,15 @@ const schema = z.object({
   aspectRatio: z.enum(['16:9', '9:16', '1:1']),
   style: z.string().min(1),
   mode: z.enum(['demo', 'production']).optional(),
+  // Veo 3.1 fields
+  image: z.union([z.instanceof(File), z.string()]).optional().nullable(),
+  lastFrame: z.union([z.instanceof(File), z.string()]).optional().nullable(),
+  referenceImages: z.array(z.union([z.instanceof(File), z.string()])).max(3).optional(),
+  negativePrompt: z.string().optional(),
+  resolution: z.string().optional(),
+  generateAudio: z.boolean().optional(),
+  seed: z.number().int().optional().nullable(),
+  // Legacy fields for other models
   firstFrameImage: z.union([z.instanceof(File), z.string()]).optional().nullable(),
   subjectReference: z.union([z.instanceof(File), z.string()]).optional().nullable(),
   inputImage: z.union([z.instanceof(File), z.string()]).optional().nullable(),
@@ -141,6 +217,15 @@ const getInitialFormState = () => ({
   aspectRatio: '16:9' as '16:9' | '9:16' | '1:1',
   style: 'Cinematic',
   mode: 'demo' as 'demo' | 'production',
+  // Veo 3.1 fields
+  image: null as File | string | null,
+  lastFrame: null as File | string | null,
+  referenceImages: [] as (File | string)[],
+  negativePrompt: '',
+  resolution: '1080p',
+  generateAudio: true,
+  seed: null as number | null,
+  // Legacy fields for other models
   firstFrameImage: null as File | string | null,
   subjectReference: null as File | string | null,
   inputImage: null as File | string | null,
@@ -202,6 +287,14 @@ const modeOptions = [
   { label: 'Production (All scenes generated)', value: 'production' },
 ]
 
+const resolutionOptions = [
+  { label: '1080p', value: '1080p' },
+  { label: '720p', value: '720p' },
+]
+
+// Check if current model is Veo 3.1
+const isVeo31 = computed(() => form.model === 'google/veo-3.1')
+
 // Computed to show image inputs section
 const showImageInputs = computed(() => {
   return selectedModel.value && (
@@ -231,6 +324,11 @@ const handleModelChange = (modelId: string) => {
       form.aspectRatio = model.aspectRatioOptions[0]
     }
     // Clear image inputs that are not supported by the new model
+    if (model.id !== 'google/veo-3.1') {
+      form.image = null
+      form.lastFrame = null
+      form.referenceImages = []
+    }
     if (!model.supportsFirstFrame) {
       form.firstFrameImage = null
     }
@@ -243,8 +341,12 @@ const handleModelChange = (modelId: string) => {
   }
 }
 
-const handleImageUpload = (field: 'firstFrameImage' | 'subjectReference' | 'inputImage', file: File | string | null) => {
+const handleImageUpload = (field: 'firstFrameImage' | 'subjectReference' | 'inputImage' | 'image' | 'lastFrame', file: File | string | null) => {
   form[field] = file
+}
+
+const handleMultiImageUpload = (files: (File | string | null)[]) => {
+  form.referenceImages = files.filter(f => f !== null) as (File | string)[]
 }
 
 const handleSubmit = async (event: any) => {

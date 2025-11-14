@@ -28,7 +28,7 @@
     </main>
 
     <!-- Footer - Letsignit Style -->
-    <footer class="w-full bg-black text-white py-12 mt-20">
+    <footer class="w-full bg-black text-white py-12">
       <UContainer class="max-w-7xl">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div>

@@ -750,5 +750,21 @@
       "segmentId": 0,
       "textLength": 73
     }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763148560116,
+    "metadata": {
+      "prompt": "Generate a TikTok ad for energy drinks with extreme sports footage"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763148563246,
+    "metadata": {
+      "duration": 6
+    }
   }
 ]

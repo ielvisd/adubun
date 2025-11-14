@@ -271,6 +271,30 @@ const handleSubmit = async (formData: any) => {
     const formDataToSend = new FormData()
     
     // Check if we have File objects that need to be uploaded
+    // Veo 3.1 fields
+    if (formData.image instanceof File) {
+      formDataToSend.append('image', formData.image)
+    } else if (formData.image) {
+      formDataToSend.append('image', formData.image)
+    }
+    
+    if (formData.lastFrame instanceof File) {
+      formDataToSend.append('lastFrame', formData.lastFrame)
+    } else if (formData.lastFrame) {
+      formDataToSend.append('lastFrame', formData.lastFrame)
+    }
+    
+    if (formData.referenceImages && Array.isArray(formData.referenceImages)) {
+      formData.referenceImages.forEach((img: File | string, index: number) => {
+        if (img instanceof File) {
+          formDataToSend.append(`referenceImages`, img)
+        } else if (img) {
+          formDataToSend.append(`referenceImages`, img)
+        }
+      })
+    }
+    
+    // Legacy fields for other models
     if (formData.firstFrameImage instanceof File) {
       formDataToSend.append('firstFrameImage', formData.firstFrameImage)
     } else if (formData.firstFrameImage) {
@@ -303,8 +327,24 @@ const handleSubmit = async (formData: any) => {
       formDataToSend.append('mode', formData.mode)
     }
     
+    // Veo 3.1 additional fields
+    if (formData.negativePrompt) {
+      formDataToSend.append('negativePrompt', formData.negativePrompt)
+    }
+    if (formData.resolution) {
+      formDataToSend.append('resolution', formData.resolution)
+    }
+    if (formData.generateAudio !== undefined) {
+      formDataToSend.append('generateAudio', formData.generateAudio.toString())
+    }
+    if (formData.seed !== null && formData.seed !== undefined) {
+      formDataToSend.append('seed', formData.seed.toString())
+    }
+    
     // Use FormData if we have file uploads, otherwise use JSON
-    const hasFiles = formData.firstFrameImage instanceof File || formData.subjectReference instanceof File || formData.inputImage instanceof File
+    const hasFiles = formData.image instanceof File || formData.lastFrame instanceof File || 
+      (formData.referenceImages && formData.referenceImages.some((img: any) => img instanceof File)) ||
+      formData.firstFrameImage instanceof File || formData.subjectReference instanceof File || formData.inputImage instanceof File
     
     const parsed = await $fetch('/api/parse-prompt', {
       method: 'POST',

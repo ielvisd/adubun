@@ -126,17 +126,46 @@ class ReplicateMCPServer {
                 description: 'Aspect ratio (16:9, 9:16, 1:1)',
                 default: '16:9',
               },
+              image: {
+                type: 'string',
+                description: 'Input image to start generating from (for Veo 3.1). File path or URL.',
+              },
+              last_frame: {
+                type: 'string',
+                description: 'Ending image for interpolation (for Veo 3.1). File path or URL.',
+              },
+              reference_images: {
+                type: 'array',
+                items: { type: 'string' },
+                description: '1 to 3 reference images for subject-consistent generation (for Veo 3.1). File paths or URLs.',
+              },
+              negative_prompt: {
+                type: 'string',
+                description: 'Description of what to exclude from the generated video (for Veo 3.1).',
+              },
+              resolution: {
+                type: 'string',
+                description: 'Resolution of the generated video (for Veo 3.1). Default: "1080p"',
+              },
+              generate_audio: {
+                type: 'boolean',
+                description: 'Generate audio with the video (for Veo 3.1). Default: true',
+              },
+              seed: {
+                type: 'number',
+                description: 'Random seed. Omit for random generations (for Veo 3.1).',
+              },
               first_frame_image: {
                 type: 'string',
-                description: 'File path or URL to first frame image for video generation (for models that support it).',
+                description: 'File path or URL to first frame image for video generation (for legacy models).',
               },
               subject_reference: {
                 type: 'string',
-                description: 'An optional character reference image to use as the subject in the generated video (for models that support it). File path or URL.',
+                description: 'An optional character reference image to use as the subject in the generated video (for legacy models). File path or URL.',
               },
-              image: {
+              image_legacy: {
                 type: 'string',
-                description: 'Input image for image-to-video generation (for models that support image-to-video). File path or URL.',
+                description: 'Input image for image-to-video generation (for legacy models). File path or URL.',
               },
               motion_bucket_id: {
                 type: 'number',
@@ -192,9 +221,16 @@ class ReplicateMCPServer {
               args.prompt,
               args.duration || 6,
               args.aspect_ratio || '16:9',
+              args.image,
+              args.last_frame,
+              args.reference_images,
+              args.negative_prompt,
+              args.resolution,
+              args.generate_audio,
+              args.seed,
               args.first_frame_image,
               args.subject_reference,
-              args.image,
+              args.image_legacy,
               args.motion_bucket_id,
               args.cond_aug
             )
@@ -228,9 +264,16 @@ class ReplicateMCPServer {
     prompt?: string,
     duration?: number,
     aspectRatio?: string,
+    image?: string,
+    lastFrame?: string,
+    referenceImages?: string[],
+    negativePrompt?: string,
+    resolution?: string,
+    generateAudio?: boolean,
+    seed?: number,
     firstFrameImage?: string,
     subjectReference?: string,
-    image?: string,
+    imageLegacy?: string,
     motionBucketId?: number,
     condAug?: number
   ) {
@@ -268,28 +311,43 @@ class ReplicateMCPServer {
     
     // Model-specific input handling
     if (modelId === 'google/veo-3.1') {
-      // Veo 3.1 supports prompt, first_frame_image, subject_reference
+      // Veo 3.1 supports: prompt, image, last_frame, reference_images, negative_prompt, resolution, generate_audio, seed
       if (prompt) {
         input.prompt = prompt
       }
-      if (firstFrameImage) {
-        input.first_frame_image = firstFrameImage
+      if (image) {
+        input.image = image
       }
-      if (subjectReference) {
-        input.subject_reference = subjectReference
+      if (lastFrame) {
+        input.last_frame = lastFrame
+      }
+      if (referenceImages && referenceImages.length > 0) {
+        input.reference_images = referenceImages
+      }
+      if (negativePrompt) {
+        input.negative_prompt = negativePrompt
+      }
+      if (resolution) {
+        input.resolution = resolution
+      }
+      if (generateAudio !== undefined) {
+        input.generate_audio = generateAudio
+      }
+      if (seed !== undefined && seed !== null) {
+        input.seed = seed
       }
     } else if (modelId === 'runway/gen-3-alpha-turbo') {
       // Runway Gen-3 supports prompt and optional image
       if (prompt) {
         input.prompt = prompt
       }
-      if (image) {
-        input.image = image
+      if (imageLegacy) {
+        input.image = imageLegacy
       }
     } else if (modelId === 'stability-ai/stable-video-diffusion') {
       // Stable Video Diffusion requires image, optional motion_bucket_id and cond_aug
-      if (image) {
-        input.image = image
+      if (imageLegacy) {
+        input.image = imageLegacy
       }
       if (motionBucketId !== undefined) {
         input.motion_bucket_id = motionBucketId
@@ -307,16 +365,23 @@ class ReplicateMCPServer {
       if (prompt) {
         input.prompt = prompt
       }
-      if (image) {
-        input.image = image
+      if (imageLegacy) {
+        input.image = imageLegacy
       }
     } else {
       // Default: try to use prompt and common fields
       if (prompt) {
         input.prompt = prompt
       }
-      if (image) {
-        input.image = image
+      if (imageLegacy) {
+        input.image = imageLegacy
+      }
+      // Also support legacy firstFrameImage/subjectReference for backward compatibility
+      if (firstFrameImage) {
+        input.image = firstFrameImage
+      }
+      if (subjectReference) {
+        input.image = subjectReference
       }
     }
     

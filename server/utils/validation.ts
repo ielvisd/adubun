@@ -3,10 +3,19 @@ import { z } from 'zod'
 export const parsePromptSchema = z.object({
   prompt: z.string().min(10).max(1000),
   model: z.string().optional(), // Video model ID
-  duration: z.number().min(15).max(180).optional(),
+  duration: z.number().min(1).max(180).optional(), // Allow shorter durations for models like Veo 3.1 (4, 6, 8s) and Hailuo (3, 5, 10s)
   aspectRatio: z.enum(['16:9', '9:16', '1:1']),
   style: z.string().min(1),
   mode: z.enum(['demo', 'production']).optional(),
+  // Veo 3.1 fields
+  image: z.string().optional().nullable(),
+  lastFrame: z.string().optional().nullable(),
+  referenceImages: z.array(z.string()).max(3).optional(),
+  negativePrompt: z.string().optional().nullable(),
+  resolution: z.string().optional(),
+  generateAudio: z.boolean().optional(),
+  seed: z.number().int().optional().nullable(),
+  // Legacy fields for other models
   firstFrameImage: z.string().optional().nullable(),
   subjectReference: z.string().optional().nullable(),
   inputImage: z.string().optional().nullable(), // Generic image input for some models
@@ -25,6 +34,15 @@ export const planStoryboardSchema = z.object({
       aspectRatio: z.enum(['16:9', '9:16', '1:1']),
       style: z.string(),
       mode: z.enum(['demo', 'production']).optional(),
+      // Veo 3.1 fields
+      image: z.string().optional().nullable(),
+      lastFrame: z.string().optional().nullable(),
+      referenceImages: z.array(z.string()).max(3).optional(),
+      negativePrompt: z.string().optional().nullable(),
+      resolution: z.string().optional(),
+      generateAudio: z.boolean().optional(),
+      seed: z.number().int().optional().nullable(),
+      // Legacy fields for other models
       firstFrameImage: z.string().optional().nullable(),
       subjectReference: z.string().optional().nullable(),
       model: z.string().optional(), // Video model ID
@@ -52,6 +70,15 @@ export const generateAssetsSchema = z.object({
       aspectRatio: z.enum(['16:9', '9:16', '1:1']),
       style: z.string(),
       mode: z.enum(['demo', 'production']).optional(),
+      // Veo 3.1 fields
+      image: z.string().optional().nullable(),
+      lastFrame: z.string().optional().nullable(),
+      referenceImages: z.array(z.string()).max(3).optional(),
+      negativePrompt: z.string().optional().nullable(),
+      resolution: z.string().optional(),
+      generateAudio: z.boolean().optional(),
+      seed: z.number().int().optional().nullable(),
+      // Legacy fields for other models
       firstFrameImage: z.string().optional().nullable(),
       subjectReference: z.string().optional().nullable(),
       model: z.string().optional(), // Video model ID
