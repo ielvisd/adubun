@@ -12,6 +12,33 @@ export async function uploadFileToReplicate(filePath: string): Promise<string> {
     return filePath
   }
 
+  // Validate file path - check for binary data corruption
+  if (!filePath || typeof filePath !== 'string') {
+    throw new Error(`Invalid file path: path is ${typeof filePath}`)
+  }
+
+  // Check for binary data corruption (null bytes, non-printable characters at start)
+  const hasNullBytes = filePath.includes('\x00')
+  const startsWithNonPrintable = filePath.length > 0 && filePath.charCodeAt(0) < 32 && filePath.charCodeAt(0) !== 9 && filePath.charCodeAt(0) !== 10 && filePath.charCodeAt(0) !== 13
+  const containsJpegMarkers = filePath.includes('JFIF') || filePath.includes('Exif') || filePath.includes('JPEG')
+  
+  // If it looks like binary data, it's corrupted
+  if (hasNullBytes || (startsWithNonPrintable && !filePath.startsWith('/')) || containsJpegMarkers) {
+    console.error('[Replicate Upload] ERROR: File path appears to be corrupted binary data:', filePath.substring(0, 100))
+    throw new Error(`Invalid file path: path appears to contain binary data instead of a valid file path`)
+  }
+
+  // Validate it looks like a valid path
+  if (filePath.length < 3) {
+    throw new Error(`Invalid file path: path too short (${filePath.length} chars)`)
+  }
+
+  // Check if path contains valid path characters (basic validation)
+  if (!filePath.match(/^[\/\\]|^[a-zA-Z]:[\\\/]/) && !path.isAbsolute(filePath)) {
+    // If it doesn't start with a path separator and isn't absolute, it might be corrupted
+    console.warn('[Replicate Upload] WARNING: File path does not look like a valid path:', filePath.substring(0, 100))
+  }
+
   try {
     // Verify file exists
     await fs.access(filePath)

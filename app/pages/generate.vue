@@ -132,10 +132,10 @@ const pollStoryboardStatus = async (jobId: string, meta: any) => {
   while (attempts < maxAttempts) {
     try {
       const statusResult = await $fetch('/api/plan-storyboard-status', {
-        method: 'GET',
-        params: {
+        method: 'POST',
+        body: {
           id: jobId,
-          meta: JSON.stringify(meta),
+          meta: meta,
         },
       })
       

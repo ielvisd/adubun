@@ -38,12 +38,53 @@ interface StoryboardJob {
   status: 'pending' | 'processing' | 'completed' | 'failed'
   result?: any
   error?: string
+  createdAt?: number
+  updatedAt?: number
 }
 
 class OpenAIMCPServer {
   private server: Server
   private jobStore: Map<string, StoryboardJob> = new Map()
   private jobTimestamps: Map<string, number> = new Map()
+  private jobsDir: string
+
+  // Helper functions for persistent job storage
+  private async getJobsDir(): Promise<string> {
+    if (!this.jobsDir) {
+      const { promises: fs } = await import('fs')
+      const dataDir = process.env.MCP_FILESYSTEM_ROOT || './data'
+      this.jobsDir = resolve(dataDir, 'jobs')
+      await fs.mkdir(this.jobsDir, { recursive: true })
+    }
+    return this.jobsDir
+  }
+
+  private async saveJobToDisk(jobId: string, job: StoryboardJob): Promise<void> {
+    const { promises: fs } = await import('fs')
+    const jobsDir = await this.getJobsDir()
+    const filePath = resolve(jobsDir, `${jobId}.json`)
+    const jobWithTimestamps = {
+      ...job,
+      updatedAt: Date.now(),
+      createdAt: job.createdAt || Date.now(),
+    }
+    await fs.writeFile(filePath, JSON.stringify(jobWithTimestamps, null, 2))
+  }
+
+  private async loadJobFromDisk(jobId: string): Promise<StoryboardJob | null> {
+    try {
+      const { promises: fs } = await import('fs')
+      const jobsDir = await this.getJobsDir()
+      const filePath = resolve(jobsDir, `${jobId}.json`)
+      const content = await fs.readFile(filePath, 'utf-8')
+      return JSON.parse(content)
+    } catch (error: any) {
+      if (error.code === 'ENOENT') {
+        return null
+      }
+      throw error
+    }
+  }
 
   constructor() {
     this.server = new Server(
@@ -385,6 +426,14 @@ Return ONLY valid JSON, no other text. Example format:
 
       // Helper function to convert file path or URL to base64 image
       const getImageBase64 = async (urlOrPath: string): Promise<string> => {
+        // If it's already a data URL, extract the base64 part
+        if (urlOrPath.startsWith('data:image/')) {
+          const base64Match = urlOrPath.match(/data:image\/[^;]+;base64,(.+)/)
+          if (base64Match && base64Match[1]) {
+            return base64Match[1]
+          }
+        }
+        
         // If it's a URL (http/https), fetch it
         if (urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://')) {
           const response = await fetch(urlOrPath)
@@ -395,8 +444,41 @@ Return ONLY valid JSON, no other text. Example format:
           return buffer.toString('base64')
         }
         
+        // Check if it's binary data (contains null bytes, JPEG/PNG headers, or non-printable characters at start)
+        // This can happen if binary data is accidentally passed as a string
+        const hasNullBytes = urlOrPath.includes('\x00')
+        const startsWithJpeg = urlOrPath.length > 2 && urlOrPath.charCodeAt(0) === 0xFF && urlOrPath.charCodeAt(1) === 0xD8
+        const startsWithPng = urlOrPath.startsWith('\x89PNG')
+        const startsWithNonPrintable = urlOrPath.length > 0 && urlOrPath.charCodeAt(0) < 32 && urlOrPath.charCodeAt(0) !== 9 && urlOrPath.charCodeAt(0) !== 10 && urlOrPath.charCodeAt(0) !== 13
+        // Check for JPEG markers in corrupted binary data (JFIF, Exif, etc.)
+        const containsJpegMarkers = urlOrPath.includes('JFIF') || urlOrPath.includes('Exif') || urlOrPath.includes('JPEG')
+        // Check if it looks like a valid file path (contains path separators or common path patterns)
+        const looksLikePath = urlOrPath.includes('/') || urlOrPath.includes('\\') || urlOrPath.startsWith('data/assets/') || urlOrPath.startsWith('./') || urlOrPath.match(/^[a-zA-Z]:[\\/]/)
+        
+        // If it has binary characteristics and doesn't look like a path, treat as binary
+        if ((hasNullBytes || startsWithJpeg || startsWithPng || startsWithNonPrintable || containsJpegMarkers) && !looksLikePath) {
+          // It's binary data - convert directly to base64
+          console.error(`[OpenAI MCP] Warning: Received binary data instead of file path (length: ${urlOrPath.length}, hasNull: ${hasNullBytes}, isJpeg: ${startsWithJpeg}, hasMarkers: ${containsJpegMarkers}). Converting directly to base64.`)
+          // Use 'latin1' encoding to preserve all byte values when converting string to buffer
+          const buffer = Buffer.from(urlOrPath, 'latin1')
+          return buffer.toString('base64')
+        }
+        
         // If it's a local file path, read it
         const fs = await import('fs/promises')
+        
+        // Validate it's a reasonable file path (not too short)
+        if (urlOrPath.length < 3) {
+          throw new Error(`Invalid file path: path too short (${urlOrPath.length} chars)`)
+        }
+        
+        // Check if file exists before reading
+        try {
+          await fs.access(urlOrPath)
+        } catch (accessError) {
+          throw new Error(`File not found or not accessible: ${urlOrPath}`)
+        }
+        
         const fileBuffer = await fs.readFile(urlOrPath)
         return fileBuffer.toString('base64')
       }
@@ -405,6 +487,10 @@ Return ONLY valid JSON, no other text. Example format:
       const referenceImages = await Promise.all(
         imageUrls.map(async (url, index) => {
           try {
+            // Log the URL/path for debugging (truncate if too long)
+            const urlPreview = typeof url === 'string' && url.length > 100 ? url.substring(0, 100) + '...' : url
+            console.error(`[OpenAI MCP] Processing reference image ${index + 1}: ${urlPreview} (type: ${typeof url}, length: ${typeof url === 'string' ? url.length : 'N/A'})`)
+            
             const base64 = await getImageBase64(url)
             return {
               type: 'input_image' as const,
@@ -412,6 +498,7 @@ Return ONLY valid JSON, no other text. Example format:
             }
           } catch (error: any) {
             console.error(`[OpenAI MCP] Failed to load reference image ${index + 1} from ${url}:`, error.message)
+            console.error(`[OpenAI MCP] Image URL/path type: ${typeof url}, length: ${typeof url === 'string' ? url.length : 'N/A'}`)
             throw new Error(`Failed to load reference image ${index + 1}: ${error.message}`)
           }
         })
@@ -497,10 +584,30 @@ Be extremely specific about product placement. For example:
           )
         ]) as any
 
-        content = response.output_text
+        // Responses API returns output_text or output_content array
+        if (response.output_text) {
+          content = response.output_text
+        } else if (response.output_content && Array.isArray(response.output_content) && response.output_content.length > 0) {
+          // Handle array format - extract text from first content item
+          const firstContent = response.output_content[0]
+          if (firstContent.type === 'text' && firstContent.text) {
+            content = firstContent.text
+          } else if (typeof firstContent === 'string') {
+            content = firstContent
+          } else {
+            // Try to stringify if it's an object
+            content = JSON.stringify(firstContent)
+          }
+        } else {
+          console.error(`[OpenAI MCP] Unexpected Responses API response format:`, JSON.stringify(response, null, 2))
+          throw new Error('No content in OpenAI Responses API response')
+        }
+        
         if (!content) {
           throw new Error('No content in OpenAI Responses API response')
         }
+        
+        console.error(`[OpenAI MCP] Responses API returned content (length: ${content.length}):`, content.substring(0, 200))
       } catch (error: any) {
         console.error(`[OpenAI MCP] Responses API failed or timed out: ${error.message}`)
         console.error(`[OpenAI MCP] Falling back to Chat Completions API with GPT-4o`)
@@ -537,9 +644,37 @@ Be extremely specific about product placement. For example:
       // Parse and validate the response
       let parsed: { sceneDescription: string; suggestedEnhancements: string; keyElements: string[]; styleNotes: string }
       try {
-        parsed = JSON.parse(content)
-        if (typeof parsed.sceneDescription !== 'string' || !parsed.sceneDescription.trim()) {
+        // Try to parse JSON - handle cases where response might have markdown code blocks
+        let jsonContent = content.trim()
+        
+        // Remove markdown code blocks if present
+        if (jsonContent.startsWith('```')) {
+          const match = jsonContent.match(/```(?:json)?\n?(.*?)```/s)
+          if (match && match[1]) {
+            jsonContent = match[1].trim()
+          }
+        }
+        
+        parsed = JSON.parse(jsonContent)
+        
+        // Log the parsed response for debugging
+        console.error(`[OpenAI MCP] Parsed response keys:`, Object.keys(parsed))
+        console.error(`[OpenAI MCP] sceneDescription type: ${typeof parsed.sceneDescription}, value: ${parsed.sceneDescription?.substring(0, 100)}`)
+        
+        // Validate sceneDescription field
+        if (!parsed.sceneDescription) {
+          console.error(`[OpenAI MCP] ERROR: sceneDescription is missing or falsy. Full response:`, JSON.stringify(parsed, null, 2))
           throw new Error('Missing or invalid sceneDescription field (REQUIRED)')
+        }
+        
+        if (typeof parsed.sceneDescription !== 'string') {
+          console.error(`[OpenAI MCP] ERROR: sceneDescription is not a string. Type: ${typeof parsed.sceneDescription}, Value:`, parsed.sceneDescription)
+          throw new Error(`sceneDescription must be a string, got ${typeof parsed.sceneDescription}`)
+        }
+        
+        if (!parsed.sceneDescription.trim()) {
+          console.error(`[OpenAI MCP] ERROR: sceneDescription is empty or whitespace only`)
+          throw new Error('sceneDescription field is empty (REQUIRED)')
         }
         
         // Validate that sceneDescription includes product placement/location
@@ -590,7 +725,20 @@ Be extremely specific about product placement. For example:
   }
 
   private async checkStoryboardStatus(jobId: string) {
-    const job = this.jobStore.get(jobId)
+    // First check in-memory store
+    let job = this.jobStore.get(jobId)
+    
+    // If not found in memory, try loading from disk
+    if (!job) {
+      job = await this.loadJobFromDisk(jobId)
+      if (job) {
+        // Restore to in-memory store
+        this.jobStore.set(jobId, job)
+        if (job.createdAt) {
+          this.jobTimestamps.set(jobId, job.createdAt)
+        }
+      }
+    }
     
     if (!job) {
       return {
@@ -630,18 +778,28 @@ Be extremely specific about product placement. For example:
     // Generate job ID and return immediately
     const jobId = nanoid()
     
-    // Store job as pending
-    this.jobStore.set(jobId, {
+    // Store job as pending (both in memory and on disk)
+    const job: StoryboardJob = {
       status: 'pending',
-    })
+      createdAt: Date.now(),
+    }
+    this.jobStore.set(jobId, job)
     this.jobTimestamps.set(jobId, Date.now())
+    await this.saveJobToDisk(jobId, job).catch((error) => {
+      console.error(`[OpenAI MCP] Failed to save job ${jobId} to disk:`, error)
+    })
     
     // Start async processing (don't await)
     this.processStoryboardAsync(jobId, parsed, duration, style, referenceImages).catch((error) => {
       console.error(`[OpenAI MCP] Storyboard job ${jobId} failed:`, error)
-      this.jobStore.set(jobId, {
+      const failedJob: StoryboardJob = {
         status: 'failed',
         error: error.message || 'Unknown error',
+        createdAt: job.createdAt,
+      }
+      this.jobStore.set(jobId, failedJob)
+      this.saveJobToDisk(jobId, failedJob).catch((saveError) => {
+        console.error(`[OpenAI MCP] Failed to save failed job ${jobId} to disk:`, saveError)
       })
     })
     
@@ -660,9 +818,14 @@ Be extremely specific about product placement. For example:
   }
 
   private async processStoryboardAsync(jobId: string, parsed: any, duration: number, style: string, referenceImages: string[] = []) {
-    // Update job status to processing
-    this.jobStore.set(jobId, {
+    // Update job status to processing (both in memory and on disk)
+    const processingJob: StoryboardJob = {
       status: 'processing',
+      createdAt: (await this.loadJobFromDisk(jobId))?.createdAt || Date.now(),
+    }
+    this.jobStore.set(jobId, processingJob)
+    await this.saveJobToDisk(jobId, processingJob).catch((error) => {
+      console.error(`[OpenAI MCP] Failed to save processing job ${jobId} to disk:`, error)
     })
     
     try {
@@ -711,6 +874,15 @@ Be extremely specific about product placement. For example:
           console.error(`[OpenAI MCP] Error stack: ${error.stack}`)
         }
         console.error(`[OpenAI MCP] Continuing without image-based enhancements`)
+        
+        // Set defaults so storyboard generation can continue
+        imageAnalysis = {
+          sceneDescription: '', // Empty - will skip reference image requirements
+          suggestedEnhancements: '',
+          keyElements: [],
+          styleNotes: '',
+        }
+        imageEnhancements = ''
         // Continue without enhancements if analysis fails
       }
     }
@@ -979,16 +1151,26 @@ Return JSON with a "segments" array. Each segment must include:
         }
       })
       
-      // Store completed result
-      this.jobStore.set(jobId, {
+      // Store completed result (both in memory and on disk)
+      const completedJob: StoryboardJob = {
         status: 'completed',
         result: storyboardData,
+        createdAt: (await this.loadJobFromDisk(jobId))?.createdAt || Date.now(),
+      }
+      this.jobStore.set(jobId, completedJob)
+      await this.saveJobToDisk(jobId, completedJob).catch((error) => {
+        console.error(`[OpenAI MCP] Failed to save completed job ${jobId} to disk:`, error)
       })
     } catch (error: any) {
-      // Store error
-      this.jobStore.set(jobId, {
+      // Store error (both in memory and on disk)
+      const failedJob: StoryboardJob = {
         status: 'failed',
         error: error.message || 'Unknown error',
+        createdAt: (await this.loadJobFromDisk(jobId))?.createdAt || Date.now(),
+      }
+      this.jobStore.set(jobId, failedJob)
+      await this.saveJobToDisk(jobId, failedJob).catch((saveError) => {
+        console.error(`[OpenAI MCP] Failed to save failed job ${jobId} to disk:`, saveError)
       })
       throw error
     }
@@ -1053,6 +1235,14 @@ Return JSON with a "segments" array. Each segment must include:
 
       // Helper function to convert file path or URL to base64 image
       const getImageBase64 = async (urlOrPath: string): Promise<string> => {
+        // If it's already a data URL, extract the base64 part
+        if (urlOrPath.startsWith('data:image/')) {
+          const base64Match = urlOrPath.match(/data:image\/[^;]+;base64,(.+)/)
+          if (base64Match && base64Match[1]) {
+            return base64Match[1]
+          }
+        }
+        
         // If it's a URL (http/https), fetch it
         if (urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://')) {
           const response = await fetch(urlOrPath)
@@ -1063,8 +1253,41 @@ Return JSON with a "segments" array. Each segment must include:
           return buffer.toString('base64')
         }
         
+        // Check if it's binary data (contains null bytes, JPEG/PNG headers, or non-printable characters at start)
+        // This can happen if binary data is accidentally passed as a string
+        const hasNullBytes = urlOrPath.includes('\x00')
+        const startsWithJpeg = urlOrPath.length > 2 && urlOrPath.charCodeAt(0) === 0xFF && urlOrPath.charCodeAt(1) === 0xD8
+        const startsWithPng = urlOrPath.startsWith('\x89PNG')
+        const startsWithNonPrintable = urlOrPath.length > 0 && urlOrPath.charCodeAt(0) < 32 && urlOrPath.charCodeAt(0) !== 9 && urlOrPath.charCodeAt(0) !== 10 && urlOrPath.charCodeAt(0) !== 13
+        // Check for JPEG markers in corrupted binary data (JFIF, Exif, etc.)
+        const containsJpegMarkers = urlOrPath.includes('JFIF') || urlOrPath.includes('Exif') || urlOrPath.includes('JPEG')
+        // Check if it looks like a valid file path (contains path separators or common path patterns)
+        const looksLikePath = urlOrPath.includes('/') || urlOrPath.includes('\\') || urlOrPath.startsWith('data/assets/') || urlOrPath.startsWith('./') || urlOrPath.match(/^[a-zA-Z]:[\\/]/)
+        
+        // If it has binary characteristics and doesn't look like a path, treat as binary
+        if ((hasNullBytes || startsWithJpeg || startsWithPng || startsWithNonPrintable || containsJpegMarkers) && !looksLikePath) {
+          // It's binary data - convert directly to base64
+          console.error(`[OpenAI MCP] Warning: Received binary data instead of file path (length: ${urlOrPath.length}, hasNull: ${hasNullBytes}, isJpeg: ${startsWithJpeg}, hasMarkers: ${containsJpegMarkers}). Converting directly to base64.`)
+          // Use 'latin1' encoding to preserve all byte values when converting string to buffer
+          const buffer = Buffer.from(urlOrPath, 'latin1')
+          return buffer.toString('base64')
+        }
+        
         // If it's a local file path, read it
         const fs = await import('fs/promises')
+        
+        // Validate it's a reasonable file path (not too short)
+        if (urlOrPath.length < 3) {
+          throw new Error(`Invalid file path: path too short (${urlOrPath.length} chars)`)
+        }
+        
+        // Check if file exists before reading
+        try {
+          await fs.access(urlOrPath)
+        } catch (accessError) {
+          throw new Error(`File not found or not accessible: ${urlOrPath}`)
+        }
+        
         const fileBuffer = await fs.readFile(urlOrPath)
         return fileBuffer.toString('base64')
       }

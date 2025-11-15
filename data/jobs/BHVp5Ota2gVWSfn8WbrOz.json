@@ -1,0 +1,48 @@
+{
+  "status": "completed",
+  "result": {
+    "segments": [
+      {
+        "type": "hook",
+        "description": "A close-up shot of a young athlete's determined face, sweat glistening as they prepare for an extreme sport challenge. The camera then zooms out to reveal a breathtaking mountain biking scene with vibrant colors and fast movements.",
+        "startTime": 0,
+        "endTime": 2,
+        "visualPrompt": "Close-up of a young athlete's face, focused and intense. The lighting is bright, showcasing sweat droplets. The camera quickly zooms out to a wide shot of a stunning mountain biking trail, with the athlete taking off with excitement. Background includes lush greenery and a clear blue sky.",
+        "visualPromptAlternatives": [
+          "Wide shot of an athlete gearing up with their bike, with a dramatic mountain backdrop. Soft natural light enhances the scene as they adjust their helmet, showing anticipation.",
+          "Dynamic tracking shot of the athlete sprinting towards the camera, with the sun setting behind them, creating a golden hue. The camera follows closely, capturing their energy.",
+          "Overhead drone shot of the athlete standing at the edge of a cliff, ready to ride down a steep path, with breathtaking scenery around them. The light is warm and inviting."
+        ],
+        "audioNotes": "Music: High-energy rock music builds excitement."
+      },
+      {
+        "type": "body",
+        "description": "As the athlete races down the mountain, the camera captures thrilling action shots of jumps, twists, and turns. The energy drink is prominently featured in their backpack, showing its importance in fueling their adventure.",
+        "startTime": 2,
+        "endTime": 4,
+        "visualPrompt": "Fast-paced montage of the athlete performing stunts on their bike, with close-ups of their movements and the energy drink visible in their backpack. The lighting is bright and dynamic, emphasizing their speed and excitement. The background shows a mix of trails and jumps, capturing the thrill of extreme sports.",
+        "visualPromptAlternatives": [
+          "Close-up of the athlete taking a sip from the energy drink mid-ride, with a joyful expression. The camera catches the vibrant colors of the can against the blurred background of the trail.",
+          "Side shot of the athlete soaring through the air over a jump, with the can of energy drink held up as if it’s part of the action. The lighting highlights the can's design.",
+          "Wide shot of the athlete landing a trick, with the energy drink can in focus on the ground. The background is filled with cheering friends, creating an atmosphere of celebration."
+        ],
+        "audioNotes": "Voiceover: 'With every ride, unleash your potential and fuel your adventure.'"
+      },
+      {
+        "type": "cta",
+        "description": "The athlete finishes the ride, grinning and holding up the energy drink can, inviting viewers to join in the excitement. The scene fades out with the slogan and product details on screen.",
+        "startTime": 4,
+        "endTime": 6,
+        "visualPrompt": "Close-up of the athlete's face, filled with joy and adrenaline. They hold the energy drink can up to the camera, with the sun setting behind them, creating a golden hour effect. The text overlay reads 'Grab a can and feel the rush!' as the background fades to black.",
+        "visualPromptAlternatives": [
+          "Wide shot of the athlete celebrating with friends, all holding cans of the energy drink in the air. The atmosphere is vibrant and filled with excitement, with colorful confetti falling.",
+          "Close-up of the energy drink can spinning in the athlete's hand, with the background slightly blurred, focusing on the product. The lighting is bright and inviting.",
+          "Dynamic shot of the athlete pouring the energy drink into a glass, with the sun shining through the liquid, showcasing its vibrant color. The text overlay appears, inviting viewers to join in."
+        ],
+        "audioNotes": "Music: Energetic climax followed by a fade-out. Voiceover: 'Fuel your adventure with our energy drink!'"
+      }
+    ]
+  },
+  "createdAt": 1763170559731,
+  "updatedAt": 1763170675970
+}

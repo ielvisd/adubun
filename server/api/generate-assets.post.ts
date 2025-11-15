@@ -15,6 +15,25 @@ async function prepareImageInput(filePath: string | undefined | null): Promise<s
   if (!filePath) {
     return undefined
   }
+
+  // Validate file path - check for binary data corruption
+  if (typeof filePath !== 'string') {
+    console.error('[Prepare Image Input] ERROR: File path is not a string:', typeof filePath, filePath)
+    throw new Error(`Invalid file path: path is ${typeof filePath}`)
+  }
+
+  // Check for binary data corruption (null bytes, non-printable characters at start)
+  const hasNullBytes = filePath.includes('\x00')
+  const startsWithNonPrintable = filePath.length > 0 && filePath.charCodeAt(0) < 32 && filePath.charCodeAt(0) !== 9 && filePath.charCodeAt(0) !== 10 && filePath.charCodeAt(0) !== 13
+  const containsJpegMarkers = filePath.includes('JFIF') || filePath.includes('Exif') || filePath.includes('JPEG')
+  
+  // If it looks like binary data, it's corrupted
+  if (hasNullBytes || (startsWithNonPrintable && !filePath.startsWith('/') && !filePath.startsWith('http')) || containsJpegMarkers) {
+    console.error('[Prepare Image Input] ERROR: File path appears to be corrupted binary data:', filePath.substring(0, 200))
+    console.error('[Prepare Image Input] Path length:', filePath.length)
+    console.error('[Prepare Image Input] First 50 chars:', Array.from(filePath.substring(0, 50)).map(c => c.charCodeAt(0)).join(','))
+    throw new Error(`Invalid file path: path appears to contain binary data instead of a valid file path`)
+  }
   
   // If it's already a public URL (https://), return as-is
   if (filePath.startsWith('https://')) {
@@ -397,12 +416,15 @@ export default defineEventHandler(async (event) => {
           if (idx === 0) {
             // First segment: Use original product reference
             if (originalProductReference) {
+              console.log(`[Segment ${idx}] Preparing original product reference: ${originalProductReference}`)
               videoParams.image_legacy = await prepareImageInput(originalProductReference)
               console.log(`[Segment ${idx}] Using original product reference image: ${originalProductReference}`)
             }
           } else {
             // Subsequent segments: Prioritize previous frame for continuity, but note original reference in prompt
             if (previousFrameImage) {
+              console.log(`[Segment ${idx}] Preparing previous frame for continuity: ${previousFrameImage}`)
+              console.log(`[Segment ${idx}] previousFrameImage type: ${typeof previousFrameImage}, length: ${previousFrameImage?.length}`)
               videoParams.image_legacy = await prepareImageInput(previousFrameImage)
               console.log(`[Segment ${idx}] Using previous frame for continuity: ${previousFrameImage}`)
               
@@ -746,13 +768,26 @@ export default defineEventHandler(async (event) => {
             
             // Upload the last frame to Replicate to get public URL
             console.log(`[Segment ${idx}] Uploading last frame to Replicate...`)
+            console.log(`[Segment ${idx}] Frame path to upload: ${framePaths[0]}`)
+            console.log(`[Segment ${idx}] Frame path type: ${typeof framePaths[0]}, length: ${framePaths[0]?.length}`)
+            
+            // Validate frame path before uploading
+            if (!framePaths[0] || typeof framePaths[0] !== 'string') {
+              throw new Error(`Invalid frame path: ${typeof framePaths[0]}`)
+            }
+            
             const lastFrameUrl = await uploadFileToReplicate(framePaths[0])
             console.log(`[Segment ${idx}] Last frame uploaded to: ${lastFrameUrl}`)
             
             // Always use the last frame for the next segment
+            // Validate the URL before storing
+            if (!lastFrameUrl || typeof lastFrameUrl !== 'string') {
+              throw new Error(`Invalid frame URL returned: ${typeof lastFrameUrl}`)
+            }
             previousFrameImage = lastFrameUrl
             console.log(`[Segment ${idx}] ✓ Using last frame for next segment continuity`)
             console.log(`[Segment ${idx}] Last frame URL: ${lastFrameUrl}`)
+            console.log(`[Segment ${idx}] previousFrameImage set to: ${previousFrameImage}`)
           } catch (innerError: any) {
             console.error(`[Segment ${idx}] Error during frame extraction/analysis:`, innerError.message)
             console.error(`[Segment ${idx}] Error stack:`, innerError.stack)

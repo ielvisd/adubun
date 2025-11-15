@@ -3,27 +3,9 @@ import { saveStoryboard } from '../utils/storage'
 import { nanoid } from 'nanoid'
 
 export default defineEventHandler(async (event) => {
-  // Support both GET (with query params) and POST (with body) for backward compatibility
-  const method = getMethod(event)
-  let jobId: string
-  let meta: any = {}
-
-  if (method === 'POST') {
-    const body = await readBody(event)
-    jobId = body.id || body.jobId
-    meta = body.meta || {}
-  } else {
-    const query = getQuery(event)
-    jobId = query.id as string
-    // For GET, only parse meta if it's small enough (backward compatibility)
-    if (query.meta && typeof query.meta === 'string' && query.meta.length < 1000) {
-      try {
-        meta = JSON.parse(query.meta)
-      } catch (e) {
-        // Ignore parse errors for backward compatibility
-      }
-    }
-  }
+  const body = await readBody(event)
+  const jobId = body.id || body.jobId
+  const meta = body.meta || {}
 
   if (!jobId) {
     throw createError({

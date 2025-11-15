@@ -6,12 +6,14 @@ const DATA_DIR = process.env.MCP_FILESYSTEM_ROOT || './data'
 const VIDEOS_DIR = path.join(DATA_DIR, 'videos')
 const ASSETS_DIR = path.join(DATA_DIR, 'assets')
 const STORYBOARDS_DIR = path.join(DATA_DIR, 'storyboards')
+const JOBS_DIR = path.join(DATA_DIR, 'jobs')
 
 // Ensure directories exist
 async function ensureDirectories() {
   await fs.mkdir(VIDEOS_DIR, { recursive: true })
   await fs.mkdir(ASSETS_DIR, { recursive: true })
   await fs.mkdir(STORYBOARDS_DIR, { recursive: true })
+  await fs.mkdir(JOBS_DIR, { recursive: true })
 }
 
 export async function saveVideo(fileBuffer: Buffer, filename?: string): Promise<string> {
@@ -82,5 +84,50 @@ export async function downloadFile(url: string, outputPath?: string): Promise<st
   }
   
   return await saveAsset(fileBuffer, url.split('.').pop() || 'tmp')
+}
+
+// Job storage functions for persistent job tracking
+export interface StoryboardJob {
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  result?: any
+  error?: string
+  createdAt?: number
+  updatedAt?: number
+}
+
+export async function saveJob(jobId: string, job: StoryboardJob): Promise<string> {
+  await ensureDirectories()
+  const filePath = path.join(JOBS_DIR, `${jobId}.json`)
+  const jobWithTimestamps = {
+    ...job,
+    updatedAt: Date.now(),
+    createdAt: job.createdAt || Date.now(),
+  }
+  await fs.writeFile(filePath, JSON.stringify(jobWithTimestamps, null, 2))
+  return filePath
+}
+
+export async function loadJob(jobId: string): Promise<StoryboardJob | null> {
+  try {
+    const filePath = path.join(JOBS_DIR, `${jobId}.json`)
+    const content = await fs.readFile(filePath, 'utf-8')
+    return JSON.parse(content)
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      return null
+    }
+    throw error
+  }
+}
+
+export async function deleteJob(jobId: string): Promise<void> {
+  try {
+    const filePath = path.join(JOBS_DIR, `${jobId}.json`)
+    await fs.unlink(filePath)
+  } catch (error: any) {
+    if (error.code !== 'ENOENT') {
+      throw error
+    }
+  }
 }
 

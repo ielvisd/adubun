@@ -1150,5 +1150,43 @@
       }
     ],
     "endTime": 1763168467203
+  },
+  {
+    "id": "wUAjZeb0mpoxznfRw7QZJ",
+    "status": "failed",
+    "startTime": 1763170381821,
+    "storyboardId": "gVgzmLJKGe-kuaIVb7BAo",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Failed to get file URL: The argument 'path' must be a string, Uint8Array, or URL without null bytes. Received '/Users/elvisibarra/Documents/GauntletAI/adubun/data/assets/�}z9�\\x00�\\x1F��'"
+      }
+    ],
+    "endTime": 1763170382338
+  },
+  {
+    "id": "gz9Z3vmzsOORN2-r2Fqi2",
+    "status": "failed",
+    "startTime": 1763171093029,
+    "storyboardId": "YU6sSepx3POUK4rqUDLDD",
+    "assets": [
+      {
+        "segmentId": 0,
+        "status": "failed",
+        "error": "Video generation failed: Failed to generate video: {'code': 3, 'message': 'Image and reference images cannot be both set.'}"
+      },
+      {
+        "segmentId": 1,
+        "status": "failed",
+        "error": "Video generation failed: Failed to generate video: {'code': 3, 'message': 'Image and reference images cannot be both set.'}"
+      },
+      {
+        "segmentId": 2,
+        "status": "failed",
+        "error": "Video generation failed: Failed to generate video: {'code': 3, 'message': 'Image and reference images cannot be both set.'}"
+      }
+    ],
+    "endTime": 1763171101506
   }
 ]
