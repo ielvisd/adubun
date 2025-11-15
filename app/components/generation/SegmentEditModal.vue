@@ -1,7 +1,8 @@
 <template>
-  <UModal v-model:open="isOpen" title="Edit Segment" :ui="{ width: 'sm:max-w-2xl' }">
+  <UModal v-model:open="isOpen" title="Edit Segment" :ui="{ width: 'sm:max-w-4xl' }">
     <template #body>
-      <UForm ref="formRef" :state="form" :schema="schema.value" @submit="handleSave" @error="handleError">
+      <div class="max-h-[80vh] overflow-y-auto pr-2">
+        <UForm ref="formRef" :state="form" :schema="schema.value" @submit="handleSave" @error="handleError">
         <UFormField label="Type" name="type" required>
           <USelect
             v-model="form.type"
@@ -67,24 +68,124 @@
           />
         </UFormField>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          <UFormField 
-            label="First Frame Image (Optional)" 
-            name="firstFrameImage"
-            description="Override global first frame image for this segment."
-          >
-            <ImageUpload v-model="form.firstFrameImage" @upload="handleImageUpload('firstFrameImage', $event)" />
+        <!-- Veo Model Parameters Section -->
+        <div class="border-t border-gray-200 pt-4 mt-4">
+          <h3 class="text-lg font-semibold mb-4">Veo Model Parameters</h3>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <UFormField label="Seed (Optional)" name="seed">
+              <UInput
+                v-model.number="form.seed"
+                type="number"
+                placeholder="Random seed (omit for random)"
+              />
+              <template #description>
+                Random seed. Omit for random generations.
+              </template>
+            </UFormField>
+
+            <UFormField label="Duration (seconds)" name="duration">
+              <UInput
+                v-model.number="form.duration"
+                type="number"
+                :min="1"
+                :max="60"
+                placeholder="8"
+              />
+              <template #description>
+                Video duration in seconds. Default: 8
+              </template>
+            </UFormField>
+
+            <UFormField label="Resolution" name="resolution">
+              <USelect
+                v-model="form.resolution"
+                :items="resolutionOptions"
+              />
+              <template #description>
+                Resolution of the generated video. Default: 1080p
+              </template>
+            </UFormField>
+
+            <UFormField label="Aspect Ratio" name="aspectRatio">
+              <USelect
+                v-model="form.aspectRatio"
+                :items="aspectRatioOptions"
+              />
+              <template #description>
+                Video aspect ratio. Default: 16:9
+              </template>
+            </UFormField>
+
+            <UFormField label="Generate Audio" name="generateAudio">
+              <USwitch v-model="form.generateAudio" />
+              <template #description>
+                Generate audio with the video. Default: true
+              </template>
+            </UFormField>
+          </div>
+
+          <UFormField label="Negative Prompt (Optional)" name="negativePrompt" class="mt-4">
+            <UTextarea
+              v-model="form.negativePrompt"
+              placeholder="Description of what to exclude from the generated video..."
+              :rows="2"
+            />
+            <template #description>
+              Description of what to exclude from the generated video.
+            </template>
           </UFormField>
 
-          <UFormField 
-            label="Subject Reference (Optional)" 
-            name="subjectReference"
-            description="Override global subject reference for this segment."
-          >
-            <ImageUpload v-model="form.subjectReference" @upload="handleImageUpload('subjectReference', $event)" />
+          <UFormField label="Input Image (Optional)" name="image" class="mt-4">
+            <ImageUpload v-model="form.image" @upload="handleImageUpload('image', $event)" />
+            <template #description>
+              Input image to start generating from. Ideal images are 16:9 or 9:16 and 1280x720 or 720x1280, depending on the aspect ratio you choose.
+            </template>
+          </UFormField>
+
+          <UFormField label="Last Frame (Optional)" name="lastFrame" class="mt-4">
+            <ImageUpload v-model="form.lastFrame" @upload="handleImageUpload('lastFrame', $event)" />
+            <template #description>
+              Ending image for interpolation. When provided with an input image, creates a transition between the two images.
+            </template>
+          </UFormField>
+
+          <UFormField label="Reference Images (Optional)" name="referenceImages" class="mt-4">
+            <MultiImageUpload
+              v-model="form.referenceImages"
+              :max-images="3"
+              @upload="handleReferenceImagesUpload"
+            />
+            <template #description>
+              1 to 3 reference images for subject-consistent generation (reference-to-video, or R2V). Reference images only work with 16:9 aspect ratio and 8-second duration. Last frame is ignored if reference images are provided.
+            </template>
           </UFormField>
         </div>
+
+        <!-- Legacy Fields (for backward compatibility) -->
+        <div class="border-t border-gray-200 pt-4 mt-4">
+          <h3 class="text-lg font-semibold mb-4">Legacy Parameters (Other Models)</h3>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <UFormField 
+              label="First Frame Image (Optional)" 
+              name="firstFrameImage"
+              description="Override global first frame image for this segment."
+            >
+              <ImageUpload v-model="form.firstFrameImage" @upload="handleImageUpload('firstFrameImage', $event)" />
+            </UFormField>
+
+            <UFormField 
+              label="Subject Reference (Optional)" 
+              name="subjectReference"
+              description="Override global subject reference for this segment."
+            >
+              <ImageUpload v-model="form.subjectReference" @upload="handleImageUpload('subjectReference', $event)" />
+            </UFormField>
+          </div>
+        </div>
       </UForm>
+      </div>
     </template>
 
     <template #footer>
@@ -112,6 +213,7 @@
 import { z } from 'zod'
 import type { Segment } from '~/app/types/generation'
 import ImageUpload from '~/components/ui/ImageUpload.vue'
+import MultiImageUpload from '~/components/ui/MultiImageUpload.vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -137,6 +239,20 @@ const formRef = ref<any>(null)
 
 const typeOptions = ['hook', 'body', 'cta']
 
+// Veo model options
+const resolutionOptions = [
+  { label: '720p', value: '720p' },
+  { label: '1080p', value: '1080p' },
+  { label: '1440p', value: '1440p' },
+  { label: '4K', value: '4K' },
+]
+
+const aspectRatioOptions = [
+  { label: '16:9', value: '16:9' },
+  { label: '9:16', value: '9:16' },
+  { label: '1:1', value: '1:1' },
+]
+
 // Create base schema
 const baseSchema = z.object({
   type: z.enum(['hook', 'body', 'cta']),
@@ -145,6 +261,17 @@ const baseSchema = z.object({
   endTime: z.number().min(0, 'End time must be 0 or greater'),
   visualPrompt: z.string().min(1, 'Visual prompt is required').max(1000, 'Visual prompt must be less than 1000 characters'),
   audioNotes: z.string().max(500, 'Audio notes must be less than 500 characters').optional().or(z.literal('')),
+  // Veo model parameters
+  seed: z.number().int().optional().nullable(),
+  duration: z.number().int().min(1).max(60).optional().nullable(),
+  resolution: z.string().optional().nullable(),
+  aspectRatio: z.string().optional().nullable(),
+  generateAudio: z.boolean().optional().nullable(),
+  negativePrompt: z.string().max(500, 'Negative prompt must be less than 500 characters').optional().or(z.literal('')),
+  image: z.union([z.instanceof(File), z.string()]).optional().nullable(),
+  lastFrame: z.union([z.instanceof(File), z.string()]).optional().nullable(),
+  referenceImages: z.array(z.union([z.instanceof(File), z.string()])).optional().nullable(),
+  // Legacy fields
   firstFrameImage: z.union([z.instanceof(File), z.string()]).optional().nullable(),
   subjectReference: z.union([z.instanceof(File), z.string()]).optional().nullable(),
 })
@@ -160,7 +287,19 @@ const schema = computed(() => {
   })
 })
 
-const form = reactive<Segment & { audioNotes?: string }>({
+const form = reactive<Segment & { 
+  audioNotes?: string
+  // Veo model parameters
+  seed?: number | null
+  duration?: number | null
+  resolution?: string | null
+  aspectRatio?: string | null
+  generateAudio?: boolean | null
+  negativePrompt?: string | null
+  image?: File | string | null
+  lastFrame?: File | string | null
+  referenceImages?: (File | string | null)[]
+}>({
   type: 'hook',
   description: '',
   startTime: 0,
@@ -169,6 +308,17 @@ const form = reactive<Segment & { audioNotes?: string }>({
   visualPromptAlternatives: undefined,
   selectedPromptIndex: undefined,
   audioNotes: '',
+  // Veo model parameters
+  seed: null,
+  duration: null,
+  resolution: null,
+  aspectRatio: null,
+  generateAudio: true,
+  negativePrompt: null,
+  image: null,
+  lastFrame: null,
+  referenceImages: null,
+  // Legacy fields
   firstFrameImage: undefined,
   subjectReference: undefined,
 })
@@ -236,6 +386,19 @@ watch(() => props.segment, (newSegment) => {
     }
     
     form.audioNotes = newSegment.audioNotes || ''
+    
+    // Veo model parameters (from segment or meta)
+    form.seed = (newSegment as any).seed ?? null
+    form.duration = (newSegment as any).duration ?? (newSegment.endTime - newSegment.startTime)
+    form.resolution = (newSegment as any).resolution ?? null
+    form.aspectRatio = (newSegment as any).aspectRatio ?? null
+    form.generateAudio = (newSegment as any).generateAudio ?? true
+    form.negativePrompt = (newSegment as any).negativePrompt ?? null
+    form.image = (newSegment as any).image ?? null
+    form.lastFrame = (newSegment as any).lastFrame ?? null
+    form.referenceImages = (newSegment as any).referenceImages ?? null
+    
+    // Legacy fields
     form.firstFrameImage = newSegment.firstFrameImage
     form.subjectReference = newSegment.subjectReference
   }
@@ -254,18 +417,26 @@ const checkOverlaps = (startTime: number, endTime: number, currentIndex: number)
   return warnings
 }
 
-const handleImageUpload = (field: 'firstFrameImage' | 'subjectReference', file: File | string | null) => {
+const handleImageUpload = (field: 'firstFrameImage' | 'subjectReference' | 'image' | 'lastFrame', file: File | string | null) => {
   form[field] = file as any
 }
 
+const handleReferenceImagesUpload = (files: (File | string | null)[]) => {
+  form.referenceImages = files.filter(f => f !== null)
+}
+
 const handleSave = async (event: any) => {
+  console.log('[SegmentEditModal] handleSave called with event:', event)
   const data = event.data || form
+  console.log('[SegmentEditModal] Data to validate:', data)
   
   saving.value = true
   
   try {
     // Validate with schema
+    console.log('[SegmentEditModal] Validating with schema...')
     const validated = schema.value.parse(data)
+    console.log('[SegmentEditModal] Validation successful:', validated)
     
     // Check for overlaps (warning only)
     const warnings = checkOverlaps(validated.startTime, validated.endTime, props.segmentIndex ?? -1)
@@ -280,7 +451,20 @@ const handleSave = async (event: any) => {
     
     // Prepare segment data
     // Include File objects - they will be uploaded by the parent component
-    const updatedSegment: Segment & { firstFrameImage?: File | string, subjectReference?: File | string } = {
+    const updatedSegment: Segment & { 
+      firstFrameImage?: File | string
+      subjectReference?: File | string
+      // Veo model parameters
+      seed?: number | null
+      duration?: number | null
+      resolution?: string | null
+      aspectRatio?: string | null
+      generateAudio?: boolean | null
+      negativePrompt?: string | null
+      image?: File | string | null
+      lastFrame?: File | string | null
+      referenceImages?: (File | string | null)[]
+    } = {
       type: validated.type,
       description: validated.description,
       startTime: validated.startTime,
@@ -289,16 +473,35 @@ const handleSave = async (event: any) => {
       ...(form.visualPromptAlternatives ? { visualPromptAlternatives: form.visualPromptAlternatives } : {}),
       ...(form.selectedPromptIndex !== undefined ? { selectedPromptIndex: form.selectedPromptIndex } : {}),
       ...(validated.audioNotes ? { audioNotes: validated.audioNotes } : {}),
+      // Veo model parameters
+      ...(validated.seed !== null && validated.seed !== undefined ? { seed: validated.seed } : {}),
+      ...(validated.duration !== null && validated.duration !== undefined ? { duration: validated.duration } : {}),
+      ...(validated.resolution ? { resolution: validated.resolution } : {}),
+      ...(validated.aspectRatio ? { aspectRatio: validated.aspectRatio } : {}),
+      ...(validated.generateAudio !== null && validated.generateAudio !== undefined ? { generateAudio: validated.generateAudio } : {}),
+      ...(validated.negativePrompt ? { negativePrompt: validated.negativePrompt } : {}),
+      ...(validated.image ? { image: validated.image } : {}),
+      ...(validated.lastFrame ? { lastFrame: validated.lastFrame } : {}),
+      ...(validated.referenceImages && validated.referenceImages.length > 0 ? { referenceImages: validated.referenceImages } : {}),
+      // Legacy fields
       ...(validated.firstFrameImage ? { firstFrameImage: validated.firstFrameImage } : {}),
       ...(validated.subjectReference ? { subjectReference: validated.subjectReference } : {}),
     }
     
     // Emit saved event with updated segment
+    console.log('[SegmentEditModal] Emitting saved event:', { segment: updatedSegment, index: props.segmentIndex })
     emit('saved', updatedSegment, props.segmentIndex ?? -1)
     
     close()
   } catch (error: any) {
-    console.error('Save error:', error)
+    console.error('[SegmentEditModal] Save error:', error)
+    console.error('[SegmentEditModal] Error details:', {
+      name: error.name,
+      message: error.message,
+      errors: error.errors,
+      issues: error.issues,
+      stack: error.stack,
+    })
     if (error.errors && error.errors.length > 0) {
       const firstError = error.errors[0]
       toast.add({
@@ -319,12 +522,35 @@ const handleSave = async (event: any) => {
 }
 
 const handleError = (errors: any) => {
-  console.error('Form errors:', errors)
+  console.error('[SegmentEditModal] Form validation errors:', errors)
+  toast.add({
+    title: 'Validation Errors',
+    description: 'Please check the form for errors. See console for details.',
+    color: 'error',
+  })
 }
 
 const submitForm = () => {
+  console.log('[SegmentEditModal] submitForm called, formRef:', formRef.value)
   if (formRef.value) {
-    formRef.value.submit()
+    try {
+      console.log('[SegmentEditModal] Calling formRef.submit()...')
+      formRef.value.submit()
+    } catch (error: any) {
+      console.error('[SegmentEditModal] Error calling formRef.submit():', error)
+      toast.add({
+        title: 'Form Submission Error',
+        description: error.message || 'Failed to submit form. Please check your inputs.',
+        color: 'error',
+      })
+    }
+  } else {
+    console.error('[SegmentEditModal] formRef is null, cannot submit')
+    toast.add({
+      title: 'Form Error',
+      description: 'Form reference is missing. Please try again.',
+      color: 'error',
+    })
   }
 }
 

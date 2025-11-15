@@ -22,8 +22,14 @@ export async function uploadFileToReplicate(filePath: string): Promise<string> {
   const startsWithNonPrintable = filePath.length > 0 && filePath.charCodeAt(0) < 32 && filePath.charCodeAt(0) !== 9 && filePath.charCodeAt(0) !== 10 && filePath.charCodeAt(0) !== 13
   const containsJpegMarkers = filePath.includes('JFIF') || filePath.includes('Exif') || filePath.includes('JPEG')
   
-  // If it looks like binary data, it's corrupted
-  if (hasNullBytes || (startsWithNonPrintable && !filePath.startsWith('/')) || containsJpegMarkers) {
+  // Check if it's a valid relative or absolute path first
+  const isAbsolutePath = path.isAbsolute(filePath)
+  const isRelativePath = filePath.includes('/') || filePath.includes('\\') || filePath.startsWith('./') || filePath.startsWith('../')
+  const looksLikePath = isAbsolutePath || isRelativePath || filePath.match(/^[a-zA-Z0-9_-]+\.[a-zA-Z0-9]+$/) // filename.extension
+  
+  // Only check for binary data if it doesn't look like a valid path
+  // If it looks like a path, the binary data checks are likely false positives
+  if (!looksLikePath && (hasNullBytes || (startsWithNonPrintable && !filePath.startsWith('/')) || containsJpegMarkers)) {
     console.error('[Replicate Upload] ERROR: File path appears to be corrupted binary data:', filePath.substring(0, 100))
     throw new Error(`Invalid file path: path appears to contain binary data instead of a valid file path`)
   }
@@ -32,25 +38,27 @@ export async function uploadFileToReplicate(filePath: string): Promise<string> {
   if (filePath.length < 3) {
     throw new Error(`Invalid file path: path too short (${filePath.length} chars)`)
   }
-
-  // Check if path contains valid path characters (basic validation)
-  if (!filePath.match(/^[\/\\]|^[a-zA-Z]:[\\\/]/) && !path.isAbsolute(filePath)) {
-    // If it doesn't start with a path separator and isn't absolute, it might be corrupted
-    console.warn('[Replicate Upload] WARNING: File path does not look like a valid path:', filePath.substring(0, 100))
+  
+  // Convert relative paths to absolute paths
+  let absoluteFilePath = filePath
+  if (!isAbsolutePath) {
+    // If it's a relative path, resolve it relative to the project root
+    absoluteFilePath = path.resolve(process.cwd(), filePath)
+    console.log(`[Replicate Upload] Converted relative path to absolute: ${filePath} -> ${absoluteFilePath}`)
   }
 
   try {
-    // Verify file exists
-    await fs.access(filePath)
+    // Verify file exists (use absolute path)
+    await fs.access(absoluteFilePath)
 
     // Check if S3 is configured
     if (process.env.AWS_S3_BUCKET_NAME) {
-      // Upload to S3 and get public URL
-      return await uploadFileToS3(filePath)
+      // Upload to S3 and get public URL (use absolute path)
+      return await uploadFileToS3(absoluteFilePath)
     }
 
     // Fallback: Use local asset serving endpoint (only works if server is publicly accessible)
-    const filename = path.basename(filePath)
+    const filename = path.basename(absoluteFilePath)
     const config = useRuntimeConfig()
     const baseUrl = config.public.appUrl || 'http://localhost:3000'
     

@@ -2085,5 +2085,37 @@
       "segmentId": 2,
       "duration": 6
     }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763180010398,
+    "metadata": {
+      "prompt": "Generate a dynamic 15-second video advertisement for Alani Nu Cherry Twist energy drink, animated and rendered in a vibrant, energetic style inspired by the provided product image of the pink and colorful can with swirling cherry, lime, and tropical motifs. Use smooth transitions, upbeat electronic pop music with a pulsing beat, and fast-paced cuts to evoke fun, refreshment, and vitality. \r\n\r\nEnsure the overall tone is empowering, fun, and inclusive, with seamless integration of the original can image as the hero asset throughout, starting unchanged as the very first scene. Render with high-energy color grading to match the image's pink, green, and orange palette.\r\n"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763180010438,
+    "metadata": {
+      "duration": 6
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763181069053,
+    "metadata": {
+      "prompt": "Generate a dynamic 15-second video advertisement for Alani Nu Cherry Twist energy drink, animated and rendered in a vibrant, energetic style inspired by the provided product image of the pink and colorful can with swirling cherry, lime, and tropical motifs. Use smooth transitions and fast-paced cuts to evoke fun, refreshment, and vitality. Structure the video into three clear segments: Hook (0-5 seconds), Body (5-10 seconds), and CTA (10-15 seconds). Ensure the video is 1080p resolution, 16:9 aspect ratio, optimized for social media (e.g., Instagram Reels or TikTok), with on-screen text overlays in bold, playful sans-serif font matching the can's aesthetic (pink and green accents). Incorporate subtle particle effects like fizzing bubbles and fruit slices floating around the can for visual pop. The video must begin exactly with the provided static product image as the first frame, held for 1 second to establish the hero shot before any animation or transitions occur."
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763181069109,
+    "metadata": {
+      "duration": 6
+    }
   }
 ]

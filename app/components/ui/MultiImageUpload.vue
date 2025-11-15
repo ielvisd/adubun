@@ -1,5 +1,33 @@
 <template>
   <div class="space-y-3">
+    <!-- Multiple file selection button -->
+    <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center bg-gray-50 hover:border-primary-400 transition-colors">
+      <input
+        ref="multipleFileInput"
+        type="file"
+        accept="image/*"
+        multiple
+        class="hidden"
+        @change="handleMultipleFileChange"
+      />
+      <div
+        class="cursor-pointer"
+        @click="multipleFileInput?.click()"
+        @dragover.prevent
+        @dragenter.prevent
+        @drop.prevent="handleMultipleDrop"
+      >
+        <UIcon name="i-heroicons-photo" class="w-10 h-10 mx-auto text-gray-400 mb-2" />
+        <p class="text-sm text-gray-600 mb-2">
+          Click to select multiple images, drag and drop multiple files, or add images one by one below
+        </p>
+        <UButton variant="outline" color="primary" size="sm" @click.stop="multipleFileInput?.click()">
+          Select Multiple Files
+        </UButton>
+      </div>
+    </div>
+
+    <!-- Individual image slots -->
     <div
       v-for="(image, index) in images"
       :key="index"
@@ -75,6 +103,7 @@ const emit = defineEmits<{
 const maxImages = computed(() => props.maxImages || 3)
 const images = ref<(File | string | null)[]>(props.modelValue && props.modelValue.length > 0 ? [...props.modelValue] : [null])
 const fileInputs = ref<(HTMLInputElement | null)[]>([])
+const multipleFileInput = ref<HTMLInputElement | null>(null)
 const previews = ref<(string | undefined)[]>([])
 const urlInputs = ref<string[]>([])
 
@@ -173,6 +202,78 @@ const handleDrop = (event: DragEvent, index: number) => {
     urlInputs.value[index] = ''
     emitUpdate()
   }
+}
+
+const handleMultipleFileChange = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const files = target.files
+  if (files && files.length > 0) {
+    addMultipleFiles(Array.from(files))
+    // Reset the input so the same files can be selected again if needed
+    target.value = ''
+  }
+}
+
+const handleMultipleDrop = (event: DragEvent) => {
+  const files = event.dataTransfer?.files
+  if (files && files.length > 0) {
+    const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'))
+    if (imageFiles.length > 0) {
+      addMultipleFiles(imageFiles)
+    }
+  }
+}
+
+const addMultipleFiles = (files: File[]) => {
+  // Calculate how many slots we can fill
+  const currentCount = images.value.filter(img => img !== null).length
+  const availableSlots = maxImages.value - currentCount
+  
+  if (availableSlots <= 0) {
+    // Show a message that max images reached
+    return
+  }
+
+  // Take only as many files as we have slots for
+  const filesToAdd = files.slice(0, availableSlots)
+  
+  // Find empty slots or create new ones
+  let fileIndex = 0
+  for (let i = 0; i < images.value.length && fileIndex < filesToAdd.length; i++) {
+    if (images.value[i] === null) {
+      const file = filesToAdd[fileIndex]
+      images.value[i] = file
+      
+      // Create preview
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        previews.value[i] = e.target?.result as string
+      }
+      reader.readAsDataURL(file)
+      
+      urlInputs.value[i] = ''
+      fileIndex++
+    }
+  }
+  
+  // If we still have files and slots available, add new slots
+  while (fileIndex < filesToAdd.length && images.value.length < maxImages.value) {
+    const file = filesToAdd[fileIndex]
+    images.value.push(file)
+    previews.value.push(undefined)
+    urlInputs.value.push('')
+    
+    // Create preview
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      previews.value[previews.value.length - 1] = e.target?.result as string
+    }
+    reader.readAsDataURL(file)
+    
+    fileIndex++
+  }
+  
+  emitUpdate()
 }
 
 const handleUrlInput = (index: number) => {

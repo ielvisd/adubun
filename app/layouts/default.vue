@@ -10,6 +10,7 @@
           <nav class="flex gap-2 items-center">
             <UButton to="/" variant="ghost" color="gray" class="text-gray-700 hover:text-black">Home</UButton>
             <UButton to="/history" variant="ghost" color="gray" class="text-gray-700 hover:text-black">History</UButton>
+            <UButton to="/image-creator" variant="ghost" color="gray" class="text-gray-700 hover:text-black">Image Creator</UButton>
             <UButton 
               to="/generate" 
               color="secondary" 
@@ -36,6 +37,7 @@
             <ul class="space-y-2 text-gray-400">
               <li><NuxtLink to="/" class="hover:text-white transition-colors">Home</NuxtLink></li>
               <li><NuxtLink to="/generate" class="hover:text-white transition-colors">Generate</NuxtLink></li>
+              <li><NuxtLink to="/image-creator" class="hover:text-white transition-colors">Image Creator</NuxtLink></li>
               <li><NuxtLink to="/history" class="hover:text-white transition-colors">History</NuxtLink></li>
             </ul>
           </div>

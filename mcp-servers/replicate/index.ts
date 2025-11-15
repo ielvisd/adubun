@@ -208,6 +208,62 @@ class ReplicateMCPServer {
             required: ['predictionId'],
           },
         },
+        {
+          name: 'generate_image',
+          description: 'Generate image(s) using bytedance/seedream-4 model',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              prompt: {
+                type: 'string',
+                description: 'Text prompt for image generation (required)',
+              },
+              image_input: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Input image(s) for image-to-image generation. List of 1-10 images for single or multi-reference generation.',
+              },
+              size: {
+                type: 'string',
+                enum: ['1K', '2K', '4K', 'custom'],
+                description: 'Image resolution: 1K (1024px), 2K (2048px), 4K (4096px), or custom for specific dimensions.',
+                default: '2K',
+              },
+              aspect_ratio: {
+                type: 'string',
+                description: 'Image aspect ratio. Only used when size is not custom. Use match_input_image to automatically match the input images aspect ratio.',
+                default: 'match_input_image',
+              },
+              width: {
+                type: 'number',
+                description: 'Custom image width (only used when size=custom). Range: 1024-4096 pixels.',
+                default: 2048,
+              },
+              height: {
+                type: 'number',
+                description: 'Custom image height (only used when size=custom). Range: 1024-4096 pixels.',
+                default: 2048,
+              },
+              sequential_image_generation: {
+                type: 'string',
+                enum: ['disabled', 'auto'],
+                description: 'Group image generation mode. disabled generates a single image. auto lets the model decide whether to generate multiple related images.',
+                default: 'disabled',
+              },
+              max_images: {
+                type: 'number',
+                description: 'Maximum number of images to generate when sequential_image_generation=auto. Range: 1-15. Total images (input + generated) cannot exceed 15.',
+                default: 1,
+              },
+              enhance_prompt: {
+                type: 'boolean',
+                description: 'Enable prompt enhancement for higher quality results, this will take longer to generate.',
+                default: true,
+              },
+            },
+            required: ['prompt'],
+          },
+        },
       ],
     }))
 
@@ -239,6 +295,19 @@ class ReplicateMCPServer {
           
           case 'get_prediction_result':
             return await this.getPredictionResult(args.predictionId)
+          
+          case 'generate_image':
+            return await this.generateImage(
+              args.prompt,
+              args.image_input,
+              args.size || '2K',
+              args.aspect_ratio || 'match_input_image',
+              args.width || 2048,
+              args.height || 2048,
+              args.sequential_image_generation || 'disabled',
+              args.max_images || 1,
+              args.enhance_prompt !== undefined ? args.enhance_prompt : true
+            )
           
           default:
             throw new Error(`Unknown tool: ${name}`)
@@ -394,6 +463,100 @@ class ReplicateMCPServer {
     }
 
     console.error('[Replicate MCP] Prediction created:', JSON.stringify({
+      id: prediction.id,
+      status: prediction.status,
+      createdAt: prediction.created_at,
+      urls: prediction.urls,
+      model: prediction.model,
+      version: prediction.version,
+    }, null, 2))
+
+    const response = {
+      predictionId: prediction.id,
+      id: prediction.id, // Also include as 'id' for compatibility
+      status: prediction.status,
+      createdAt: prediction.created_at,
+    }
+
+    console.error('[Replicate MCP] Returning response:', JSON.stringify(response, null, 2))
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(response),
+        },
+      ],
+    }
+  }
+
+  private async generateImage(
+    prompt: string,
+    imageInput?: string[],
+    size: string = '2K',
+    aspectRatio: string = 'match_input_image',
+    width: number = 2048,
+    height: number = 2048,
+    sequentialImageGeneration: string = 'disabled',
+    maxImages: number = 1,
+    enhancePrompt: boolean = true
+  ) {
+    if (!prompt) {
+      throw new Error('Prompt is required for image generation')
+    }
+
+    const modelId = 'bytedance/seedream-4'
+    const input: any = {
+      prompt,
+      size,
+      aspect_ratio: aspectRatio,
+      sequential_image_generation: sequentialImageGeneration,
+      enhance_prompt: enhancePrompt,
+    }
+
+    // Handle custom size
+    if (size === 'custom') {
+      input.width = width
+      input.height = height
+    }
+
+    // Handle sequential image generation
+    if (sequentialImageGeneration === 'auto') {
+      input.max_images = maxImages
+    }
+
+    // Handle image inputs - upload files if needed
+    if (imageInput && imageInput.length > 0) {
+      if (imageInput.length > 10) {
+        throw new Error('Maximum 10 input images allowed')
+      }
+      
+      const uploadedImages = await Promise.all(
+        imageInput.map(img => this.uploadFileIfNeeded(img))
+      )
+      input.image_input = uploadedImages
+    }
+
+    console.error(`[Replicate MCP] Creating image prediction with model: ${modelId}`)
+    console.error('[Replicate MCP] Input params:', JSON.stringify(input, null, 2))
+
+    let prediction
+    try {
+      prediction = await replicate.predictions.create({
+        model: modelId,
+        input,
+      })
+    } catch (error: any) {
+      // Handle 404 errors for missing models
+      if (error.status === 404 || error.message?.includes('404') || error.message?.includes('not found')) {
+        console.error(`[Replicate MCP] Model not found: ${modelId}`)
+        throw new Error(`Model "${modelId}" is not available on Replicate. This model may have been removed or is not accessible.`)
+      }
+      // Re-throw other errors
+      throw error
+    }
+
+    console.error('[Replicate MCP] Image prediction created:', JSON.stringify({
       id: prediction.id,
       status: prediction.status,
       createdAt: prediction.created_at,

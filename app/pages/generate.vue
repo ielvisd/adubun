@@ -511,70 +511,131 @@ const handlePromptSelected = async (segmentIdx: number, promptIndex: number) => 
 }
 
 const handleSegmentSaved = async (updatedSegment: Segment, index: number) => {
+  console.log('[Handle Segment Saved] Called with:', { index, segment: updatedSegment })
+  
   if (!storyboard.value || index < 0) {
+    console.error('[Handle Segment Saved] Invalid storyboard or index:', { storyboard: storyboard.value, index })
     return
   }
+
+  const toast = useToast()
 
   try {
     // Handle file uploads if needed
     let segmentToSave = { ...updatedSegment }
     
-    // If firstFrameImage is a File, upload it
-    if (updatedSegment.firstFrameImage instanceof File) {
+    // Helper function to upload a file
+    const uploadFile = async (file: File): Promise<string | null> => {
       const formData = new FormData()
-      formData.append('file', updatedSegment.firstFrameImage)
+      formData.append('file', file)
       const uploadResult = await $fetch('/api/upload-brand-assets', {
         method: 'POST',
         body: formData,
       })
       if (uploadResult.files && uploadResult.files.length > 0) {
-        segmentToSave.firstFrameImage = uploadResult.files[0]
+        return uploadResult.files[0]
+      }
+      return null
+    }
+    
+    // Upload firstFrameImage if it's a File
+    if (updatedSegment.firstFrameImage instanceof File) {
+      console.log('[Handle Segment Saved] Uploading firstFrameImage...')
+      const uploadedPath = await uploadFile(updatedSegment.firstFrameImage)
+      if (uploadedPath) {
+        segmentToSave.firstFrameImage = uploadedPath
       }
     }
     
-    // If subjectReference is a File, upload it
+    // Upload subjectReference if it's a File
     if (updatedSegment.subjectReference instanceof File) {
-      const formData = new FormData()
-      formData.append('file', updatedSegment.subjectReference)
-      const uploadResult = await $fetch('/api/upload-brand-assets', {
-        method: 'POST',
-        body: formData,
-      })
-      if (uploadResult.files && uploadResult.files.length > 0) {
-        segmentToSave.subjectReference = uploadResult.files[0]
+      console.log('[Handle Segment Saved] Uploading subjectReference...')
+      const uploadedPath = await uploadFile(updatedSegment.subjectReference)
+      if (uploadedPath) {
+        segmentToSave.subjectReference = uploadedPath
       }
     }
+    
+    // Upload image (Veo parameter) if it's a File
+    if ((updatedSegment as any).image instanceof File) {
+      console.log('[Handle Segment Saved] Uploading image (Veo parameter)...')
+      const uploadedPath = await uploadFile((updatedSegment as any).image)
+      if (uploadedPath) {
+        (segmentToSave as any).image = uploadedPath
+      }
+    }
+    
+    // Upload lastFrame if it's a File
+    if ((updatedSegment as any).lastFrame instanceof File) {
+      console.log('[Handle Segment Saved] Uploading lastFrame...')
+      const uploadedPath = await uploadFile((updatedSegment as any).lastFrame)
+      if (uploadedPath) {
+        (segmentToSave as any).lastFrame = uploadedPath
+      }
+    }
+    
+    // Upload referenceImages if any are Files
+    const referenceImages = (updatedSegment as any).referenceImages
+    if (referenceImages && Array.isArray(referenceImages)) {
+      console.log('[Handle Segment Saved] Uploading referenceImages...')
+      const imagePromises = referenceImages.map(async (img: File | string | null) => {
+        if (img instanceof File) {
+          return await uploadFile(img)
+        }
+        return img
+      })
+      const uploadedImages = await Promise.all(imagePromises)
+      const filteredImages = uploadedImages.filter((img: any) => img !== null)
+      Object.assign(segmentToSave, { referenceImages: filteredImages })
+    }
+
+    console.log('[Handle Segment Saved] Segment to save:', segmentToSave)
 
     // Update local state optimistically
     const updatedSegments = [...storyboard.value.segments]
-    updatedSegments[index] = segmentToSave
+    updatedSegments[index] = segmentToSave as Segment
+
+    console.log('[Handle Segment Saved] Updated segments:', updatedSegments)
 
     // Update storyboard with new segments
     const updatedStoryboard = {
       ...storyboard.value,
       segments: updatedSegments,
+      updatedAt: Date.now(),
     }
 
+    console.log('[Handle Segment Saved] Saving to backend...', {
+      storyboardId: storyboard.value.id,
+      segmentsCount: updatedSegments.length,
+    })
+
     // Save to backend
-    await $fetch(`/api/storyboard/${storyboard.value.id}`, {
+    const savedStoryboard = await $fetch(`/api/storyboard/${storyboard.value.id}`, {
       method: 'PUT',
       body: {
         segments: updatedSegments,
       },
     })
 
-    // Update local state
-    storyboard.value = updatedStoryboard
+    console.log('[Handle Segment Saved] Backend save successful:', savedStoryboard)
 
-    const toast = useToast()
+    // Update local state
+    storyboard.value = savedStoryboard as Storyboard
+
     toast.add({
       title: 'Success',
       description: 'Segment updated successfully',
       color: 'success',
     })
   } catch (error: any) {
-    console.error('Failed to save segment:', error)
-    const toast = useToast()
+    console.error('[Handle Segment Saved] Failed to save segment:', error)
+    console.error('[Handle Segment Saved] Error details:', {
+      message: error.message,
+      statusCode: error.statusCode,
+      data: error.data,
+      stack: error.stack,
+    })
+    
     toast.add({
       title: 'Save Failed',
       description: error.message || 'Failed to save segment. Please try again.',
