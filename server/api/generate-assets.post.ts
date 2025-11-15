@@ -312,6 +312,21 @@ export default defineEventHandler(async (event) => {
       console.log(`[Segment ${idx}] Type: ${segment.type}, Duration: ${segment.endTime - segment.startTime}s`)
       console.log(`[Segment ${idx}] Previous frame image: ${previousFrameImage || 'none (first segment or no continuity)'}`)
       
+      // Debug: Log all image-related fields on the segment
+      console.log(`[Segment ${idx}] Segment image fields:`, {
+        hasImage: !!(segment as any).image,
+        image: (segment as any).image,
+        hasLastFrame: !!(segment as any).lastFrame,
+        lastFrame: (segment as any).lastFrame,
+        hasReferenceImages: !!(segment as any).referenceImages && Array.isArray((segment as any).referenceImages),
+        referenceImagesCount: (segment as any).referenceImages ? ((segment as any).referenceImages.length || 0) : 0,
+        referenceImages: (segment as any).referenceImages,
+        hasFirstFrameImage: !!segment.firstFrameImage,
+        firstFrameImage: segment.firstFrameImage,
+        hasSubjectReference: !!segment.subjectReference,
+        subjectReference: segment.subjectReference,
+      })
+      
       const asset = await (async () => {
       try {
         // Determine which images to use (segment-specific or global fallback)
@@ -346,38 +361,83 @@ export default defineEventHandler(async (event) => {
 
         // Add image inputs if provided - upload to Replicate and get public URLs
         if (model === 'google/veo-3.1') {
-          // Use previous frame from previous segment if available (for continuity)
-          if (previousFrameImage) {
+          // Priority: segment.image > previousFrameImage > storyboard.meta.image
+          if ((segment as any).image) {
+            videoParams.image = await prepareImageInput((segment as any).image)
+            console.log(`[Segment ${idx}] Using segment-specific input image: ${(segment as any).image}`)
+          } else if (previousFrameImage) {
             videoParams.image = await prepareImageInput(previousFrameImage)
             console.log(`[Segment ${idx}] Using previous frame for continuity: ${previousFrameImage}`)
           } else if (storyboard.meta.image) {
             videoParams.image = await prepareImageInput(storyboard.meta.image)
+            console.log(`[Segment ${idx}] Using storyboard meta image: ${storyboard.meta.image}`)
           }
-          if (storyboard.meta.lastFrame) {
-            videoParams.last_frame = await prepareImageInput(storyboard.meta.lastFrame)
-          }
-          if (storyboard.meta.referenceImages && storyboard.meta.referenceImages.length > 0) {
+          
+          // Priority: segment.referenceImages > storyboard.meta.referenceImages
+          // Note: If reference images are provided, last_frame is ignored per Veo documentation
+          if ((segment as any).referenceImages && Array.isArray((segment as any).referenceImages) && (segment as any).referenceImages.length > 0) {
+            videoParams.reference_images = await Promise.all(
+              (segment as any).referenceImages.map((img: string) => prepareImageInput(img))
+            )
+            console.log(`[Segment ${idx}] Using segment-specific reference images: ${(segment as any).referenceImages.length} images`)
+            console.log(`[Segment ${idx}] Reference images provided - last_frame will be ignored per Veo documentation`)
+          } else if (storyboard.meta.referenceImages && storyboard.meta.referenceImages.length > 0) {
             videoParams.reference_images = await Promise.all(
               storyboard.meta.referenceImages.map((img: string) => prepareImageInput(img))
             )
+            console.log(`[Segment ${idx}] Using storyboard meta reference images: ${storyboard.meta.referenceImages.length} images`)
+            console.log(`[Segment ${idx}] Reference images provided - last_frame will be ignored per Veo documentation`)
+          } else {
+            // Only set last_frame if reference images are NOT provided
+            // Priority: segment.lastFrame > storyboard.meta.lastFrame
+            if ((segment as any).lastFrame) {
+              videoParams.last_frame = await prepareImageInput((segment as any).lastFrame)
+              console.log(`[Segment ${idx}] Using segment-specific last frame: ${(segment as any).lastFrame}`)
+            } else if (storyboard.meta.lastFrame) {
+              videoParams.last_frame = await prepareImageInput(storyboard.meta.lastFrame)
+              console.log(`[Segment ${idx}] Using storyboard meta last frame: ${storyboard.meta.lastFrame}`)
+            }
           }
-          if (storyboard.meta.negativePrompt) {
+          
+          // Priority: segment.negativePrompt > storyboard.meta.negativePrompt
+          if ((segment as any).negativePrompt) {
+            videoParams.negative_prompt = (segment as any).negativePrompt
+            console.log(`[Segment ${idx}] Using segment-specific negative prompt`)
+          } else if (storyboard.meta.negativePrompt) {
             videoParams.negative_prompt = storyboard.meta.negativePrompt
           }
-          if (storyboard.meta.resolution) {
+          
+          // Priority: segment.resolution > storyboard.meta.resolution
+          if ((segment as any).resolution) {
+            videoParams.resolution = (segment as any).resolution
+            console.log(`[Segment ${idx}] Using segment-specific resolution: ${(segment as any).resolution}`)
+          } else if (storyboard.meta.resolution) {
             videoParams.resolution = storyboard.meta.resolution
           }
-          if (storyboard.meta.generateAudio !== undefined) {
+          
+          // Priority: segment.generateAudio > storyboard.meta.generateAudio
+          if ((segment as any).generateAudio !== undefined) {
+            videoParams.generate_audio = (segment as any).generateAudio
+            console.log(`[Segment ${idx}] Using segment-specific generateAudio: ${(segment as any).generateAudio}`)
+          } else if (storyboard.meta.generateAudio !== undefined) {
             videoParams.generate_audio = storyboard.meta.generateAudio
           }
-          if (storyboard.meta.seed !== undefined && storyboard.meta.seed !== null) {
+          
+          // Priority: segment.seed > storyboard.meta.seed
+          if ((segment as any).seed !== undefined && (segment as any).seed !== null) {
+            videoParams.seed = (segment as any).seed
+            console.log(`[Segment ${idx}] Using segment-specific seed: ${(segment as any).seed}`)
+          } else if (storyboard.meta.seed !== undefined && storyboard.meta.seed !== null) {
             videoParams.seed = storyboard.meta.seed
           }
         } else if (model === 'google/veo-3-fast') {
           // Veo 3 Fast only supports: prompt, aspect_ratio, duration, image, negative_prompt, resolution, generate_audio, seed
           // Note: Does NOT support last_frame or reference_images
-          // Use previous frame from previous segment if available (for continuity)
-          if (previousFrameImage) {
+          // Priority: segment.image > previousFrameImage > firstFrameImage/subjectReference > storyboard.meta.image
+          if ((segment as any).image) {
+            videoParams.image = await prepareImageInput((segment as any).image)
+            console.log(`[Segment ${idx}] Using segment-specific input image: ${(segment as any).image}`)
+          } else if (previousFrameImage) {
             videoParams.image = await prepareImageInput(previousFrameImage)
             console.log(`[Segment ${idx}] Using previous frame for continuity: ${previousFrameImage}`)
           } else {
@@ -387,16 +447,36 @@ export default defineEventHandler(async (event) => {
               videoParams.image = await prepareImageInput(imageToUse)
             }
           }
-          if (storyboard.meta.negativePrompt) {
+          
+          // Priority: segment.negativePrompt > storyboard.meta.negativePrompt
+          if ((segment as any).negativePrompt) {
+            videoParams.negative_prompt = (segment as any).negativePrompt
+            console.log(`[Segment ${idx}] Using segment-specific negative prompt`)
+          } else if (storyboard.meta.negativePrompt) {
             videoParams.negative_prompt = storyboard.meta.negativePrompt
           }
-          if (storyboard.meta.resolution) {
+          
+          // Priority: segment.resolution > storyboard.meta.resolution
+          if ((segment as any).resolution) {
+            videoParams.resolution = (segment as any).resolution
+            console.log(`[Segment ${idx}] Using segment-specific resolution: ${(segment as any).resolution}`)
+          } else if (storyboard.meta.resolution) {
             videoParams.resolution = storyboard.meta.resolution
           }
-          if (storyboard.meta.generateAudio !== undefined) {
+          
+          // Priority: segment.generateAudio > storyboard.meta.generateAudio
+          if ((segment as any).generateAudio !== undefined) {
+            videoParams.generate_audio = (segment as any).generateAudio
+            console.log(`[Segment ${idx}] Using segment-specific generateAudio: ${(segment as any).generateAudio}`)
+          } else if (storyboard.meta.generateAudio !== undefined) {
             videoParams.generate_audio = storyboard.meta.generateAudio
           }
-          if (storyboard.meta.seed !== undefined && storyboard.meta.seed !== null) {
+          
+          // Priority: segment.seed > storyboard.meta.seed
+          if ((segment as any).seed !== undefined && (segment as any).seed !== null) {
+            videoParams.seed = (segment as any).seed
+            console.log(`[Segment ${idx}] Using segment-specific seed: ${(segment as any).seed}`)
+          } else if (storyboard.meta.seed !== undefined && storyboard.meta.seed !== null) {
             videoParams.seed = storyboard.meta.seed
           }
         } else if (model === 'kwaivgi/kling-v2.5-turbo-pro') {

@@ -1,0 +1,51 @@
+{
+  "status": "completed",
+  "result": {
+    "segments": [
+      {
+        "type": "hook",
+        "description": "A close-up shot of a young adult's determined face as they prepare to ride a BMX bike. The camera captures the intensity in their eyes, with a slight zoom in to emphasize focus. The background features a vibrant skatepark filled with graffiti art, under soft natural light.",
+        "startTime": 0,
+        "endTime": 2,
+        "visualPrompt": "Close-up of a young adult's focused face, preparing to ride a BMX bike in a colorful skatepark. Soft natural light accentuates their determination. The camera slightly zooms in to capture the intensity in their eyes.",
+        "visualPromptAlternatives": [
+          "Wide shot of the skatepark, showcasing multiple riders preparing for action, all under soft natural light, creating a lively atmosphere.",
+          "Close-up of the BMX bike's wheels spinning as the rider gets ready, with a blurred background to emphasize speed and anticipation.",
+          "Side profile shot of the rider adjusting their helmet, with the skatepark in the background, showing other extreme sports activities happening.",
+          "Over-the-shoulder shot of the rider looking down the ramp, capturing their perspective and the excitement ahead."
+        ],
+        "audioNotes": "Music: Upbeat electronic music with a fast tempo."
+      },
+      {
+        "type": "body",
+        "description": "The rider takes off down the ramp, performing an impressive trick mid-air. The camera follows with a dynamic tracking shot, showcasing the thrill of the moment. The sun shines brightly, creating a vibrant and exciting atmosphere, while the energy drink can is strategically placed in the corner of the frame.",
+        "startTime": 2,
+        "endTime": 4,
+        "visualPrompt": "Dynamic tracking shot of the rider launching off the ramp, performing an impressive trick in mid-air. The sun shines brightly, illuminating the scene as the energy drink can is visible in the corner of the frame, symbolizing the boost they receive.",
+        "visualPromptAlternatives": [
+          "Slow-motion shot of the rider mid-trick, capturing the excitement and adrenaline, with the energy drink can prominently in the foreground.",
+          "Wide shot of multiple riders at the skatepark, all performing tricks, with the camera panning to highlight the energy drink can among them.",
+          "Close-up of the rider landing smoothly after the trick, with the camera focusing on their smile and the energy drink can in the background.",
+          "Overhead drone shot of the skatepark, showing the rider's path as they soar through the air, with the energy drink can visible on a nearby bench."
+        ],
+        "audioNotes": "Voiceover: 'Unleash your potential and fuel your adventure with every sip.'"
+      },
+      {
+        "type": "cta",
+        "description": "The rider lands and raises the energy drink can triumphantly, with friends cheering in the background. The camera captures a close-up of the can, highlighting its logo and vibrant colors as the scene fades. The lighting shifts to a more dramatic tone, emphasizing the excitement.",
+        "startTime": 4,
+        "endTime": 6,
+        "visualPrompt": "Close-up of the rider triumphantly raising the energy drink can after a successful trick, surrounded by cheering friends. The can's vibrant colors are highlighted, and the background fades to focus on the product, with dramatic lighting enhancing the excitement.",
+        "visualPromptAlternatives": [
+          "Wide shot of the group celebrating together, with the energy drink can prominently displayed in the front, capturing the camaraderie and energy of the moment.",
+          "Medium shot of the rider holding the can close to their face, smiling and ready to take a sip, with friends celebrating in the background.",
+          "Dynamic shot of the rider tossing the can to a friend, showcasing the product in action and the fun atmosphere.",
+          "Close-up of the can with water droplets glistening on its surface, emphasizing freshness, as the background fades out."
+        ],
+        "audioNotes": "Voiceover: 'Try it now and feel the rush! Boost your energy for every adventure!'"
+      }
+    ]
+  },
+  "createdAt": 1763244047917,
+  "updatedAt": 1763244071589
+}

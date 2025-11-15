@@ -15,7 +15,19 @@
             v-model="form.description"
             placeholder="Describe what happens in this segment..."
             :rows="3"
+            :maxlength="1000"
           />
+          <template #description>
+            <div class="flex justify-between items-center mt-1">
+              <span class="text-xs text-gray-500">Maximum 1000 characters</span>
+              <span 
+                class="text-xs font-medium"
+                :class="form.description.length > 1000 ? 'text-error-500' : form.description.length > 900 ? 'text-warning-500' : 'text-gray-500'"
+              >
+                {{ form.description.length }} / 1000
+              </span>
+            </div>
+          </template>
         </UFormField>
 
         <div class="grid grid-cols-2 gap-4">
@@ -54,10 +66,21 @@
             v-model="form.visualPrompt"
             placeholder="Detailed visual description for video generation..."
             :rows="4"
+            :maxlength="1000"
           />
-          <p v-if="form.visualPromptAlternatives && form.visualPromptAlternatives.length > 0" class="text-xs text-gray-500 mt-1">
-            You can edit the selected prompt above, or choose a different alternative.
-          </p>
+          <template #description>
+            <div class="flex justify-between items-center mt-1">
+              <p v-if="form.visualPromptAlternatives && form.visualPromptAlternatives.length > 0" class="text-xs text-gray-500">
+                You can edit the selected prompt above, or choose a different alternative.
+              </p>
+              <span 
+                class="text-xs font-medium ml-auto"
+                :class="form.visualPrompt.length > 1000 ? 'text-error-500' : form.visualPrompt.length > 900 ? 'text-warning-500' : 'text-gray-500'"
+              >
+                {{ form.visualPrompt.length }} / 1000
+              </span>
+            </div>
+          </template>
         </UFormField>
 
         <UFormField label="Audio Notes" name="audioNotes">
@@ -65,7 +88,18 @@
             v-model="form.audioNotes"
             placeholder="Optional notes about audio, voiceover, or music for this segment..."
             :rows="2"
+            :maxlength="500"
           />
+          <template #description>
+            <div class="flex justify-end mt-1">
+              <span 
+                class="text-xs font-medium"
+                :class="(form.audioNotes?.length || 0) > 500 ? 'text-error-500' : (form.audioNotes?.length || 0) > 450 ? 'text-warning-500' : 'text-gray-500'"
+              >
+                {{ form.audioNotes?.length || 0 }} / 500
+              </span>
+            </div>
+          </template>
         </UFormField>
 
         <!-- Veo Model Parameters Section -->
@@ -130,9 +164,18 @@
               v-model="form.negativePrompt"
               placeholder="Description of what to exclude from the generated video..."
               :rows="2"
+              :maxlength="500"
             />
             <template #description>
-              Description of what to exclude from the generated video.
+              <div class="flex justify-between items-center mt-1">
+                <span class="text-xs text-gray-500">Description of what to exclude from the generated video.</span>
+                <span 
+                  class="text-xs font-medium"
+                  :class="(form.negativePrompt?.length || 0) > 500 ? 'text-error-500' : (form.negativePrompt?.length || 0) > 450 ? 'text-warning-500' : 'text-gray-500'"
+                >
+                  {{ form.negativePrompt?.length || 0 }} / 500
+                </span>
+              </div>
             </template>
           </UFormField>
 
@@ -199,6 +242,7 @@
         </UButton>
         <UButton
           :loading="saving"
+          :disabled="saving"
           color="primary"
           @click="submitForm"
         >
@@ -256,18 +300,18 @@ const aspectRatioOptions = [
 // Create base schema
 const baseSchema = z.object({
   type: z.enum(['hook', 'body', 'cta']),
-  description: z.string().min(1, 'Description is required').max(500, 'Description must be less than 500 characters'),
+  description: z.string().min(1, 'Description is required').max(1000, 'Description must be less than 1000 characters'),
   startTime: z.number().min(0, 'Start time must be 0 or greater'),
   endTime: z.number().min(0, 'End time must be 0 or greater'),
   visualPrompt: z.string().min(1, 'Visual prompt is required').max(1000, 'Visual prompt must be less than 1000 characters'),
-  audioNotes: z.string().max(500, 'Audio notes must be less than 500 characters').optional().or(z.literal('')),
+  audioNotes: z.union([z.string().max(500, 'Audio notes must be less than 500 characters'), z.literal(''), z.null()]).optional(),
   // Veo model parameters
   seed: z.number().int().optional().nullable(),
   duration: z.number().int().min(1).max(60).optional().nullable(),
   resolution: z.string().optional().nullable(),
   aspectRatio: z.string().optional().nullable(),
   generateAudio: z.boolean().optional().nullable(),
-  negativePrompt: z.string().max(500, 'Negative prompt must be less than 500 characters').optional().or(z.literal('')),
+  negativePrompt: z.union([z.string().max(500, 'Negative prompt must be less than 500 characters'), z.literal(''), z.null()]).optional(),
   image: z.union([z.instanceof(File), z.string()]).optional().nullable(),
   lastFrame: z.union([z.instanceof(File), z.string()]).optional().nullable(),
   referenceImages: z.array(z.union([z.instanceof(File), z.string()])).optional().nullable(),
@@ -502,18 +546,34 @@ const handleSave = async (event: any) => {
       issues: error.issues,
       stack: error.stack,
     })
-    if (error.errors && error.errors.length > 0) {
+    
+    // Handle Zod validation errors (uses 'issues')
+    if (error.issues && Array.isArray(error.issues) && error.issues.length > 0) {
+      const firstIssue = error.issues[0]
+      const fieldName = firstIssue.path && firstIssue.path.length > 0 
+        ? firstIssue.path.join('.') 
+        : 'field'
+      toast.add({
+        title: 'Validation Error',
+        description: `${fieldName}: ${firstIssue.message}`,
+        color: 'error',
+        timeout: 5000,
+      })
+    } else if (error.errors && Array.isArray(error.errors) && error.errors.length > 0) {
+      // Handle other validation errors (uses 'errors')
       const firstError = error.errors[0]
       toast.add({
         title: 'Validation Error',
         description: firstError.message || 'Please check your input',
         color: 'error',
+        timeout: 5000,
       })
     } else {
       toast.add({
         title: 'Save Failed',
         description: error.message || 'Failed to save segment. Please try again.',
         color: 'error',
+        timeout: 5000,
       })
     }
   } finally {
@@ -523,32 +583,49 @@ const handleSave = async (event: any) => {
 
 const handleError = (errors: any) => {
   console.error('[SegmentEditModal] Form validation errors:', errors)
+  
+  // Extract first error message for display
+  let errorMessage = 'Please check the form for errors.'
+  if (errors && typeof errors === 'object') {
+    const firstErrorKey = Object.keys(errors)[0]
+    if (firstErrorKey && errors[firstErrorKey]) {
+      const firstError = Array.isArray(errors[firstErrorKey]) 
+        ? errors[firstErrorKey][0] 
+        : errors[firstErrorKey]
+      errorMessage = `${firstErrorKey}: ${firstError?.message || firstError || 'Invalid value'}`
+    }
+  }
+  
   toast.add({
     title: 'Validation Errors',
-    description: 'Please check the form for errors. See console for details.',
+    description: errorMessage,
     color: 'error',
+    timeout: 5000,
   })
 }
 
 const submitForm = () => {
   console.log('[SegmentEditModal] submitForm called, formRef:', formRef.value)
-  if (formRef.value) {
-    try {
-      console.log('[SegmentEditModal] Calling formRef.submit()...')
-      formRef.value.submit()
-    } catch (error: any) {
-      console.error('[SegmentEditModal] Error calling formRef.submit():', error)
-      toast.add({
-        title: 'Form Submission Error',
-        description: error.message || 'Failed to submit form. Please check your inputs.',
-        color: 'error',
-      })
-    }
-  } else {
+  
+  if (!formRef.value) {
     console.error('[SegmentEditModal] formRef is null, cannot submit')
     toast.add({
       title: 'Form Error',
       description: 'Form reference is missing. Please try again.',
+      color: 'error',
+    })
+    return
+  }
+
+  try {
+    console.log('[SegmentEditModal] Calling formRef.submit()...')
+    // Submit the form - this will trigger the @submit handler which validates and calls handleSave
+    formRef.value.submit()
+  } catch (error: any) {
+    console.error('[SegmentEditModal] Error calling formRef.submit():', error)
+    toast.add({
+      title: 'Form Submission Error',
+      description: error.message || 'Failed to submit form. Please check your inputs.',
       color: 'error',
     })
   }

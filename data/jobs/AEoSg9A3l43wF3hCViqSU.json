@@ -1,0 +1,48 @@
+{
+  "status": "completed",
+  "result": {
+    "segments": [
+      {
+        "type": "hook",
+        "description": "The camera captures a vibrant studio setup, focusing on a colorful 'Alani' Cherry Twist energy drink can standing upright with the product on a turquoise blue scalloped pedestal surface, centered in a studio setup with a hot pink background and a partial second can on a left-side pedestal. The lighting is bright and inviting, enhancing the glossy finish of the can as it glistens under soft studio lighting.",
+        "startTime": 0,
+        "endTime": 2,
+        "visualPrompt": "A colorful 'Alani' Cherry Twist energy drink can standing upright with the product on a turquoise blue scalloped pedestal surface, centered in a studio setup with a hot pink background and a partial second can on a left-side pedestal. The camera performs a slow zoom in on the can, showcasing its vibrant colors and details such as the '0 sugar' badge and cherry illustrations. Soft, bright studio lighting highlights the can's glossy surface and creates a warm atmosphere.",
+        "visualPromptAlternatives": [
+          "A colorful 'Alani' Cherry Twist energy drink can standing upright with the product on a turquoise blue scalloped pedestal surface, centered in a studio setup with a hot pink background and a partial second can on a left-side pedestal. The camera pans from left to right, capturing the full vividness of the can while emphasizing the vibrant backdrop. Studio lighting accentuates the can's reflections and colors.",
+          "A colorful 'Alani' Cherry Twist energy drink can standing upright with the product on a turquoise blue scalloped pedestal surface, centered in a studio setup with a hot pink background and a partial second can on a left-side pedestal. The shot is an overhead view that showcases the can in its colorful setting, with soft lighting enhancing the vibrancy and details of the can's label.",
+          "A colorful 'Alani' Cherry Twist energy drink can standing upright with the product on a turquoise blue scalloped pedestal surface, centered in a studio setup with a hot pink background and a partial second can on a left-side pedestal. The camera zooms in closely to highlight the 'Cherry Twist' flavor text and the design elements, illuminated by bright, focused lighting that makes the colors pop."
+        ],
+        "audioNotes": "Music: Upbeat and energetic track that sets a lively tone."
+      },
+      {
+        "type": "body",
+        "description": "The scene transitions to a close-up shot of the can as it rotates slowly, allowing viewers to see all angles of the vibrant design. The background colors shift slightly to enhance the dynamic feel.",
+        "startTime": 2,
+        "endTime": 4,
+        "visualPrompt": "The camera focuses on the colorful 'Alani' Cherry Twist energy drink can as it rotates slowly on the turquoise pedestal, showcasing its design with cherry and lime motifs. The lighting remains bright, and the vibrant pink background creates an energizing atmosphere. The shot captures the can's reflections, emphasizing its freshness and appeal.",
+        "visualPromptAlternatives": [
+          "The camera captures the colorful 'Alani' Cherry Twist energy drink can from a diagonal angle, slowly rotating to reveal the details of the label. The turquoise pedestal and hot pink background vibrantly contrast with the can's design, creating an energetic visual.",
+          "The shot is a medium close-up of the can, with a slight zoom effect to emphasize the 'Cherry Twist' flavor text. The background remains vibrant, and the studio lighting enhances the can's glossy finish, creating an inviting feel.",
+          "The camera provides an overhead view of the can, which is now slightly tilted to showcase the label's vibrant colors. The lighting is bright and inviting, and the background colors pulse subtly, adding to the energetic mood."
+        ],
+        "audioNotes": "Voiceover: 'Experience the twist of energy with Alani Nu Cherry Twist, a refreshing boost for your active lifestyle.'"
+      },
+      {
+        "type": "cta",
+        "description": "The final segment zooms out to reveal both cans on their pedestals, inviting viewers to take a closer look at the product and its vibrant branding. The background remains lively and colorful.",
+        "startTime": 4,
+        "endTime": 6,
+        "visualPrompt": "The camera zooms out to show both the colorful 'Alani' Cherry Twist energy drink cans prominently displayed on their turquoise pedestals. The hot pink background creates a fun, inviting atmosphere, and studio lighting highlights the freshness of the drinks. The shot captures the essence of vitality and fun, encouraging viewers to engage with the product.",
+        "visualPromptAlternatives": [
+          "The camera pulls back to a wider shot, capturing both cans on their pedestals against the vibrant backdrop. The lighting remains bright, adding a sense of excitement and energy to the scene, while soft music plays in the background.",
+          "The scene transitions to a slightly angled view showcasing both cans, with the camera slowly panning to emphasize the product's vibrant colors against the hot pink background. The lighting highlights the cans' glossy surfaces.",
+          "A wide shot reveals both 'Alani' Cherry Twist energy drink cans together, with the turquoise pedestals creating a striking contrast against the bright background. The atmosphere is lively and inviting, encouraging viewers to try the drinks."
+        ],
+        "audioNotes": "Voiceover: 'Join the fun and refresh your vitality with Alani Nu Cherry Twist today!'"
+      }
+    ]
+  },
+  "createdAt": 1763180010458,
+  "updatedAt": 1763180070511
+}

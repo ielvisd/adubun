@@ -46,11 +46,49 @@ export const useGeneration = () => {
         
         segments.value = progress.segments.map((seg: any) => {
           const existing = segments.value.find(s => s.segmentId === seg.segmentId)
+          
+          // Extract videoUrl from multiple possible locations
+          const videoUrl = seg.videoUrl || 
+                          seg.metadata?.videoUrl || 
+                          seg.metadata?.replicateVideoUrl ||
+                          existing?.videoUrl ||
+                          existing?.metadata?.videoUrl ||
+                          existing?.metadata?.replicateVideoUrl ||
+                          null
+          
+          // Extract voiceUrl from multiple possible locations
+          const voiceUrl = seg.voiceUrl ||
+                          seg.metadata?.voiceUrl ||
+                          existing?.voiceUrl ||
+                          existing?.metadata?.voiceUrl ||
+                          null
+          
           const merged = {
             ...existing,
             ...seg,
+            // Ensure videoUrl and voiceUrl are at top level for easier access
+            videoUrl,
+            voiceUrl,
             // Preserve metadata if present
             metadata: seg.metadata || existing?.metadata,
+          }
+          
+          // Log videoUrl extraction for debugging
+          if (seg.status === 'completed') {
+            console.log(`[Generation] Segment ${seg.segmentId} videoUrl extraction:`, {
+              segmentId: seg.segmentId,
+              hasTopLevelVideoUrl: !!seg.videoUrl,
+              hasMetadataVideoUrl: !!seg.metadata?.videoUrl,
+              hasMetadataReplicateVideoUrl: !!seg.metadata?.replicateVideoUrl,
+              extractedVideoUrl: videoUrl ? 'found' : 'missing',
+              videoUrlSource: seg.videoUrl ? 'top-level' : 
+                             seg.metadata?.videoUrl ? 'metadata.videoUrl' :
+                             seg.metadata?.replicateVideoUrl ? 'metadata.replicateVideoUrl' :
+                             existing?.videoUrl ? 'existing-top-level' :
+                             existing?.metadata?.videoUrl ? 'existing-metadata.videoUrl' :
+                             existing?.metadata?.replicateVideoUrl ? 'existing-metadata.replicateVideoUrl' :
+                             'none'
+            })
           }
           
           // Log metadata when available
@@ -130,6 +168,7 @@ export const useGeneration = () => {
     startGeneration,
     retrySegment,
     reset,
+    pollProgress,
   }
 }
 
