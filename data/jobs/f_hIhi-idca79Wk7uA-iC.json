@@ -1,0 +1,51 @@
+{
+  "status": "completed",
+  "result": {
+    "segments": [
+      {
+        "type": "hook",
+        "description": "A wide shot of a young adult mountain biker speeding down a rugged trail, the camera follows closely behind. The sun shines brightly, illuminating the dust kicked up by the tires, creating a thrilling atmosphere.",
+        "startTime": 0,
+        "endTime": 2,
+        "visualPrompt": "A wide shot of a young adult mountain biker speeding down a rugged trail, with the camera closely following from behind. The sunlight casts soft, natural light on the scene, enhancing the excitement. The biker is wearing a helmet and sporty gear, and the trail is lined with trees and rocks, emphasizing the adventurous setting.",
+        "visualPromptAlternatives": [
+          "A close-up of the biker's focused face as they navigate a tricky turn, showcasing determination and adrenaline. The background blurs slightly to emphasize speed.",
+          "A drone shot capturing the biker from above, revealing the expansive terrain and breathtaking landscape, with the sun shining brightly.",
+          "A slow-motion shot of the biker jumping over a small hill, with dust flying, highlighting the energy and thrill of the moment.",
+          "A low-angle shot of the biker racing past the camera, showing the bike's wheels spinning and the ground rushing beneath, creating a sense of speed."
+        ],
+        "audioNotes": "Music: Intense, fast-paced electronic music builds excitement."
+      },
+      {
+        "type": "body",
+        "description": "As the biker continues down the trail, they take a quick break and pull out an energy drink from their backpack. A close-up shows the drink as they pop the can open, with condensation glistening in the sunlight.",
+        "startTime": 2,
+        "endTime": 4,
+        "visualPrompt": "The camera zooms in on the biker as they stop and pull out an energy drink from their backpack. The shot focuses on the can, highlighting its vibrant design and logo. Soft natural light reflects off the condensation on the can, making it visually appealing, while the background shows the beautiful trail and greenery.",
+        "visualPromptAlternatives": [
+          "A close-up of the drink being poured into a clear cup, capturing the fizz and vibrant color of the beverage as it fills.",
+          "A side shot of the biker taking a refreshing sip from the can, with a smile of satisfaction, showcasing the drink's refreshing appeal.",
+          "A POV shot from the biker’s perspective as they look at the drink, creating a personal connection with the audience.",
+          "A slow-motion sequence of the biker shaking the can before opening it, adding drama and anticipation to the moment."
+        ],
+        "audioNotes": "Voiceover: Fuel your adventure with every sip, and unleash your potential."
+      },
+      {
+        "type": "cta",
+        "description": "The biker, now energized, returns to the trail with renewed vigor, flying past the camera with the energy drink in hand. The scene fades out with an overlay of the product and a call to action.",
+        "startTime": 4,
+        "endTime": 6,
+        "visualPrompt": "The camera captures the biker speeding past the lens with the energy drink held triumphantly in one hand. The background blurs, emphasizing speed and excitement. The scene transitions to a product shot of the energy drink with a vibrant backdrop, showcasing the can's design and logo. Text overlay appears: 'Grab yours now and feel the rush!'",
+        "visualPromptAlternatives": [
+          "A wide shot of the biker launching off a small ramp, with the drink raised high, creating an exhilarating image of adventure.",
+          "A close-up on the can as it spins slowly in front of a dynamic background of action shots from extreme sports.",
+          "A montage of different extreme sports athletes enjoying the drink, culminating in a final shot of the product and call to action.",
+          "An aerial view of the biker disappearing into the distance, with the text overlay appearing as the camera pans out."
+        ],
+        "audioNotes": "Music: The music crescendos with an energetic beat. Voiceover: Grab yours now and feel the rush!"
+      }
+    ]
+  },
+  "createdAt": 1763243756884,
+  "updatedAt": 1763243773055
+}

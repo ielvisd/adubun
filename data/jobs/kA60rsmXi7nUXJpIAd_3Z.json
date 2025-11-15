@@ -1,0 +1,51 @@
+{
+  "status": "completed",
+  "result": {
+    "segments": [
+      {
+        "type": "hook",
+        "description": "An extreme sports enthusiast is gearing up at a breathtaking mountain summit, with a picturesque view of the valley below.",
+        "startTime": 0,
+        "endTime": 5,
+        "visualPrompt": "Wide shot of a mountain summit at sunrise, with soft natural light illuminating the scene. The camera slowly zooms in on a young, athletic person putting on their helmet and checking their gear. The expansive valley below is visible in the background, highlighting the adventure about to unfold. The energy drink can is placed prominently on a rock nearby, catching the viewer's eye.",
+        "visualPromptAlternatives": [
+          "Close-up of the athlete's face, showing determination and excitement, with the mountain in the background. The camera pans to reveal the energy drink can beside them.",
+          "A dynamic aerial shot of the mountain summit, capturing the athlete from above as they prepare. The can is visible on the ground, and the camera then zooms in on it.",
+          "A side shot of the athlete stretching and preparing, framed with the mountain view. The energy drink can is placed in the foreground, in focus.",
+          "A dramatic tilt from the valley floor up to the summit, showcasing the height and adrenaline of the moment, with the energy drink placed at the center of the frame."
+        ],
+        "audioNotes": "Music: Upbeat, adrenaline-pumping rock music."
+      },
+      {
+        "type": "body",
+        "description": "The athlete begins their descent, showcasing their skills in extreme sports, powered by the energy drink.",
+        "startTime": 5,
+        "endTime": 10,
+        "visualPrompt": "Dynamic action shots of the athlete snowboarding down the mountain, with fast-paced cuts between wide shots and close-ups. The camera follows closely behind, capturing the thrill and speed of the descent. The energy drink can is shown in hand as they take a sip mid-action, emphasizing its role in fueling their adventure.",
+        "visualPromptAlternatives": [
+          "Close-up shots of the athlete's focused expression as they ride down, intercut with shots of the can being opened and consumed.",
+          "A side angle showing the athlete carving through the snow, with the can visible on their backpack.",
+          "A tracking shot alongside the athlete as they navigate through obstacles, highlighting the energy drink can in their hand with each movement.",
+          "A dramatic shot from below, looking up at the athlete as they jump, with the energy drink can in the foreground."
+        ],
+        "audioNotes": "Music: Intensifying rock music with fast beats. Sound effects of snow crunching and wind rushing."
+      },
+      {
+        "type": "cta",
+        "description": "The athlete reaches the bottom, exhilarated and energized, holding the energy drink can up to celebrate.",
+        "startTime": 10,
+        "endTime": 15,
+        "visualPrompt": "The camera captures the athlete coming to a stop at the base of the mountain, panting with excitement. They raise the energy drink can triumphantly, with a big smile on their face. The sun sets behind them, casting a golden hue. The text overlay appears, saying, 'Fuel Your Adventure - Try it Now!'",
+        "visualPromptAlternatives": [
+          "A close-up of the athlete's hand holding the energy drink can, with their face in the background showing joy.",
+          "A wide shot of the athlete celebrating at the base, with the sunset creating a dramatic backdrop.",
+          "A slow-motion shot of the athlete shaking the can and spraying it in celebration, with laughter and cheers in the background.",
+          "An animated graphic overlay highlighting the drink's benefits, with the athlete in the background holding the can."
+        ],
+        "audioNotes": "Music: Upbeat finish, with cheers and sounds of celebration. Voiceover: 'Fuel your adventure with our energy drink. Try it now and feel the rush!'"
+      }
+    ]
+  },
+  "createdAt": 1763170282233,
+  "updatedAt": 1763170307255
+}

@@ -1,0 +1,48 @@
+{
+  "status": "completed",
+  "result": {
+    "segments": [
+      {
+        "type": "hook",
+        "description": "A close-up of a young athlete's determined face, sweat glistening as they prepare for an extreme sports challenge. The camera slowly zooms out to reveal the breathtaking landscape of a mountain range in the background. The atmosphere is charged with energy.",
+        "startTime": 0,
+        "endTime": 2,
+        "visualPrompt": "Close-up of a young athlete's face, showing focus and determination. Soft natural light highlights their features. The camera slowly zooms out to reveal a stunning mountain landscape in the background, setting the stage for an extreme sports adventure. The athlete is wearing a sporty outfit, with the energy drink can visible in their hand.",
+        "visualPromptAlternatives": [
+          "Wide shot of the athlete standing at the edge of a cliff, ocean waves crashing below. The sun sets in the background, casting a golden hue. The athlete raises the energy drink can triumphantly.",
+          "A dynamic shot from behind the athlete, capturing them gearing up with the mountains ahead. The camera pans smoothly from left to right, showcasing the dramatic scenery.",
+          "Close-up of the athlete's hand gripping the energy drink can, then cutting to a wide shot as they take a deep breath, ready to tackle the challenge."
+        ],
+        "audioNotes": "Music: Pulsating electronic music builds excitement. Voiceover: 'Are you ready to unleash your potential?'"
+      },
+      {
+        "type": "body",
+        "description": "The athlete launches off a mountain bike ramp, soaring through the air with a smile. The camera follows the action in a steady, fast-paced tracking shot, showcasing the thrill of the jump and the beauty of the surrounding nature.",
+        "startTime": 2,
+        "endTime": 4,
+        "visualPrompt": "Dynamic tracking shot of the athlete launching off a bike ramp, captured in slow motion to emphasize the thrill. The camera focuses on the athlete mid-air, with the energy drink can clearly visible attached to their gear. The vibrant blue sky and lush green mountains create a thrilling backdrop.",
+        "visualPromptAlternatives": [
+          "A close-up of the wheels as they hit the ramp, then quickly cutting to a wide shot of the athlete flying through the air, with dramatic music intensifying the moment.",
+          "Side angle shot of the athlete executing a trick in the air, with an aerial view of the landscape below. The energy drink logo is prominently displayed on their gear.",
+          "A POV shot from the athlete's perspective as they ride down the trail, weaving through trees, with the energy drink can in view on the side."
+        ],
+        "audioNotes": "Music: Upbeat, high-energy music. Voiceover: 'Boost your performance and fuel your adrenaline!'"
+      },
+      {
+        "type": "cta",
+        "description": "The athlete lands perfectly, pumping their fist in the air in victory. The camera zooms in on the energy drink can as they take a refreshing sip, showcasing the product front and center. The backdrop features the majestic mountains.",
+        "startTime": 4,
+        "endTime": 6,
+        "visualPrompt": "Close-up shot of the athlete landing smoothly and celebrating their success. The camera then focuses on the energy drink can as the athlete takes a sip, with the mountain scenery beautifully framing the shot. The energy drink logo is clearly visible.",
+        "visualPromptAlternatives": [
+          "Wide shot of the athlete celebrating with friends, all holding the energy drink cans, creating a sense of camaraderie and excitement.",
+          "A close-up of the athlete’s satisfied expression after the sip, then pulling back to show them surrounded by nature, with the energy drink can in hand.",
+          "Dynamic angle of the athlete high-fiving friends after landing, with the energy drink can prominently displayed in the foreground."
+        ],
+        "audioNotes": "Music: Climactic finish to the track. Voiceover: 'Try it now and feel the rush!'"
+      }
+    ]
+  },
+  "createdAt": 1763243511062,
+  "updatedAt": 1763243528255
+}

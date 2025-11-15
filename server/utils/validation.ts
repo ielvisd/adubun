@@ -63,7 +63,19 @@ export const generateAssetsSchema = z.object({
         audioNotes: z.string().optional(),
         firstFrameImage: z.string().optional(),
         subjectReference: z.string().optional(),
-      })
+        // Veo 3.1 segment-specific fields
+        image: z.string().optional().nullable(),
+        lastFrame: z.string().optional().nullable(),
+        referenceImages: z.array(z.string()).max(3).optional().nullable(),
+        negativePrompt: z.string().optional().nullable(),
+        resolution: z.string().optional().nullable(),
+        generateAudio: z.boolean().optional().nullable(),
+        seed: z.number().int().optional().nullable(),
+        duration: z.number().int().optional().nullable(),
+        aspectRatio: z.string().optional().nullable(),
+        selectedPromptIndex: z.number().optional(),
+        visualPromptAlternatives: z.array(z.string()).optional(),
+      }).passthrough() // Allow additional fields to pass through
     ),
     meta: z.object({
       duration: z.number(),

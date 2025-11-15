@@ -1,0 +1,48 @@
+{
+  "status": "completed",
+  "result": {
+    "segments": [
+      {
+        "type": "hook",
+        "description": "A close-up shot of a young adult athlete lacing up their sneakers in a bright outdoor setting, showcasing determination and focus.",
+        "startTime": 0,
+        "endTime": 2,
+        "visualPrompt": "Close-up shot of a young adult athlete lacing up their sneakers, with bright natural light illuminating their focused expression. The background features a vibrant outdoor park, filled with greenery and distant mountains. The camera slowly zooms in on their face, capturing the excitement and anticipation before the action begins.",
+        "visualPromptAlternatives": [
+          "Wide shot of the athlete stretching in a sunny park, with a dynamic camera pan to reveal the surrounding scenery.",
+          "Close-up of the athlete's hands gripping a skateboard, with a shallow depth of field to emphasize their intensity.",
+          "Over-the-shoulder shot of the athlete looking at a steep hill, showcasing their determination and the challenge ahead."
+        ],
+        "audioNotes": "Music: Upbeat electronic music with a fast tempo. Voiceover: 'Are you ready to unleash your potential?'"
+      },
+      {
+        "type": "body",
+        "description": "The athlete starts running down a rugged trail, the camera following closely behind, capturing the thrill and adrenaline of the action.",
+        "startTime": 2,
+        "endTime": 4,
+        "visualPrompt": "Dynamic tracking shot following the athlete as they sprint down a rugged trail, surrounded by trees and rocky terrain. The camera captures the energy of each stride, with sunlight filtering through the leaves, creating an exhilarating atmosphere. The athlete takes a quick sip from a can of the energy drink, showcasing the product in action.",
+        "visualPromptAlternatives": [
+          "Action shot from the side as the athlete jumps over a log, with the camera capturing the moment in slow motion.",
+          "Close-up of the energy drink can as the athlete grabs it from their backpack, with a focus on the vibrant label and logo.",
+          "Wide shot of the athlete biking down a steep incline, with dramatic angles and fast-paced editing to highlight the thrill."
+        ],
+        "audioNotes": "Music: Continues upbeat electronic music. Voiceover: 'Fuel your adventure with every sip.'"
+      },
+      {
+        "type": "cta",
+        "description": "The athlete reaches the top of a scenic overlook, raising the energy drink triumphantly, with a breathtaking view in the background.",
+        "startTime": 4,
+        "endTime": 6,
+        "visualPrompt": "Wide shot of the athlete standing at a scenic overlook, arms raised triumphantly holding the energy drink can. The sun sets in the background, casting warm light over the landscape, enhancing the victorious moment. The camera slowly zooms in on the can as the athlete takes a refreshing sip, showcasing the product prominently.",
+        "visualPromptAlternatives": [
+          "Close-up of the athlete's satisfied expression after drinking the energy drink, with the scenic backdrop blurred in the background.",
+          "Wide shot of the athlete celebrating with friends at the overlook, all holding energy drinks, creating a sense of camaraderie.",
+          "Pan shot of the breathtaking landscape with the athlete in the foreground, holding the drink and looking out over the horizon."
+        ],
+        "audioNotes": "Music: Climactic finish to the electronic track. Voiceover: 'Try it now and feel the rush!'"
+      }
+    ]
+  },
+  "createdAt": 1763215320308,
+  "updatedAt": 1763215335924
+}

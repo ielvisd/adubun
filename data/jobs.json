@@ -1188,5 +1188,145 @@
       }
     ],
     "endTime": 1763171101506
+  },
+  {
+    "id": "8-fY6sXBUnBdmxbhqyJ03",
+    "status": "completed",
+    "startTime": 1763244647847,
+    "storyboardId": "aPcbhjJ9qqW-aMMHzJpye",
+    "assets": [
+      {
+        "segmentId": 0,
+        "videoUrl": "https://replicate.delivery/xezq/sGsEiHkOQzrOEhRtjsMQI4aPhCLu1JfTw8YBHTISEcSkZ10KA/tmp8bct01nq.mp4",
+        "voiceUrl": "data/assets/GeWEumQtz0SDwQ_3SZJjE.mp3",
+        "status": "completed",
+        "metadata": {
+          "predictionId": "0th8g797f1rme0cth698cpymp8",
+          "videoUrl": "https://replicate.delivery/xezq/sGsEiHkOQzrOEhRtjsMQI4aPhCLu1JfTw8YBHTISEcSkZ10KA/tmp8bct01nq.mp4",
+          "replicateVideoUrl": "https://replicate.delivery/xezq/sGsEiHkOQzrOEhRtjsMQI4aPhCLu1JfTw8YBHTISEcSkZ10KA/tmp8bct01nq.mp4",
+          "voiceUrl": "data/assets/GeWEumQtz0SDwQ_3SZJjE.mp3",
+          "segmentIndex": 0,
+          "segmentType": "hook",
+          "startTime": 0,
+          "endTime": 6,
+          "duration": 6,
+          "timestamp": 1763244748768,
+          "retryAttempted": false
+        }
+      },
+      {
+        "segmentId": 1,
+        "videoUrl": "https://replicate.delivery/xezq/chO4D6TI1c5AJxq6FbMiWqRCGS4kPjKw26w64Gi92olMtaaF/tmp94ke05di.mp4",
+        "voiceUrl": "data/assets/cnLhWXpMIw16sAixwjgZ7.mp3",
+        "status": "completed",
+        "metadata": {
+          "predictionId": "vgnztbnmk5rmc0cth69vqneg0c",
+          "videoUrl": "https://replicate.delivery/xezq/chO4D6TI1c5AJxq6FbMiWqRCGS4kPjKw26w64Gi92olMtaaF/tmp94ke05di.mp4",
+          "replicateVideoUrl": "https://replicate.delivery/xezq/chO4D6TI1c5AJxq6FbMiWqRCGS4kPjKw26w64Gi92olMtaaF/tmp94ke05di.mp4",
+          "voiceUrl": "data/assets/cnLhWXpMIw16sAixwjgZ7.mp3",
+          "segmentIndex": 1,
+          "segmentType": "body",
+          "startTime": 0,
+          "endTime": 6,
+          "duration": 6,
+          "timestamp": 1763244854583,
+          "retryAttempted": false
+        }
+      }
+    ]
+  },
+  {
+    "id": "AgP_vir61Mrk8q7Hg0RRa",
+    "status": "completed",
+    "startTime": 1763244988390,
+    "storyboardId": "aPcbhjJ9qqW-aMMHzJpye",
+    "assets": [
+      {
+        "segmentId": 0,
+        "videoUrl": "https://replicate.delivery/xezq/sDd18rvFaTreLiP2HkIpXmBuqCrt1d7zHG4ZXMSasDCOc10KA/tmp4_d4ir8m.mp4",
+        "voiceUrl": "data/assets/dEdR6cDZ1YB28ZbAyl7mL.mp3",
+        "status": "completed",
+        "metadata": {
+          "predictionId": "mcq2vfjzwhrme0cth6brmdqrdw",
+          "videoUrl": "https://replicate.delivery/xezq/sDd18rvFaTreLiP2HkIpXmBuqCrt1d7zHG4ZXMSasDCOc10KA/tmp4_d4ir8m.mp4",
+          "replicateVideoUrl": "https://replicate.delivery/xezq/sDd18rvFaTreLiP2HkIpXmBuqCrt1d7zHG4ZXMSasDCOc10KA/tmp4_d4ir8m.mp4",
+          "voiceUrl": "data/assets/dEdR6cDZ1YB28ZbAyl7mL.mp3",
+          "segmentIndex": 0,
+          "segmentType": "hook",
+          "startTime": 0,
+          "endTime": 6,
+          "duration": 6,
+          "timestamp": 1763245089301,
+          "retryAttempted": false
+        }
+      }
+    ],
+    "endTime": 1763245089306
+  },
+  {
+    "id": "69tQirMm-7SfFnywtXc9j",
+    "status": "completed",
+    "startTime": 1763245251129,
+    "storyboardId": "aPcbhjJ9qqW-aMMHzJpye",
+    "assets": [
+      {
+        "segmentId": 0,
+        "videoUrl": "https://replicate.delivery/xezq/LWXGlam4cDYnEtLRuZ4lnYRJfNesBKZbMs8afpcr6TPV5VTrA/tmp4juu46yu.mp4",
+        "voiceUrl": "data/assets/ul5IdOu0S3Koa1oMXiYn1.mp3",
+        "status": "completed",
+        "metadata": {
+          "predictionId": "8f3pphayw9rma0cth6drnt9st8",
+          "videoUrl": "https://replicate.delivery/xezq/LWXGlam4cDYnEtLRuZ4lnYRJfNesBKZbMs8afpcr6TPV5VTrA/tmp4juu46yu.mp4",
+          "replicateVideoUrl": "https://replicate.delivery/xezq/LWXGlam4cDYnEtLRuZ4lnYRJfNesBKZbMs8afpcr6TPV5VTrA/tmp4juu46yu.mp4",
+          "voiceUrl": "data/assets/ul5IdOu0S3Koa1oMXiYn1.mp3",
+          "segmentIndex": 0,
+          "segmentType": "hook",
+          "startTime": 0,
+          "endTime": 6,
+          "duration": 6,
+          "timestamp": 1763245358573,
+          "retryAttempted": false
+        }
+      },
+      {
+        "segmentId": 1,
+        "videoUrl": "https://replicate.delivery/xezq/OeIej3PMKPsd80Bhz5UjoPhxp0CrGWvjyeeeE1yyg4fHlvaaF/tmppew3lesd.mp4",
+        "voiceUrl": "data/assets/lwR6GKtAQLzMi5zEcXq_r.mp3",
+        "status": "completed",
+        "metadata": {
+          "predictionId": "cvw6dgg4j5rm80cth6etyxb550",
+          "videoUrl": "https://replicate.delivery/xezq/OeIej3PMKPsd80Bhz5UjoPhxp0CrGWvjyeeeE1yyg4fHlvaaF/tmppew3lesd.mp4",
+          "replicateVideoUrl": "https://replicate.delivery/xezq/OeIej3PMKPsd80Bhz5UjoPhxp0CrGWvjyeeeE1yyg4fHlvaaF/tmppew3lesd.mp4",
+          "voiceUrl": "data/assets/lwR6GKtAQLzMi5zEcXq_r.mp3",
+          "segmentIndex": 1,
+          "segmentType": "body",
+          "startTime": 0,
+          "endTime": 6,
+          "duration": 6,
+          "timestamp": 1763245463293,
+          "retryAttempted": false
+        }
+      },
+      {
+        "segmentId": 2,
+        "videoUrl": "https://replicate.delivery/xezq/eElAP45TiJ0iFKfd4015hDqRh5NHPWAeXliNre7CFycCfXNtC/tmp8lrp0odv.mp4",
+        "voiceUrl": "data/assets/MdRNZcd0SdZna4A1XgVU6.mp3",
+        "status": "completed",
+        "metadata": {
+          "predictionId": "rnz9rhcvnhrma0cth6f9vvmhq4",
+          "videoUrl": "https://replicate.delivery/xezq/eElAP45TiJ0iFKfd4015hDqRh5NHPWAeXliNre7CFycCfXNtC/tmp8lrp0odv.mp4",
+          "replicateVideoUrl": "https://replicate.delivery/xezq/eElAP45TiJ0iFKfd4015hDqRh5NHPWAeXliNre7CFycCfXNtC/tmp8lrp0odv.mp4",
+          "voiceUrl": "data/assets/MdRNZcd0SdZna4A1XgVU6.mp3",
+          "segmentIndex": 2,
+          "segmentType": "cta",
+          "startTime": 0,
+          "endTime": 6,
+          "duration": 6,
+          "timestamp": 1763245555712,
+          "retryAttempted": false
+        }
+      }
+    ],
+    "endTime": 1763245555716
   }
 ]

@@ -1,0 +1,48 @@
+{
+  "status": "completed",
+  "result": {
+    "segments": [
+      {
+        "type": "hook",
+        "description": "A close-up shot of a young man strapping on his skateboard helmet, excitement on his face. The camera quickly zooms out to show him at the top of a steep ramp, with bright sunlight illuminating the scene.",
+        "startTime": 0,
+        "endTime": 3,
+        "visualPrompt": "Close-up of a young man putting on a helmet, with a quick zoom-out to reveal a steep ramp in a park. The sunlight creates vibrant highlights on his face, showcasing his excitement. In the background, we see other young adults preparing for extreme sports, creating an energetic atmosphere.",
+        "visualPromptAlternatives": [
+          "Wide shot of a group of young adults gathered at a skate park, with one individual in focus as he prepares to skate. The sun sets in the background, casting a warm glow over the scene.",
+          "A dynamic tracking shot following a young woman as she speeds towards the ramp on her BMX bike, capturing the thrill of the moment.",
+          "A bird's-eye view of the skate park filled with young adults performing tricks, transitioning to a close-up of the main character ready to take on the ramp."
+        ],
+        "audioNotes": "Music: High-energy electronic music with an adrenaline-pumping beat."
+      },
+      {
+        "type": "body",
+        "description": "The young man launches himself down the ramp, performing tricks and flips in mid-air. The camera captures multiple angles, showcasing his skills and the rush of the ride. Quick cuts highlight the energy drink being held by his friends, who cheer him on.",
+        "startTime": 3,
+        "endTime": 5,
+        "visualPrompt": "Dynamic shots of the young man skating down the ramp, executing an impressive flip. The camera alternates between close-ups of his focused expression and wide shots of the skate park filled with cheering friends. Friends in the background hold cans of the energy drink, showing excitement and support.",
+        "visualPromptAlternatives": [
+          "A fast-paced montage of the young man performing various tricks, interspersed with shots of his friends taking sips from the energy drink, emphasizing the connection between energy and performance.",
+          "Close-up shots of the skateboard wheels spinning and the young man's feet expertly maneuvering, layered with reaction shots of his friends celebrating.",
+          "A slow-motion shot of the young man mid-air during a trick, with the energy drink can prominently displayed in the foreground, highlighting it as the source of his energy."
+        ],
+        "audioNotes": "Music: Intensifying electronic beats. Voiceover: 'Unleash your potential with every move.'"
+      },
+      {
+        "type": "cta",
+        "description": "The scene transitions to the young man catching his breath after an exhilarating run, holding up a can of the energy drink with a smile. The camera zooms in on the drink as he takes a refreshing sip, showcasing its vibrant packaging.",
+        "startTime": 5,
+        "endTime": 6,
+        "visualPrompt": "A close-up of the young man, visibly exhilarated, as he holds the energy drink can up to the camera. The background blurs slightly to keep focus on the drink, with bright, natural lighting highlighting its colors. He takes a sip, with a satisfied expression, before looking back at the camera.",
+        "visualPromptAlternatives": [
+          "A wide shot of the young man surrounded by his friends, all holding cans of the energy drink and celebrating, with laughter and excitement in the air.",
+          "A close-up of the energy drink can being opened with a satisfying pop, followed by a shot of the young man smiling as he drinks.",
+          "A quick pan from the young man to the energy drink can on a nearby table, emphasizing its importance in fueling their adventure."
+        ],
+        "audioNotes": "Music: Fades to a soft upbeat tune. Voiceover: 'Try it now and feel the rush!'"
+      }
+    ]
+  },
+  "createdAt": 1763222639199,
+  "updatedAt": 1763222660928
+}

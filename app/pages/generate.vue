@@ -120,7 +120,7 @@ const editModalOpen = ref(false)
 const selectedSegment = ref<Segment | null>(null)
 const selectedSegmentIndex = ref<number | null>(null)
 
-const { segments, overallProgress, status, overallError, jobId, startGeneration: startGen } = useGeneration()
+const { segments, overallProgress, status, overallError, jobId, startGeneration: startGen, pollProgress: pollGenProgress } = useGeneration()
 const { currentCost, estimatedTotal, startPolling } = useCostTracking()
 const toast = useToast()
 
@@ -141,6 +141,8 @@ const pollStoryboardStatus = async (jobId: string, meta: any) => {
       
       if (statusResult.status === 'completed' && statusResult.storyboard) {
         storyboard.value = statusResult.storyboard
+        // Save storyboard to sessionStorage
+        saveStoryboardToStorage(storyboard.value)
         return
       } else if (statusResult.status === 'failed') {
         throw new Error(statusResult.error || 'Storyboard generation failed')
@@ -177,29 +179,30 @@ const handleModeChange = async (value: boolean) => {
   const newMode = value ? 'production' : 'demo'
   const oldMode = storyboard.value.meta.mode
   
-  // Optimistically update local state
-  storyboard.value.meta.mode = newMode
-  
-  try {
-    // Update backend
-    await $fetch(`/api/storyboard/${storyboard.value.id}`, {
-      method: 'PUT',
-      body: {
-        meta: {
-          ...storyboard.value.meta,
-          mode: newMode,
-        },
-      },
-    })
+    // Optimistically update local state
+    storyboard.value.meta.mode = newMode
+    // Storyboard watcher will automatically save to sessionStorage
     
-    toast.add({
-      title: 'Mode updated',
-      description: `Switched to ${newMode} mode`,
-      color: 'success',
-    })
-  } catch (error: any) {
-    // Revert on error
-    storyboard.value.meta.mode = oldMode
+    try {
+      // Update backend
+      await $fetch(`/api/storyboard/${storyboard.value.id}`, {
+        method: 'PUT',
+        body: {
+          meta: {
+            ...storyboard.value.meta,
+            mode: newMode,
+          },
+        },
+      })
+      
+      toast.add({
+        title: 'Mode updated',
+        description: `Switched to ${newMode} mode`,
+        color: 'success',
+      })
+    } catch (error: any) {
+      // Revert on error
+      storyboard.value.meta.mode = oldMode
     
     toast.add({
       title: 'Failed to update mode',
@@ -215,15 +218,103 @@ const completedAssets = computed(() => {
     return []
   }
   
-  return segments.value
-    .filter((s: any) => s.status === 'completed')
-    .map((s: any) => ({
+  const completed = segments.value.filter((s: any) => s.status === 'completed')
+  
+  const assets = completed.map((s: any) => {
+    // Extract videoUrl from all possible locations
+    const videoUrl = s.videoUrl || 
+                    s.metadata?.videoUrl || 
+                    s.metadata?.replicateVideoUrl ||
+                    null
+    
+    // Extract voiceUrl from all possible locations
+    const voiceUrl = s.voiceUrl || 
+                    s.metadata?.voiceUrl ||
+                    null
+    
+    // Debug logging for videoUrl extraction
+    if (!videoUrl) {
+      console.warn(`[CompletedAssets] Segment ${s.segmentId} has no videoUrl:`, {
+        segmentId: s.segmentId,
+        hasTopLevelVideoUrl: !!s.videoUrl,
+        hasMetadataVideoUrl: !!s.metadata?.videoUrl,
+        hasMetadataReplicateVideoUrl: !!s.metadata?.replicateVideoUrl,
+        segmentType: s.type,
+        status: s.status,
+        metadataKeys: s.metadata ? Object.keys(s.metadata) : [],
+      })
+    } else {
+      console.log(`[CompletedAssets] Segment ${s.segmentId} videoUrl found:`, {
+        segmentId: s.segmentId,
+        segmentType: s.type,
+        videoUrlSource: s.videoUrl ? 'top-level' : 
+                       s.metadata?.videoUrl ? 'metadata.videoUrl' :
+                       s.metadata?.replicateVideoUrl ? 'metadata.replicateVideoUrl' :
+                       'unknown',
+        videoUrlPreview: videoUrl.substring(0, 50) + '...',
+      })
+    }
+    
+    return {
       segmentId: s.segmentId,
-      videoUrl: s.videoUrl || s.metadata?.videoUrl || s.metadata?.replicateVideoUrl,
-      voiceUrl: s.voiceUrl || s.metadata?.voiceUrl,
+      videoUrl,
+      voiceUrl,
       metadata: s.metadata,
-    }))
+    }
+  })
+  
+  console.log(`[CompletedAssets] Mapped ${assets.length} completed segments to assets (${assets.filter(a => a.videoUrl).length} with videoUrl)`)
+  
+  return assets
 })
+
+// Helper function to save storyboard to sessionStorage
+const saveStoryboardToStorage = (sb: Storyboard | null) => {
+  if (process.client && sb) {
+    try {
+      sessionStorage.setItem('generateStoryboard', JSON.stringify(sb))
+      console.log('[Generate] Storyboard saved to sessionStorage')
+    } catch (error) {
+      console.error('[Generate] Failed to save storyboard to sessionStorage:', error)
+    }
+  }
+}
+
+// Helper function to restore generation state
+const restoreGenerationState = async () => {
+  if (!process.client) return false
+  
+  try {
+    const jobStateData = sessionStorage.getItem('generateJobState')
+    if (jobStateData) {
+      const jobState = JSON.parse(jobStateData)
+      console.log('[Generate] Restoring generation state:', jobState)
+      
+      if (jobState.jobId) {
+        // Restore jobId and segments
+        jobId.value = jobState.jobId
+        if (jobState.segments && Array.isArray(jobState.segments)) {
+          segments.value = jobState.segments
+          console.log(`[Generate] Restored ${segments.value.length} segments`)
+        }
+        
+        // Resume polling if job is still active
+        if (jobState.status === 'processing' || jobState.status === 'pending') {
+          console.log('[Generate] Resuming generation status polling...')
+          // Start polling - this will be handled by the composable
+          if (pollGenProgress) {
+            pollGenProgress()
+          }
+          return true
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[Generate] Failed to restore generation state:', error)
+  }
+  
+  return false
+}
 
 // Start cost polling and load storyboard
 onMounted(async () => {
@@ -231,6 +322,21 @@ onMounted(async () => {
   // Access state from sessionStorage
   if (process.client) {
     try {
+      // First, check for persisted storyboard (from previous session)
+      const persistedStoryboard = sessionStorage.getItem('generateStoryboard')
+      
+      if (persistedStoryboard) {
+        console.log('[Generate] Found persisted storyboard, restoring...')
+        storyboard.value = JSON.parse(persistedStoryboard)
+        
+        // Try to restore generation state and resume polling
+        const stateRestored = await restoreGenerationState()
+        if (stateRestored) {
+          console.log('[Generate] Generation state restored and polling resumed')
+        }
+        return
+      }
+      
       // Check if we have parsed prompt data (new flow)
       const parsedPromptData = sessionStorage.getItem('parsedPrompt')
       
@@ -256,7 +362,12 @@ onMounted(async () => {
             storyboard.value = storyboardResult
           }
           
-          // Clear sessionStorage
+          // Save storyboard to sessionStorage
+          if (storyboard.value) {
+            saveStoryboardToStorage(storyboard.value)
+          }
+          
+          // Clear parsedPrompt after successful planning
           sessionStorage.removeItem('parsedPrompt')
         } catch (error: any) {
           console.error('Failed to plan storyboard:', error)
@@ -271,11 +382,13 @@ onMounted(async () => {
           planningStoryboard.value = false
         }
       } else {
-        // Legacy flow: check for existing storyboard
+        // Legacy flow: check for existing storyboard (temporary storage)
         const stored = sessionStorage.getItem('storyboard')
         if (stored) {
           storyboard.value = JSON.parse(stored)
-          // Clear after reading to avoid stale data
+          // Save to persistent storage
+          saveStoryboardToStorage(storyboard.value)
+          // Clear temporary storage
           sessionStorage.removeItem('storyboard')
         } else {
           // If no storyboard found, redirect back to home
@@ -301,11 +414,50 @@ onMounted(async () => {
   }
 })
 
+// Watch for storyboard changes and save to sessionStorage
+watch(storyboard, (newStoryboard) => {
+  if (newStoryboard) {
+    saveStoryboardToStorage(newStoryboard)
+  }
+}, { deep: true })
+
 // Watch for status changes (set up once, not inside startGeneration)
 const statusWatcher = watch(status, (newStatus) => {
   if (newStatus === 'completed') {
     assetsReady.value = true
   }
+  // Save generation state when status changes
+  saveGenerationState()
+})
+
+// Helper function to save generation state to sessionStorage
+const saveGenerationState = () => {
+  if (process.client) {
+    try {
+      const state = {
+        jobId: jobId.value,
+        segments: segments.value,
+        status: status.value,
+        overallProgress: overallProgress.value,
+        overallError: overallError.value,
+        timestamp: Date.now(),
+      }
+      sessionStorage.setItem('generateJobState', JSON.stringify(state))
+      console.log('[Generate] Generation state saved to sessionStorage')
+    } catch (error) {
+      console.error('[Generate] Failed to save generation state:', error)
+    }
+  }
+}
+
+// Watch for segments changes and save state
+watch(segments, () => {
+  saveGenerationState()
+}, { deep: true })
+
+// Watch for jobId changes and save state
+watch(jobId, () => {
+  saveGenerationState()
 })
 
 // Clean up watcher on unmount
@@ -314,6 +466,9 @@ onUnmounted(() => {
 })
 
 const startGeneration = async () => {
+  // Save generation state when starting
+  saveGenerationState()
+  
   if (!storyboard.value) {
     console.warn('[Generate] Cannot start generation: no storyboard')
     return
@@ -621,6 +776,7 @@ const handleSegmentSaved = async (updatedSegment: Segment, index: number) => {
 
     // Update local state
     storyboard.value = savedStoryboard as Storyboard
+    // Storyboard watcher will automatically save to sessionStorage
 
     toast.add({
       title: 'Success',

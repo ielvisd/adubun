@@ -2117,5 +2117,170 @@
     "metadata": {
       "duration": 6
     }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763243510993,
+    "metadata": {
+      "prompt": "Generate a TikTok ad for energy drinks with extreme sports footage"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763243511048,
+    "metadata": {
+      "duration": 6
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763243756832,
+    "metadata": {
+      "prompt": "Generate a TikTok ad for energy drinks with extreme sports footage"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763243756879,
+    "metadata": {
+      "duration": 6
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763244047848,
+    "metadata": {
+      "prompt": "Generate a TikTok ad for energy drinks with extreme sports footage\n"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763244047906,
+    "metadata": {
+      "duration": 6
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763244648309,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 6
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763244748768,
+    "metadata": {
+      "segmentId": 0,
+      "textLength": 49
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763244749963,
+    "metadata": {
+      "segmentId": 1,
+      "duration": 6
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763244854582,
+    "metadata": {
+      "segmentId": 1,
+      "textLength": 64
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763244855915,
+    "metadata": {
+      "segmentId": 2,
+      "duration": 6
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763244990432,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 6
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763245089300,
+    "metadata": {
+      "segmentId": 0,
+      "textLength": 49
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763245252311,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 6
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763245358572,
+    "metadata": {
+      "segmentId": 0,
+      "textLength": 49
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763245360471,
+    "metadata": {
+      "segmentId": 1,
+      "duration": 6
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763245463292,
+    "metadata": {
+      "segmentId": 1,
+      "textLength": 64
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763245464470,
+    "metadata": {
+      "segmentId": 2,
+      "duration": 6
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763245555711,
+    "metadata": {
+      "segmentId": 2,
+      "textLength": 70
+    }
   }
 ]
