@@ -124,6 +124,44 @@ const { segments, overallProgress, status, overallError, jobId, startGeneration:
 const { currentCost, estimatedTotal, startPolling } = useCostTracking()
 const toast = useToast()
 
+// Poll for storyboard status
+const pollStoryboardStatus = async (jobId: string, meta: any) => {
+  const maxAttempts = 60 // 2 minutes max (60 * 2 seconds)
+  let attempts = 0
+  
+  while (attempts < maxAttempts) {
+    try {
+      const statusResult = await $fetch('/api/plan-storyboard-status', {
+        method: 'GET',
+        params: {
+          id: jobId,
+          meta: JSON.stringify(meta),
+        },
+      })
+      
+      if (statusResult.status === 'completed' && statusResult.storyboard) {
+        storyboard.value = statusResult.storyboard
+        return
+      } else if (statusResult.status === 'failed') {
+        throw new Error(statusResult.error || 'Storyboard generation failed')
+      }
+      
+      // Wait 2 seconds before next poll
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      attempts++
+    } catch (error: any) {
+      if (error.message && error.message.includes('failed')) {
+        throw error
+      }
+      // Continue polling on other errors
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      attempts++
+    }
+  }
+  
+  throw new Error('Storyboard generation timed out')
+}
+
 // Mode toggle state
 const isProductionMode = computed({
   get: () => storyboard.value?.meta.mode === 'production',
@@ -209,7 +247,14 @@ onMounted(async () => {
             body: { parsed },
           })
           
-          storyboard.value = storyboardResult
+          // Check if this is an async response with jobId
+          if (storyboardResult.jobId && storyboardResult.status === 'pending') {
+            // Poll for status (use meta from response if available, otherwise from parsed)
+            await pollStoryboardStatus(storyboardResult.jobId, storyboardResult.meta || parsed.meta)
+          } else {
+            // Synchronous response (backward compatibility)
+            storyboard.value = storyboardResult
+          }
           
           // Clear sessionStorage
           sessionStorage.removeItem('parsedPrompt')

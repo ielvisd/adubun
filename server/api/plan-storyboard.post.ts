@@ -41,6 +41,17 @@ export default defineEventHandler(async (event) => {
     // Ensure storyboardData is an object
     const data = typeof storyboardData === 'string' ? JSON.parse(storyboardData) : storyboardData
     
+    // Check if this is an async response with jobId
+    if (data.jobId && data.status === 'pending') {
+      // Return job ID for polling with metadata for status endpoint
+      return {
+        jobId: data.jobId,
+        status: 'pending',
+        meta: parsed.meta, // Include metadata for status endpoint
+      }
+    }
+    
+    // Handle synchronous response (backward compatibility)
     // Keep all segments - in demo mode, we'll only generate the first one during asset generation
     const segments = data.segments || []
 

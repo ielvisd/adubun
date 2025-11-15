@@ -11,6 +11,7 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
 import OpenAI from 'openai'
+import { nanoid } from 'nanoid'
 
 // Load environment variables from .env file
 // Try multiple possible locations for the .env file
@@ -33,8 +34,16 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
 })
 
+interface StoryboardJob {
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  result?: any
+  error?: string
+}
+
 class OpenAIMCPServer {
   private server: Server
+  private jobStore: Map<string, StoryboardJob> = new Map()
+  private jobTimestamps: Map<string, number> = new Map()
 
   constructor() {
     this.server = new Server(
@@ -50,6 +59,23 @@ class OpenAIMCPServer {
     )
 
     this.setupHandlers()
+    this.startJobCleanup()
+  }
+
+  private startJobCleanup() {
+    // Clean up jobs older than 10 minutes every 5 minutes
+    setInterval(() => {
+      const now = Date.now()
+      const maxAge = 10 * 60 * 1000 // 10 minutes
+      
+      for (const [jobId, timestamp] of this.jobTimestamps.entries()) {
+        if (now - timestamp > maxAge) {
+          this.jobStore.delete(jobId)
+          this.jobTimestamps.delete(jobId)
+          console.error(`[OpenAI MCP] Cleaned up old job: ${jobId}`)
+        }
+      }
+    }, 5 * 60 * 1000) // Run every 5 minutes
   }
 
   private setupHandlers() {
@@ -132,6 +158,20 @@ class OpenAIMCPServer {
           },
         },
         {
+          name: 'check_storyboard_status',
+          description: 'Check the status of an asynchronous storyboard generation job',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              jobId: {
+                type: 'string',
+                description: 'Job ID returned from plan_storyboard',
+              },
+            },
+            required: ['jobId'],
+          },
+        },
+        {
           name: 'text_to_speech',
           description: 'Convert text to speech using OpenAI TTS',
           inputSchema: {
@@ -207,6 +247,9 @@ class OpenAIMCPServer {
           
           case 'plan_storyboard':
             return await this.planStoryboard(args.parsed, args.duration, args.style, args.referenceImages || [])
+          
+          case 'check_storyboard_status':
+            return await this.checkStoryboardStatus(args.jobId)
           
           case 'text_to_speech':
             return await this.textToSpeech(
@@ -546,10 +589,86 @@ Be extremely specific about product placement. For example:
     }
   }
 
+  private async checkStoryboardStatus(jobId: string) {
+    const job = this.jobStore.get(jobId)
+    
+    if (!job) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              status: 'not_found',
+              error: 'Job not found',
+            }),
+          },
+        ],
+      }
+    }
+    
+    const response: any = {
+      status: job.status,
+    }
+    
+    if (job.status === 'completed' && job.result) {
+      response.result = job.result
+    } else if (job.status === 'failed' && job.error) {
+      response.error = job.error
+    }
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(response),
+        },
+      ],
+    }
+  }
+
   private async planStoryboard(parsed: any, duration: number, style: string, referenceImages: string[] = []) {
-    // Analyze reference images if provided
-    let imageEnhancements: string = ''
-    let imageAnalysis: any = null
+    // Generate job ID and return immediately
+    const jobId = nanoid()
+    
+    // Store job as pending
+    this.jobStore.set(jobId, {
+      status: 'pending',
+    })
+    this.jobTimestamps.set(jobId, Date.now())
+    
+    // Start async processing (don't await)
+    this.processStoryboardAsync(jobId, parsed, duration, style, referenceImages).catch((error) => {
+      console.error(`[OpenAI MCP] Storyboard job ${jobId} failed:`, error)
+      this.jobStore.set(jobId, {
+        status: 'failed',
+        error: error.message || 'Unknown error',
+      })
+    })
+    
+    // Return job ID immediately
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            jobId,
+            status: 'pending',
+          }),
+        },
+      ],
+    }
+  }
+
+  private async processStoryboardAsync(jobId: string, parsed: any, duration: number, style: string, referenceImages: string[] = []) {
+    // Update job status to processing
+    this.jobStore.set(jobId, {
+      status: 'processing',
+    })
+    
+    try {
+      // Analyze reference images if provided
+      let imageEnhancements: string = ''
+      let imageAnalysis: any = null
     
     if (referenceImages && referenceImages.length > 0) {
       try {
@@ -740,131 +859,139 @@ Return JSON with a "segments" array. Each segment must include:
       ? `${JSON.stringify(parsed)}\n\n🚨 CRITICAL: The reference image shows "${sceneDescription}". The hook segment visualPrompt MUST start with this exact scene. Before finalizing, verify your hook segment begins with "${sceneDescription}" and does NOT place the product in a different location.`
       : JSON.stringify(parsed)
     
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage },
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.7,
-      max_tokens: 4000, // Limit tokens to speed up generation
-    })
+    // Use gpt-4o-mini for faster generation (within 60s MCP timeout)
+    // Add timeout to ensure we don't exceed MCP SDK's 60-second limit
+    const completion = await Promise.race([
+      openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.7,
+        max_tokens: 3000, // Reduced further for speed
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Storyboard generation timed out after 50 seconds')), 50000)
+      )
+    ]) as any
 
     const responseContent = completion.choices[0].message.content || '{}'
     
-    // Return response immediately, then do validation asynchronously (non-blocking)
-    // This prevents timeout issues with the MCP SDK's 60-second limit
-    const returnResponse = () => ({
-      content: [
-        {
-          type: 'text',
-          text: responseContent,
-        },
-      ],
-    })
-    
-    // Do validation asynchronously (fire and forget) to avoid blocking the response
-    setImmediate(() => {
-      try {
-        const storyboardData = JSON.parse(responseContent)
-        
-        // Validate segment structure
-        if (storyboardData.segments && Array.isArray(storyboardData.segments)) {
-          const segmentTypes = storyboardData.segments.map((seg: any) => seg.type)
-          const hasHook = segmentTypes.includes('hook')
-          const hasBody = segmentTypes.includes('body')
-          const hasCta = segmentTypes.includes('cta')
-          
-          console.error(`[OpenAI MCP] Storyboard validation: ${storyboardData.segments.length} segments found`)
-          console.error(`[OpenAI MCP] Segment types: ${segmentTypes.join(', ')}`)
-          
-          if (!hasHook || !hasBody || !hasCta) {
-            console.error(`[OpenAI MCP] ⚠️ VALIDATION ERROR: Storyboard missing required segments!`)
-            console.error(`[OpenAI MCP] Found: hook=${hasHook}, body=${hasBody}, cta=${hasCta}`)
-            console.error(`[OpenAI MCP] Expected: hook=true, body=true, cta=true`)
-            console.error(`[OpenAI MCP] The storyboard MUST include all three types: hook, body, and CTA`)
-          } else {
-            console.error(`[OpenAI MCP] ✅ Validation passed: Storyboard contains all required segment types (hook, body, cta)`)
-          }
-          
-          // Validate hook segment and alternatives match sceneDescription
-          if (sceneDescription && storyboardData.segments && Array.isArray(storyboardData.segments)) {
-            const hookSegment = storyboardData.segments.find((seg: any) => seg.type === 'hook')
+      // Store result in job store
+      const storyboardData = JSON.parse(responseContent)
+      
+      // Do validation asynchronously (fire and forget) to avoid blocking
+      setImmediate(() => {
+        try {
+          // Validate segment structure
+          if (storyboardData.segments && Array.isArray(storyboardData.segments)) {
+            const segmentTypes = storyboardData.segments.map((seg: any) => seg.type)
+            const hasHook = segmentTypes.includes('hook')
+            const hasBody = segmentTypes.includes('body')
+            const hasCta = segmentTypes.includes('cta')
             
-            if (hookSegment && hookSegment.visualPrompt) {
-              const hookPromptLower = hookSegment.visualPrompt.toLowerCase()
-              const sceneDescLower = sceneDescription.toLowerCase()
+            console.error(`[OpenAI MCP] Storyboard validation: ${storyboardData.segments.length} segments found`)
+            console.error(`[OpenAI MCP] Segment types: ${segmentTypes.join(', ')}`)
+            
+            if (!hasHook || !hasBody || !hasCta) {
+              console.error(`[OpenAI MCP] ⚠️ VALIDATION ERROR: Storyboard missing required segments!`)
+              console.error(`[OpenAI MCP] Found: hook=${hasHook}, body=${hasBody}, cta=${hasCta}`)
+              console.error(`[OpenAI MCP] Expected: hook=true, body=true, cta=true`)
+              console.error(`[OpenAI MCP] The storyboard MUST include all three types: hook, body, and CTA`)
+            } else {
+              console.error(`[OpenAI MCP] ✅ Validation passed: Storyboard contains all required segment types (hook, body, cta)`)
+            }
+            
+            // Validate hook segment and alternatives match sceneDescription
+            if (sceneDescription && storyboardData.segments && Array.isArray(storyboardData.segments)) {
+              const hookSegment = storyboardData.segments.find((seg: any) => seg.type === 'hook')
               
-              // Check for placement mismatches in primary prompt
-              const hasWearing = sceneDescLower.includes('wearing') || sceneDescLower.includes('on wrist')
-              const hasOnTable = sceneDescLower.includes('on table') || sceneDescLower.includes('on desk') || sceneDescLower.includes('resting on')
-              const hasHolding = sceneDescLower.includes('holding') || sceneDescLower.includes('in hand')
-              
-              const hookHasTable = hookPromptLower.includes('on table') || hookPromptLower.includes('on desk') || hookPromptLower.includes('resting on') || hookPromptLower.includes('lying on')
-              const hookHasWearing = hookPromptLower.includes('wearing') || hookPromptLower.includes('on wrist')
-              const hookHasHolding = hookPromptLower.includes('holding') || hookPromptLower.includes('in hand')
-              
-              // Validate placement matches
-              if (hasWearing && hookHasTable) {
-                console.error(`[OpenAI MCP] ⚠️ VALIDATION ERROR: sceneDescription says "${sceneDescription}" (wearing/on wrist) but hook segment says "${hookSegment.visualPrompt.substring(0, 100)}..." (on table/desk)`)
-                console.error(`[OpenAI MCP] The hook segment does NOT match the reference image placement!`)
-              } else if (hasOnTable && hookHasWearing) {
-                console.error(`[OpenAI MCP] ⚠️ VALIDATION ERROR: sceneDescription says "${sceneDescription}" (on table) but hook segment says "${hookSegment.visualPrompt.substring(0, 100)}..." (wearing/on wrist)`)
-                console.error(`[OpenAI MCP] The hook segment does NOT match the reference image placement!`)
-              } else if (hasHolding && (hookHasTable || hookHasWearing)) {
-                console.error(`[OpenAI MCP] ⚠️ VALIDATION ERROR: sceneDescription says "${sceneDescription}" (holding) but hook segment placement doesn't match`)
-              }
-              
-              // Validate alternative prompts
-              if (hookSegment.visualPromptAlternatives && Array.isArray(hookSegment.visualPromptAlternatives)) {
-                hookSegment.visualPromptAlternatives.forEach((altPrompt: string, index: number) => {
-                  const altPromptLower = altPrompt.toLowerCase()
-                  const altHasTable = altPromptLower.includes('on table') || altPromptLower.includes('on desk') || altPromptLower.includes('resting on') || altPromptLower.includes('lying on') || altPromptLower.includes('on cushion') || altPromptLower.includes('in case')
-                  const altHasWearing = altPromptLower.includes('wearing') || altPromptLower.includes('on wrist')
-                  const altHasHolding = altPromptLower.includes('holding') || altPromptLower.includes('in hand')
-                  
-                  // Check if alternative matches sceneDescription placement
-                  if (hasWearing && altHasTable) {
-                    console.error(`[OpenAI MCP] ⚠️ VALIDATION ERROR: Alternative prompt ${index + 1} doesn't match sceneDescription!`)
-                    console.error(`[OpenAI MCP] sceneDescription: "${sceneDescription}" (wearing/on wrist)`)
-                    console.error(`[OpenAI MCP] Alternative ${index + 1}: "${altPrompt.substring(0, 100)}..." (on table/desk/cushion/case)`)
-                    console.error(`[OpenAI MCP] Alternative prompts MUST also show the product being worn, not on a surface!`)
-                  } else if (hasOnTable && altHasWearing) {
-                    console.error(`[OpenAI MCP] ⚠️ VALIDATION ERROR: Alternative prompt ${index + 1} doesn't match sceneDescription!`)
-                    console.error(`[OpenAI MCP] sceneDescription: "${sceneDescription}" (on table)`)
-                    console.error(`[OpenAI MCP] Alternative ${index + 1}: "${altPrompt.substring(0, 100)}..." (wearing/on wrist)`)
-                    console.error(`[OpenAI MCP] Alternative prompts MUST also show the product on a surface, not being worn!`)
-                  } else if (hasWearing && !altHasWearing && !altHasHolding) {
-                    console.warn(`[OpenAI MCP] ⚠️ WARNING: Alternative prompt ${index + 1} may not match sceneDescription placement`)
-                    console.warn(`[OpenAI MCP] sceneDescription: "${sceneDescription}" (wearing/on wrist)`)
-                    console.warn(`[OpenAI MCP] Alternative ${index + 1}: "${altPrompt.substring(0, 100)}..."`)
-                  }
-                })
-              }
-              
-              // Check if hook segment starts with sceneDescription elements
-              const sceneKeywords = sceneDescLower.split(' ').filter((word: string) => word.length > 3)
-              const matchingKeywords = sceneKeywords.filter((keyword: string) => hookPromptLower.includes(keyword))
-              
-              if (matchingKeywords.length < sceneKeywords.length * 0.5) {
-                console.warn(`[OpenAI MCP] ⚠️ WARNING: Hook segment may not match sceneDescription. Only ${matchingKeywords.length}/${sceneKeywords.length} keywords found.`)
-                console.warn(`[OpenAI MCP] sceneDescription: "${sceneDescription}"`)
-                console.warn(`[OpenAI MCP] Hook prompt start: "${hookSegment.visualPrompt.substring(0, 150)}..."`)
-              } else {
-                console.error(`[OpenAI MCP] ✅ Validation passed: Hook segment appears to match sceneDescription`)
+              if (hookSegment && hookSegment.visualPrompt) {
+                const hookPromptLower = hookSegment.visualPrompt.toLowerCase()
+                const sceneDescLower = sceneDescription.toLowerCase()
+                
+                // Check for placement mismatches in primary prompt
+                const hasWearing = sceneDescLower.includes('wearing') || sceneDescLower.includes('on wrist')
+                const hasOnTable = sceneDescLower.includes('on table') || sceneDescLower.includes('on desk') || sceneDescLower.includes('resting on')
+                const hasHolding = sceneDescLower.includes('holding') || sceneDescLower.includes('in hand')
+                
+                const hookHasTable = hookPromptLower.includes('on table') || hookPromptLower.includes('on desk') || hookPromptLower.includes('resting on') || hookPromptLower.includes('lying on')
+                const hookHasWearing = hookPromptLower.includes('wearing') || hookPromptLower.includes('on wrist')
+                const hookHasHolding = hookPromptLower.includes('holding') || hookPromptLower.includes('in hand')
+                
+                // Validate placement matches
+                if (hasWearing && hookHasTable) {
+                  console.error(`[OpenAI MCP] ⚠️ VALIDATION ERROR: sceneDescription says "${sceneDescription}" (wearing/on wrist) but hook segment says "${hookSegment.visualPrompt.substring(0, 100)}..." (on table/desk)`)
+                  console.error(`[OpenAI MCP] The hook segment does NOT match the reference image placement!`)
+                } else if (hasOnTable && hookHasWearing) {
+                  console.error(`[OpenAI MCP] ⚠️ VALIDATION ERROR: sceneDescription says "${sceneDescription}" (on table) but hook segment says "${hookSegment.visualPrompt.substring(0, 100)}..." (wearing/on wrist)`)
+                  console.error(`[OpenAI MCP] The hook segment does NOT match the reference image placement!`)
+                } else if (hasHolding && (hookHasTable || hookHasWearing)) {
+                  console.error(`[OpenAI MCP] ⚠️ VALIDATION ERROR: sceneDescription says "${sceneDescription}" (holding) but hook segment placement doesn't match`)
+                }
+                
+                // Validate alternative prompts
+                if (hookSegment.visualPromptAlternatives && Array.isArray(hookSegment.visualPromptAlternatives)) {
+                  hookSegment.visualPromptAlternatives.forEach((altPrompt: string, index: number) => {
+                    const altPromptLower = altPrompt.toLowerCase()
+                    const altHasTable = altPromptLower.includes('on table') || altPromptLower.includes('on desk') || altPromptLower.includes('resting on') || altPromptLower.includes('lying on') || altPromptLower.includes('on cushion') || altPromptLower.includes('in case')
+                    const altHasWearing = altPromptLower.includes('wearing') || altPromptLower.includes('on wrist')
+                    const altHasHolding = altPromptLower.includes('holding') || altPromptLower.includes('in hand')
+                    
+                    // Check if alternative matches sceneDescription placement
+                    if (hasWearing && altHasTable) {
+                      console.error(`[OpenAI MCP] ⚠️ VALIDATION ERROR: Alternative prompt ${index + 1} doesn't match sceneDescription!`)
+                      console.error(`[OpenAI MCP] sceneDescription: "${sceneDescription}" (wearing/on wrist)`)
+                      console.error(`[OpenAI MCP] Alternative ${index + 1}: "${altPrompt.substring(0, 100)}..." (on table/desk/cushion/case)`)
+                      console.error(`[OpenAI MCP] Alternative prompts MUST also show the product being worn, not on a surface!`)
+                    } else if (hasOnTable && altHasWearing) {
+                      console.error(`[OpenAI MCP] ⚠️ VALIDATION ERROR: Alternative prompt ${index + 1} doesn't match sceneDescription!`)
+                      console.error(`[OpenAI MCP] sceneDescription: "${sceneDescription}" (on table)`)
+                      console.error(`[OpenAI MCP] Alternative ${index + 1}: "${altPrompt.substring(0, 100)}..." (wearing/on wrist)`)
+                      console.error(`[OpenAI MCP] Alternative prompts MUST also show the product on a surface, not being worn!`)
+                    } else if (hasWearing && !altHasWearing && !altHasHolding) {
+                      console.warn(`[OpenAI MCP] ⚠️ WARNING: Alternative prompt ${index + 1} may not match sceneDescription placement`)
+                      console.warn(`[OpenAI MCP] sceneDescription: "${sceneDescription}" (wearing/on wrist)`)
+                      console.warn(`[OpenAI MCP] Alternative ${index + 1}: "${altPrompt.substring(0, 100)}..."`)
+                    }
+                  })
+                }
+                
+                // Check if hook segment starts with sceneDescription elements
+                const sceneKeywords = sceneDescLower.split(' ').filter((word: string) => word.length > 3)
+                const matchingKeywords = sceneKeywords.filter((keyword: string) => hookPromptLower.includes(keyword))
+                
+                if (matchingKeywords.length < sceneKeywords.length * 0.5) {
+                  console.warn(`[OpenAI MCP] ⚠️ WARNING: Hook segment may not match sceneDescription. Only ${matchingKeywords.length}/${sceneKeywords.length} keywords found.`)
+                  console.warn(`[OpenAI MCP] sceneDescription: "${sceneDescription}"`)
+                  console.warn(`[OpenAI MCP] Hook prompt start: "${hookSegment.visualPrompt.substring(0, 150)}..."`)
+                } else {
+                  console.error(`[OpenAI MCP] ✅ Validation passed: Hook segment appears to match sceneDescription`)
+                }
               }
             }
           }
+        } catch (validationError: any) {
+          // Don't fail if validation fails, just log
+          console.warn(`[OpenAI MCP] Could not validate storyboard response: ${validationError.message}`)
         }
-    } catch (validationError: any) {
-      // Don't fail if validation fails, just log
-        console.warn(`[OpenAI MCP] Could not validate storyboard response: ${validationError.message}`)
-      }
-    })
-    
-    // Return immediately without waiting for validation
-    return returnResponse()
+      })
+      
+      // Store completed result
+      this.jobStore.set(jobId, {
+        status: 'completed',
+        result: storyboardData,
+      })
+    } catch (error: any) {
+      // Store error
+      this.jobStore.set(jobId, {
+        status: 'failed',
+        error: error.message || 'Unknown error',
+      })
+      throw error
+    }
   }
 
   private async textToSpeech(text: string, voice: string, model: string) {
