@@ -26,3 +26,6 @@ logs
 # Generated assets and storyboards
 data/assets/
 data/storyboards/
+
+.cursor
+.taskmaster/

@@ -44,6 +44,16 @@ export default defineEventHandler(async (event) => {
     resolution: video.resolution,
   })
 
+  // Check if URL is an S3 URL (or any HTTP(S) URL)
+  if (video.url.startsWith('http://') || video.url.startsWith('https://')) {
+    console.log('[Watch] Video is stored in S3, redirecting to:', video.url)
+    // Redirect to the S3 presigned URL
+    return sendRedirect(event, video.url, 302)
+  }
+
+  // Handle local file path
+  console.log('[Watch] Video is stored locally, reading from:', video.url)
+  
   // Check if file exists
   const { promises: fs } = await import('fs')
   try {
