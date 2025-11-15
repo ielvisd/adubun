@@ -70,7 +70,7 @@ async function prepareImageInput(filePath: string | undefined | null): Promise<s
 }
 
 // Helper function to enhance visual prompts for Kling with more specific details
-function enhanceKlingPrompt(basePrompt: string, segmentDescription?: string): string {
+function enhanceKlingPrompt(basePrompt: string, segmentDescription?: string, segmentIndex?: number, totalSegments?: number): string {
   // Add specific details to make prompts more realistic and detailed
   let enhanced = basePrompt
   
@@ -97,6 +97,34 @@ function enhanceKlingPrompt(basePrompt: string, segmentDescription?: string): st
   if (enhanced.toLowerCase().includes('hand') || enhanced.toLowerCase().includes('arm')) {
     if (!enhanced.toLowerCase().includes('attached') && !enhanced.toLowerCase().includes('connected')) {
       enhanced += ', showing natural body connections'
+    }
+  }
+  
+  // Product consistency and text preservation enhancements
+  const productKeywords = ['can', 'product', 'bottle', 'package', 'label', 'brand', 'drink', 'energy drink']
+  const hasProduct = productKeywords.some(keyword => 
+    enhanced.toLowerCase().includes(keyword) || 
+    (segmentDescription && segmentDescription.toLowerCase().includes(keyword))
+  )
+  
+  if (hasProduct) {
+    // Add negative guidance to prevent text degradation
+    const negativeGuidance = 'avoid text degradation, blurred text, unreadable labels, distorted product design, text fading, label blur'
+    if (!enhanced.toLowerCase().includes('avoid text degradation') && !enhanced.toLowerCase().includes('blurred text')) {
+      enhanced += `. ${negativeGuidance}`
+    }
+    
+    // Add positive instructions for product consistency
+    const productConsistency = 'maintain clear readable text on product label throughout, keep product design consistent with reference image, preserve brand name and flavor details visibility, ensure product appearance remains stable'
+    if (!enhanced.toLowerCase().includes('maintain clear readable text') && !enhanced.toLowerCase().includes('product design consistent')) {
+      enhanced += `. CRITICAL: ${productConsistency}`
+    }
+  }
+  
+  // Add story continuity instructions for subsequent segments
+  if (segmentIndex !== undefined && segmentIndex > 0 && totalSegments && totalSegments > 1) {
+    if (!enhanced.toLowerCase().includes('continue') && !enhanced.toLowerCase().includes('transition')) {
+      enhanced += ', seamlessly continuing the story from the previous scene, maintaining narrative flow'
     }
   }
   
@@ -243,7 +271,8 @@ export default defineEventHandler(async (event) => {
 
   try {
     // In demo mode, only process first segment
-    const segmentsToProcess = storyboard.meta.mode === 'demo' 
+    const mode = storyboard.meta.mode || 'demo'
+    const segmentsToProcess = mode === 'demo' 
       ? storyboard.segments.slice(0, 1)
       : storyboard.segments
 
@@ -252,7 +281,18 @@ export default defineEventHandler(async (event) => {
     let previousVideoUrl: string | null = null
     let previousFrameImage: string | null = null
     
+    console.log(`[Generate Assets] Starting sequential generation of ${segmentsToProcess.length} segments`)
+    console.log(`[Generate Assets] Mode: ${mode}`)
+    console.log(`[Generate Assets] Total segments in storyboard: ${storyboard.segments.length}`)
+    if (mode === 'demo' && storyboard.segments.length > 1) {
+      console.warn(`[Generate Assets] WARNING: Demo mode - only processing first segment. ${storyboard.segments.length - 1} segment(s) will be skipped.`)
+    }
+    
     for (const [idx, segment] of segmentsToProcess.entries()) {
+      console.log(`\n[Generate Assets] ===== Starting Segment ${idx + 1}/${segmentsToProcess.length} =====`)
+      console.log(`[Segment ${idx}] Type: ${segment.type}, Duration: ${segment.endTime - segment.startTime}s`)
+      console.log(`[Segment ${idx}] Previous frame image: ${previousFrameImage || 'none (first segment or no continuity)'}`)
+      
       const asset = await (async () => {
       try {
         // Determine which images to use (segment-specific or global fallback)
@@ -275,7 +315,7 @@ export default defineEventHandler(async (event) => {
         // For Kling, enhance the prompt with more specific details
         let videoPrompt = selectedPrompt
         if (model === 'kwaivgi/kling-v2.5-turbo-pro') {
-          videoPrompt = enhanceKlingPrompt(selectedPrompt, segment.description)
+          videoPrompt = enhanceKlingPrompt(selectedPrompt, segment.description, idx, segmentsToProcess.length)
         }
         
         const videoParams: any = {
@@ -341,24 +381,40 @@ export default defineEventHandler(async (event) => {
             videoParams.seed = storyboard.meta.seed
           }
         } else if (model === 'kwaivgi/kling-v2.5-turbo-pro') {
-          // Add negative prompt for Kling to prevent unrealistic results
-          // Note: Kling may not support negative_prompt parameter, but we'll try to include it in the prompt
-          // For now, we enhance the prompt itself with negative guidance
-          const negativeGuidance = 'avoid detached body parts, unrealistic actions, abstract visuals, distorted anatomy, floating objects'
-          if (!videoPrompt.toLowerCase().includes('avoid') && !videoPrompt.toLowerCase().includes('no')) {
-            videoParams.prompt = `${videoPrompt}. ${negativeGuidance}`
+          // Additional negative guidance for Kling (already included in enhanceKlingPrompt, but add general ones)
+          const generalNegativeGuidance = 'avoid detached body parts, unrealistic actions, abstract visuals, distorted anatomy, floating objects'
+          if (!videoPrompt.toLowerCase().includes('avoid detached') && !videoPrompt.toLowerCase().includes('unrealistic actions')) {
+            videoParams.prompt = `${videoPrompt}. ${generalNegativeGuidance}`
+          } else {
+            videoParams.prompt = videoPrompt
           }
           
-          // Use previous frame from previous segment if available (for continuity)
-          if (previousFrameImage) {
-            videoParams.image_legacy = await prepareImageInput(previousFrameImage)
-            console.log(`[Segment ${idx}] Using previous frame for continuity: ${previousFrameImage}`)
-          } else if (firstFrameImage) {
-            videoParams.image_legacy = await prepareImageInput(firstFrameImage)
-          } else if (subjectReference) {
-            videoParams.image_legacy = await prepareImageInput(subjectReference)
-          } else if (storyboard.meta.image) {
-            videoParams.image_legacy = await prepareImageInput(storyboard.meta.image)
+          // Product reference image strategy:
+          // - For first segment: Use initial product reference (firstFrameImage, subjectReference, or storyboard.meta.image)
+          // - For subsequent segments: Use BOTH previous frame AND original product reference if available
+          const originalProductReference = firstFrameImage || subjectReference || storyboard.meta.image
+          
+          if (idx === 0) {
+            // First segment: Use original product reference
+            if (originalProductReference) {
+              videoParams.image_legacy = await prepareImageInput(originalProductReference)
+              console.log(`[Segment ${idx}] Using original product reference image: ${originalProductReference}`)
+            }
+          } else {
+            // Subsequent segments: Prioritize previous frame for continuity, but note original reference in prompt
+            if (previousFrameImage) {
+              videoParams.image_legacy = await prepareImageInput(previousFrameImage)
+              console.log(`[Segment ${idx}] Using previous frame for continuity: ${previousFrameImage}`)
+              
+              // Add instruction to maintain product appearance from original reference
+              if (originalProductReference && !videoParams.prompt.toLowerCase().includes('reference image')) {
+                videoParams.prompt = `${videoParams.prompt}. Maintain product appearance matching the original reference image`
+                console.log(`[Segment ${idx}] Added instruction to maintain product appearance from original reference`)
+              }
+            } else if (originalProductReference) {
+              videoParams.image_legacy = await prepareImageInput(originalProductReference)
+              console.log(`[Segment ${idx}] Using original product reference image (no previous frame): ${originalProductReference}`)
+            }
           }
         } else if (model === 'minimax/hailuo-ai-v2.3') {
           // Hailuo doesn't support image inputs
@@ -641,73 +697,132 @@ export default defineEventHandler(async (event) => {
       
       assets.push(asset)
       
+      console.log(`[Segment ${idx}] Asset generation completed. Status: ${asset.status}`)
+      if (asset.status === 'completed') {
+        console.log(`[Segment ${idx}] Video URL: ${asset.videoUrl || 'none'}`)
+      } else if (asset.status === 'failed') {
+        console.log(`[Segment ${idx}] Error: ${asset.error || 'unknown'}`)
+      }
+      
       // Update job with current progress
       job.assets = assets
-      job.status = assets.every(a => a.status === 'completed') 
+      const allCompleted = assets.every(a => a.status === 'completed')
+      const someFailed = assets.some(a => a.status === 'failed')
+      job.status = allCompleted 
         ? 'completed' 
-        : assets.some(a => a.status === 'failed') 
+        : someFailed 
           ? 'failed' 
           : 'processing'
+      
+      console.log(`[Segment ${idx}] Job status updated: ${job.status} (completed: ${assets.filter(a => a.status === 'completed').length}/${assets.length})`)
       await saveJob(job)
       
       // If segment succeeded and it's not the last segment, extract frames for next segment
       if (asset.status === 'completed' && asset.videoUrl && idx < segmentsToProcess.length - 1) {
+        console.log(`[Segment ${idx}] Segment completed successfully. Starting frame extraction for next segment...`)
+        console.log(`[Segment ${idx}] Video URL: ${asset.videoUrl}`)
+        console.log(`[Segment ${idx}] Remaining segments: ${segmentsToProcess.length - idx - 1}`)
+        
         try {
-          console.log(`[Segment ${idx}] Extracting frames from completed video for next segment`)
           const segmentDuration = segment.endTime - segment.startTime
+          console.log(`[Segment ${idx}] Segment duration: ${segmentDuration}s`)
           
           // Download video to local temp file
+          console.log(`[Segment ${idx}] Downloading video from: ${asset.videoUrl}`)
           const localVideoPath = await downloadFile(asset.videoUrl)
+          console.log(`[Segment ${idx}] Video downloaded to: ${localVideoPath}`)
           const tempPaths = [localVideoPath]
           
           try {
             // Extract 3 frames from the end of the video
+            console.log(`[Segment ${idx}] Extracting frames from video...`)
             const framePaths = await extractFramesFromVideo(localVideoPath, segmentDuration)
+            console.log(`[Segment ${idx}] Successfully extracted ${framePaths.length} frames:`, framePaths)
             tempPaths.push(...framePaths)
             
-            console.log(`[Segment ${idx}] Extracted ${framePaths.length} frames:`, framePaths)
+            if (framePaths.length === 0) {
+              throw new Error('No frames were extracted from video')
+            }
             
             // Upload frames to Replicate to get public URLs for OpenAI Vision
+            console.log(`[Segment ${idx}] Uploading frames to Replicate for OpenAI Vision analysis...`)
             const frameUrls = await Promise.all(
-              framePaths.map(async (framePath) => {
-                return await uploadFileToReplicate(framePath)
+              framePaths.map(async (framePath, frameIdx) => {
+                console.log(`[Segment ${idx}] Uploading frame ${frameIdx + 1}/${framePaths.length}: ${framePath}`)
+                const url = await uploadFileToReplicate(framePath)
+                console.log(`[Segment ${idx}] Frame ${frameIdx + 1} uploaded to: ${url}`)
+                return url
               })
             )
             
-            console.log(`[Segment ${idx}] Frame URLs for analysis:`, frameUrls)
+            console.log(`[Segment ${idx}] All frames uploaded. Frame URLs:`, frameUrls)
             
             // Use OpenAI Vision to select the best frame
+            console.log(`[Segment ${idx}] Calling OpenAI Vision to analyze frames...`)
             const frameAnalysis = await callOpenAIMCP('analyze_frames', {
               frameUrls,
             })
             
-            console.log(`[Segment ${idx}] Frame analysis result:`, JSON.stringify(frameAnalysis, null, 2))
+            console.log(`[Segment ${idx}] Frame analysis completed. Result:`, JSON.stringify(frameAnalysis, null, 2))
             
             // Get the selected frame index (0-based)
             const selectedFrameIndex = frameAnalysis.selectedFrameIndex ?? (frameAnalysis.selectedFrame - 1)
-            const selectedFramePath = framePaths[selectedFrameIndex]
+            console.log(`[Segment ${idx}] Selected frame index: ${selectedFrameIndex} (from analysis result)`)
             
-            if (!selectedFramePath) {
-              console.warn(`[Segment ${idx}] Invalid frame index ${selectedFrameIndex}, using first frame`)
-              previousFrameImage = framePaths[0]
+            const selectedFrameUrl = frameUrls[selectedFrameIndex]
+            
+            if (!selectedFrameUrl) {
+              console.warn(`[Segment ${idx}] Invalid frame index ${selectedFrameIndex} (max: ${frameUrls.length - 1}), using first frame`)
+              previousFrameImage = frameUrls[0]
             } else {
-              previousFrameImage = selectedFramePath
-              console.log(`[Segment ${idx}] Selected frame ${frameAnalysis.selectedFrame} (index ${selectedFrameIndex}) for next segment`)
+              previousFrameImage = selectedFrameUrl
+              console.log(`[Segment ${idx}] ✓ Selected frame ${frameAnalysis.selectedFrame} (index ${selectedFrameIndex}) for next segment`)
+              console.log(`[Segment ${idx}] Selected frame URL: ${selectedFrameUrl}`)
               console.log(`[Segment ${idx}] Selected frame reasoning: ${frameAnalysis.reasoning}`)
             }
+          } catch (innerError: any) {
+            console.error(`[Segment ${idx}] Error during frame extraction/analysis:`, innerError.message)
+            console.error(`[Segment ${idx}] Error stack:`, innerError.stack)
+            throw innerError // Re-throw to be caught by outer catch
           } finally {
             // Clean up temp files (video and frames)
-            await cleanupTempFiles(tempPaths)
-            console.log(`[Segment ${idx}] Cleaned up ${tempPaths.length} temp files`)
+            console.log(`[Segment ${idx}] Cleaning up ${tempPaths.length} temp files...`)
+            await cleanupTempFiles(tempPaths).catch((cleanupError) => {
+              console.warn(`[Segment ${idx}] Error during cleanup:`, cleanupError.message)
+            })
+            console.log(`[Segment ${idx}] Cleanup completed`)
           }
         } catch (frameError: any) {
           // Don't fail the entire job if frame extraction fails - just log and continue
-          console.error(`[Segment ${idx}] Frame extraction failed:`, frameError.message)
-          console.warn(`[Segment ${idx}] Continuing without frame continuity for next segment`)
+          console.error(`[Segment ${idx}] ✗ Frame extraction/analysis failed:`, frameError.message)
+          console.error(`[Segment ${idx}] Frame error stack:`, frameError.stack)
+          console.warn(`[Segment ${idx}] Continuing to next segment without frame continuity`)
           previousFrameImage = null
         }
+        
+        console.log(`[Segment ${idx}] Frame extraction process completed. Previous frame image: ${previousFrameImage || 'none'}`)
+      } else {
+        if (asset.status !== 'completed') {
+          console.log(`[Segment ${idx}] Segment did not complete successfully (status: ${asset.status}), skipping frame extraction`)
+        } else if (!asset.videoUrl) {
+          console.log(`[Segment ${idx}] Segment completed but no video URL, skipping frame extraction`)
+        } else if (idx >= segmentsToProcess.length - 1) {
+          console.log(`[Segment ${idx}] This is the last segment, no frame extraction needed`)
+        }
       }
+      
+      // Log that we're continuing to next segment
+      if (idx < segmentsToProcess.length - 1) {
+        console.log(`[Segment ${idx}] Moving to next segment (${idx + 1}/${segmentsToProcess.length})...`)
+      } else {
+        console.log(`[Segment ${idx}] This was the last segment. Generation complete.`)
+      }
+      
+      console.log(`[Segment ${idx}] ===== Completed Segment ${idx + 1}/${segmentsToProcess.length} =====\n`)
     }
+    
+    console.log(`[Generate Assets] All segments processed. Total assets: ${assets.length}`)
+    console.log(`[Generate Assets] Completed: ${assets.filter(a => a.status === 'completed').length}, Failed: ${assets.filter(a => a.status === 'failed').length}`)
 
     // Update job
     job.assets = assets

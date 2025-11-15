@@ -120,7 +120,7 @@ const editModalOpen = ref(false)
 const selectedSegment = ref<Segment | null>(null)
 const selectedSegmentIndex = ref<number | null>(null)
 
-const { segments, overallProgress, status, overallError, startGeneration: startGen } = useGeneration()
+const { segments, overallProgress, status, overallError, jobId, startGeneration: startGen } = useGeneration()
 const { currentCost, estimatedTotal, startPolling } = useCostTracking()
 const toast = useToast()
 
@@ -256,21 +256,50 @@ onMounted(async () => {
   }
 })
 
+// Watch for status changes (set up once, not inside startGeneration)
+const statusWatcher = watch(status, (newStatus) => {
+  if (newStatus === 'completed') {
+    assetsReady.value = true
+  }
+})
+
+// Clean up watcher on unmount
+onUnmounted(() => {
+  statusWatcher()
+})
+
 const startGeneration = async () => {
-  if (!storyboard.value) return
+  if (!storyboard.value) {
+    console.warn('[Generate] Cannot start generation: no storyboard')
+    return
+  }
+  
+  // Prevent multiple simultaneous calls
+  if (generationStarted.value) {
+    console.warn('[Generate] Generation already started, ignoring duplicate call')
+    console.warn('[Generate] Current status:', status.value, 'Job ID:', jobId.value)
+    return
+  }
+
+  // Log mode and warn if in demo mode with multiple segments
+  const mode = storyboard.value.meta.mode || 'demo'
+  const segmentCount = storyboard.value.segments.length
+  console.log(`[Generate] Starting generation in ${mode} mode with ${segmentCount} segments`)
+  console.log(`[Generate] Storyboard ID: ${storyboard.value.id}`)
+  console.log(`[Generate] Current generation status: ${status.value}`)
+  
+  if (mode === 'demo' && segmentCount > 1) {
+    console.warn(`[Generate] WARNING: Demo mode selected - only the first segment will be generated!`)
+    console.warn(`[Generate] Switch to Production mode to generate all ${segmentCount} segments`)
+  }
 
   generationStarted.value = true
   try {
     await startGen(storyboard.value)
-
-    // Wait for completion
-    watch(status, (newStatus) => {
-      if (newStatus === 'completed') {
-        assetsReady.value = true
-      }
-    })
+    console.log('[Generate] Generation started successfully')
   } catch (error) {
     console.error('Generation failed:', error)
+    generationStarted.value = false // Reset on error so user can retry
   }
 }
 

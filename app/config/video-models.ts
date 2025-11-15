@@ -63,7 +63,7 @@ export const VIDEO_MODELS: VideoModel[] = [
   },
 ]
 
-export const DEFAULT_MODEL_ID = 'google/veo-3.1'
+export const DEFAULT_MODEL_ID = 'kwaivgi/kling-v2.5-turbo-pro'
 
 export function getModelById(id: string): VideoModel | undefined {
   return VIDEO_MODELS.find(model => model.id === id)

@@ -148,10 +148,18 @@ export async function callOpenAIMCP(
       throw new Error('OpenAI MCP client not initialized')
     }
 
-    const result = await clients.openai.callTool({
-      name: tool,
-      arguments: args,
-    })
+    // Use a longer timeout for storyboard planning (5 minutes) since it can take a while
+    const timeoutMs = tool === 'plan_storyboard' ? 5 * 60 * 1000 : 60 * 1000
+    
+    const result = await Promise.race([
+      clients.openai.callTool({
+        name: tool,
+        arguments: args,
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error(`Request timed out after ${timeoutMs / 1000} seconds`)), timeoutMs)
+      )
+    ]) as any
 
     if (!result.content || !result.content[0]) {
       console.error('Invalid MCP response structure:', result)

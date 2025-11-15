@@ -12,11 +12,30 @@ export default defineEventHandler(async (event) => {
   await trackCost('plan-storyboard', 0.002, { duration: parsed.meta.duration })
 
   try {
-    // Generate storyboard with OpenAI MCP
+    // Collect all reference images (firstFrameImage, subjectReference, image, referenceImages)
+    const referenceImages: string[] = []
+    
+    if (parsed.meta.firstFrameImage) {
+      referenceImages.push(parsed.meta.firstFrameImage)
+    }
+    if (parsed.meta.subjectReference) {
+      referenceImages.push(parsed.meta.subjectReference)
+    }
+    if (parsed.meta.image) {
+      referenceImages.push(parsed.meta.image)
+    }
+    if (parsed.meta.referenceImages && Array.isArray(parsed.meta.referenceImages)) {
+      referenceImages.push(...parsed.meta.referenceImages)
+    }
+    
+    console.log(`[Plan Storyboard] Found ${referenceImages.length} reference image(s) to analyze`)
+    
+    // Generate storyboard with OpenAI MCP (pass reference images for analysis)
     const storyboardData = await callOpenAIMCP('plan_storyboard', {
       parsed,
       duration: parsed.meta.duration,
       style: parsed.meta.style,
+      referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
     })
     
     // Ensure storyboardData is an object

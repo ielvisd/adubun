@@ -1146,5 +1146,577 @@
       "segmentId": 0,
       "duration": 2
     }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763158355487,
+    "metadata": {
+      "prompt": "Make a product showcase video for minimalist skincare brand with clean white backgrounds"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763158355548,
+    "metadata": {
+      "duration": 10
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763158702262,
+    "metadata": {
+      "prompt": "Make a product showcase video for minimalist skincare brand with clean white backgrounds"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763158702308,
+    "metadata": {
+      "duration": 10
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763158791922,
+    "metadata": {
+      "prompt": "Make a product showcase video for minimalist skincare brand with clean white backgrounds"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763158791964,
+    "metadata": {
+      "duration": 10
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763158853083,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 2
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763159597870,
+    "metadata": {
+      "prompt": "Make a product showcase video for minimalist skincare brand with clean white backgrounds"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763159597937,
+    "metadata": {
+      "duration": 10
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763159635330,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 4
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763159763660,
+    "metadata": {
+      "segmentId": 0,
+      "textLength": 117
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763159912853,
+    "metadata": {
+      "prompt": "Make a product showcase video for minimalist skincare brand with clean white backgrounds."
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763159912891,
+    "metadata": {
+      "duration": 10
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763159966583,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 3
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763160094276,
+    "metadata": {
+      "segmentId": 0,
+      "textLength": 56
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763160286369,
+    "metadata": {
+      "prompt": "Generate a TikTok ad for energy drinks with extreme sports footage"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763160286414,
+    "metadata": {
+      "duration": 10
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763160331985,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 2
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763160462062,
+    "metadata": {
+      "segmentId": 0,
+      "textLength": 54
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763160586048,
+    "metadata": {
+      "prompt": "Generate a TikTok ad for energy drinks with extreme sports footage"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763160586080,
+    "metadata": {
+      "duration": 10
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763160646990,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 2
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763160774690,
+    "metadata": {
+      "segmentId": 0,
+      "textLength": 41
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763160783897,
+    "metadata": {
+      "segmentId": 1,
+      "duration": 5
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763160914157,
+    "metadata": {
+      "segmentId": 1,
+      "textLength": 45
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763160926454,
+    "metadata": {
+      "segmentId": 2,
+      "duration": 3
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763161056259,
+    "metadata": {
+      "segmentId": 2,
+      "textLength": 31
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763161182152,
+    "metadata": {
+      "prompt": "Generate a TikTok ad for energy drinks with extreme sports footage"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763161182194,
+    "metadata": {
+      "duration": 10
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763161226458,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 2
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763161355268,
+    "metadata": {
+      "segmentId": 0,
+      "textLength": 48
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763161364983,
+    "metadata": {
+      "segmentId": 1,
+      "duration": 5
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763161492661,
+    "metadata": {
+      "segmentId": 1,
+      "textLength": 79
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763161502431,
+    "metadata": {
+      "segmentId": 2,
+      "duration": 3
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763161630777,
+    "metadata": {
+      "segmentId": 2,
+      "textLength": 29
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763162370278,
+    "metadata": {
+      "prompt": " Instagram ad for luxury watches with elegant gold aesthetics"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763162370351,
+    "metadata": {
+      "duration": 5
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763162477457,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 5
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763162613785,
+    "metadata": {
+      "segmentId": 1,
+      "duration": 5
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763162744580,
+    "metadata": {
+      "segmentId": 1,
+      "textLength": 62
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763162752709,
+    "metadata": {
+      "segmentId": 2,
+      "duration": 5
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763162881247,
+    "metadata": {
+      "segmentId": 2,
+      "textLength": 59
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763163212667,
+    "metadata": {
+      "prompt": "Instagram ad for luxury watches with elegant gold aesthetics"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763163212744,
+    "metadata": {
+      "duration": 5
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763163549166,
+    "metadata": {
+      "prompt": "Instagram ad for luxury watches with elegant gold aesthetics"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763163549236,
+    "metadata": {
+      "duration": 5
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763163617330,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 5
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763163744761,
+    "metadata": {
+      "segmentId": 0,
+      "textLength": 58
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763163904830,
+    "metadata": {
+      "prompt": "Instagram ad for luxury watches with elegant gold aesthetics"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763163904873,
+    "metadata": {
+      "duration": 5
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763165006550,
+    "metadata": {
+      "prompt": "Instagram ad for luxury watches with elegant gold aesthetics"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763165006601,
+    "metadata": {
+      "duration": 5
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763165386497,
+    "metadata": {
+      "prompt": "Instagram ad for luxury watches with elegant gold aesthetics"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763165386553,
+    "metadata": {
+      "duration": 5
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763165496256,
+    "metadata": {
+      "prompt": "Instagram ad for luxury watches with elegant gold aesthetics"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763165496301,
+    "metadata": {
+      "duration": 5
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763165749514,
+    "metadata": {
+      "prompt": "Instagram ad for luxury watches with elegant gold aesthetics"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763165749558,
+    "metadata": {
+      "duration": 5
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763166000156,
+    "metadata": {
+      "prompt": "Instagram ad for luxury watches with elegant gold aesthetics"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763166000211,
+    "metadata": {
+      "duration": 5
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763166337118,
+    "metadata": {
+      "prompt": "Instagram ad for luxury watches with elegant gold aesthetics"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763166337166,
+    "metadata": {
+      "duration": 5
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763166386400,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 5
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763166515101,
+    "metadata": {
+      "segmentId": 0,
+      "textLength": 54
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763166545337,
+    "metadata": {
+      "prompt": "Instagram ad for luxury watches with elegant gold aesthetics"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763166545390,
+    "metadata": {
+      "duration": 5
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763166655841,
+    "metadata": {
+      "prompt": " Instagram ad for luxury watches with elegant gold aesthetics"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763166655886,
+    "metadata": {
+      "duration": 5
+    }
   }
 ]
