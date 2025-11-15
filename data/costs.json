@@ -1750,5 +1750,145 @@
     "metadata": {
       "duration": 5
     }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763167316863,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 5
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763167448720,
+    "metadata": {
+      "segmentId": 0,
+      "textLength": 57
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763167455832,
+    "metadata": {
+      "segmentId": 1,
+      "duration": 5
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763167586793,
+    "metadata": {
+      "segmentId": 1,
+      "textLength": 115
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763167597989,
+    "metadata": {
+      "segmentId": 2,
+      "duration": 5
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763167726074,
+    "metadata": {
+      "segmentId": 2,
+      "textLength": 89
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763167930158,
+    "metadata": {
+      "prompt": "Generate a TikTok ad for energy drinks with extreme sports footage"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763167930218,
+    "metadata": {
+      "duration": 10
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763168063224,
+    "metadata": {
+      "segmentId": 0,
+      "duration": 2
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763168191036,
+    "metadata": {
+      "segmentId": 0,
+      "textLength": 49
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763168199959,
+    "metadata": {
+      "segmentId": 1,
+      "duration": 3
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763168329742,
+    "metadata": {
+      "segmentId": 1,
+      "textLength": 61
+    }
+  },
+  {
+    "operation": "video-generation",
+    "amount": 0.15,
+    "timestamp": 1763168337037,
+    "metadata": {
+      "segmentId": 2,
+      "duration": 5
+    }
+  },
+  {
+    "operation": "voice-synthesis",
+    "amount": 0.05,
+    "timestamp": 1763168467196,
+    "metadata": {
+      "segmentId": 2,
+      "textLength": 78
+    }
+  },
+  {
+    "operation": "parse-prompt",
+    "amount": 0.001,
+    "timestamp": 1763169084336,
+    "metadata": {
+      "prompt": "Generate a TikTok ad for energy drinks with extreme sports footage"
+    }
+  },
+  {
+    "operation": "plan-storyboard",
+    "amount": 0.002,
+    "timestamp": 1763169084497,
+    "metadata": {
+      "duration": 6
+    }
   }
 ]

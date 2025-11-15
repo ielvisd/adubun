@@ -182,81 +182,69 @@ export async function exportToFormat(
 }
 
 /**
- * Extracts 3 frames from a video: at end, 0.5s from end, and 1s from end
+ * Extracts the very last frame from a video
  * @param videoPath - Path to the video file
  * @param duration - Duration of the video in seconds
- * @returns Array of 3 frame file paths (in order: 1s from end, 0.5s from end, at end)
+ * @returns Array with single frame file path (the last frame at the end of the video)
  */
 export async function extractFramesFromVideo(
   videoPath: string,
   duration: number
 ): Promise<string[]> {
-  const frames: string[] = []
+  // Extract only the very last frame at the end of the video
+  const timestamp = duration
   
-  // Calculate timestamps: 1s from end, 0.5s from end, at end
-  const timestamps = [
-    Math.max(0, duration - 1),    // 1s from end
-    Math.max(0, duration - 0.5),  // 0.5s from end
-    duration,                      // at end
-  ]
-  
-  console.log(`[FFmpeg] Extracting frames from video: ${videoPath}`)
+  console.log(`[FFmpeg] Extracting last frame from video: ${videoPath}`)
   console.log(`[FFmpeg] Video duration: ${duration}s`)
-  console.log(`[FFmpeg] Frame timestamps: ${timestamps.join(', ')}s`)
+  console.log(`[FFmpeg] Extracting frame at timestamp: ${timestamp}s (end of video)`)
   
-  // Extract each frame sequentially
-  for (let i = 0; i < timestamps.length; i++) {
-    const timestamp = timestamps[i]
-    const framePath = await new Promise<string>((resolve, reject) => {
-      // Create a temporary frame file path
-      const tempFramePath = path.join(
-        process.env.MCP_FILESYSTEM_ROOT || './data',
-        'assets',
-        `frame_${Date.now()}_${i}.jpg`
-      )
-      
-      // Ensure directory exists
-      fs.mkdir(path.dirname(tempFramePath), { recursive: true })
-        .then(() => {
-          const command = ffmpeg(videoPath)
-            .seekInput(timestamp)
-            .outputOptions([
-              '-vframes', '1',        // Extract only 1 frame
-              '-q:v', '2',           // High quality JPEG
-              '-f', 'image2',        // Output format
-            ])
-            .output(tempFramePath)
-            .on('start', (commandLine) => {
-              console.log(`[FFmpeg] Extracting frame ${i + 1} at ${timestamp}s:`, commandLine)
-            })
-            .on('end', async () => {
-              try {
-                // Read the frame file and save it properly
-                const frameBuffer = await fs.readFile(tempFramePath)
-                const savedPath = await saveAsset(frameBuffer, 'jpg')
-                // Clean up temp file
-                await fs.unlink(tempFramePath).catch(() => {})
-                console.log(`[FFmpeg] Frame ${i + 1} saved to: ${savedPath}`)
-                resolve(savedPath)
-              } catch (error: any) {
-                reject(new Error(`Failed to save frame ${i + 1}: ${error.message}`))
-              }
-            })
-            .on('error', (err, stdout, stderr) => {
-              console.error(`[FFmpeg] Error extracting frame ${i + 1}:`, err.message)
-              console.error(`[FFmpeg] Stdout:`, stdout)
-              console.error(`[FFmpeg] Stderr:`, stderr)
-              reject(new Error(`Failed to extract frame ${i + 1} at ${timestamp}s: ${err.message}`))
-            })
-            .run()
-        })
-        .catch(reject)
-    })
+  const framePath = await new Promise<string>((resolve, reject) => {
+    // Create a temporary frame file path
+    const tempFramePath = path.join(
+      process.env.MCP_FILESYSTEM_ROOT || './data',
+      'assets',
+      `frame_${Date.now()}_last.jpg`
+    )
     
-    frames.push(framePath)
-  }
+    // Ensure directory exists
+    fs.mkdir(path.dirname(tempFramePath), { recursive: true })
+      .then(() => {
+        const command = ffmpeg(videoPath)
+          .seekInput(timestamp)
+          .outputOptions([
+            '-vframes', '1',        // Extract only 1 frame
+            '-q:v', '2',           // High quality JPEG
+            '-f', 'image2',        // Output format
+          ])
+          .output(tempFramePath)
+          .on('start', (commandLine) => {
+            console.log(`[FFmpeg] Extracting last frame at ${timestamp}s:`, commandLine)
+          })
+          .on('end', async () => {
+            try {
+              // Read the frame file and save it properly
+              const frameBuffer = await fs.readFile(tempFramePath)
+              const savedPath = await saveAsset(frameBuffer, 'jpg')
+              // Clean up temp file
+              await fs.unlink(tempFramePath).catch(() => {})
+              console.log(`[FFmpeg] Last frame saved to: ${savedPath}`)
+              resolve(savedPath)
+            } catch (error: any) {
+              reject(new Error(`Failed to save last frame: ${error.message}`))
+            }
+          })
+          .on('error', (err, stdout, stderr) => {
+            console.error(`[FFmpeg] Error extracting last frame:`, err.message)
+            console.error(`[FFmpeg] Stdout:`, stdout)
+            console.error(`[FFmpeg] Stderr:`, stderr)
+            reject(new Error(`Failed to extract last frame at ${timestamp}s: ${err.message}`))
+          })
+          .run()
+      })
+      .catch(reject)
+  })
   
-  console.log(`[FFmpeg] Successfully extracted ${frames.length} frames`)
-  return frames
+  console.log(`[FFmpeg] Successfully extracted last frame`)
+  return [framePath]
 }
 

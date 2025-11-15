@@ -734,52 +734,25 @@ export default defineEventHandler(async (event) => {
           const tempPaths = [localVideoPath]
           
           try {
-            // Extract 3 frames from the end of the video
-            console.log(`[Segment ${idx}] Extracting frames from video...`)
+            // Extract the last frame from the end of the video
+            console.log(`[Segment ${idx}] Extracting last frame from video...`)
             const framePaths = await extractFramesFromVideo(localVideoPath, segmentDuration)
-            console.log(`[Segment ${idx}] Successfully extracted ${framePaths.length} frames:`, framePaths)
+            console.log(`[Segment ${idx}] Successfully extracted last frame:`, framePaths[0])
             tempPaths.push(...framePaths)
             
             if (framePaths.length === 0) {
-              throw new Error('No frames were extracted from video')
+              throw new Error('No frame was extracted from video')
             }
             
-            // Upload frames to Replicate to get public URLs for OpenAI Vision
-            console.log(`[Segment ${idx}] Uploading frames to Replicate for OpenAI Vision analysis...`)
-            const frameUrls = await Promise.all(
-              framePaths.map(async (framePath, frameIdx) => {
-                console.log(`[Segment ${idx}] Uploading frame ${frameIdx + 1}/${framePaths.length}: ${framePath}`)
-                const url = await uploadFileToReplicate(framePath)
-                console.log(`[Segment ${idx}] Frame ${frameIdx + 1} uploaded to: ${url}`)
-                return url
-              })
-            )
+            // Upload the last frame to Replicate to get public URL
+            console.log(`[Segment ${idx}] Uploading last frame to Replicate...`)
+            const lastFrameUrl = await uploadFileToReplicate(framePaths[0])
+            console.log(`[Segment ${idx}] Last frame uploaded to: ${lastFrameUrl}`)
             
-            console.log(`[Segment ${idx}] All frames uploaded. Frame URLs:`, frameUrls)
-            
-            // Use OpenAI Vision to select the best frame
-            console.log(`[Segment ${idx}] Calling OpenAI Vision to analyze frames...`)
-            const frameAnalysis = await callOpenAIMCP('analyze_frames', {
-              frameUrls,
-            })
-            
-            console.log(`[Segment ${idx}] Frame analysis completed. Result:`, JSON.stringify(frameAnalysis, null, 2))
-            
-            // Get the selected frame index (0-based)
-            const selectedFrameIndex = frameAnalysis.selectedFrameIndex ?? (frameAnalysis.selectedFrame - 1)
-            console.log(`[Segment ${idx}] Selected frame index: ${selectedFrameIndex} (from analysis result)`)
-            
-            const selectedFrameUrl = frameUrls[selectedFrameIndex]
-            
-            if (!selectedFrameUrl) {
-              console.warn(`[Segment ${idx}] Invalid frame index ${selectedFrameIndex} (max: ${frameUrls.length - 1}), using first frame`)
-              previousFrameImage = frameUrls[0]
-            } else {
-              previousFrameImage = selectedFrameUrl
-              console.log(`[Segment ${idx}] ✓ Selected frame ${frameAnalysis.selectedFrame} (index ${selectedFrameIndex}) for next segment`)
-              console.log(`[Segment ${idx}] Selected frame URL: ${selectedFrameUrl}`)
-              console.log(`[Segment ${idx}] Selected frame reasoning: ${frameAnalysis.reasoning}`)
-            }
+            // Always use the last frame for the next segment
+            previousFrameImage = lastFrameUrl
+            console.log(`[Segment ${idx}] ✓ Using last frame for next segment continuity`)
+            console.log(`[Segment ${idx}] Last frame URL: ${lastFrameUrl}`)
           } catch (innerError: any) {
             console.error(`[Segment ${idx}] Error during frame extraction/analysis:`, innerError.message)
             console.error(`[Segment ${idx}] Error stack:`, innerError.stack)
@@ -794,13 +767,13 @@ export default defineEventHandler(async (event) => {
           }
         } catch (frameError: any) {
           // Don't fail the entire job if frame extraction fails - just log and continue
-          console.error(`[Segment ${idx}] ✗ Frame extraction/analysis failed:`, frameError.message)
+          console.error(`[Segment ${idx}] ✗ Last frame extraction failed:`, frameError.message)
           console.error(`[Segment ${idx}] Frame error stack:`, frameError.stack)
           console.warn(`[Segment ${idx}] Continuing to next segment without frame continuity`)
           previousFrameImage = null
         }
         
-        console.log(`[Segment ${idx}] Frame extraction process completed. Previous frame image: ${previousFrameImage || 'none'}`)
+        console.log(`[Segment ${idx}] Last frame extraction completed. Previous frame image: ${previousFrameImage || 'none'}`)
       } else {
         if (asset.status !== 'completed') {
           console.log(`[Segment ${idx}] Segment did not complete successfully (status: ${asset.status}), skipping frame extraction`)
