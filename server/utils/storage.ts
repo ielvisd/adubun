@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs'
 import path from 'path'
 import { nanoid } from 'nanoid'
+import { uploadFileToS3 } from './s3-upload'
 
 const DATA_DIR = process.env.MCP_FILESYSTEM_ROOT || './data'
 const VIDEOS_DIR = path.join(DATA_DIR, 'videos')
@@ -20,8 +21,22 @@ export async function saveVideo(fileBuffer: Buffer, filename?: string): Promise<
   await ensureDirectories()
   const videoId = filename || `${nanoid()}.mp4`
   const filePath = path.join(VIDEOS_DIR, videoId)
+  
+  // Save video locally first (for backup and fallback)
   await fs.writeFile(filePath, fileBuffer)
-  return filePath
+  console.log('[Storage] Video saved locally:', filePath)
+  
+  // Upload to S3 and return the S3 URL
+  try {
+    const s3Url = await uploadFileToS3(filePath)
+    console.log('[Storage] Video uploaded to S3:', s3Url)
+    return s3Url
+  } catch (error: any) {
+    console.error('[Storage] Failed to upload video to S3:', error.message)
+    console.warn('[Storage] Falling back to local file path:', filePath)
+    // Return local path as fallback if S3 upload fails
+    return filePath
+  }
 }
 
 export async function saveAsset(fileBuffer: Buffer, extension: string = 'tmp'): Promise<string> {
