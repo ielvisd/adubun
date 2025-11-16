@@ -34,7 +34,9 @@ data/costs.json
 .playwright-mcp/
 
 .cursor
+.cursorrules
 .taskmaster/
+memory-bank/
 
 npm-debug.log*
 yarn-debug.log*
