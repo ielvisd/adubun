@@ -268,6 +268,77 @@ class OpenAIMCPServer {
             required: ['imageUrls'],
           },
         },
+        {
+          name: 'generate_stories',
+          description: 'Generate 3 story narrative options for a video based on parsed prompt data',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              parsed: {
+                type: 'object',
+                description: 'Parsed prompt data including product, target audience, mood, etc.',
+              },
+              productImages: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Optional array of product reference image URLs (1-10 images)',
+              },
+            },
+            required: ['parsed'],
+          },
+        },
+        {
+          name: 'enhance_composition_prompt',
+          description: 'Enhance a visual prompt with detailed cinematographic and compositional specifications for keyframe generation',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              visualPrompt: {
+                type: 'string',
+                description: 'The original visual prompt to enhance',
+              },
+              segmentType: {
+                type: 'string',
+                enum: ['hook', 'body', 'cta'],
+                description: 'Type of segment (hook, body, or cta)',
+              },
+              segmentDescription: {
+                type: 'string',
+                description: 'Description of what happens in this segment',
+              },
+              storyNarrative: {
+                type: 'string',
+                description: 'The overall story narrative for context',
+              },
+              productName: {
+                type: 'string',
+                description: 'Name of the product being advertised',
+              },
+              productImages: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Array of product reference image URLs',
+              },
+              previousSegmentDescription: {
+                type: 'string',
+                description: 'Description of the previous segment for continuity',
+              },
+              nextSegmentDescription: {
+                type: 'string',
+                description: 'Description of the next segment for transition planning',
+              },
+              aspectRatio: {
+                type: 'string',
+                description: 'Video aspect ratio (e.g., 16:9)',
+              },
+              duration: {
+                type: 'number',
+                description: 'Segment duration in seconds',
+              },
+            },
+            required: ['visualPrompt', 'segmentType', 'segmentDescription', 'productName', 'aspectRatio', 'duration'],
+          },
+        },
       ],
     }))
 
@@ -304,6 +375,23 @@ class OpenAIMCPServer {
           
           case 'analyze_reference_images':
             return await this.analyzeReferenceImages(args.imageUrls)
+          
+          case 'generate_stories':
+            return await this.generateStories(args.parsed, args.productImages || [])
+          
+          case 'enhance_composition_prompt':
+            return await this.enhanceCompositionPrompt(
+              args.visualPrompt,
+              args.segmentType,
+              args.segmentDescription,
+              args.storyNarrative || '',
+              args.productName,
+              args.productImages || [],
+              args.previousSegmentDescription || '',
+              args.nextSegmentDescription || '',
+              args.aspectRatio,
+              args.duration
+            )
           
           default:
             throw new Error(`Unknown tool: ${name}`)
@@ -410,6 +498,391 @@ Return ONLY valid JSON, no other text. Example format:
       }
     } catch (error: any) {
       console.error('OpenAI API error in parsePrompt:', error)
+      throw new Error(`OpenAI API call failed: ${error.message || 'Unknown error'}`)
+    }
+  }
+
+  private async generateStories(parsed: any, productImages: string[] = []) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY environment variable is not set')
+    }
+
+    // Prepare product image analysis if provided
+    let productImageContext = ''
+    if (productImages && productImages.length > 0) {
+      productImageContext = `\n\nPRODUCT IMAGES PROVIDED: ${productImages.length} images
+Analyze these images to understand the product's visual characteristics, branding, and style.
+Ensure the stories leverage these visual elements effectively.`
+    }
+
+    const systemPrompt = `You are an expert storyteller and creative director specializing in creating compelling narrative structures for short-form video advertisements (15-30 seconds).
+
+Your task is to generate exactly 3 distinct story options for a video based on the user's requirements. Each story should:
+1. Have a unique narrative approach and emotional arc
+2. Effectively showcase the product and resonate with the target audience
+3. Follow proven storytelling frameworks (problem-solution, journey, transformation, etc.)
+4. Be optimized for short-form video format
+5. Include clear visual and emotional progression
+
+PARSED USER REQUIREMENTS:
+- Product: ${parsed.product}
+- Target Audience: ${parsed.targetAudience}
+- Mood: ${parsed.mood}
+- Key Messages: ${parsed.keyMessages.join(', ')}
+- Visual Style: ${parsed.visualStyle}
+- Call to Action: ${parsed.callToAction}${productImageContext}
+
+STORY REQUIREMENTS:
+- Each story must have 3-5 key beats (moments) that build upon each other
+- Each story should have a distinct emotional arc (e.g., "curiosity → surprise → satisfaction")
+- Stories should vary in approach (e.g., one problem-solution, one journey/transformation, one lifestyle/aspiration)
+- Each story should be optimized for the target audience
+- Include a brief rationale explaining why this story will be effective
+
+OUTPUT FORMAT:
+Return ONLY valid JSON with exactly this structure:
+{
+  "stories": [
+    {
+      "id": 1,
+      "title": "Short, catchy title (5-8 words)",
+      "narrative": "2-3 sentence description of the story flow from start to finish",
+      "emotionalArc": "Brief description of emotional journey (e.g., 'curiosity → surprise → satisfaction')",
+      "keyBeats": ["Beat 1 description", "Beat 2 description", "Beat 3 description", "Beat 4 description"],
+      "targetAudience": "Why this resonates with the target audience (1 sentence)",
+      "rationale": "Why this story approach works for this product and audience (1-2 sentences)"
+    },
+    {
+      "id": 2,
+      ... (same structure)
+    },
+    {
+      "id": 3,
+      ... (same structure)
+    }
+  ]
+}
+
+EXAMPLE OUTPUT (for a coffee product):
+{
+  "stories": [
+    {
+      "id": 1,
+      "title": "The Morning Ritual Transformation",
+      "narrative": "A rushed, chaotic morning becomes a moment of zen when our protagonist discovers artisanal coffee. The camera follows their transformation from frazzled to focused, as the rich aroma and perfect brew center their day. The final shot shows them confidently tackling their work, coffee in hand.",
+      "emotionalArc": "stress → discovery → calm → confidence",
+      "keyBeats": [
+        "Alarm clock blaring - protagonist jolts awake, immediately stressed",
+        "Kitchen chaos - rushing, spilling, frustration building",
+        "Discovery moment - noticing the artisanal coffee beans",
+        "Brewing ritual - slow, deliberate, meditative process",
+        "First sip - eyes close, visible relief and satisfaction",
+        "Confident start - ready to conquer the day"
+      ],
+      "targetAudience": "Resonates with busy professionals who crave moments of calm in their hectic schedules",
+      "rationale": "This problem-solution story taps into universal morning struggles while positioning the product as a transformative ritual, not just a beverage. The visual progression from chaos to calm is highly cinematic."
+    },
+    {
+      "id": 2,
+      "title": "Craftsmanship Journey: From Bean to Cup",
+      "narrative": "We follow a single coffee bean's journey from mountainside farm to the customer's cup. Each stage reveals meticulous attention to detail: hand-picking, roasting, grinding, brewing. The story celebrates the craft and care behind every cup, ending with a satisfied customer appreciating not just coffee, but artistry.",
+      "emotionalArc": "curiosity → appreciation → awe → satisfaction",
+      "keyBeats": [
+        "Sunrise over coffee farm - hands carefully selecting perfect beans",
+        "Roasting process - beans transforming, rich colors developing",
+        "Artisan grinding - precision and care in every step",
+        "Brewing ceremony - water meeting grounds, blooming",
+        "The perfect pour - golden crema forming",
+        "Customer's first taste - recognition of quality"
+      ],
+      "targetAudience": "Appeals to quality-conscious consumers who value authenticity and craftsmanship",
+      "rationale": "This journey story builds appreciation for the product by showcasing the expertise and care involved. It elevates coffee from commodity to craft, justifying premium positioning."
+    },
+    {
+      "id": 3,
+      "title": "Connection Through Coffee",
+      "narrative": "A series of vignettes showing how coffee brings people together across different moments: a first date, colleagues brainstorming, old friends reuniting, family gathering. Each scene captures authentic connection, laughter, and warmth, with our coffee as the common thread. The message: great coffee creates great moments.",
+      "emotionalArc": "anticipation → warmth → joy → belonging",
+      "keyBeats": [
+        "Nervous first date - coffee breaks the ice",
+        "Creative team breakthrough - ideas flowing over coffee",
+        "Long-lost friends reunite - coffee and conversation",
+        "Multi-generational family moment - shared tradition",
+        "Montage of smiles, laughter, connections"
+      ],
+      "targetAudience": "Speaks to social consumers who see coffee as part of meaningful life experiences",
+      "rationale": "This lifestyle/aspiration story positions the product as a catalyst for human connection, tapping into emotional desires for community and belonging. Highly shareable and relatable."
+    }
+  ]
+}
+
+Now generate 3 distinct story options for the provided product and requirements.`
+
+    try {
+      const messages: any[] = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: 'Generate 3 story options for this video.' },
+      ]
+
+      // If product images are provided, include them in the analysis
+      if (productImages && productImages.length > 0) {
+        // Helper function to convert file path or URL to base64 image
+        const getImageBase64 = async (urlOrPath: string): Promise<string> => {
+          // If it's already a data URL, return as-is
+          if (urlOrPath.startsWith('data:image/')) {
+            return urlOrPath
+          }
+          
+          // If it's a URL (http/https), fetch it
+          if (urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://')) {
+            const response = await fetch(urlOrPath)
+            if (!response.ok) {
+              throw new Error(`Failed to fetch image from URL: ${urlOrPath}`)
+            }
+            const buffer = Buffer.from(await response.arrayBuffer())
+            return `data:image/jpeg;base64,${buffer.toString('base64')}`
+          }
+          
+          // If it's a local file path, read it
+          const fs = await import('fs/promises')
+          const fileBuffer = await fs.readFile(urlOrPath)
+          return `data:image/jpeg;base64,${fileBuffer.toString('base64')}`
+        }
+
+        // Use vision API to analyze product images
+        const imageContent = await Promise.all(
+          productImages.slice(0, 10).map(async (imagePath) => {
+            const imageData = await getImageBase64(imagePath)
+            return {
+              type: 'image_url',
+              image_url: { url: imageData },
+            }
+          })
+        )
+
+        messages.push({
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Analyze these product images to inform your story options:',
+            },
+            ...imageContent,
+          ],
+        })
+      }
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages,
+        response_format: { type: 'json_object' },
+        temperature: 0.7, // Higher temperature for creativity
+      })
+
+      const content = completion.choices[0]?.message?.content
+      if (!content) {
+        throw new Error('No content in OpenAI completion response')
+      }
+
+      // Validate JSON structure
+      try {
+        const parsed = JSON.parse(content)
+        if (!parsed.stories || !Array.isArray(parsed.stories) || parsed.stories.length !== 3) {
+          throw new Error('Invalid response structure: expected 3 stories')
+        }
+        
+        // Validate each story has required fields
+        const requiredFields = ['id', 'title', 'narrative', 'emotionalArc', 'keyBeats', 'targetAudience', 'rationale']
+        for (const story of parsed.stories) {
+          const missingFields = requiredFields.filter(field => !(field in story))
+          if (missingFields.length > 0) {
+            console.error('Story missing fields:', missingFields, 'Story:', story)
+          }
+        }
+      } catch (parseError) {
+        console.error('OpenAI response is not valid JSON:', content)
+        throw new Error('OpenAI returned invalid JSON response')
+      }
+
+      console.error('[OpenAI MCP] Generated 3 story options successfully')
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: content,
+          },
+        ],
+      }
+    } catch (error: any) {
+      console.error('OpenAI API error in generateStories:', error)
+      throw new Error(`OpenAI API call failed: ${error.message || 'Unknown error'}`)
+    }
+  }
+
+  private async enhanceCompositionPrompt(
+    visualPrompt: string,
+    segmentType: 'hook' | 'body' | 'cta',
+    segmentDescription: string,
+    storyNarrative: string,
+    productName: string,
+    productImages: string[],
+    previousSegmentDescription: string,
+    nextSegmentDescription: string,
+    aspectRatio: string,
+    duration: number
+  ) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY environment variable is not set')
+    }
+
+    // Build context sections
+    const storyContext = storyNarrative ? `\n\nSTORY CONTEXT:\n${storyNarrative}` : ''
+    const previousContext = previousSegmentDescription ? `\n\nPREVIOUS SEGMENT:\n${previousSegmentDescription}` : ''
+    const nextContext = nextSegmentDescription ? `\n\nNEXT SEGMENT:\n${nextSegmentDescription}` : ''
+    const productContext = productImages.length > 0 ? `\n\nPRODUCT REFERENCE: ${productImages.length} images provided showing ${productName}` : `\n\nPRODUCT: ${productName}`
+
+    const systemPrompt = `You are an expert cinematographer and visual effects artist specializing in creating detailed image composition descriptions for AI keyframe generation.
+
+Your task is to enhance the provided visual prompt into a highly detailed, technically precise composition description suitable for professional keyframe generation.${storyContext}
+
+SEGMENT TYPE: ${segmentType.toUpperCase()} ${segmentType === 'hook' ? '(Opening shot - must capture attention immediately)' : segmentType === 'cta' ? '(Closing shot - must drive action)' : '(Main content - must maintain engagement)'}
+
+SEGMENT DESCRIPTION:
+${segmentDescription}
+
+CURRENT VISUAL PROMPT:
+${visualPrompt}${previousContext}${nextContext}${productContext}
+
+TECHNICAL SPECIFICATIONS:
+- Aspect ratio: ${aspectRatio}
+- Duration: ${duration} seconds
+- Target: First frame keyframe for video generation
+
+ENHANCEMENT INSTRUCTIONS:
+
+1. CAMERA SPECIFICATION
+   - Exact camera angle and height (e.g., "Eye-level, slightly tilted 15°")
+   - Lens type and focal length (e.g., "50mm lens, f/2.8")
+   - Shot type (wide, medium, close-up, extreme close-up, etc.)
+   - Camera movement (if any): static, slow push-in, pan, etc.
+
+2. LIGHTING SETUP
+   - Primary light source (direction, intensity, color temperature in Kelvin)
+   - Secondary/fill lighting details
+   - Shadow characteristics (soft/hard, direction)
+   - Time of day and ambient lighting mood
+
+3. COMPOSITION
+   - Rule of thirds application (specific positioning)
+   - Foreground elements (with depth specs)
+   - Midground subject positioning
+   - Background elements (with bokeh/focus specs)
+   - Leading lines and visual flow direction
+
+4. SUBJECT & PRODUCT FOCUS
+   - ${productName} placement and prominence in frame
+   - Product visibility and brand consistency
+   - Subject-product relationship and interaction
+   - Ensure product is clearly identifiable
+
+5. COLOR & ATMOSPHERE
+   - Specific color palette (hex codes if relevant)
+   - Color grading direction (warm/cool, saturated/desaturated)
+   - Mood and emotional tone
+   - Visual style consistency
+
+6. DEPTH & FOCUS
+   - Depth of field specifications (shallow/deep, specific f-stop)
+   - Focus point (what's sharp, what's bokeh)
+   - Layers of depth in the composition
+
+7. CONTINUITY & TRANSITION
+   ${previousContext ? '- Visual elements continuing from previous segment' : '- Opening visual impact'}
+   ${nextContext ? `- Visual setup for transition to: "${nextSegmentDescription}"` : ''}
+   - Consistent color palette and lighting across segments
+
+OUTPUT FORMAT:
+Provide a single, comprehensive paragraph (300-400 words) that can be directly used as an image generation prompt for the FIRST FRAME of this segment. Be specific, technical, and cinematically precise. Focus on creating a vivid, unambiguous description that will generate a professional, high-quality keyframe.
+
+EXAMPLE OUTPUT STRUCTURE:
+"[Shot type and camera specs] capturing [subject and action]. [Lighting details] creates [specific effect]. The composition follows [compositional rule] with [foreground details] in [focus specs], leading to the sharply focused [main subject + ${productName}] positioned [specific position], while [background details] provides [depth/context]. [Product details and prominence]. [Color and mood description]. [Technical camera/lens specs]. [Continuity/transition notes]. Professional [style] cinematography, ${aspectRatio} aspect ratio, optimized for ${duration}-second video generation."
+
+Now enhance the visual prompt with these specifications.`
+
+    try {
+      const messages: any[] = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Enhance this visual prompt for ${segmentType} segment: "${visualPrompt}"` },
+      ]
+
+      // If product images are provided, include them for visual reference
+      if (productImages.length > 0) {
+        const getImageBase64 = async (urlOrPath: string): Promise<string> => {
+          if (urlOrPath.startsWith('data:image/')) {
+            return urlOrPath
+          }
+          
+          if (urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://')) {
+            const response = await fetch(urlOrPath)
+            if (!response.ok) {
+              throw new Error(`Failed to fetch image from URL: ${urlOrPath}`)
+            }
+            const buffer = Buffer.from(await response.arrayBuffer())
+            return `data:image/jpeg;base64,${buffer.toString('base64')}`
+          }
+          
+          const fs = await import('fs/promises')
+          const fileBuffer = await fs.readFile(urlOrPath)
+          return `data:image/jpeg;base64,${fileBuffer.toString('base64')}`
+        }
+
+        const imageContent = await Promise.all(
+          productImages.slice(0, 5).map(async (imagePath) => {
+            const imageData = await getImageBase64(imagePath)
+            return {
+              type: 'image_url',
+              image_url: { url: imageData },
+            }
+          })
+        )
+
+        messages.push({
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `Reference images of ${productName} for visual consistency:`,
+            },
+            ...imageContent,
+          ],
+        })
+      }
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini', // Use mini model for cost efficiency
+        messages,
+        temperature: 0.7, // Balanced creativity and consistency
+        max_tokens: 600, // Enough for detailed description
+      })
+
+      const enhancedPrompt = completion.choices[0]?.message?.content
+      if (!enhancedPrompt) {
+        throw new Error('No content in OpenAI completion response')
+      }
+
+      console.error('[OpenAI MCP] Enhanced composition prompt successfully')
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: enhancedPrompt.trim(),
+          },
+        ],
+      }
+    } catch (error: any) {
+      console.error('OpenAI API error in enhanceCompositionPrompt:', error)
       throw new Error(`OpenAI API call failed: ${error.message || 'Unknown error'}`)
     }
   }

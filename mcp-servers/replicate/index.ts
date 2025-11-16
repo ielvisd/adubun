@@ -209,6 +209,37 @@ class ReplicateMCPServer {
           },
         },
         {
+          name: 'generate_keyframe',
+          description: 'Generate a keyframe image for video generation using enhanced composition prompts (optimized for Seedream 4)',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              enhancedPrompt: {
+                type: 'string',
+                description: 'Enhanced composition prompt from GPT-4o-mini (required)',
+              },
+              productImages: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Product reference images (1-10 images). File paths or URLs.',
+              },
+              aspectRatio: {
+                type: 'string',
+                enum: ['16:9', '9:16', '1:1'],
+                description: 'Target aspect ratio for video generation',
+                default: '16:9',
+              },
+              resolution: {
+                type: 'string',
+                enum: ['1K', '2K', '4K'],
+                description: 'Output resolution: 1K (1024px), 2K (2048px), 4K (4096px)',
+                default: '2K',
+              },
+            },
+            required: ['enhancedPrompt'],
+          },
+        },
+        {
           name: 'generate_image',
           description: 'Generate image(s) using Seedream 4.0 or Nano Banana model',
           inputSchema: {
@@ -309,6 +340,14 @@ class ReplicateMCPServer {
           
           case 'get_prediction_result':
             return await this.getPredictionResult(args.predictionId)
+          
+          case 'generate_keyframe':
+            return await this.generateKeyframe(
+              args.enhancedPrompt,
+              args.productImages || [],
+              args.aspectRatio || '16:9',
+              args.resolution || '2K'
+            )
           
           case 'generate_image':
             return await this.generateImage(
@@ -495,6 +534,92 @@ class ReplicateMCPServer {
     }
 
     console.error('[Replicate MCP] Returning response:', JSON.stringify(response, null, 2))
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(response),
+        },
+      ],
+    }
+  }
+
+  private async generateKeyframe(
+    enhancedPrompt: string,
+    productImages: string[] = [],
+    aspectRatio: string = '16:9',
+    resolution: string = '2K'
+  ) {
+    if (!enhancedPrompt) {
+      throw new Error('Enhanced prompt is required for keyframe generation')
+    }
+
+    console.error('[Replicate MCP] Generating keyframe:', {
+      promptLength: enhancedPrompt.length,
+      productImageCount: productImages.length,
+      aspectRatio,
+      resolution,
+    })
+
+    // Seedream 4 configuration optimized for keyframes
+    const input: any = {
+      prompt: enhancedPrompt,
+      size: resolution,
+      aspect_ratio: aspectRatio,
+      sequential_image_generation: 'disabled', // Single keyframe
+      enhance_prompt: false, // Already enhanced by GPT-4o-mini
+    }
+
+    // Add product reference images if provided
+    if (productImages && productImages.length > 0) {
+      if (productImages.length > 10) {
+        throw new Error('Maximum 10 product images allowed')
+      }
+      
+      console.error('[Replicate MCP] Uploading product reference images:', productImages.length)
+      const uploadedImages = await Promise.all(
+        productImages.map(img => this.uploadFileIfNeeded(img))
+      )
+      input.image_input = uploadedImages
+      
+      // When using reference images, match their aspect ratio
+      if (input.aspect_ratio !== 'custom') {
+        input.aspect_ratio = 'match_input_image'
+      }
+    }
+
+    console.error('[Replicate MCP] Seedream 4 input:', JSON.stringify(input, null, 2))
+
+    let prediction: any
+    try {
+      prediction = await replicate.predictions.create({
+        model: 'bytedance/seedream-4',
+        input,
+      })
+    } catch (error: any) {
+      if (error.status === 404 || error.message?.includes('404') || error.message?.includes('not found')) {
+        console.error('[Replicate MCP] Seedream 4 not found')
+        throw new Error('Seedream 4 model is not available on Replicate. Please check model availability.')
+      }
+      throw error
+    }
+
+    console.error('[Replicate MCP] Keyframe prediction created:', {
+      id: prediction.id,
+      status: prediction.status,
+      model: prediction.model,
+    })
+
+    const response = {
+      predictionId: prediction.id,
+      id: prediction.id,
+      status: prediction.status,
+      createdAt: prediction.created_at,
+      type: 'keyframe',
+      aspectRatio,
+      resolution,
+    }
 
     return {
       content: [

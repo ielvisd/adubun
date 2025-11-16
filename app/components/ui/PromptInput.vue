@@ -25,6 +25,13 @@
         </UFormField>
       </div>
 
+      <!-- Product Images Upload -->
+      <div class="w-full mt-4">
+        <UFormField name="productImages" required>
+          <ProductImageUpload v-model="form.productImages" />
+        </UFormField>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
         <UFormField 
           v-if="selectedModel?.supportsCustomDuration" 
@@ -186,12 +193,14 @@
 import { z } from 'zod'
 import ImageUpload from './ImageUpload.vue'
 import MultiImageUpload from './MultiImageUpload.vue'
+import ProductImageUpload from './ProductImageUpload.vue'
 import { VIDEO_MODELS, DEFAULT_MODEL_ID, getModelById } from '~/config/video-models'
 import type { VideoModel } from '~/types/generation'
 
 const schema = z.object({
   model: z.string().min(1, 'Please select a video generation model'),
   prompt: z.string().min(10, 'Please provide at least 10 characters describing your ad').max(1000, 'Description must be less than 1000 characters'),
+  productImages: z.array(z.union([z.instanceof(File), z.string()])).min(1, 'At least 1 product image is required').max(10, 'Maximum 10 product images allowed'),
   duration: z.number().min(1).max(180).optional(),
   aspectRatio: z.enum(['16:9', '9:16', '1:1']),
   style: z.string().min(1),
@@ -214,6 +223,7 @@ const schema = z.object({
 const getInitialFormState = () => ({
   model: DEFAULT_MODEL_ID,
   prompt: '',
+  productImages: [] as (File | string)[],
   duration: 30,
   aspectRatio: '16:9' as '16:9' | '9:16' | '1:1',
   style: 'Cinematic',
