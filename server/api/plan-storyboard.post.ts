@@ -6,7 +6,7 @@ import { nanoid } from 'nanoid'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const { parsed } = planStoryboardSchema.parse(body)
+  const { parsed, selectedStory } = planStoryboardSchema.parse(body)
 
   // Track cost
   await trackCost('plan-storyboard', 0.002, { duration: parsed.meta.duration })
@@ -28,14 +28,27 @@ export default defineEventHandler(async (event) => {
       referenceImages.push(...parsed.meta.referenceImages)
     }
     
+    // Add product images if provided
+    if (parsed.meta.productImages && Array.isArray(parsed.meta.productImages)) {
+      referenceImages.push(...parsed.meta.productImages)
+    }
+    
     console.log(`[Plan Storyboard] Found ${referenceImages.length} reference image(s) to analyze`)
     
-    // Generate storyboard with OpenAI MCP (pass reference images for analysis)
+    // If selectedStory is provided, include it in meta
+    if (selectedStory) {
+      console.log(`[Plan Storyboard] Using selected story: ${selectedStory.title}`)
+      parsed.meta.story = selectedStory
+    }
+    
+    // Generate storyboard with OpenAI MCP (pass reference images and story for analysis)
     const storyboardData = await callOpenAIMCP('plan_storyboard', {
       parsed,
       duration: parsed.meta.duration,
       style: parsed.meta.style,
       referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
+      story: parsed.meta.story || selectedStory,
+      productImages: parsed.meta.productImages,
     })
     
     // Ensure storyboardData is an object
@@ -61,6 +74,12 @@ export default defineEventHandler(async (event) => {
       meta: {
         ...parsed.meta,
         mode: parsed.meta.mode || 'demo',
+        // Ensure story, product info, and brand info are preserved
+        story: parsed.meta.story || selectedStory,
+        originalPrompt: parsed.meta.originalPrompt,
+        productImages: parsed.meta.productImages,
+        productName: parsed.meta.productName || parsed.product,
+        brandInfo: parsed.meta.brandInfo,
       },
       createdAt: Date.now(),
     }
