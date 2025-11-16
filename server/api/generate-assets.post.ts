@@ -4,8 +4,9 @@ import { trackCost } from '../utils/cost-tracker'
 import { downloadFile, saveAsset, readFile, cleanupTempFiles } from '../utils/storage'
 import { uploadFileToReplicate } from '../utils/replicate-upload'
 import { extractFramesFromVideo } from '../utils/ffmpeg'
+import { generateKeyframesForSegment, waitForKeyframeCompletion } from '../utils/keyframe-generator'
 import { nanoid } from 'nanoid'
-import type { GenerationJob, Asset } from '../../app/types/generation'
+import type { GenerationJob, Asset, Segment } from '../../app/types/generation'
 import { promises as fs } from 'fs'
 import path from 'path'
 
@@ -295,17 +296,99 @@ export default defineEventHandler(async (event) => {
       ? storyboard.segments.slice(0, 1)
       : storyboard.segments
 
-    // Generate assets sequentially (for frame continuity)
-    const assets: Asset[] = []
-    let previousVideoUrl: string | null = null
-    let previousFrameImage: string | null = null
-    
     console.log(`[Generate Assets] Starting sequential generation of ${segmentsToProcess.length} segments`)
     console.log(`[Generate Assets] Mode: ${mode}`)
     console.log(`[Generate Assets] Total segments in storyboard: ${storyboard.segments.length}`)
     if (mode === 'demo' && storyboard.segments.length > 1) {
       console.warn(`[Generate Assets] WARNING: Demo mode - only processing first segment. ${storyboard.segments.length - 1} segment(s) will be skipped.`)
     }
+
+    // KEYFRAME GENERATION: Generate keyframes for all segments if not already generated
+    // This is the new image-guided video generation pipeline
+    const shouldGenerateKeyframes = storyboard.meta.productImages && 
+                                    storyboard.meta.productImages.length > 0 &&
+                                    storyboard.meta.productName
+    
+    if (shouldGenerateKeyframes) {
+      console.log(`\n[Generate Assets] ===== KEYFRAME GENERATION PHASE =====`)
+      console.log(`[Generate Assets] Product: ${storyboard.meta.productName}`)
+      console.log(`[Generate Assets] Product images: ${storyboard.meta.productImages.length}`)
+      
+      for (const [idx, segment] of segmentsToProcess.entries()) {
+        // Skip if keyframes already exist
+        if (segment.firstFrameUrl && segment.lastFrameUrl && segment.keyframeStatus === 'completed') {
+          console.log(`[Segment ${idx}] Keyframes already exist, skipping generation`)
+          continue
+        }
+        
+        try {
+          console.log(`[Segment ${idx}] Generating keyframes...`)
+          segment.keyframeStatus = 'generating'
+          await saveJob(job) // Update status
+          
+          const keyframeResult = await generateKeyframesForSegment(
+            segment,
+            idx,
+            {
+              story: storyboard.meta.story,
+              productName: storyboard.meta.productName!,
+              productImages: storyboard.meta.productImages!,
+              aspectRatio: storyboard.meta.aspectRatio || '16:9',
+              resolution: '2K',
+              allSegments: segmentsToProcess,
+            }
+          )
+          
+          console.log(`[Segment ${idx}] Keyframe predictions initiated:`, {
+            first: keyframeResult.first.predictionId,
+            last: keyframeResult.last.predictionId,
+          })
+          
+          // Wait for keyframes to complete (in parallel)
+          const [firstFrameUrl, lastFrameUrl] = await Promise.all([
+            waitForKeyframeCompletion(keyframeResult.first.predictionId),
+            waitForKeyframeCompletion(keyframeResult.last.predictionId),
+          ])
+          
+          console.log(`[Segment ${idx}] Keyframes completed:`, {
+            firstFrameUrl,
+            lastFrameUrl,
+          })
+          
+          // Update segment with keyframe data
+          segment.firstFrameUrl = firstFrameUrl
+          segment.lastFrameUrl = lastFrameUrl
+          segment.enhancedPrompt = keyframeResult.first.enhancedPrompt
+          segment.keyframesGeneratedAt = Date.now()
+          segment.keyframeStatus = 'completed'
+          
+          // Track keyframe costs
+          await trackCost('keyframe-generation', 0.04, {
+            segmentId: idx,
+            segmentType: segment.type,
+            resolution: '2K',
+          })
+          
+          await saveJob(job) // Save progress
+          
+        } catch (error: any) {
+          console.error(`[Segment ${idx}] Keyframe generation failed:`, error)
+          segment.keyframeStatus = 'failed'
+          segment.keyframeError = error.message
+          await saveJob(job)
+          // Continue with video generation anyway (will use fallback)
+        }
+      }
+      
+      console.log(`[Generate Assets] ===== KEYFRAME GENERATION COMPLETE =====\n`)
+    } else {
+      console.log(`[Generate Assets] Skipping keyframe generation (no product images or name provided)`)
+    }
+
+    // Generate assets sequentially (for frame continuity)
+    const assets: Asset[] = []
+    let previousVideoUrl: string | null = null
+    let previousFrameImage: string | null = null
     
     for (const [idx, segment] of segmentsToProcess.entries()) {
       console.log(`\n[Generate Assets] ===== Starting Segment ${idx + 1}/${segmentsToProcess.length} =====`)
@@ -361,8 +444,11 @@ export default defineEventHandler(async (event) => {
 
         // Add image inputs if provided - upload to Replicate and get public URLs
         if (model === 'google/veo-3.1') {
-          // Priority: segment.image > previousFrameImage > storyboard.meta.image
-          if ((segment as any).image) {
+          // Priority: keyframe firstFrameUrl > segment.image > previousFrameImage > storyboard.meta.image
+          if (segment.firstFrameUrl && segment.keyframeStatus === 'completed') {
+            videoParams.image = segment.firstFrameUrl
+            console.log(`[Segment ${idx}] Using generated keyframe first frame: ${segment.firstFrameUrl}`)
+          } else if ((segment as any).image) {
             videoParams.image = await prepareImageInput((segment as any).image)
             console.log(`[Segment ${idx}] Using segment-specific input image: ${(segment as any).image}`)
           } else if (previousFrameImage) {
@@ -389,8 +475,11 @@ export default defineEventHandler(async (event) => {
             console.log(`[Segment ${idx}] Reference images provided - last_frame will be ignored per Veo documentation`)
           } else {
             // Only set last_frame if reference images are NOT provided
-            // Priority: segment.lastFrame > storyboard.meta.lastFrame
-            if ((segment as any).lastFrame) {
+            // Priority: keyframe lastFrameUrl > segment.lastFrame > storyboard.meta.lastFrame
+            if (segment.lastFrameUrl && segment.keyframeStatus === 'completed') {
+              videoParams.last_frame = segment.lastFrameUrl
+              console.log(`[Segment ${idx}] Using generated keyframe last frame: ${segment.lastFrameUrl}`)
+            } else if ((segment as any).lastFrame) {
               videoParams.last_frame = await prepareImageInput((segment as any).lastFrame)
               console.log(`[Segment ${idx}] Using segment-specific last frame: ${(segment as any).lastFrame}`)
             } else if (storyboard.meta.lastFrame) {
@@ -433,8 +522,11 @@ export default defineEventHandler(async (event) => {
         } else if (model === 'google/veo-3-fast') {
           // Veo 3 Fast only supports: prompt, aspect_ratio, duration, image, negative_prompt, resolution, generate_audio, seed
           // Note: Does NOT support last_frame or reference_images
-          // Priority: segment.image > previousFrameImage > firstFrameImage/subjectReference > storyboard.meta.image
-          if ((segment as any).image) {
+          // Priority: keyframe firstFrameUrl > segment.image > previousFrameImage > firstFrameImage/subjectReference > storyboard.meta.image
+          if (segment.firstFrameUrl && segment.keyframeStatus === 'completed') {
+            videoParams.image = segment.firstFrameUrl
+            console.log(`[Segment ${idx}] Using generated keyframe first frame: ${segment.firstFrameUrl}`)
+          } else if ((segment as any).image) {
             videoParams.image = await prepareImageInput((segment as any).image)
             console.log(`[Segment ${idx}] Using segment-specific input image: ${(segment as any).image}`)
           } else if (previousFrameImage) {
@@ -820,10 +912,15 @@ export default defineEventHandler(async (event) => {
       await saveJob(job)
       
       // If segment succeeded and it's not the last segment, extract frames for next segment
-      if (asset.status === 'completed' && asset.videoUrl && idx < segmentsToProcess.length - 1) {
-        console.log(`[Segment ${idx}] Segment completed successfully. Starting frame extraction for next segment...`)
+      // Skip if next segment already has keyframes (new pipeline)
+      const nextSegment = idx < segmentsToProcess.length - 1 ? segmentsToProcess[idx + 1] : null
+      const nextSegmentHasKeyframes = nextSegment && nextSegment.firstFrameUrl && nextSegment.keyframeStatus === 'completed'
+      
+      if (asset.status === 'completed' && asset.videoUrl && idx < segmentsToProcess.length - 1 && !nextSegmentHasKeyframes) {
+        console.log(`[Segment ${idx}] Segment completed successfully. Starting frame extraction for next segment (fallback)...`)
         console.log(`[Segment ${idx}] Video URL: ${asset.videoUrl}`)
         console.log(`[Segment ${idx}] Remaining segments: ${segmentsToProcess.length - idx - 1}`)
+        console.log(`[Segment ${idx}] NOTE: Using legacy frame extraction as fallback (no keyframes available)`)
         
         try {
           const segmentDuration = segment.endTime - segment.startTime
@@ -890,7 +987,9 @@ export default defineEventHandler(async (event) => {
         
         console.log(`[Segment ${idx}] Last frame extraction completed. Previous frame image: ${previousFrameImage || 'none'}`)
       } else {
-        if (asset.status !== 'completed') {
+        if (nextSegmentHasKeyframes) {
+          console.log(`[Segment ${idx}] Next segment has keyframes, skipping legacy frame extraction ✨`)
+        } else if (asset.status !== 'completed') {
           console.log(`[Segment ${idx}] Segment did not complete successfully (status: ${asset.status}), skipping frame extraction`)
         } else if (!asset.videoUrl) {
           console.log(`[Segment ${idx}] Segment completed but no video URL, skipping frame extraction`)
