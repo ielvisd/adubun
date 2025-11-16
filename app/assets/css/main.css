@@ -1,51 +1,41 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
-/* Apply Nunito font globally */
+/* Apply Inter font globally */
 body {
-  font-family: 'Nunito', sans-serif;
+  font-family: 'Inter', sans-serif;
 }
 
-/* Tailwind v4 Theme Configuration - Letsignit Inspired */
+/* Tailwind v4 Theme Configuration - Mendo-Inspired Minimalist Colors */
 @theme {
-  --color-letsignit-black: #000000;
-  --color-letsignit-white: #FFFFFF;
-  --color-letsignit-red: #E63946;
-  --color-letsignit-blue: #457B9D;
-  --color-letsignit-light-blue: #A8DADC;
-  --color-letsignit-light-yellow: #FFF9E6;
-  --color-letsignit-light-pink: #FFE5E5;
-  --color-letsignit-light-purple: #F0E6FF;
-  --color-letsignit-light-teal: #E0F7FA;
-  --color-letsignit-gray: #F5F5F5;
+  --color-mendo-black: #000000;
+  --color-mendo-white: #FFFFFF;
+  --color-mendo-light-blue: #E8F0F5;
+  --color-mendo-green: #00FF88;
+  --color-mendo-light-grey: #F5F5F5;
+  --color-mendo-success: #22c55e;
+  --color-mendo-error: #dc2626;
 }
 
-/* Letsignit-Inspired Brand Colors - CSS Variables */
+/* Mendo-Inspired Brand Colors - CSS Variables */
 :root {
   /* Primary Colors */
-  --letsignit-black: #000000;
-  --letsignit-white: #FFFFFF;
-  --letsignit-red: #E63946;
-  --letsignit-blue: #457B9D;
-  
-  /* Pastel Background Colors */
-  --letsignit-light-yellow: #FFF9E6;
-  --letsignit-light-pink: #FFE5E5;
-  --letsignit-light-blue: #A8DADC;
-  --letsignit-light-purple: #F0E6FF;
-  --letsignit-light-teal: #E0F7FA;
-  --letsignit-gray: #F5F5F5;
+  --mendo-black: #000000;
+  --mendo-white: #FFFFFF;
+  --mendo-light-blue: #E8F0F5;
+  --mendo-green: #00FF88;
+  --mendo-light-grey: #F5F5F5;
   
   /* Semantic Colors */
-  --adubun-primary: var(--letsignit-blue);
-  --adubun-secondary: var(--letsignit-red);
-  --adubun-accent: var(--letsignit-red);
-  --adubun-background: var(--letsignit-white);
+  --mendo-primary: #000000;
+  --mendo-secondary: #000000;
+  --mendo-accent: #000000;
+  --mendo-background: #FFFFFF;
   
   /* System Colors */
-  --adubun-success: #10b981;
-  --adubun-warning: #F59E0B;
-  --adubun-error: var(--letsignit-red);
+  --mendo-success: #22c55e;
+  --mendo-warning: #F59E0B;
+  --mendo-error: #dc2626;
 }
 
 /* Custom Utilities - Letsignit Style */
@@ -57,42 +47,30 @@ body {
   @apply bg-white rounded-2xl shadow-md p-8 border border-gray-100;
 }
 
-/* Letsignit-Inspired Background Utilities */
-.bg-letsignit-hero {
-  @apply bg-black text-white;
+/* Mendo-Inspired Background Utilities */
+.bg-mendo-hero {
+  @apply bg-white text-black;
 }
 
-.bg-letsignit-section-yellow {
-  background-color: var(--letsignit-light-yellow);
+.bg-mendo-section-blue {
+  background-color: var(--mendo-light-blue);
 }
 
-.bg-letsignit-section-pink {
-  background-color: var(--letsignit-light-pink);
+.bg-mendo-section-grey {
+  background-color: var(--mendo-light-grey);
 }
 
-.bg-letsignit-section-blue {
-  background-color: var(--letsignit-light-blue);
-}
-
-.bg-letsignit-section-purple {
-  background-color: var(--letsignit-light-purple);
-}
-
-.bg-letsignit-section-teal {
-  background-color: var(--letsignit-light-teal);
-}
-
-.bg-letsignit-section-gray {
-  background-color: var(--letsignit-gray);
+.bg-mendo-footer {
+  background-color: var(--mendo-green);
 }
 
 /* Card Styles */
-.letsignit-card {
+.adubun-card {
   @apply bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-lg transition-shadow duration-300;
 }
 
-/* Button Styles */
-.letsignit-cta {
-  @apply bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors duration-200;
+/* Button Styles - Mendo Minimalist */
+.mendo-cta {
+  @apply bg-black hover:bg-gray-900 text-white font-semibold px-6 py-3 rounded-lg transition-colors duration-200;
 }
 

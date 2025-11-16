@@ -11,31 +11,23 @@
       <!-- Storyboard content -->
       <template v-else>
         <div v-if="storyboard" class="mb-6">
-          <div class="flex items-center gap-4 mb-2">
-            <UBadge 
-              :color="storyboard.meta.mode === 'demo' ? 'yellow' : 'green'"
-              variant="subtle"
-              size="lg"
-            >
-              {{ storyboard.meta.mode === 'demo' ? 'Demo Mode' : 'Production Mode' }}
-            </UBadge>
-            <div class="flex items-center gap-2">
-              <span class="text-sm font-medium text-gray-700">Demo</span>
-              <USwitch
-                v-model="isProductionMode"
-                :disabled="generationStarted"
-                @update:model-value="handleModeChange"
-              />
-              <span class="text-sm font-medium text-gray-700">Production</span>
+          <!-- Prominent Mode Display - Mendo Style -->
+          <div class="bg-black dark:bg-gray-800 text-white py-4 px-6 mb-4">
+            <div class="flex items-center gap-4">
+              <div class="text-lg sm:text-xl font-bold uppercase tracking-wide">
+                {{ storyboard.meta.mode === 'demo' ? 'Demo Mode' : 'Production Mode' }}
+              </div>
+              <div class="text-sm sm:text-base text-gray-300">
+                <span v-if="storyboard.meta.mode === 'demo'">
+                  Only the first scene will be generated for faster testing
+                </span>
+                <span v-else>
+                  All scenes will be generated
+                </span>
+              </div>
             </div>
           </div>
-          <p v-if="storyboard.meta.mode === 'demo'" class="text-sm text-gray-600">
-            All scenes are shown in the storyboard, but only the first scene will be generated.
-          </p>
-          <p v-else class="text-sm text-gray-600">
-            All scenes in the storyboard will be generated.
-          </p>
-          <div v-if="storyboard.meta.firstFrameImage || storyboard.meta.subjectReference" class="mt-4 text-sm text-gray-600">
+          <div v-if="storyboard.meta.firstFrameImage || storyboard.meta.subjectReference" class="mt-4 text-sm text-gray-600 dark:text-gray-400">
             <p v-if="storyboard.meta.firstFrameImage" class="mb-1">
               <strong>Global First Frame:</strong> {{ storyboard.meta.firstFrameImage }}
             </p>
@@ -164,53 +156,7 @@ const pollStoryboardStatus = async (jobId: string, meta: any) => {
   throw new Error('Storyboard generation timed out')
 }
 
-// Mode toggle state
-const isProductionMode = computed({
-  get: () => storyboard.value?.meta.mode === 'production',
-  set: (value) => {
-    // This will be handled by handleModeChange
-  }
-})
-
-// Handle mode change
-const handleModeChange = async (value: boolean) => {
-  if (!storyboard.value) return
-  
-  const newMode = value ? 'production' : 'demo'
-  const oldMode = storyboard.value.meta.mode
-  
-    // Optimistically update local state
-    storyboard.value.meta.mode = newMode
-    // Storyboard watcher will automatically save to sessionStorage
-    
-    try {
-      // Update backend
-      await $fetch(`/api/storyboard/${storyboard.value.id}`, {
-        method: 'PUT',
-        body: {
-          meta: {
-            ...storyboard.value.meta,
-            mode: newMode,
-          },
-        },
-      })
-      
-      toast.add({
-        title: 'Mode updated',
-        description: `Switched to ${newMode} mode`,
-        color: 'success',
-      })
-    } catch (error: any) {
-      // Revert on error
-      storyboard.value.meta.mode = oldMode
-    
-    toast.add({
-      title: 'Failed to update mode',
-      description: error.message || 'Could not update mode. Please try again.',
-      color: 'error',
-    })
-  }
-}
+// Mode is set on stories page and displayed prominently - no toggle needed here
 
 // Map completed segments to assets format for StoryboardView
 const completedAssets = computed(() => {
@@ -347,30 +293,75 @@ onMounted(async () => {
         try {
           const parsed = JSON.parse(parsedPromptData)
           
-          // Call plan-storyboard API
-          const storyboardResult = await $fetch('/api/plan-storyboard', {
-            method: 'POST',
-            body: { parsed },
-          })
-          
-          // Check if this is an async response with jobId
-          if (storyboardResult.jobId && storyboardResult.status === 'pending') {
-            // Poll for status (use meta from response if available, otherwise from parsed)
-            await pollStoryboardStatus(storyboardResult.jobId, storyboardResult.meta || parsed.meta)
+          // Check if we have a selected story from demo-stories page
+          if (parsed.selectedStory) {
+            // Convert selected story to storyboard format
+            const selectedStory = parsed.selectedStory
+            const segments = selectedStory.clips.map((clip: any, index: number) => {
+              const startTime = index * clip.duration
+              const endTime = startTime + clip.duration
+              
+              // Determine segment type based on index
+              let type = 'body'
+              if (index === 0) type = 'hook'
+              else if (index === selectedStory.clips.length - 1) type = 'cta'
+              
+              return {
+                type,
+                description: clip.description,
+                startTime,
+                endTime,
+                visualPrompt: clip.description,
+                visualPromptAlternatives: [],
+                audioNotes: index === 0 ? selectedStory.hook : 
+                           index === 1 ? selectedStory.bodyOne :
+                           index === 2 ? selectedStory.bodyTwo :
+                           selectedStory.callToAction,
+              }
+            })
+            
+            // Create storyboard from selected story
+            storyboard.value = {
+              id: `storyboard-${Date.now()}`,
+              segments,
+              meta: {
+                ...parsed.meta,
+                duration: 24,
+                mode: 'demo',
+              },
+              createdAt: Date.now(),
+            }
+            
+            // Save storyboard to sessionStorage
+            if (storyboard.value) {
+              saveStoryboardToStorage(storyboard.value)
+            }
           } else {
-            // Synchronous response (backward compatibility)
-            storyboard.value = storyboardResult
-          }
-          
-          // Save storyboard to sessionStorage
-          if (storyboard.value) {
-            saveStoryboardToStorage(storyboard.value)
+            // Regular flow: call plan-storyboard API
+            const storyboardResult = await $fetch('/api/plan-storyboard', {
+              method: 'POST',
+              body: { parsed },
+            })
+            
+            // Check if this is an async response with jobId
+            if (storyboardResult.jobId && storyboardResult.status === 'pending') {
+              // Poll for status (use meta from response if available, otherwise from parsed)
+              await pollStoryboardStatus(storyboardResult.jobId, storyboardResult.meta || parsed.meta)
+            } else {
+              // Synchronous response (backward compatibility)
+              storyboard.value = storyboardResult
+            }
+            
+            // Save storyboard to sessionStorage
+            if (storyboard.value) {
+              saveStoryboardToStorage(storyboard.value)
+            }
           }
           
           // Clear parsedPrompt after successful planning
           sessionStorage.removeItem('parsedPrompt')
+          sessionStorage.removeItem('selectedStory')
         } catch (error: any) {
-          console.error('Failed to plan storyboard:', error)
           const toast = useToast()
           toast.add({
             title: 'Error',
