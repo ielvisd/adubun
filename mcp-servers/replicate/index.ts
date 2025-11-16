@@ -745,9 +745,17 @@ class ReplicateMCPServer {
       const fs = await import('fs/promises')
       const path = await import('path')
       
+      // Resolve relative paths to absolute (relative to project root)
+      let absolutePath = filePathOrUrl
+      if (!path.isAbsolute(filePathOrUrl)) {
+        // process.cwd() should be the project root when MCP server is started
+        absolutePath = path.resolve(process.cwd(), filePathOrUrl)
+        console.error(`[Replicate MCP] Resolved relative path: ${filePathOrUrl} -> ${absolutePath}`)
+      }
+      
       // Read the file as a buffer
-      const fileBuffer = await fs.readFile(filePathOrUrl)
-      const filename = path.basename(filePathOrUrl)
+      const fileBuffer = await fs.readFile(absolutePath)
+      const filename = path.basename(absolutePath)
       const mimeType = this.getMimeType(filename)
       
       // Try to use form-data package, fallback to native FormData
