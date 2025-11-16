@@ -11,11 +11,11 @@
 ```
 Phase 1: ✅✅✅✅✅✅✅✅✅✅✅✅ 12/12 (100%) ⭐
 Phase 2: ✅✅✅✅✅✅✅✅✅✅✅✅✅✅ 14/14 (100%) ⭐
-Phase 3: ✅✅✅✅✅✅⬜⬜⬜⬜⬜⬜ 6/12 (50%)
+Phase 3: ✅✅✅✅✅✅✅✅✅⬜⬜⬜ 9/12 (75%)
 Phase 4: ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ 0/10 (0%)
 Phase 5: ⬜⬜⬜⬜⬜⬜⬜⬜ 0/8 (0%)
 
-Overall: ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅ 32/56 tasks (57%)
+Overall: ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅ 35/56 tasks (63%)
 ```
 
 ---
@@ -93,7 +93,7 @@ Overall: ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅�
 ## Phase 3: Pipeline Integration (Week 5-6)
 
 **Goal:** Connect all pieces into unified flow  
-**Progress:** 6/12 tasks
+**Progress:** 9/12 tasks
 
 ### API Updates (4 tasks)
 - [x] **TASK-027** Update `/api/plan-storyboard` | _Backend_ | 4h | TASK-008 ✅
@@ -111,9 +111,9 @@ Overall: ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅�
 - [ ] **TASK-035** Update `useGeneration` composable | _Frontend_ | 4h | TASK-034
 
 ### Cost Tracking (3 tasks)
-- [ ] **TASK-036** Track story generation costs | _Backend_ | 2h | TASK-008
-- [ ] **TASK-037** Track keyframe costs | _Backend_ | 2h | TASK-023
-- [ ] **TASK-038** Update cost summary endpoint | _Backend_ | 2h | TASK-036, 037
+- [x] **TASK-036** Track story generation costs (done in TASK-007) | _Backend_ | 2h | TASK-008 ✅
+- [x] **TASK-037** Track keyframe costs (done in TASK-023, 029) | _Backend_ | 2h | TASK-023 ✅
+- [x] **TASK-038** Update cost summary (works generically) | _Backend_ | 2h | TASK-036, 037 ✅
 
 ---
 
