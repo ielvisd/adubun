@@ -268,6 +268,40 @@ class OpenAIMCPServer {
             required: ['imageUrls'],
           },
         },
+        {
+          name: 'generate_ad_stories',
+          description: 'Generate 3 cohesive ad story options for a 24-second ad with 4 clips (6 seconds each)',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              prompt: {
+                type: 'string',
+                description: 'The ad description/prompt',
+              },
+              imageUrls: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Array of reference image URLs',
+              },
+              duration: {
+                type: 'number',
+                description: 'Total ad duration in seconds (default: 24)',
+                default: 24,
+              },
+              clipCount: {
+                type: 'number',
+                description: 'Number of clips (default: 4)',
+                default: 4,
+              },
+              clipDuration: {
+                type: 'number',
+                description: 'Duration of each clip in seconds (default: 6)',
+                default: 6,
+              },
+            },
+            required: ['prompt', 'imageUrls'],
+          },
+        },
       ],
     }))
 
@@ -304,6 +338,15 @@ class OpenAIMCPServer {
           
           case 'analyze_reference_images':
             return await this.analyzeReferenceImages(args.imageUrls)
+          
+          case 'generate_ad_stories':
+            return await this.generateAdStories(
+              args.prompt,
+              args.imageUrls || [],
+              args.duration || 24,
+              args.clipCount || 4,
+              args.clipDuration || 6
+            )
           
           default:
             throw new Error(`Unknown tool: ${name}`)
@@ -1380,6 +1423,124 @@ PRIMARY TASK: Select the frame where any product (can, bottle, package, label, e
       }
     } catch (error: any) {
       console.error('[OpenAI MCP] analyzeFrames error:', error.message)
+      if (error.response) {
+        console.error('[OpenAI MCP] API response status:', error.response.status)
+        console.error('[OpenAI MCP] API response data:', error.response.data)
+      }
+      throw error
+    }
+  }
+
+  private async generateAdStories(
+    prompt: string,
+    imageUrls: string[],
+    duration: number = 24,
+    clipCount: number = 4,
+    clipDuration: number = 6
+  ) {
+    try {
+      if (!process.env.OPENAI_API_KEY) {
+        throw new Error('OPENAI_API_KEY environment variable is not set')
+      }
+
+      const systemPrompt = `You are an expert at creating compelling ad stories for short-form video content.
+
+Generate exactly 3 cohesive story options for a ${duration}-second ad. Each story will be broken down into 4 scenes: Hook, Body 1, Body 2, and CTA.
+
+Each story must:
+- Be a cohesive, complete narrative that flows from Hook → Body 1 → Body 2 → CTA
+- Be related to the initial prompt
+- Have distinct creative approaches (different angles, styles, or messaging)
+- Be suitable for a ${duration}-second ad format
+- Include a full paragraph description that captures the entire story arc
+
+IMPORTANT: Each story needs a full paragraph description that describes the complete narrative. This description will be used to generate storyboards later.
+
+Return ONLY valid JSON with this exact structure:
+{
+  "stories": [
+    {
+      "id": "story-1",
+      "description": "A full paragraph (3-5 sentences) describing the complete story arc from Hook to CTA",
+      "hook": "Brief hook description for the opening scene",
+      "bodyOne": "Brief body 1 description for the first body scene",
+      "bodyTwo": "Brief body 2 description for the second body scene",
+      "callToAction": "Brief CTA description for the closing scene"
+    },
+    {
+      "id": "story-2",
+      "description": "...",
+      "hook": "...",
+      "bodyOne": "...",
+      "bodyTwo": "...",
+      "callToAction": "..."
+    },
+    {
+      "id": "story-3",
+      "description": "...",
+      "hook": "...",
+      "bodyOne": "...",
+      "bodyTwo": "...",
+      "callToAction": "..."
+    }
+  ]
+}`
+
+      const userPrompt = `Create 3 cohesive ad story options based on this prompt: "${prompt}"
+
+${imageUrls.length > 0 ? `Reference images are available to inform the visual style and product details.` : ''}
+
+Each story should be unique but all should relate to the core prompt.`
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.8, // Higher temperature for more creative variety
+      })
+
+      const content = completion.choices[0]?.message?.content
+      if (!content) {
+        throw new Error('No content in OpenAI completion response')
+      }
+
+      // Parse and validate the response
+      let parsed: any
+      try {
+        parsed = JSON.parse(content)
+      } catch (parseError: any) {
+        throw new Error(`OpenAI returned invalid JSON: ${parseError.message}`)
+      }
+
+      // Validate structure
+      if (!parsed.stories || !Array.isArray(parsed.stories)) {
+        throw new Error('Response missing stories array')
+      }
+
+      if (parsed.stories.length !== 3) {
+        throw new Error(`Expected 3 stories, got ${parsed.stories.length}`)
+      }
+
+      // Validate each story has required fields
+      for (const story of parsed.stories) {
+        if (!story.description || !story.hook || !story.bodyOne || !story.bodyTwo || !story.callToAction) {
+          throw new Error('Story missing required fields (description, hook, bodyOne, bodyTwo, callToAction)')
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(parsed),
+          },
+        ],
+      }
+    } catch (error: any) {
+      console.error('[OpenAI MCP] generateAdStories error:', error.message)
       if (error.response) {
         console.error('[OpenAI MCP] API response status:', error.response.status)
         console.error('[OpenAI MCP] API response data:', error.response.data)

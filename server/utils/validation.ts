@@ -96,6 +96,11 @@ export const generateAssetsSchema = z.object({
       model: z.string().optional(), // Video model ID
     }),
   }),
+  frames: z.array(z.object({
+    segmentIndex: z.number(),
+    frameType: z.enum(['first', 'last']),
+    imageUrl: z.string(),
+  })).optional(),
 })
 
 export const composeVideoSchema = z.object({
@@ -111,6 +116,8 @@ export const composeVideoSchema = z.object({
   options: z.object({
     transition: z.enum(['fade', 'dissolve', 'wipe', 'none']),
     musicVolume: z.number().min(0).max(100),
+    backgroundMusicUrl: z.string().url().optional(),
+    aspectRatio: z.enum(['16:9', '9:16', '1:1']).optional(),
   }),
 })
 

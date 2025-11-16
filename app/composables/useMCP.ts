@@ -6,7 +6,7 @@ export const useMCP = () => {
     prompt: string,
     duration: number = 5,
     aspectRatio: string = '16:9',
-    model: string = 'minimax/hailuo-ai-v2.3'
+    model: string = 'google/veo-3-fast'
   ) => {
     return await callReplicateMCP('generate_video', {
       model,

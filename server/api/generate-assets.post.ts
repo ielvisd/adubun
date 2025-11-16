@@ -88,67 +88,6 @@ async function prepareImageInput(filePath: string | undefined | null): Promise<s
   return await uploadFileToReplicate(resolvedPath)
 }
 
-// Helper function to enhance visual prompts for Kling with more specific details
-function enhanceKlingPrompt(basePrompt: string, segmentDescription?: string, segmentIndex?: number, totalSegments?: number): string {
-  // Add specific details to make prompts more realistic and detailed
-  let enhanced = basePrompt
-  
-  // Ensure the prompt emphasizes realistic, natural actions
-  if (!enhanced.toLowerCase().includes('realistic') && !enhanced.toLowerCase().includes('natural')) {
-    enhanced += ', realistic and natural movement'
-  }
-  
-  // Add professional product showcase context to help avoid E005 errors
-  // This emphasizes that the content is commercial/advertising and safe
-  if (!enhanced.toLowerCase().includes('professional product showcase') && 
-      !enhanced.toLowerCase().includes('safe for all audiences')) {
-    enhanced += ', professional product showcase, safe for all audiences'
-  }
-  
-  // Add professional product showcase context if segment description suggests it
-  if (segmentDescription && (segmentDescription.toLowerCase().includes('product') || segmentDescription.toLowerCase().includes('showcase'))) {
-    if (!enhanced.toLowerCase().includes('professional') && !enhanced.toLowerCase().includes('product showcase')) {
-      enhanced += ', professional product showcase'
-    }
-  }
-  
-  // Ensure proper body part connections are implied
-  if (enhanced.toLowerCase().includes('hand') || enhanced.toLowerCase().includes('arm')) {
-    if (!enhanced.toLowerCase().includes('attached') && !enhanced.toLowerCase().includes('connected')) {
-      enhanced += ', showing natural body connections'
-    }
-  }
-  
-  // Product consistency and text preservation enhancements
-  const productKeywords = ['can', 'product', 'bottle', 'package', 'label', 'brand', 'drink', 'energy drink']
-  const hasProduct = productKeywords.some(keyword => 
-    enhanced.toLowerCase().includes(keyword) || 
-    (segmentDescription && segmentDescription.toLowerCase().includes(keyword))
-  )
-  
-  if (hasProduct) {
-    // Add negative guidance to prevent text degradation
-    const negativeGuidance = 'avoid text degradation, blurred text, unreadable labels, distorted product design, text fading, label blur'
-    if (!enhanced.toLowerCase().includes('avoid text degradation') && !enhanced.toLowerCase().includes('blurred text')) {
-      enhanced += `. ${negativeGuidance}`
-    }
-    
-    // Add positive instructions for product consistency
-    const productConsistency = 'maintain clear readable text on product label throughout, keep product design consistent with reference image, preserve brand name and flavor details visibility, ensure product appearance remains stable'
-    if (!enhanced.toLowerCase().includes('maintain clear readable text') && !enhanced.toLowerCase().includes('product design consistent')) {
-      enhanced += `. CRITICAL: ${productConsistency}`
-    }
-  }
-  
-  // Add story continuity instructions for subsequent segments
-  if (segmentIndex !== undefined && segmentIndex > 0 && totalSegments && totalSegments > 1) {
-    if (!enhanced.toLowerCase().includes('continue') && !enhanced.toLowerCase().includes('transition')) {
-      enhanced += ', seamlessly continuing the story from the previous scene, maintaining narrative flow'
-    }
-  }
-  
-  return enhanced
-}
 
 // Helper function to extract VO script from audioNotes
 // Filters out descriptive notes and music cues, returning only the actual script text
@@ -275,7 +214,8 @@ export async function getJob(jobId: string): Promise<GenerationJob | null> {
 }
 
 export default defineEventHandler(async (event) => {
-  const { storyboard } = generateAssetsSchema.parse(await readBody(event))
+  const body = await readBody(event)
+  const { storyboard, frames } = generateAssetsSchema.parse(body)
   const jobId = nanoid()
 
   // Create job
@@ -289,11 +229,34 @@ export default defineEventHandler(async (event) => {
   await saveJob(job)
 
   try {
-    // In demo mode, only process first segment
-    const mode = storyboard.meta.mode || 'demo'
-    const segmentsToProcess = mode === 'demo' 
-      ? storyboard.segments.slice(0, 1)
-      : storyboard.segments
+    // Process all 4 segments (Hook, Body1, Body2, CTA)
+    // No demo mode - always generate all 4 scene videos
+    // Check for demo mode - only process first segment (hook) in demo mode
+    const isDemoMode = storyboard.meta.mode === 'demo'
+    const segmentsToProcess = isDemoMode 
+      ? storyboard.segments.slice(0, 1) // Demo mode: only first segment
+      : storyboard.segments.slice(0, 4) // Production mode: all 4 segments
+    
+    if (isDemoMode) {
+      console.log('[Generate Assets] Demo mode: Only generating video for first scene (hook)')
+    }
+
+    // Map frames to segments for easy lookup
+    const frameMap = new Map<string, { first?: string; last?: string }>()
+    if (frames && Array.isArray(frames)) {
+      for (const frame of frames) {
+        const key = `${frame.segmentIndex}-${frame.frameType}`
+        if (!frameMap.has(String(frame.segmentIndex))) {
+          frameMap.set(String(frame.segmentIndex), {})
+        }
+        const segmentFrames = frameMap.get(String(frame.segmentIndex))!
+        if (frame.frameType === 'first') {
+          segmentFrames.first = frame.imageUrl
+        } else if (frame.frameType === 'last') {
+          segmentFrames.last = frame.imageUrl
+        }
+      }
+    }
 
     // Generate assets sequentially (for frame continuity)
     const assets: Asset[] = []
@@ -301,11 +264,8 @@ export default defineEventHandler(async (event) => {
     let previousFrameImage: string | null = null
     
     console.log(`[Generate Assets] Starting sequential generation of ${segmentsToProcess.length} segments`)
-    console.log(`[Generate Assets] Mode: ${mode}`)
     console.log(`[Generate Assets] Total segments in storyboard: ${storyboard.segments.length}`)
-    if (mode === 'demo' && storyboard.segments.length > 1) {
-      console.warn(`[Generate Assets] WARNING: Demo mode - only processing first segment. ${storyboard.segments.length - 1} segment(s) will be skipped.`)
-    }
+    console.log(`[Generate Assets] Frames provided: ${frames?.length || 0}`)
     
     for (const [idx, segment] of segmentsToProcess.entries()) {
       console.log(`\n[Generate Assets] ===== Starting Segment ${idx + 1}/${segmentsToProcess.length} =====`)
@@ -329,12 +289,15 @@ export default defineEventHandler(async (event) => {
       
       const asset = await (async () => {
       try {
-        // Determine which images to use (segment-specific or global fallback)
-        const firstFrameImage = segment.firstFrameImage || storyboard.meta.firstFrameImage
+        // Determine which images to use
+        // Priority: frame images from generate-frames API > segment-specific > global fallback
+        const segmentFrames = frameMap.get(String(idx))
+        const firstFrameImage = segmentFrames?.first || segment.firstFrameImage || storyboard.meta.firstFrameImage
+        const lastFrameImage = segmentFrames?.last || (segment as any).lastFrame || storyboard.meta.lastFrame
         const subjectReference = segment.subjectReference || storyboard.meta.subjectReference
 
-        // Get model from storyboard meta, default to google/veo-3.1
-        const model = storyboard.meta.model || 'google/veo-3.1'
+        // Get model from storyboard meta, default to google/veo-3-fast
+        const model = storyboard.meta.model || 'google/veo-3-fast'
 
         // Video Generation (Replicate MCP) - use model from storyboard
         // Get the selected prompt (primary or alternative)
@@ -346,11 +309,8 @@ export default defineEventHandler(async (event) => {
           }
         }
         
-        // For Kling, enhance the prompt with more specific details
-        let videoPrompt = selectedPrompt
-        if (model === 'kwaivgi/kling-v2.5-turbo-pro') {
-          videoPrompt = enhanceKlingPrompt(selectedPrompt, segment.description, idx, segmentsToProcess.length)
-        }
+        // Add hold-final-frame instruction for smooth transitions
+        const videoPrompt = `${selectedPrompt} The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene.`
         
         const videoParams: any = {
           model,
@@ -361,13 +321,16 @@ export default defineEventHandler(async (event) => {
 
         // Add image inputs if provided - upload to Replicate and get public URLs
         if (model === 'google/veo-3.1') {
-          // Priority: segment.image > previousFrameImage > storyboard.meta.image
-          if ((segment as any).image) {
-            videoParams.image = await prepareImageInput((segment as any).image)
-            console.log(`[Segment ${idx}] Using segment-specific input image: ${(segment as any).image}`)
+          // Priority: firstFrameImage from frames > previousFrameImage > segment.image > storyboard.meta.image
+          if (firstFrameImage) {
+            videoParams.image = await prepareImageInput(firstFrameImage)
+            console.log(`[Segment ${idx}] Using first frame image from frames API: ${firstFrameImage}`)
           } else if (previousFrameImage) {
             videoParams.image = await prepareImageInput(previousFrameImage)
             console.log(`[Segment ${idx}] Using previous frame for continuity: ${previousFrameImage}`)
+          } else if ((segment as any).image) {
+            videoParams.image = await prepareImageInput((segment as any).image)
+            console.log(`[Segment ${idx}] Using segment-specific input image: ${(segment as any).image}`)
           } else if (storyboard.meta.image) {
             videoParams.image = await prepareImageInput(storyboard.meta.image)
             console.log(`[Segment ${idx}] Using storyboard meta image: ${storyboard.meta.image}`)
@@ -389,8 +352,11 @@ export default defineEventHandler(async (event) => {
             console.log(`[Segment ${idx}] Reference images provided - last_frame will be ignored per Veo documentation`)
           } else {
             // Only set last_frame if reference images are NOT provided
-            // Priority: segment.lastFrame > storyboard.meta.lastFrame
-            if ((segment as any).lastFrame) {
+            // Priority: lastFrameImage from frames > segment.lastFrame > storyboard.meta.lastFrame
+            if (lastFrameImage) {
+              videoParams.last_frame = await prepareImageInput(lastFrameImage)
+              console.log(`[Segment ${idx}] Using last frame image from frames API: ${lastFrameImage}`)
+            } else if ((segment as any).lastFrame) {
               videoParams.last_frame = await prepareImageInput((segment as any).lastFrame)
               console.log(`[Segment ${idx}] Using segment-specific last frame: ${(segment as any).lastFrame}`)
             } else if (storyboard.meta.lastFrame) {
@@ -433,16 +399,19 @@ export default defineEventHandler(async (event) => {
         } else if (model === 'google/veo-3-fast') {
           // Veo 3 Fast only supports: prompt, aspect_ratio, duration, image, negative_prompt, resolution, generate_audio, seed
           // Note: Does NOT support last_frame or reference_images
-          // Priority: segment.image > previousFrameImage > firstFrameImage/subjectReference > storyboard.meta.image
-          if ((segment as any).image) {
-            videoParams.image = await prepareImageInput((segment as any).image)
-            console.log(`[Segment ${idx}] Using segment-specific input image: ${(segment as any).image}`)
+          // Priority: firstFrameImage from frames > previousFrameImage > segment.image > firstFrameImage/subjectReference > storyboard.meta.image
+          if (firstFrameImage) {
+            videoParams.image = await prepareImageInput(firstFrameImage)
+            console.log(`[Segment ${idx}] Using first frame image from frames API: ${firstFrameImage}`)
           } else if (previousFrameImage) {
             videoParams.image = await prepareImageInput(previousFrameImage)
             console.log(`[Segment ${idx}] Using previous frame for continuity: ${previousFrameImage}`)
+          } else if ((segment as any).image) {
+            videoParams.image = await prepareImageInput((segment as any).image)
+            console.log(`[Segment ${idx}] Using segment-specific input image: ${(segment as any).image}`)
           } else {
             // Use segment-specific firstFrameImage or subjectReference, or fall back to global image
-            const imageToUse = firstFrameImage || subjectReference || storyboard.meta.image
+            const imageToUse = subjectReference || storyboard.meta.image
             if (imageToUse) {
               videoParams.image = await prepareImageInput(imageToUse)
             }
@@ -479,47 +448,6 @@ export default defineEventHandler(async (event) => {
           } else if (storyboard.meta.seed !== undefined && storyboard.meta.seed !== null) {
             videoParams.seed = storyboard.meta.seed
           }
-        } else if (model === 'kwaivgi/kling-v2.5-turbo-pro') {
-          // Additional negative guidance for Kling (already included in enhanceKlingPrompt, but add general ones)
-          const generalNegativeGuidance = 'avoid detached body parts, unrealistic actions, abstract visuals, distorted anatomy, floating objects'
-          if (!videoPrompt.toLowerCase().includes('avoid detached') && !videoPrompt.toLowerCase().includes('unrealistic actions')) {
-            videoParams.prompt = `${videoPrompt}. ${generalNegativeGuidance}`
-          } else {
-            videoParams.prompt = videoPrompt
-          }
-          
-          // Product reference image strategy:
-          // - For first segment: Use initial product reference (firstFrameImage, subjectReference, or storyboard.meta.image)
-          // - For subsequent segments: Use BOTH previous frame AND original product reference if available
-          const originalProductReference = firstFrameImage || subjectReference || storyboard.meta.image
-          
-          if (idx === 0) {
-            // First segment: Use original product reference
-            if (originalProductReference) {
-              console.log(`[Segment ${idx}] Preparing original product reference: ${originalProductReference}`)
-              videoParams.image_legacy = await prepareImageInput(originalProductReference)
-              console.log(`[Segment ${idx}] Using original product reference image: ${originalProductReference}`)
-            }
-          } else {
-            // Subsequent segments: Prioritize previous frame for continuity, but note original reference in prompt
-            if (previousFrameImage) {
-              console.log(`[Segment ${idx}] Preparing previous frame for continuity: ${previousFrameImage}`)
-              console.log(`[Segment ${idx}] previousFrameImage type: ${typeof previousFrameImage}, length: ${previousFrameImage?.length}`)
-              videoParams.image_legacy = await prepareImageInput(previousFrameImage)
-              console.log(`[Segment ${idx}] Using previous frame for continuity: ${previousFrameImage}`)
-              
-              // Add instruction to maintain product appearance from original reference
-              if (originalProductReference && !videoParams.prompt.toLowerCase().includes('reference image')) {
-                videoParams.prompt = `${videoParams.prompt}. Maintain product appearance matching the original reference image`
-                console.log(`[Segment ${idx}] Added instruction to maintain product appearance from original reference`)
-              }
-            } else if (originalProductReference) {
-              videoParams.image_legacy = await prepareImageInput(originalProductReference)
-              console.log(`[Segment ${idx}] Using original product reference image (no previous frame): ${originalProductReference}`)
-            }
-          }
-        } else if (model === 'minimax/hailuo-ai-v2.3') {
-          // Hailuo doesn't support image inputs
         }
 
         console.log(`[Segment ${idx}] Calling Replicate MCP generate_video with params:`, JSON.stringify(videoParams, null, 2))
@@ -864,6 +792,7 @@ export default defineEventHandler(async (event) => {
             if (!lastFrameUrl || typeof lastFrameUrl !== 'string') {
               throw new Error(`Invalid frame URL returned: ${typeof lastFrameUrl}`)
             }
+            // Use the extracted frame for continuity
             previousFrameImage = lastFrameUrl
             console.log(`[Segment ${idx}] ✓ Using last frame for next segment continuity`)
             console.log(`[Segment ${idx}] Last frame URL: ${lastFrameUrl}`)

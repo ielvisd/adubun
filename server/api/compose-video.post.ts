@@ -37,12 +37,18 @@ export default defineEventHandler(async (event) => {
   })), null, 2))
   console.log('[Compose Video] Options:', JSON.stringify(options, null, 2))
   
+  // Determine output resolution based on aspect ratio (default to 9:16 for ads)
+  const aspectRatio = options.aspectRatio || '9:16'
+  const outputWidth = aspectRatio === '9:16' ? 1080 : aspectRatio === '16:9' ? 1920 : 1080
+  const outputHeight = aspectRatio === '9:16' ? 1920 : aspectRatio === '16:9' ? 1080 : 1080
+  
   const outputPath = path.join(
     process.env.MCP_FILESYSTEM_ROOT || './data',
     'videos',
     `${nanoid()}.mp4`
   )
   console.log('[Compose Video] Output path:', outputPath)
+  console.log('[Compose Video] Output resolution:', `${outputWidth}x${outputHeight}`)
 
   const tempPaths: string[] = []
 
@@ -81,11 +87,24 @@ export default defineEventHandler(async (event) => {
       hasAudio: !!c.voicePath,
     })), null, 2))
 
+    // Download background music if provided
+    let backgroundMusicPath: string | undefined
+    if (options.backgroundMusicUrl) {
+      console.log('[Compose Video] Downloading background music:', options.backgroundMusicUrl)
+      backgroundMusicPath = await downloadFile(options.backgroundMusicUrl)
+      tempPaths.push(backgroundMusicPath)
+      console.log('[Compose Video] Background music downloaded to:', backgroundMusicPath)
+    }
+
     // Compose video
     console.log('[Compose Video] Starting video composition with FFmpeg...')
     await composeVideo(localClips, {
-      ...options,
+      transition: options.transition,
+      musicVolume: options.musicVolume,
       outputPath,
+      backgroundMusicPath,
+      outputWidth,
+      outputHeight,
     })
     console.log('[Compose Video] Video composition completed')
 
