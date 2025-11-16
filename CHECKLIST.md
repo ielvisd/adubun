@@ -62,7 +62,7 @@ Overall: ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅ 22/5
 ## Phase 2: Keyframe Generation (Week 3-4)
 
 **Goal:** Implement GPT-4o-mini → Seedream pipeline  
-**Progress:** 6/14 tasks
+**Progress:** 10/14 tasks
 
 ### Prompt Enhancement (GPT-4o-mini) (3 tasks)
 - [x] **TASK-013** Add `enhance_composition_prompt` MCP tool | _Backend_ | 6h | TASK-001 ✅
@@ -75,10 +75,10 @@ Overall: ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅ 22/5
 - [x] **TASK-018** Test keyframe quality | _Backend+QA+Design_ | 6h | TASK-017 ✅
 
 ### Keyframe Generator Utility (4 tasks)
-- [ ] **TASK-019** Create `keyframe-generator.ts` | _Backend Lead_ | 10h | TASK-015, 018
-- [ ] **TASK-020** Implement `generateFirstFrame()` | _Backend_ | 6h | TASK-019
-- [ ] **TASK-021** Implement `generateLastFrame()` | _Backend_ | 6h | TASK-020
-- [ ] **TASK-022** Implement frame inheritance | _Backend_ | 4h | TASK-021
+- [x] **TASK-019** Create `keyframe-generator.ts` | _Backend Lead_ | 10h | TASK-015, 018 ✅
+- [x] **TASK-020** Implement `generateFirstFrame()` | _Backend_ | 6h | TASK-019 ✅
+- [x] **TASK-021** Implement `generateLastFrame()` | _Backend_ | 6h | TASK-020 ✅
+- [x] **TASK-022** Implement frame inheritance | _Backend_ | 4h | TASK-021 ✅
 
 ### Keyframe API (2 tasks)
 - [ ] **TASK-023** Create `/api/generate-keyframes` | _Backend Lead_ | 10h | TASK-022
