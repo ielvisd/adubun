@@ -16,6 +16,9 @@ export interface CompositionOptions {
   transition: 'fade' | 'dissolve' | 'wipe' | 'none'
   musicVolume: number
   outputPath: string
+  backgroundMusicPath?: string
+  outputWidth?: number
+  outputHeight?: number
 }
 
 export async function composeVideo(
@@ -26,6 +29,7 @@ export async function composeVideo(
     console.log('[FFmpeg] Starting video composition')
     console.log('[FFmpeg] Clips count:', clips.length)
     console.log('[FFmpeg] Clips with audio:', clips.filter(c => c.voicePath).length)
+    console.log('[FFmpeg] Background music:', options.backgroundMusicPath || 'none')
     console.log('[FFmpeg] Options:', JSON.stringify(options, null, 2))
     
     const command = ffmpeg()
@@ -39,10 +43,21 @@ export async function composeVideo(
       }
     })
 
+    // Add background music if provided
+    if (options.backgroundMusicPath) {
+      console.log(`[FFmpeg] Adding background music: ${options.backgroundMusicPath}`)
+      command.input(options.backgroundMusicPath)
+    }
+
     // Build filter complex
     const filterComplex = buildFilterComplex(clips, options)
     console.log('[FFmpeg] Filter complex:', filterComplex)
     command.complexFilter(filterComplex)
+
+    // Set output resolution (default to 1080×1920 for 9:16)
+    const outputWidth = options.outputWidth || 1080
+    const outputHeight = options.outputHeight || 1920
+    command.size(`${outputWidth}x${outputHeight}`)
 
     // Output settings
     command
@@ -80,10 +95,14 @@ export async function composeVideo(
 function buildFilterComplex(clips: Clip[], options: CompositionOptions): string[] {
   const filters: string[] = []
   
-  // Scale and pad all video inputs
+  // Output resolution (default to 1080×1920 for 9:16)
+  const outputWidth = options.outputWidth || 1080
+  const outputHeight = options.outputHeight || 1920
+  
+  // Scale and pad all video inputs to output resolution
   clips.forEach((clip, idx) => {
     filters.push(
-      `[${idx}:v]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30[v${idx}]`
+      `[${idx}:v]scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=decrease,pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30[v${idx}]`
     )
   })
 
@@ -107,22 +126,37 @@ function buildFilterComplex(clips: Clip[], options: CompositionOptions): string[
   filters.push(`${videoInputs}concat=n=${clips.length}:v=1:a=0[outv]`)
 
   // Audio mixing
+  // Calculate audio input indices:
+  // - Video inputs: 0, 1, 2, 3 (4 clips)
+  // - Voiceover audio: 4, 5, 6, 7 (if voicePath exists for each clip)
+  // - Background music: last input (if provided)
   const audioInputs: string[] = []
+  let audioInputIndex = clips.length // Start after video inputs
+  
+  // Add voiceover audio from clips
   clips.forEach((clip, idx) => {
     if (clip.voicePath) {
-      const audioIdx = clips.length + idx
-      const volume = options.musicVolume / 100
-      console.log(`[FFmpeg] Adding audio input ${idx} from clip ${idx}, audio index ${audioIdx}, volume ${volume}`)
-      filters.push(`[${audioIdx}:a]volume=${volume}[a${idx}]`)
-      audioInputs.push(`[a${idx}]`)
+      const volume = 1.0 // Full volume for voiceover
+      console.log(`[FFmpeg] Adding voiceover audio from clip ${idx}, audio index ${audioInputIndex}, volume ${volume}`)
+      filters.push(`[${audioInputIndex}:a]volume=${volume}[vo${idx}]`)
+      audioInputs.push(`[vo${idx}]`)
+      audioInputIndex++
     } else {
-      console.log(`[FFmpeg] Clip ${idx} has no audio (voicePath missing)`)
+      console.log(`[FFmpeg] Clip ${idx} has no voiceover audio (voicePath missing)`)
     }
   })
 
+  // Add background music if provided
+  if (options.backgroundMusicPath) {
+    const musicVolume = options.musicVolume / 100 // Convert percentage to decimal (0.0-1.0)
+    console.log(`[FFmpeg] Adding background music, audio index ${audioInputIndex}, volume ${musicVolume}`)
+    filters.push(`[${audioInputIndex}:a]volume=${musicVolume},aloop=loop=-1:size=2e+09[bgm]`)
+    audioInputs.push(`[bgm]`)
+  }
+
   if (audioInputs.length > 0) {
-    console.log(`[FFmpeg] Mixing ${audioInputs.length} audio inputs`)
-    filters.push(`${audioInputs.join('')}amix=inputs=${audioInputs.length}:duration=longest[outa]`)
+    console.log(`[FFmpeg] Mixing ${audioInputs.length} audio inputs (voiceover + background music)`)
+    filters.push(`${audioInputs.join('')}amix=inputs=${audioInputs.length}:duration=longest:dropout_transition=2[outa]`)
   } else {
     // No audio, create silent track
     console.log('[FFmpeg] No audio inputs found, creating silent track')

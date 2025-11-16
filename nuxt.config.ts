@@ -8,11 +8,24 @@ export default defineNuxtConfig({
     '@nuxt/ui',
     '@vueuse/nuxt',
     '@nuxt/fonts',
+    '@nuxt/image',
+    '@nuxtjs/color-mode',
   ],
+
+  colorMode: {
+    preference: 'system', // default value of $colorMode.preference
+    fallback: 'light', // fallback value if no preference is stored
+    hid: 'nuxt-color-mode-script',
+    globalName: '__NUXT_COLOR_MODE__',
+    componentName: 'ColorScheme',
+    classPrefix: '',
+    classSuffix: '',
+    storageKey: 'nuxt-color-mode',
+  },
 
   fonts: {
     families: [
-      { name: 'Nunito', provider: 'google' },
+      { name: 'Inter', provider: 'google', weights: [400, 500, 600, 700] },
     ],
   },
 
@@ -33,10 +46,19 @@ export default defineNuxtConfig({
     // Public keys (client-accessible)
     public: {
       appUrl: process.env.APP_URL || 'http://localhost:3000',
+      // Firebase config (public)
+      firebaseApiKey: process.env.FIREBASE_API_KEY || '',
+      firebaseAuthDomain: process.env.FIREBASE_AUTH_DOMAIN || '',
+      firebaseProjectId: process.env.FIREBASE_PROJECT_ID || '',
+      firebaseStorageBucket: process.env.FIREBASE_STORAGE_BUCKET || '',
+      firebaseMessagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || '',
+      firebaseAppId: process.env.FIREBASE_APP_ID || '',
     },
   },
 
   app: {
+    pageTransition: { name: 'page', mode: 'out-in' },
+    layoutTransition: { name: 'layout', mode: 'out-in' },
     head: {
       title: 'AdUbun - AI Video Generation',
       meta: [
@@ -47,4 +69,37 @@ export default defineNuxtConfig({
 
   devtools: { enabled: true },
   typescript: { strict: true },
+  
+  image: {
+    // Use IPX as the default provider for optimization
+    providers: {
+      ipx: {
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      },
+    },
+    // Allow external domains for image optimization
+    domains: [
+      'source.unsplash.com',
+      'unsplash.com',
+      'images.unsplash.com',
+      'lh3.googleusercontent.com',
+      'googleusercontent.com',
+      'encrypted-tbn0.gstatic.com',
+      'encrypted-tbn1.gstatic.com',
+      'encrypted-tbn2.gstatic.com',
+      'encrypted-tbn3.gstatic.com',
+    ],
+    // Default quality and format settings
+    quality: 80,
+    format: ['webp', 'avif'],
+    // Responsive breakpoints
+    screens: {
+      xs: 320,
+      sm: 640,
+      md: 768,
+      lg: 1024,
+      xl: 1280,
+      xxl: 1536,
+    },
+  },
 })

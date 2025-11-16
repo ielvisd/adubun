@@ -36,7 +36,7 @@
         >
           <div class="flex items-center gap-4">
             <div v-if="previews[index]" class="flex-shrink-0">
-              <img :src="previews[index]" alt="Image preview" class="w-20 h-20 object-cover rounded shadow-sm" />
+              <NuxtImg :src="previews[index]" alt="Image preview" class="w-20 h-20 object-cover rounded shadow-sm" />
             </div>
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-gray-700 truncate">

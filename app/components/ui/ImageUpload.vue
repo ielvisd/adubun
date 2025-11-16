@@ -31,7 +31,7 @@
         />
       </div>
       <div v-if="preview" class="mt-4">
-        <img :src="preview" alt="Image preview" class="max-h-40 mx-auto rounded shadow-sm" />
+        <NuxtImg :src="preview" alt="Image preview" class="max-h-40 mx-auto rounded shadow-sm" />
         <UButton
           variant="ghost"
           color="red"

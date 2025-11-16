@@ -74,36 +74,6 @@ class ReplicateMCPServer {
       }
     }
     
-    if (model === 'minimax/hailuo-ai-v2.3') {
-      if (duration < 3) {
-        return 3
-      }
-      if (duration > 10) {
-        return 10
-      }
-      if (duration <= 4) {
-        return 3
-      } else if (duration <= 7.5) {
-        return 5
-      } else {
-        return 10
-      }
-    }
-    
-    if (model === 'kwaivgi/kling-v2.5-turbo-pro') {
-      if (duration < 5) {
-        return 5
-      }
-      if (duration > 10) {
-        return 10
-      }
-      if (duration <= 7.5) {
-        return 5
-      } else {
-        return 10
-      }
-    }
-    
     return duration
   }
 
@@ -112,7 +82,7 @@ class ReplicateMCPServer {
       tools: [
         {
           name: 'generate_video',
-          description: 'Generate video using Replicate models (google/veo-3.1, minimax/hailuo-ai-v2.3, kwaivgi/kling-v2.5-turbo-pro)',
+          description: 'Generate video using Replicate models (google/veo-3.1, google/veo-3-fast)',
           inputSchema: {
             type: 'object',
             properties: {
@@ -166,7 +136,7 @@ class ReplicateMCPServer {
               },
               first_frame_image: {
                 type: 'string',
-                description: 'File path or URL to first frame image for video generation (for Kling and other models).',
+                description: 'File path or URL to first frame image for video generation.',
               },
               subject_reference: {
                 type: 'string',
@@ -174,7 +144,7 @@ class ReplicateMCPServer {
               },
               image_legacy: {
                 type: 'string',
-                description: 'Input image for image-to-video generation (for Kling and other models). File path or URL.',
+                description: 'Input image for image-to-video generation. File path or URL.',
               },
             },
             required: [],
@@ -381,7 +351,7 @@ class ReplicateMCPServer {
       }
       
       // Only add duration if model supports it
-      if (modelId === 'google/veo-3.1' || modelId === 'google/veo-3-fast' || modelId === 'minimax/hailuo-ai-v2.3' || modelId === 'kwaivgi/kling-v2.5-turbo-pro') {
+      if (modelId === 'google/veo-3.1' || modelId === 'google/veo-3-fast') {
         input.duration = roundedDuration
       }
     }
@@ -437,17 +407,6 @@ class ReplicateMCPServer {
       }
       if (seed !== undefined && seed !== null) {
         input.seed = seed
-      }
-    } else if (modelId === 'minimax/hailuo-ai-v2.3') {
-      if (prompt) {
-        input.prompt = prompt
-      }
-    } else if (modelId === 'kwaivgi/kling-v2.5-turbo-pro') {
-      if (prompt) {
-        input.prompt = prompt
-      }
-      if (image || imageLegacy || firstFrameImage) {
-        input.image = image || imageLegacy || firstFrameImage
       }
     } else {
       // Default fallback for unknown models

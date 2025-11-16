@@ -101,9 +101,11 @@ export default defineEventHandler(async (event) => {
     const firstFrameImage = segment.firstFrameImage || storyboard.meta.firstFrameImage
     const subjectReference = segment.subjectReference || storyboard.meta.subjectReference
 
-    // Retry video generation
+    // Retry video generation with hold-final-frame instruction for smooth transitions
+    const videoPrompt = `${segment.visualPrompt} The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene.`
+    
     const videoParams: any = {
-      prompt: segment.visualPrompt,
+      prompt: videoPrompt,
       duration: segment.endTime - segment.startTime,
       aspect_ratio: storyboard.meta.aspectRatio,
     }

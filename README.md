@@ -50,11 +50,36 @@ AdUbun transforms creative production by orchestrating AI models for ad videos, 
    AWS_REGION=us-east-1
    AWS_S3_BUCKET_NAME=your-bucket-name
    AWS_S3_PUBLIC_ACCESS=true
+   
+   # Firebase Configuration (required for authentication)
+   FIREBASE_API_KEY=your_firebase_api_key
+   FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+   FIREBASE_PROJECT_ID=your-project-id
+   FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+   FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+   FIREBASE_APP_ID=your_app_id
    ```
    
    See [docs/S3_SETUP.md](docs/S3_SETUP.md) for detailed S3 setup instructions.
 
-4. **Install FFmpeg** (if not already installed)
+4. **Set up Firebase Authentication**
+   
+   Create a Firebase project:
+   1. Go to [Firebase Console](https://console.firebase.google.com/)
+   2. Click "Add project" and follow the setup wizard
+   3. Enable Authentication:
+      - Go to Authentication → Sign-in method
+      - Enable "Email/Password" provider
+   4. Get your Firebase config:
+      - Go to Project Settings → General
+      - Scroll to "Your apps" section
+      - Click the web icon (`</>`) to add a web app
+      - Copy the Firebase configuration values
+   5. Add the config values to your `.env` file (see step 3)
+   
+   **Note**: In development mode, you can use the "Demo Login" button to bypass authentication for testing purposes.
+
+5. **Install FFmpeg** (if not already installed)
    - macOS: `brew install ffmpeg`
    - Ubuntu/Debian: `sudo apt-get install ffmpeg`
    - Windows: Download from [FFmpeg website](https://ffmpeg.org/download.html)

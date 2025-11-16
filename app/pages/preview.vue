@@ -1,129 +1,243 @@
 <template>
-  <div>
-    <VideoPreview
-      v-if="videoUrl"
-      :video-url="videoUrl"
-      :duration="duration"
-      :cost="cost"
-      :segments="segments"
-    />
+  <div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 sm:py-12">
+    <UContainer class="max-w-4xl px-4 sm:px-6">
+      <!-- Loading State -->
+      <div v-if="loading" class="flex flex-col items-center justify-center py-24">
+        <UIcon name="i-heroicons-arrow-path" class="w-16 h-16 text-secondary-500 animate-spin mb-4" />
+        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-2">Loading Video</h2>
+        <p class="text-gray-600 dark:text-gray-400 text-center">Preparing your ad video...</p>
+      </div>
+
+      <!-- Error State -->
+      <UAlert
+        v-else-if="error"
+        color="red"
+        variant="soft"
+        :title="error"
+        class="mb-6"
+      >
+        <template #actions>
+          <UButton
+            variant="ghost"
+            color="red"
+            @click="$router.push('/history')"
+          >
+            View History
+          </UButton>
+        </template>
+      </UAlert>
+
+      <!-- Video Preview -->
+      <div v-else-if="videoData" class="space-y-6">
+        <div class="text-center mb-8">
+          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            Your Ad is Ready!
+          </h1>
+          <p class="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
+            Review your generated ad video below
+          </p>
+        </div>
+
+        <!-- Video Player -->
+        <UCard class="bg-white dark:bg-gray-800 overflow-hidden">
+          <div class="aspect-[9/16] w-full bg-black flex items-center justify-center">
+            <video
+              v-if="videoData.videoUrl"
+              :src="videoData.videoUrl"
+              controls
+              class="w-full h-full object-contain"
+              preload="metadata"
+            >
+              Your browser does not support the video tag.
+            </video>
+            <div v-else class="text-white text-center p-8">
+              <UIcon name="i-heroicons-video-camera" class="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <p>Video not available</p>
+            </div>
+          </div>
+        </UCard>
+
+        <!-- Download Button -->
+        <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
+          <UButton
+            v-if="videoData.videoUrl"
+            color="secondary"
+            variant="solid"
+            size="lg"
+            @click="downloadVideo"
+            class="bg-secondary-500 hover:bg-secondary-600 text-white font-semibold min-h-[44px]"
+          >
+            <UIcon name="i-heroicons-arrow-down-tray" class="w-5 h-5 mr-2" />
+            Download Video
+          </UButton>
+          <UButton
+            variant="outline"
+            color="gray"
+            size="lg"
+            @click="$router.push('/history')"
+            class="min-h-[44px]"
+          >
+            View History
+          </UButton>
+        </div>
+
+        <!-- Storyboard Summary -->
+        <UCard v-if="videoData.storyboard" class="bg-white dark:bg-gray-800">
+          <template #header>
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Storyboard Summary</h2>
+          </template>
+
+          <div class="space-y-4">
+            <div
+              v-for="(segment, index) in videoData.storyboard.segments"
+              :key="index"
+              class="border-l-2 border-secondary-500 pl-4 py-2"
+            >
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-sm font-semibold text-gray-900 dark:text-white uppercase">
+                  {{ segment.type === 'hook' ? 'Hook' : segment.type === 'cta' ? 'Call to Action' : `Body ${index === 1 ? '1' : '2'}` }}
+                </span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ segment.startTime }}s - {{ segment.endTime }}s
+                </span>
+              </div>
+              <p class="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                {{ segment.description }}
+              </p>
+              <p class="text-xs text-gray-500 dark:text-gray-400 italic">
+                {{ segment.visualPrompt }}
+              </p>
+            </div>
+          </div>
+        </UCard>
+
+        <!-- Voiceover Script -->
+        <UCard v-if="videoData.voiceoverScript" class="bg-white dark:bg-gray-800">
+          <template #header>
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Voiceover Script</h2>
+          </template>
+
+          <div class="space-y-3">
+            <p class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">
+              {{ videoData.voiceoverScript }}
+            </p>
+            <div
+              v-if="videoData.voiceoverSegments && videoData.voiceoverSegments.length > 0"
+              class="space-y-2 pt-3 border-t border-gray-200 dark:border-gray-700"
+            >
+              <div
+                v-for="(seg, index) in videoData.voiceoverSegments"
+                :key="index"
+                class="text-xs"
+              >
+                <span class="font-semibold text-gray-900 dark:text-white">
+                  {{ seg.type === 'hook' ? 'Hook' : seg.type === 'cta' ? 'CTA' : `Body ${index === 1 ? '1' : '2'}` }}:
+                </span>
+                <span class="text-gray-600 dark:text-gray-400 ml-2">{{ seg.script }}</span>
+              </div>
+            </div>
+          </div>
+        </UCard>
+      </div>
+    </UContainer>
   </div>
 </template>
 
 <script setup lang="ts">
+import type { Storyboard } from '~/types/generation'
+
+definePageMeta({
+  middleware: 'auth',
+})
+
 const route = useRoute()
+const router = useRouter()
+const toast = useToast()
 
-const videoUrl = ref('')
-const duration = ref(30)
-const cost = ref(0)
-const segments = ref<Array<{
-  segmentId: number
-  type: string
-  audioNotes: string
-  voiceUrl: string
-  startTime: number
-  endTime: number
-}>>([])
+const loading = ref(true)
+const error = ref<string | null>(null)
+const videoData = ref<{
+  videoUrl: string
+  storyboard?: Storyboard
+  voiceoverScript?: string
+  voiceoverSegments?: Array<{ type: string; script: string }>
+  duration?: number
+  cost?: number
+} | null>(null)
 
-// Load video data from sessionStorage or fallback to query params
-onMounted(() => {
-  console.log('[Preview] Page mounted')
-  console.log('[Preview] Route query:', JSON.stringify(route.query, null, 2))
-  console.log('[Preview] Route params:', JSON.stringify(route.params, null, 2))
-  
+onMounted(async () => {
+  // Load video data from sessionStorage or route params
   if (process.client) {
     try {
-      // Try to load from sessionStorage first (new flow)
-      const storedVideoData = sessionStorage.getItem('videoPreview')
-      
-      if (storedVideoData) {
-        const videoData = JSON.parse(storedVideoData)
-        console.log('[Preview] Video data loaded from sessionStorage:', JSON.stringify(videoData, null, 2))
-        
-        videoUrl.value = videoData.videoUrl || ''
-        duration.value = videoData.duration || 30
-        cost.value = videoData.cost || 0
-        segments.value = videoData.segments || []
-        
-        console.log('[Preview] Extracted videoUrl:', videoUrl.value)
-        console.log('[Preview] Extracted duration:', duration.value)
-        console.log('[Preview] Extracted cost:', cost.value)
-        console.log('[Preview] Segments with audio:', segments.value.length)
-        console.log('[Preview] Segments details:', JSON.stringify(segments.value, null, 2))
-        
-        // Validate videoUrl
-        if (!videoUrl.value) {
-          console.error('[Preview] WARNING: videoUrl is empty in stored data')
+      const storedData = sessionStorage.getItem('videoResult')
+      if (storedData) {
+        const data = JSON.parse(storedData)
+        videoData.value = {
+          videoUrl: data.videoUrl || '',
+          storyboard: data.storyboard,
+          voiceoverScript: data.voiceoverScript || data.script,
+          voiceoverSegments: data.voiceoverSegments || data.segments,
+          duration: data.duration,
+          cost: data.cost,
         }
-        
-        // Validate segments
-        if (segments.value.length === 0) {
-          console.warn('[Preview] WARNING: No segments with audio found')
-        } else {
-          segments.value.forEach((seg: any, idx: number) => {
-            if (!seg.audioNotes) {
-              console.warn(`[Preview] WARNING: Segment ${idx} missing audioNotes`)
-            }
-            if (!seg.voiceUrl) {
-              console.warn(`[Preview] WARNING: Segment ${idx} missing voiceUrl`)
-            }
-          })
+        sessionStorage.removeItem('videoResult')
+      } else if (route.query.videoId) {
+        // Load from API if videoId is provided
+        try {
+          const result = await $fetch(`/api/video/${route.query.videoId}`)
+          videoData.value = {
+            videoUrl: result.url || '',
+            storyboard: result.storyboard,
+            voiceoverScript: result.voiceoverScript,
+            voiceoverSegments: result.voiceoverSegments,
+            duration: result.duration,
+            cost: result.generationCost,
+          }
+        } catch (err: any) {
+          error.value = err.data?.message || err.message || 'Failed to load video'
         }
-        
-        // Clear sessionStorage after reading to avoid stale data
-        sessionStorage.removeItem('videoPreview')
-        console.log('[Preview] SessionStorage cleared')
       } else {
-        // Fallback to query params (backward compatibility)
-        console.log('[Preview] No sessionStorage data, checking query params')
-        videoUrl.value = (route.query?.videoUrl as string) || ''
-        duration.value = route.query?.duration ? Number(route.query.duration) : 30
-        cost.value = route.query?.cost ? Number(route.query.cost) : 0
-        
-        // If we have videoId but no videoUrl, construct the URL
-        if (!videoUrl.value && route.query?.videoId) {
-          videoUrl.value = `/api/watch/${route.query.videoId}`
-          console.log('[Preview] Constructed videoUrl from videoId:', videoUrl.value)
-        }
+        error.value = 'No video data found'
       }
-      
-      // Ensure videoUrl is a full URL if it's a relative path
-      if (videoUrl.value && !videoUrl.value.startsWith('http') && !videoUrl.value.startsWith('/')) {
-        console.warn('[Preview] VideoUrl is not a valid URL or path:', videoUrl.value)
-        const videoId = route.query?.videoId as string || ''
-        if (videoId) {
-          videoUrl.value = `/api/watch/${videoId}`
-          console.log('[Preview] Converted videoUrl to:', videoUrl.value)
-        }
-      } else if (videoUrl.value && videoUrl.value.startsWith('/api/')) {
-        console.log('[Preview] VideoUrl is already an API path:', videoUrl.value)
-      }
-      
-      console.log('[Preview] Final videoUrl:', videoUrl.value)
-      console.log('[Preview] Final duration:', duration.value)
-      console.log('[Preview] Final cost:', cost.value)
-      console.log('[Preview] Final segments count:', segments.value.length)
-      
-      if (!videoUrl.value) {
-        console.error('[Preview] ERROR: No videoUrl found, redirecting to home')
-        const toast = useToast()
-        toast.add({
-          title: 'Video not found',
-          description: 'Unable to load video. Please try generating again.',
-          color: 'error',
-        })
-        navigateTo('/')
-      } else {
-        console.log('[Preview] Video URL is valid, proceeding to display')
-        if (segments.value.length > 0) {
-          console.log('[Preview] Audio segments will be displayed:', segments.value.length)
-        }
-      }
-    } catch (error) {
-      console.error('[Preview] Failed to load video data:', error)
-      navigateTo('/')
+      loading.value = false
+    } catch (err: any) {
+      console.error('Error loading video data:', err)
+      error.value = err.message || 'Failed to load video data'
+      loading.value = false
     }
   }
 })
-</script>
 
+const downloadVideo = async () => {
+  if (!videoData.value?.videoUrl) {
+    toast.add({
+      title: 'Error',
+      description: 'Video URL not available',
+      color: 'red',
+    })
+    return
+  }
+
+  try {
+    // Create a temporary anchor element to trigger download
+    const link = document.createElement('a')
+    link.href = videoData.value.videoUrl
+    link.download = `adubun-ad-${Date.now()}.mp4`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    toast.add({
+      title: 'Download Started',
+      description: 'Your video download has started',
+      color: 'green',
+    })
+  } catch (err: any) {
+    toast.add({
+      title: 'Download Error',
+      description: err.message || 'Failed to download video',
+      color: 'red',
+    })
+  }
+}
+</script>
