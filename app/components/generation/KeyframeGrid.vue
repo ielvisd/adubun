@@ -1,6 +1,6 @@
 <template>
-  <div class="keyframe-grid">
-    <div class="keyframe-grid-header">
+  <div class="space-y-4">
+    <div class="flex items-start justify-between gap-4 pb-4 border-b border-gray-200">
       <div>
         <h3 class="text-lg font-semibold text-gray-900">Keyframe Gallery</h3>
         <p class="text-sm text-gray-500 mt-1">
@@ -8,7 +8,7 @@
         </p>
       </div>
       
-      <div class="keyframe-grid-actions">
+      <div class="flex items-center gap-2">
         <UButton 
           v-if="onGenerateAll && hasUngenerated"
           size="sm" 
@@ -33,10 +33,10 @@
     </div>
 
     <!-- Progress bar -->
-    <div v-if="showProgress" class="keyframe-progress">
-      <div class="progress-bar-container">
+    <div v-if="showProgress" class="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+      <div class="flex-1 h-2 bg-blue-100 rounded-full overflow-hidden">
         <div 
-          class="progress-bar" 
+          class="h-full bg-blue-500 transition-all duration-300 ease-out" 
           :style="{ width: `${progressPercentage}%` }"
         />
       </div>
@@ -44,13 +44,13 @@
     </div>
 
     <!-- Grid view -->
-    <div class="keyframe-grid-content" :class="gridLayoutClass">
+    <div :class="layout === 'compact' ? 'space-y-4' : 'space-y-6'">
       <div 
         v-for="(segment, segmentIndex) in segments" 
         :key="`segment-${segmentIndex}`"
-        class="segment-keyframes"
+        class="space-y-3"
       >
-        <div class="segment-header">
+        <div class="flex items-center justify-between">
           <h4 class="text-sm font-semibold text-gray-700">
             {{ getSegmentLabel(segment.type, segmentIndex) }}
           </h4>
@@ -59,7 +59,7 @@
           </span>
         </div>
 
-        <div class="keyframe-pair">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <!-- First frame -->
           <KeyframePreview
             type="first"
@@ -74,7 +74,7 @@
               generatedAt: segment.keyframesGeneratedAt,
               predictionId: segment.firstFramePredictionId,
             }"
-            :on-retry="() => onRetrySegment(segmentIndex, 'first')"
+            :on-retry="() => onRetrySegment?.(segmentIndex, 'first')"
           />
 
           <!-- Last frame -->
@@ -91,14 +91,14 @@
               generatedAt: segment.keyframesGeneratedAt,
               predictionId: segment.lastFramePredictionId,
             }"
-            :on-retry="() => onRetrySegment(segmentIndex, 'last')"
+            :on-retry="() => onRetrySegment?.(segmentIndex, 'last')"
           />
         </div>
       </div>
     </div>
 
     <!-- Empty state -->
-    <div v-if="segments.length === 0" class="keyframe-empty">
+    <div v-if="segments.length === 0" class="flex flex-col items-center justify-center py-12 text-center">
       <UIcon name="i-heroicons-photo" class="text-4xl text-gray-400" />
       <h4 class="text-base font-semibold text-gray-700 mt-3">No Segments Yet</h4>
       <p class="text-sm text-gray-500 mt-1">
@@ -162,10 +162,6 @@ const hasUngenerated = computed(() => {
   )
 })
 
-const gridLayoutClass = computed(() => {
-  return props.layout === 'compact' ? 'grid-compact' : 'grid-comfortable'
-})
-
 // Helper functions
 function getSegmentLabel(type: 'hook' | 'body' | 'cta', index: number): string {
   const labels = {
@@ -176,58 +172,4 @@ function getSegmentLabel(type: 'hook' | 'body' | 'cta', index: number): string {
   return `${labels[type]} ${index + 1}`
 }
 </script>
-
-<style scoped>
-.keyframe-grid {
-  @apply space-y-4;
-}
-
-.keyframe-grid-header {
-  @apply flex items-start justify-between gap-4 pb-4 border-b border-gray-200;
-}
-
-.keyframe-grid-actions {
-  @apply flex items-center gap-2;
-}
-
-.keyframe-progress {
-  @apply flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200;
-}
-
-.progress-bar-container {
-  @apply flex-1 h-2 bg-blue-100 rounded-full overflow-hidden;
-}
-
-.progress-bar {
-  @apply h-full bg-blue-500 transition-all duration-300 ease-out;
-}
-
-.keyframe-grid-content {
-  @apply space-y-6;
-}
-
-.keyframe-grid-content.grid-comfortable {
-  @apply space-y-6;
-}
-
-.keyframe-grid-content.grid-compact {
-  @apply space-y-4;
-}
-
-.segment-keyframes {
-  @apply space-y-3;
-}
-
-.segment-header {
-  @apply flex items-center justify-between;
-}
-
-.keyframe-pair {
-  @apply grid grid-cols-1 md:grid-cols-2 gap-4;
-}
-
-.keyframe-empty {
-  @apply flex flex-col items-center justify-center py-12 text-center;
-}
-</style>
 

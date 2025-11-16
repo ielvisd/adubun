@@ -1,25 +1,26 @@
 <template>
-  <div class="story-selector">
-    <div class="story-selector-header">
+  <div class="space-y-4">
+    <div class="pb-4 border-b border-gray-200">
       <h3 class="text-lg font-semibold text-gray-900">Choose Your Story</h3>
       <p class="text-sm text-gray-600 mt-1">
         Select one of {{ stories.length}} AI-generated story narratives for your video
       </p>
     </div>
 
-    <div class="story-options" :class="{ 'is-loading': isLoading }">
+    <div class="space-y-4" :class="{ 'opacity-50 pointer-events-none': isLoading }">
       <div 
         v-for="story in stories" 
         :key="story.id"
-        class="story-option"
-        :class="{ 
-          'is-selected': selectedStoryId === story.id,
-          'is-recommended': story.id === recommendedId 
+        class="relative flex gap-4 p-5 border-2 rounded-lg cursor-pointer transition-all bg-white hover:border-gray-300 hover:shadow-sm"
+        :class="{
+          'border-green-500 bg-green-50': selectedStoryId === story.id,
+          'border-blue-300': story.id === recommendedId && selectedStoryId !== story.id,
+          'border-gray-200': story.id !== recommendedId && selectedStoryId !== story.id
         }"
         @click="handleSelect(story)"
       >
         <!-- Selection indicator -->
-        <div class="story-selection-indicator">
+        <div class="flex-shrink-0 pt-0.5">
           <UIcon 
             v-if="selectedStoryId === story.id" 
             name="i-heroicons-check-circle-solid" 
@@ -33,10 +34,10 @@
         </div>
 
         <!-- Story content -->
-        <div class="story-content">
+        <div class="flex-1 space-y-3">
           <!-- Header -->
-          <div class="story-header">
-            <h4 class="story-title">
+          <div class="flex items-start justify-between gap-3">
+            <h4 class="text-base font-semibold text-gray-900">
               {{ story.title }}
             </h4>
             <UBadge 
@@ -50,43 +51,43 @@
           </div>
 
           <!-- Narrative -->
-          <p class="story-narrative">
+          <p class="text-sm text-gray-700 leading-relaxed">
             {{ story.narrative }}
           </p>
 
           <!-- Emotional arc -->
-          <div class="story-meta">
-            <div class="meta-item">
-              <span class="meta-label">Emotional Arc:</span>
-              <span class="meta-value">{{ story.emotionalArc }}</span>
+          <div class="flex flex-wrap gap-4 text-xs">
+            <div class="flex gap-1.5">
+              <span class="font-medium text-gray-500">Emotional Arc:</span>
+              <span class="text-gray-700">{{ story.emotionalArc }}</span>
             </div>
-            <div class="meta-item">
-              <span class="meta-label">Target Audience:</span>
-              <span class="meta-value">{{ story.targetAudience }}</span>
+            <div class="flex gap-1.5">
+              <span class="font-medium text-gray-500">Target Audience:</span>
+              <span class="text-gray-700">{{ story.targetAudience }}</span>
             </div>
           </div>
 
           <!-- Key beats -->
-          <div v-if="expandedStoryId === story.id" class="story-details">
-            <div class="story-detail-section">
-              <h5 class="detail-title">Key Story Beats</h5>
-              <ul class="beat-list">
-                <li v-for="(beat, index) in story.keyBeats" :key="index" class="beat-item">
-                  <UIcon name="i-heroicons-check" class="beat-icon" />
+          <div v-if="expandedStoryId === story.id" class="space-y-3 pt-3 border-t border-gray-200">
+            <div class="space-y-2">
+              <h5 class="text-sm font-semibold text-gray-800">Key Story Beats</h5>
+              <ul class="space-y-1.5">
+                <li v-for="(beat, index) in story.keyBeats" :key="index" class="flex items-start gap-2 text-sm text-gray-700">
+                  <UIcon name="i-heroicons-check" class="text-green-600 flex-shrink-0 mt-0.5" />
                   <span>{{ beat }}</span>
                 </li>
               </ul>
             </div>
 
-            <div class="story-detail-section">
-              <h5 class="detail-title">Why This Story Works</h5>
-              <p class="detail-text">{{ story.rationale }}</p>
+            <div class="space-y-2">
+              <h5 class="text-sm font-semibold text-gray-800">Why This Story Works</h5>
+              <p class="text-sm text-gray-600 leading-relaxed">{{ story.rationale }}</p>
             </div>
           </div>
 
           <!-- Expand/Collapse toggle -->
           <button 
-            class="story-expand-button"
+            class="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
             @click.stop="toggleExpand(story.id)"
           >
             <span v-if="expandedStoryId === story.id">
@@ -103,13 +104,13 @@
     </div>
 
     <!-- Loading state -->
-    <div v-if="isLoading" class="story-loading">
+    <div v-if="isLoading" class="flex flex-col items-center justify-center py-12 text-center">
       <UIcon name="i-heroicons-arrow-path" class="animate-spin text-2xl text-blue-600" />
       <p class="text-sm text-gray-600 mt-2">Generating story options...</p>
     </div>
 
     <!-- Empty state -->
-    <div v-if="!isLoading && stories.length === 0" class="story-empty">
+    <div v-if="!isLoading && stories.length === 0" class="flex flex-col items-center justify-center py-12 text-center">
       <UIcon name="i-heroicons-light-bulb" class="text-4xl text-gray-400" />
       <h4 class="text-base font-semibold text-gray-700 mt-3">No Stories Yet</h4>
       <p class="text-sm text-gray-500 mt-1">
@@ -118,7 +119,7 @@
     </div>
 
     <!-- Action buttons -->
-    <div v-if="!isLoading && stories.length > 0" class="story-actions">
+    <div v-if="!isLoading && stories.length > 0" class="flex items-center justify-between gap-3 pt-4 border-t border-gray-200">
       <UButton 
         v-if="onRegenerateStories"
         variant="soft" 
@@ -196,119 +197,4 @@ function toggleExpand(storyId: number) {
   expandedStoryId.value = expandedStoryId.value === storyId ? null : storyId
 }
 </script>
-
-<style scoped>
-.story-selector {
-  @apply space-y-4;
-}
-
-.story-selector-header {
-  @apply pb-4 border-b border-gray-200;
-}
-
-.story-options {
-  @apply space-y-4;
-}
-
-.story-options.is-loading {
-  @apply opacity-50 pointer-events-none;
-}
-
-.story-option {
-  @apply relative flex gap-4 p-5 border-2 border-gray-200 rounded-lg cursor-pointer transition-all bg-white;
-}
-
-.story-option:hover {
-  @apply border-gray-300 shadow-sm;
-}
-
-.story-option.is-selected {
-  @apply border-green-500 bg-green-50;
-}
-
-.story-option.is-recommended {
-  @apply border-blue-300;
-}
-
-.story-option.is-selected.is-recommended {
-  @apply border-green-500;
-}
-
-.story-selection-indicator {
-  @apply flex-shrink-0 pt-0.5;
-}
-
-.story-content {
-  @apply flex-1 space-y-3;
-}
-
-.story-header {
-  @apply flex items-start justify-between gap-3;
-}
-
-.story-title {
-  @apply text-base font-semibold text-gray-900;
-}
-
-.story-narrative {
-  @apply text-sm text-gray-700 leading-relaxed;
-}
-
-.story-meta {
-  @apply flex flex-wrap gap-4 text-xs;
-}
-
-.meta-item {
-  @apply flex gap-1.5;
-}
-
-.meta-label {
-  @apply font-medium text-gray-500;
-}
-
-.meta-value {
-  @apply text-gray-700;
-}
-
-.story-details {
-  @apply space-y-3 pt-3 border-t border-gray-200;
-}
-
-.story-detail-section {
-  @apply space-y-2;
-}
-
-.detail-title {
-  @apply text-sm font-semibold text-gray-800;
-}
-
-.detail-text {
-  @apply text-sm text-gray-600 leading-relaxed;
-}
-
-.beat-list {
-  @apply space-y-1.5;
-}
-
-.beat-item {
-  @apply flex items-start gap-2 text-sm text-gray-700;
-}
-
-.beat-icon {
-  @apply text-green-600 flex-shrink-0 mt-0.5;
-}
-
-.story-expand-button {
-  @apply flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors;
-}
-
-.story-loading,
-.story-empty {
-  @apply flex flex-col items-center justify-center py-12 text-center;
-}
-
-.story-actions {
-  @apply flex items-center justify-between gap-3 pt-4 border-t border-gray-200;
-}
-</style>
 

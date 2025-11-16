@@ -1,21 +1,24 @@
 <template>
-  <div class="story-comparison">
-    <div class="comparison-header">
+  <div class="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+    <div class="pb-3 border-b border-gray-300">
       <h4 class="text-base font-semibold text-gray-900">Story Comparison</h4>
       <p class="text-xs text-gray-500 mt-1">Compare key differences between story options</p>
     </div>
 
-    <div class="comparison-grid">
+    <div class="space-y-2">
       <!-- Story column headers -->
-      <div class="comparison-row comparison-header-row">
-        <div class="comparison-label-cell">
+      <div 
+        class="grid gap-3 pb-2 border-b border-gray-300" 
+        style="grid-template-columns: 150px repeat(auto-fit, minmax(0, 1fr))"
+      >
+        <div class="flex items-center gap-2 text-sm font-medium text-gray-700 py-2">
           <span class="text-xs font-semibold text-gray-600">Story</span>
         </div>
         <div 
           v-for="story in stories" 
           :key="`header-${story.id}`"
-          class="comparison-story-cell"
-          :class="{ 'is-selected': selectedStoryId === story.id }"
+          class="flex flex-col gap-1 p-3 bg-white rounded border"
+          :class="selectedStoryId === story.id ? 'bg-green-50 border-green-300' : 'border-gray-200'"
         >
           <span class="text-sm font-semibold">Story {{ story.id }}</span>
           <UBadge 
@@ -30,76 +33,88 @@
       </div>
 
       <!-- Title row -->
-      <div class="comparison-row">
-        <div class="comparison-label-cell">
+      <div 
+        class="grid gap-3" 
+        style="grid-template-columns: 150px repeat(auto-fit, minmax(0, 1fr))"
+      >
+        <div class="flex items-center gap-2 text-sm font-medium text-gray-700 py-2">
           <UIcon name="i-heroicons-bookmark" class="text-gray-500" />
           <span>Title</span>
         </div>
         <div 
           v-for="story in stories" 
           :key="`title-${story.id}`"
-          class="comparison-story-cell"
-          :class="{ 'is-selected': selectedStoryId === story.id }"
+          class="flex flex-col gap-1 p-3 bg-white rounded border"
+          :class="selectedStoryId === story.id ? 'bg-green-50 border-green-300' : 'border-gray-200'"
         >
-          <span class="cell-value">{{ story.title }}</span>
+          <span class="text-sm text-gray-800">{{ story.title }}</span>
         </div>
       </div>
 
       <!-- Emotional Arc row -->
-      <div class="comparison-row">
-        <div class="comparison-label-cell">
+      <div 
+        class="grid gap-3" 
+        style="grid-template-columns: 150px repeat(auto-fit, minmax(0, 1fr))"
+      >
+        <div class="flex items-center gap-2 text-sm font-medium text-gray-700 py-2">
           <UIcon name="i-heroicons-heart" class="text-gray-500" />
           <span>Emotional Arc</span>
         </div>
         <div 
           v-for="story in stories" 
           :key="`arc-${story.id}`"
-          class="comparison-story-cell"
-          :class="{ 'is-selected': selectedStoryId === story.id }"
+          class="flex flex-col gap-1 p-3 bg-white rounded border"
+          :class="selectedStoryId === story.id ? 'bg-green-50 border-green-300' : 'border-gray-200'"
         >
-          <span class="cell-value">{{ story.emotionalArc }}</span>
-          <div class="arc-visualization">
+          <span class="text-sm text-gray-800">{{ story.emotionalArc }}</span>
+          <div class="flex gap-1 mt-2">
             <div 
               v-for="(_, index) in 5" 
               :key="index"
-              class="arc-dot"
-              :class="getArcLevel(story.emotionalArc, index)"
+              class="w-2 h-2 rounded-full"
+              :class="getArcLevel(story.emotionalArc, index) ? 'bg-blue-500' : 'bg-gray-200'"
             />
           </div>
         </div>
       </div>
 
       <!-- Target Audience row -->
-      <div class="comparison-row">
-        <div class="comparison-label-cell">
+      <div 
+        class="grid gap-3" 
+        style="grid-template-columns: 150px repeat(auto-fit, minmax(0, 1fr))"
+      >
+        <div class="flex items-center gap-2 text-sm font-medium text-gray-700 py-2">
           <UIcon name="i-heroicons-user-group" class="text-gray-500" />
           <span>Target Audience</span>
         </div>
         <div 
           v-for="story in stories" 
           :key="`audience-${story.id}`"
-          class="comparison-story-cell"
-          :class="{ 'is-selected': selectedStoryId === story.id }"
+          class="flex flex-col gap-1 p-3 bg-white rounded border"
+          :class="selectedStoryId === story.id ? 'bg-green-50 border-green-300' : 'border-gray-200'"
         >
-          <span class="cell-value">{{ story.targetAudience }}</span>
+          <span class="text-sm text-gray-800">{{ story.targetAudience }}</span>
         </div>
       </div>
 
       <!-- Key Beats count row -->
-      <div class="comparison-row">
-        <div class="comparison-label-cell">
+      <div 
+        class="grid gap-3" 
+        style="grid-template-columns: 150px repeat(auto-fit, minmax(0, 1fr))"
+      >
+        <div class="flex items-center gap-2 text-sm font-medium text-gray-700 py-2">
           <UIcon name="i-heroicons-list-bullet" class="text-gray-500" />
           <span>Story Beats</span>
         </div>
         <div 
           v-for="story in stories" 
           :key="`beats-${story.id}`"
-          class="comparison-story-cell"
-          :class="{ 'is-selected': selectedStoryId === story.id }"
+          class="flex flex-col gap-1 p-3 bg-white rounded border"
+          :class="selectedStoryId === story.id ? 'bg-green-50 border-green-300' : 'border-gray-200'"
         >
-          <span class="cell-value font-semibold">{{ story.keyBeats.length }} beats</span>
-          <div class="beats-preview">
-            <div v-for="(beat, index) in story.keyBeats.slice(0, 2)" :key="index" class="beat-preview">
+          <span class="text-sm text-gray-800 font-semibold">{{ story.keyBeats.length }} beats</span>
+          <div class="mt-2 space-y-1 text-xs text-gray-600">
+            <div v-for="(beat, index) in story.keyBeats.slice(0, 2)" :key="index" class="truncate">
               {{ truncate(beat, 30) }}
             </div>
             <div v-if="story.keyBeats.length > 2" class="text-xs text-gray-400">
@@ -110,18 +125,21 @@
       </div>
 
       <!-- Narrative approach (analysis) row -->
-      <div class="comparison-row">
-        <div class="comparison-label-cell">
+      <div 
+        class="grid gap-3" 
+        style="grid-template-columns: 150px repeat(auto-fit, minmax(0, 1fr))"
+      >
+        <div class="flex items-center gap-2 text-sm font-medium text-gray-700 py-2">
           <UIcon name="i-heroicons-sparkles" class="text-gray-500" />
           <span>Approach</span>
         </div>
         <div 
           v-for="story in stories" 
           :key="`approach-${story.id}`"
-          class="comparison-story-cell"
-          :class="{ 'is-selected': selectedStoryId === story.id }"
+          class="flex flex-col gap-1 p-3 bg-white rounded border"
+          :class="selectedStoryId === story.id ? 'bg-green-50 border-green-300' : 'border-gray-200'"
         >
-          <div class="approach-tags">
+          <div class="flex flex-wrap gap-1">
             <UBadge 
               v-for="tag in analyzeApproach(story)" 
               :key="tag"
@@ -136,20 +154,23 @@
       </div>
 
       <!-- Length indicator row -->
-      <div class="comparison-row">
-        <div class="comparison-label-cell">
+      <div 
+        class="grid gap-3" 
+        style="grid-template-columns: 150px repeat(auto-fit, minmax(0, 1fr))"
+      >
+        <div class="flex items-center gap-2 text-sm font-medium text-gray-700 py-2">
           <UIcon name="i-heroicons-bars-3" class="text-gray-500" />
           <span>Narrative Length</span>
         </div>
         <div 
           v-for="story in stories" 
           :key="`length-${story.id}`"
-          class="comparison-story-cell"
-          :class="{ 'is-selected': selectedStoryId === story.id }"
+          class="flex flex-col gap-1 p-3 bg-white rounded border"
+          :class="selectedStoryId === story.id ? 'bg-green-50 border-green-300' : 'border-gray-200'"
         >
-          <div class="length-bar">
+          <div class="h-2 bg-gray-200 rounded-full overflow-hidden mt-1">
             <div 
-              class="length-fill" 
+              class="h-full bg-blue-500 transition-all" 
               :style="{ width: `${getLengthPercentage(story)}%` }"
             />
           </div>
@@ -159,14 +180,14 @@
     </div>
 
     <!-- Key differences summary -->
-    <div v-if="keyDifferences.length > 0" class="comparison-summary">
-      <h5 class="summary-title">
+    <div v-if="keyDifferences.length > 0" class="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
+      <h5 class="flex items-center gap-2 text-sm font-semibold text-blue-900 mb-2">
         <UIcon name="i-heroicons-light-bulb" />
         Key Differences
       </h5>
-      <ul class="summary-list">
-        <li v-for="(diff, index) in keyDifferences" :key="index" class="summary-item">
-          <UIcon name="i-heroicons-arrow-right" class="summary-icon" />
+      <ul class="space-y-1">
+        <li v-for="(diff, index) in keyDifferences" :key="index" class="flex items-start gap-2 text-sm text-blue-800">
+          <UIcon name="i-heroicons-arrow-right" class="flex-shrink-0 mt-0.5 text-blue-600" />
           <span>{{ diff }}</span>
         </li>
       </ul>
@@ -193,20 +214,20 @@ function truncate(text: string, maxLength: number): string {
 }
 
 // Helper: Get emotional arc visualization level
-function getArcLevel(emotionalArc: string, index: number): string {
+function getArcLevel(emotionalArc: string, index: number): boolean {
   const arc = emotionalArc.toLowerCase()
   
   // Simple heuristic: map common emotional arcs to patterns
   if (arc.includes('tension')) {
-    return index <= 3 ? 'arc-active' : ''
+    return index <= 3
   } else if (arc.includes('excitement') || arc.includes('joy')) {
-    return index <= 4 ? 'arc-active' : ''
+    return index <= 4
   } else if (arc.includes('curiosity') || arc.includes('interest')) {
-    return index <= 2 ? 'arc-active' : ''
+    return index <= 2
   } else if (arc.includes('surprise') || arc.includes('delight')) {
-    return index <= 4 ? 'arc-active' : ''
+    return index <= 4
   } else {
-    return index <= 3 ? 'arc-active' : ''
+    return index <= 3
   }
 }
 
@@ -302,95 +323,4 @@ const keyDifferences = computed(() => {
   return differences.slice(0, 4) // Max 4 differences
 })
 </script>
-
-<style scoped>
-.story-comparison {
-  @apply space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200;
-}
-
-.comparison-header {
-  @apply pb-3 border-b border-gray-300;
-}
-
-.comparison-grid {
-  @apply space-y-2;
-}
-
-.comparison-row {
-  @apply grid gap-3;
-  grid-template-columns: 150px repeat(auto-fit, minmax(0, 1fr));
-}
-
-.comparison-header-row {
-  @apply pb-2 border-b border-gray-300;
-}
-
-.comparison-label-cell {
-  @apply flex items-center gap-2 text-sm font-medium text-gray-700 py-2;
-}
-
-.comparison-story-cell {
-  @apply flex flex-col gap-1 p-3 bg-white rounded border border-gray-200;
-}
-
-.comparison-story-cell.is-selected {
-  @apply bg-green-50 border-green-300;
-}
-
-.cell-value {
-  @apply text-sm text-gray-800;
-}
-
-.arc-visualization {
-  @apply flex gap-1 mt-2;
-}
-
-.arc-dot {
-  @apply w-2 h-2 rounded-full bg-gray-200;
-}
-
-.arc-dot.arc-active {
-  @apply bg-blue-500;
-}
-
-.beats-preview {
-  @apply mt-2 space-y-1 text-xs text-gray-600;
-}
-
-.beat-preview {
-  @apply truncate;
-}
-
-.approach-tags {
-  @apply flex flex-wrap gap-1;
-}
-
-.length-bar {
-  @apply h-2 bg-gray-200 rounded-full overflow-hidden mt-1;
-}
-
-.length-fill {
-  @apply h-full bg-blue-500 transition-all;
-}
-
-.comparison-summary {
-  @apply mt-4 p-3 bg-blue-50 rounded border border-blue-200;
-}
-
-.summary-title {
-  @apply flex items-center gap-2 text-sm font-semibold text-blue-900 mb-2;
-}
-
-.summary-list {
-  @apply space-y-1;
-}
-
-.summary-item {
-  @apply flex items-start gap-2 text-sm text-blue-800;
-}
-
-.summary-icon {
-  @apply flex-shrink-0 mt-0.5 text-blue-600;
-}
-</style>
 
