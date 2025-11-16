@@ -49,32 +49,14 @@
 
           <!-- Controls -->
           <div class="flex justify-between items-center">
-            <div class="flex gap-2">
-              <UButton
-                @click="handlePlayPause"
-                :disabled="timelineClips.length === 0"
-                color="primary"
-              >
-                <UIcon :name="isPlaying ? 'i-heroicons-pause' : 'i-heroicons-play'" class="mr-2" />
-                {{ isPlaying ? 'Pause' : 'Play' }}
-              </UButton>
-              <UButton
-                variant="outline"
-                @click="handleStop"
-                :disabled="timelineClips.length === 0"
-              >
-                <UIcon name="i-heroicons-stop" class="mr-2" />
-                Stop
-              </UButton>
-              <UButton
-                variant="outline"
-                @click="handleSplitAtPlayhead"
-                :disabled="!canSplitAtCurrentTime"
-              >
-                <UIcon name="i-heroicons-scissors" class="mr-2" />
-                Split (S)
-              </UButton>
-            </div>
+            <UButton
+              variant="outline"
+              @click="handleSplitAtPlayhead"
+              :disabled="!canSplitAtCurrentTime"
+            >
+              <UIcon name="i-heroicons-scissors" class="mr-2" />
+              Split (S)
+            </UButton>
 
             <UButton
               color="primary"
@@ -105,6 +87,7 @@ interface EditorClip {
   startOffset: number
   endOffset: number
   inTimelineStart: number
+  name: string
   file?: File  // Keep file reference for export
 }
 
@@ -230,6 +213,7 @@ const handleVideoSelect = (video: UploadedVideo) => {
     startOffset: 0,
     endOffset: 0,
     inTimelineStart: lastEnd,
+    name: video.name || 'Clip',
     file: video.file, // Keep file reference
   }
 
@@ -366,9 +350,11 @@ const handleDelete = (clipId: string) => {
   recalculateTimeline()
 }
 
-const handleReorder = (clips: EditorClip[]) => {
+const handleReorder = (clips: EditorClip[], options?: { finalize?: boolean }) => {
   timelineClips.value = clips
-  recalculateTimeline()
+  if (options?.finalize) {
+    recalculateTimeline()
+  }
 }
 
 const handleExport = async () => {
@@ -425,11 +411,31 @@ const handleExport = async () => {
 
     toast.add({
       title: 'Export successful',
-      description: 'Your video has been exported',
+      description: 'Downloading your composed video',
       color: 'success',
     })
 
-    await navigateTo(`/preview?videoId=${response.videoId}`)
+    try {
+      const downloadResponse = await fetch(response.videoUrl)
+      if (!downloadResponse.ok) {
+        throw new Error('Failed to download video')
+      }
+      const blob = await downloadResponse.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `adubun-editor-${response.videoId}.mp4`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (error: any) {
+      toast.add({
+        title: 'Download failed',
+        description: error.message || 'Unable to download video file',
+        color: 'error',
+      })
+    }
   } catch (error: any) {
     toast.add({
       title: 'Export failed',
