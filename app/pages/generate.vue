@@ -112,7 +112,7 @@ const editModalOpen = ref(false)
 const selectedSegment = ref<Segment | null>(null)
 const selectedSegmentIndex = ref<number | null>(null)
 
-const { segments, overallProgress, status, overallError, jobId, startGeneration: startGen, pollProgress: pollGenProgress } = useGeneration()
+const { segments, overallProgress, status, overallError, jobId, startGeneration: startGen, pollProgress: pollGenProgress, reset } = useGeneration()
 const { currentCost, estimatedTotal, startPolling } = useCostTracking()
 const toast = useToast()
 
@@ -560,84 +560,50 @@ const totalDuration = computed(() => {
 const handleCompose = async (options: any) => {
   const toast = useToast()
   
-  console.log('[Generate] ===== handleCompose CALLED =====')
-  console.log('[Generate] assetsReady:', assetsReady.value)
-  console.log('[Generate] segments.value length:', segments.value?.length || 0)
-  console.log('[Generate] status:', status.value)
-  console.log('[Generate] clips.value:', clips.value)
-  console.log('[Generate] clips.value length:', clips.value?.length || 0)
+  console.log('[Generate] ===== handleCompose CALLED - Regenerating Videos =====')
+  console.log('[Generate] Current status:', status.value)
+  console.log('[Generate] Storyboard:', storyboard.value?.id)
   
   try {
-    console.log('[Generate] Starting video generation - storing separate clips')
-    
-    // Validate clips exist and have videoUrls
-    if (!clips.value || clips.value.length === 0) {
-      console.error('[Generate] VALIDATION FAILED: No clips available')
-      console.error('[Generate] segments.value:', segments.value)
-      console.error('[Generate] clips.value:', clips.value)
+    if (!storyboard.value) {
       toast.add({
-        title: 'No Videos Available',
-        description: 'Please wait for video generation to complete before proceeding.',
+        title: 'No Storyboard',
+        description: 'Storyboard is not available. Please start a new generation.',
         color: 'error',
       })
       return
-    }
-    
-    console.log('[Generate] Clips validation passed, count:', clips.value.length)
-    
-    // Validate all clips have videoUrls
-    const clipsWithoutVideo = clips.value.filter((clip: any) => !clip.videoUrl)
-    console.log('[Generate] Checking clips for videoUrls...')
-    console.log('[Generate] Clips without video:', clipsWithoutVideo.length)
-    
-    if (clipsWithoutVideo.length > 0) {
-      console.error('[Generate] VALIDATION FAILED: Some clips missing videoUrls')
-      console.error('[Generate] Clips without video:', clipsWithoutVideo)
-      toast.add({
-        title: 'Videos Not Ready',
-        description: `${clipsWithoutVideo.length} video(s) are still being generated. Please wait for all videos to complete.`,
-        color: 'error',
-      })
-      return
-    }
-    
-    console.log('[Generate] All clips have videoUrls, proceeding...')
-    
-    // Store the 3 separate clips in sessionStorage for editor
-    if (process.client) {
-      // Format clips for editor: { videoUrl, duration, name, type, voiceUrl }
-      const editorClips = clips.value.map((clip: any) => ({
-        videoUrl: clip.videoUrl,
-        voiceUrl: clip.voiceUrl,
-        duration: clip.endTime - clip.startTime,
-        name: `${clip.type} Scene`,
-        type: clip.type,
-      }))
-      
-      console.log('[Generate] Editor clips formatted:', JSON.stringify(editorClips, null, 2))
-      sessionStorage.setItem('editorClips', JSON.stringify(editorClips))
-      console.log('[Generate] Clips stored in sessionStorage for editor')
     }
 
-    // Navigate to editor page
-    console.log('[Generate] About to navigate to /editor...')
-    try {
-      await navigateTo('/editor')
-      console.log('[Generate] Navigation to editor completed successfully')
-    } catch (navError: any) {
-      console.error('[Generate] Navigation error:', navError)
-      console.error('[Generate] Navigation error message:', navError.message)
-      console.error('[Generate] Navigation error stack:', navError.stack)
-      throw navError
+    // Reset generation state to clear existing videos
+    console.log('[Generate] Resetting generation state...')
+    reset()
+    generationStarted.value = false
+    assetsReady.value = false
+    
+    // Clear any existing clips from sessionStorage
+    if (process.client) {
+      sessionStorage.removeItem('editorClips')
+      sessionStorage.removeItem('editorComposedVideo')
     }
-  } catch (error: any) {
-    console.error('[Generate] Error storing clips:', error.message)
-    console.error('[Generate] Error stack:', error.stack)
-    console.error('[Generate] Error details:', JSON.stringify(error, null, 2))
     
     toast.add({
-      title: 'Failed to generate video',
-      description: error.message || 'An error occurred while preparing videos for editing. Please try again.',
+      title: 'Regenerating Videos',
+      description: 'All videos will be regenerated. This may take a few minutes.',
+      color: 'blue',
+    })
+    
+    // Restart generation to replace all videos
+    console.log('[Generate] Starting new generation to replace all videos...')
+    await startGeneration()
+    
+    console.log('[Generate] Video regeneration started successfully')
+  } catch (error: any) {
+    console.error('[Generate] Error regenerating videos:', error.message)
+    console.error('[Generate] Error stack:', error.stack)
+    
+    toast.add({
+      title: 'Failed to regenerate videos',
+      description: error.message || 'An error occurred while regenerating videos. Please try again.',
       color: 'error',
     })
   }

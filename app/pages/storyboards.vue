@@ -91,6 +91,14 @@
                 :disabled="loading"
               />
             </UFormField>
+            <UFormField label="Video Model" name="model" class="mb-0">
+              <USelect
+                :model-value="currentModel"
+                :items="videoModelOptions"
+                @update:model-value="handleModelChange"
+                :disabled="loading"
+              />
+            </UFormField>
           </div>
         </div>
 
@@ -421,6 +429,7 @@ const saveStoryboardState = () => {
         style: selectedStoryboard.value.meta.style,
         mode: selectedStoryboard.value.meta.mode,
         aspectRatio: selectedStoryboard.value.meta.aspectRatio,
+        model: selectedStoryboard.value.meta.model,
       },
       timestamp: Date.now(),
     }
@@ -472,6 +481,16 @@ const frameGenerationStatus = ref<Map<number, {
 }>>(new Map())
 const showComparison = ref<Map<string, boolean>>(new Map())
 const availableStyles = ['Cinematic', 'Dynamic', 'Elegant', 'Minimal', 'Energetic']
+
+// Video model options
+const videoModelOptions = [
+  { label: 'Veo 3.1', value: 'google/veo-3.1' },
+  { label: 'Veo 3 Fast', value: 'google/veo-3-fast' },
+]
+
+const currentModel = computed(() => {
+  return selectedStoryboard.value?.meta?.model || 'google/veo-3-fast'
+})
 
 // Demo/Production mode
 const isDemoMode = computed(() => {
@@ -615,7 +634,12 @@ const generateStoryboards = async (style?: string, mode?: 'demo' | 'production')
         selectedStoryboard.value.meta = {}
       }
       selectedStoryboard.value.meta.mode = mode || 'production'
+      // Set model if not already set, default to veo-3-fast
+      if (!selectedStoryboard.value.meta.model) {
+        selectedStoryboard.value.meta.model = 'google/veo-3-fast'
+      }
       console.log('[Storyboards] Mode set to:', selectedStoryboard.value.meta.mode)
+      console.log('[Storyboards] Model set to:', selectedStoryboard.value.meta.model)
       
       // Try to load saved state from localStorage
       const savedState = loadStoryboardState(selectedStoryboard.value.id)
@@ -639,6 +663,11 @@ const generateStoryboards = async (style?: string, mode?: 'demo' | 'production')
             }
           }
         })
+        // Restore model if saved
+        if (savedState.meta?.model && selectedStoryboard.value.meta) {
+          selectedStoryboard.value.meta.model = savedState.meta.model
+          console.log('[Storyboards] Restored model from localStorage:', savedState.meta.model)
+        }
         console.log('[Storyboards] Restored storyboard state from localStorage')
       }
     }
@@ -675,6 +704,27 @@ const regenerateStoryboard = async (newStyle: string) => {
       }
     })
   }
+}
+
+const handleModelChange = async (newModel: string) => {
+  if (!selectedStoryboard.value) return
+  
+  if (newModel === currentModel.value) return
+  
+  // Update model in storyboard meta
+  if (!selectedStoryboard.value.meta) {
+    selectedStoryboard.value.meta = {}
+  }
+  selectedStoryboard.value.meta.model = newModel
+  
+  // Save to localStorage
+  debouncedSave()
+  
+  toast.add({
+    title: 'Model Updated',
+    description: `Video generation will use ${newModel === 'google/veo-3.1' ? 'Veo 3.1' : 'Veo 3 Fast'}`,
+    color: 'blue',
+  })
 }
 
 const generateFrames = async () => {
