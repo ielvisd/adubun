@@ -69,7 +69,7 @@ export const planStoryboardSchema = z.object({
       // NEW: Story and product fields
       story: storySchema.optional(),
       originalPrompt: z.string().optional(),
-      productImages: z.array(z.string().url()).min(1).max(10).optional(),
+      productImages: z.array(z.string()).min(1).max(10).optional(), // Can be URLs, paths, or base64
       productName: z.string().optional(),
       brandInfo: brandInfoSchema.optional(),
     }),
@@ -132,7 +132,7 @@ export const generateAssetsSchema = z.object({
       // NEW: Story and product fields
       story: storySchema.optional(),
       originalPrompt: z.string().optional(),
-      productImages: z.array(z.string().url()).min(1).max(10).optional(),
+      productImages: z.array(z.string()).min(1).max(10).optional(), // Can be URLs, paths, or base64
       productName: z.string().optional(),
       brandInfo: brandInfoSchema.optional(),
     }),
