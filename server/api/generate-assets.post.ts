@@ -261,7 +261,6 @@ export default defineEventHandler(async (event) => {
     // Generate assets sequentially (for frame continuity)
     const assets: Asset[] = []
     let previousVideoUrl: string | null = null
-    let previousFrameImage: string | null = null
     
     console.log(`[Generate Assets] Starting sequential generation of ${segmentsToProcess.length} segments`)
     console.log(`[Generate Assets] Total segments in storyboard: ${storyboard.segments.length}`)
@@ -270,31 +269,21 @@ export default defineEventHandler(async (event) => {
     for (const [idx, segment] of segmentsToProcess.entries()) {
       console.log(`\n[Generate Assets] ===== Starting Segment ${idx + 1}/${segmentsToProcess.length} =====`)
       console.log(`[Segment ${idx}] Type: ${segment.type}, Duration: ${segment.endTime - segment.startTime}s`)
-      console.log(`[Segment ${idx}] Previous frame image: ${previousFrameImage || 'none (first segment or no continuity)'}`)
       
-      // Debug: Log all image-related fields on the segment
-      console.log(`[Segment ${idx}] Segment image fields:`, {
-        hasImage: !!(segment as any).image,
-        image: (segment as any).image,
-        hasLastFrame: !!(segment as any).lastFrame,
-        lastFrame: (segment as any).lastFrame,
-        hasReferenceImages: !!(segment as any).referenceImages && Array.isArray((segment as any).referenceImages),
-        referenceImagesCount: (segment as any).referenceImages ? ((segment as any).referenceImages.length || 0) : 0,
-        referenceImages: (segment as any).referenceImages,
+      // Log frame images being used
+      console.log(`[Segment ${idx}] Frame images:`, {
         hasFirstFrameImage: !!segment.firstFrameImage,
         firstFrameImage: segment.firstFrameImage,
-        hasSubjectReference: !!segment.subjectReference,
-        subjectReference: segment.subjectReference,
+        hasLastFrameImage: !!segment.lastFrameImage,
+        lastFrameImage: segment.lastFrameImage,
       })
       
       const asset = await (async () => {
       try {
-        // Determine which images to use
-        // Priority: frame images from generate-frames API > segment-specific > global fallback
+        // Determine which images to use - only use frame images from generate-frames API or segment
         const segmentFrames = frameMap.get(String(idx))
-        const firstFrameImage = segmentFrames?.first || segment.firstFrameImage || storyboard.meta.firstFrameImage
-        const lastFrameImage = segmentFrames?.last || (segment as any).lastFrame || storyboard.meta.lastFrame
-        const subjectReference = segment.subjectReference || storyboard.meta.subjectReference
+        const firstFrameImage = segmentFrames?.first || segment.firstFrameImage
+        const lastFrameImage = segmentFrames?.last || segment.lastFrameImage
 
         // Get model from storyboard meta, default to google/veo-3-fast
         const model = storyboard.meta.model || 'google/veo-3-fast'
@@ -321,48 +310,15 @@ export default defineEventHandler(async (event) => {
 
         // Add image inputs if provided - upload to Replicate and get public URLs
         if (model === 'google/veo-3.1') {
-          // Priority: firstFrameImage from frames > previousFrameImage > segment.image > storyboard.meta.image
+          // Always use firstFrameImage and lastFrameImage from frames
           if (firstFrameImage) {
             videoParams.image = await prepareImageInput(firstFrameImage)
-            console.log(`[Segment ${idx}] Using first frame image from frames API: ${firstFrameImage}`)
-          } else if (previousFrameImage) {
-            videoParams.image = await prepareImageInput(previousFrameImage)
-            console.log(`[Segment ${idx}] Using previous frame for continuity: ${previousFrameImage}`)
-          } else if ((segment as any).image) {
-            videoParams.image = await prepareImageInput((segment as any).image)
-            console.log(`[Segment ${idx}] Using segment-specific input image: ${(segment as any).image}`)
-          } else if (storyboard.meta.image) {
-            videoParams.image = await prepareImageInput(storyboard.meta.image)
-            console.log(`[Segment ${idx}] Using storyboard meta image: ${storyboard.meta.image}`)
+            console.log(`[Segment ${idx}] Using first frame image: ${firstFrameImage}`)
           }
           
-          // Priority: segment.referenceImages > storyboard.meta.referenceImages
-          // Note: If reference images are provided, last_frame is ignored per Veo documentation
-          if ((segment as any).referenceImages && Array.isArray((segment as any).referenceImages) && (segment as any).referenceImages.length > 0) {
-            videoParams.reference_images = await Promise.all(
-              (segment as any).referenceImages.map((img: string) => prepareImageInput(img))
-            )
-            console.log(`[Segment ${idx}] Using segment-specific reference images: ${(segment as any).referenceImages.length} images`)
-            console.log(`[Segment ${idx}] Reference images provided - last_frame will be ignored per Veo documentation`)
-          } else if (storyboard.meta.referenceImages && storyboard.meta.referenceImages.length > 0) {
-            videoParams.reference_images = await Promise.all(
-              storyboard.meta.referenceImages.map((img: string) => prepareImageInput(img))
-            )
-            console.log(`[Segment ${idx}] Using storyboard meta reference images: ${storyboard.meta.referenceImages.length} images`)
-            console.log(`[Segment ${idx}] Reference images provided - last_frame will be ignored per Veo documentation`)
-          } else {
-            // Only set last_frame if reference images are NOT provided
-            // Priority: lastFrameImage from frames > segment.lastFrame > storyboard.meta.lastFrame
-            if (lastFrameImage) {
-              videoParams.last_frame = await prepareImageInput(lastFrameImage)
-              console.log(`[Segment ${idx}] Using last frame image from frames API: ${lastFrameImage}`)
-            } else if ((segment as any).lastFrame) {
-              videoParams.last_frame = await prepareImageInput((segment as any).lastFrame)
-              console.log(`[Segment ${idx}] Using segment-specific last frame: ${(segment as any).lastFrame}`)
-            } else if (storyboard.meta.lastFrame) {
-              videoParams.last_frame = await prepareImageInput(storyboard.meta.lastFrame)
-              console.log(`[Segment ${idx}] Using storyboard meta last frame: ${storyboard.meta.lastFrame}`)
-            }
+          if (lastFrameImage) {
+            videoParams.last_frame = await prepareImageInput(lastFrameImage)
+            console.log(`[Segment ${idx}] Using last frame image: ${lastFrameImage}`)
           }
           
           // Priority: segment.negativePrompt > storyboard.meta.negativePrompt
@@ -399,22 +355,10 @@ export default defineEventHandler(async (event) => {
         } else if (model === 'google/veo-3-fast') {
           // Veo 3 Fast only supports: prompt, aspect_ratio, duration, image, negative_prompt, resolution, generate_audio, seed
           // Note: Does NOT support last_frame or reference_images
-          // Priority: firstFrameImage from frames > previousFrameImage > segment.image > firstFrameImage/subjectReference > storyboard.meta.image
+          // Always use firstFrameImage from frames
           if (firstFrameImage) {
             videoParams.image = await prepareImageInput(firstFrameImage)
-            console.log(`[Segment ${idx}] Using first frame image from frames API: ${firstFrameImage}`)
-          } else if (previousFrameImage) {
-            videoParams.image = await prepareImageInput(previousFrameImage)
-            console.log(`[Segment ${idx}] Using previous frame for continuity: ${previousFrameImage}`)
-          } else if ((segment as any).image) {
-            videoParams.image = await prepareImageInput((segment as any).image)
-            console.log(`[Segment ${idx}] Using segment-specific input image: ${(segment as any).image}`)
-          } else {
-            // Use segment-specific firstFrameImage or subjectReference, or fall back to global image
-            const imageToUse = subjectReference || storyboard.meta.image
-            if (imageToUse) {
-              videoParams.image = await prepareImageInput(imageToUse)
-            }
+            console.log(`[Segment ${idx}] Using first frame image: ${firstFrameImage}`)
           }
           
           // Priority: segment.negativePrompt > storyboard.meta.negativePrompt
@@ -792,11 +736,9 @@ export default defineEventHandler(async (event) => {
             if (!lastFrameUrl || typeof lastFrameUrl !== 'string') {
               throw new Error(`Invalid frame URL returned: ${typeof lastFrameUrl}`)
             }
-            // Use the extracted frame for continuity
-            previousFrameImage = lastFrameUrl
-            console.log(`[Segment ${idx}] ✓ Using last frame for next segment continuity`)
+            // Frame extracted successfully (no longer used for continuity since we use frame images)
+            console.log(`[Segment ${idx}] ✓ Last frame extracted successfully`)
             console.log(`[Segment ${idx}] Last frame URL: ${lastFrameUrl}`)
-            console.log(`[Segment ${idx}] previousFrameImage set to: ${previousFrameImage}`)
           } catch (innerError: any) {
             console.error(`[Segment ${idx}] Error during frame extraction/analysis:`, innerError.message)
             console.error(`[Segment ${idx}] Error stack:`, innerError.stack)
@@ -813,11 +755,10 @@ export default defineEventHandler(async (event) => {
           // Don't fail the entire job if frame extraction fails - just log and continue
           console.error(`[Segment ${idx}] ✗ Last frame extraction failed:`, frameError.message)
           console.error(`[Segment ${idx}] Frame error stack:`, frameError.stack)
-          console.warn(`[Segment ${idx}] Continuing to next segment without frame continuity`)
-          previousFrameImage = null
+          console.warn(`[Segment ${idx}] Continuing to next segment`)
         }
         
-        console.log(`[Segment ${idx}] Last frame extraction completed. Previous frame image: ${previousFrameImage || 'none'}`)
+        console.log(`[Segment ${idx}] Last frame extraction completed`)
       } else {
         if (asset.status !== 'completed') {
           console.log(`[Segment ${idx}] Segment did not complete successfully (status: ${asset.status}), skipping frame extraction`)

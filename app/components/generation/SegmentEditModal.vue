@@ -102,6 +102,66 @@
           </template>
         </UFormField>
 
+        <!-- Frame Images Section (Read-only) -->
+        <div class="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+          <h3 class="text-lg font-semibold mb-4">Frame Images for Video Generation</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                First Frame Image
+                <UBadge v-if="form.firstFrameImage" color="green" variant="soft" class="ml-2">Set</UBadge>
+                <UBadge v-else color="yellow" variant="soft" class="ml-2">Not Set</UBadge>
+              </label>
+              <div v-if="form.firstFrameImage" class="border border-gray-200 dark:border-gray-700 rounded-lg p-2 bg-gray-50 dark:bg-gray-800">
+                <NuxtImg
+                  :src="form.firstFrameImage"
+                  alt="First frame preview"
+                  class="w-full h-48 object-cover rounded"
+                  loading="lazy"
+                />
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 truncate" :title="form.firstFrameImage">
+                  {{ form.firstFrameImage }}
+                </p>
+              </div>
+              <div v-else class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center bg-gray-50 dark:bg-gray-800">
+                <UIcon name="i-heroicons-photo" class="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
+                <p class="text-sm text-gray-500 dark:text-gray-400">No first frame image set</p>
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Generate frames to set this image</p>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Last Frame Image
+                <UBadge v-if="form.lastFrameImage" color="green" variant="soft" class="ml-2">Set</UBadge>
+                <UBadge v-else color="yellow" variant="soft" class="ml-2">Not Set</UBadge>
+              </label>
+              <div v-if="form.lastFrameImage" class="border border-gray-200 dark:border-gray-700 rounded-lg p-2 bg-gray-50 dark:bg-gray-800">
+                <NuxtImg
+                  :src="form.lastFrameImage"
+                  alt="Last frame preview"
+                  class="w-full h-48 object-cover rounded"
+                  loading="lazy"
+                />
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 truncate" :title="form.lastFrameImage">
+                  {{ form.lastFrameImage }}
+                </p>
+              </div>
+              <div v-else class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center bg-gray-50 dark:bg-gray-800">
+                <UIcon name="i-heroicons-photo" class="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
+                <p class="text-sm text-gray-500 dark:text-gray-400">No last frame image set</p>
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Generate frames to set this image</p>
+              </div>
+            </div>
+          </div>
+          <UAlert v-if="!form.firstFrameImage || !form.lastFrameImage" color="yellow" variant="soft" class="mt-4">
+            <template #title>Frame Images Required</template>
+            <template #description>
+              Both first and last frame images must be generated before proceeding to video generation. 
+              Go back to the storyboard editor and click "Generate All Frames" to create these images.
+            </template>
+          </UAlert>
+        </div>
+
         <!-- Veo Model Parameters Section -->
         <div class="border-t border-gray-200 pt-4 mt-4">
           <h3 class="text-lg font-semibold mb-4">Veo Model Parameters</h3>
@@ -179,53 +239,6 @@
             </template>
           </UFormField>
 
-          <UFormField label="Input Image (Optional)" name="image" class="mt-4">
-            <ImageUpload v-model="form.image" @upload="handleImageUpload('image', $event)" />
-            <template #description>
-              Input image to start generating from. Ideal images are 16:9 or 9:16 and 1280x720 or 720x1280, depending on the aspect ratio you choose.
-            </template>
-          </UFormField>
-
-          <UFormField label="Last Frame (Optional)" name="lastFrame" class="mt-4">
-            <ImageUpload v-model="form.lastFrame" @upload="handleImageUpload('lastFrame', $event)" />
-            <template #description>
-              Ending image for interpolation. When provided with an input image, creates a transition between the two images.
-            </template>
-          </UFormField>
-
-          <UFormField label="Reference Images (Optional)" name="referenceImages" class="mt-4">
-            <MultiImageUpload
-              v-model="form.referenceImages"
-              :max-images="3"
-              @upload="handleReferenceImagesUpload"
-            />
-            <template #description>
-              1 to 3 reference images for subject-consistent generation (reference-to-video, or R2V). Reference images only work with 16:9 aspect ratio and 8-second duration. Last frame is ignored if reference images are provided.
-            </template>
-          </UFormField>
-        </div>
-
-        <!-- Legacy Fields (for backward compatibility) -->
-        <div class="border-t border-gray-200 pt-4 mt-4">
-          <h3 class="text-lg font-semibold mb-4">Legacy Parameters (Other Models)</h3>
-          
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <UFormField 
-              label="First Frame Image (Optional)" 
-              name="firstFrameImage"
-              description="Override global first frame image for this segment."
-            >
-              <ImageUpload v-model="form.firstFrameImage" @upload="handleImageUpload('firstFrameImage', $event)" />
-            </UFormField>
-
-            <UFormField 
-              label="Subject Reference (Optional)" 
-              name="subjectReference"
-              description="Override global subject reference for this segment."
-            >
-              <ImageUpload v-model="form.subjectReference" @upload="handleImageUpload('subjectReference', $event)" />
-            </UFormField>
-          </div>
         </div>
       </UForm>
       </div>
@@ -256,8 +269,6 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import type { Segment } from '~/app/types/generation'
-import ImageUpload from '~/components/ui/ImageUpload.vue'
-import MultiImageUpload from '~/components/ui/MultiImageUpload.vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -312,12 +323,6 @@ const baseSchema = z.object({
   aspectRatio: z.string().optional().nullable(),
   generateAudio: z.boolean().optional().nullable(),
   negativePrompt: z.union([z.string().max(500, 'Negative prompt must be less than 500 characters'), z.literal(''), z.null()]).optional(),
-  image: z.union([z.instanceof(File), z.string()]).optional().nullable(),
-  lastFrame: z.union([z.instanceof(File), z.string()]).optional().nullable(),
-  referenceImages: z.array(z.union([z.instanceof(File), z.string()])).optional().nullable(),
-  // Legacy fields
-  firstFrameImage: z.union([z.instanceof(File), z.string()]).optional().nullable(),
-  subjectReference: z.union([z.instanceof(File), z.string()]).optional().nullable(),
 })
 
 // Create computed schema with dynamic validation
@@ -340,9 +345,6 @@ const form = reactive<Segment & {
   aspectRatio?: string | null
   generateAudio?: boolean | null
   negativePrompt?: string | null
-  image?: File | string | null
-  lastFrame?: File | string | null
-  referenceImages?: (File | string | null)[]
 }>({
   type: 'hook',
   description: '',
@@ -352,6 +354,8 @@ const form = reactive<Segment & {
   visualPromptAlternatives: undefined,
   selectedPromptIndex: undefined,
   audioNotes: '',
+  firstFrameImage: undefined,
+  lastFrameImage: undefined,
   // Veo model parameters
   seed: null,
   duration: null,
@@ -359,12 +363,6 @@ const form = reactive<Segment & {
   aspectRatio: null,
   generateAudio: true,
   negativePrompt: null,
-  image: null,
-  lastFrame: null,
-  referenceImages: null,
-  // Legacy fields
-  firstFrameImage: undefined,
-  subjectReference: undefined,
 })
 
 // Prompt options for radio group
@@ -431,6 +429,10 @@ watch(() => props.segment, (newSegment) => {
     
     form.audioNotes = newSegment.audioNotes || ''
     
+    // Frame images (read-only, from frame generation)
+    form.firstFrameImage = newSegment.firstFrameImage
+    form.lastFrameImage = newSegment.lastFrameImage
+    
     // Veo model parameters (from segment or meta)
     form.seed = (newSegment as any).seed ?? null
     form.duration = (newSegment as any).duration ?? (newSegment.endTime - newSegment.startTime)
@@ -438,13 +440,6 @@ watch(() => props.segment, (newSegment) => {
     form.aspectRatio = (newSegment as any).aspectRatio ?? null
     form.generateAudio = (newSegment as any).generateAudio ?? true
     form.negativePrompt = (newSegment as any).negativePrompt ?? null
-    form.image = (newSegment as any).image ?? null
-    form.lastFrame = (newSegment as any).lastFrame ?? null
-    form.referenceImages = (newSegment as any).referenceImages ?? null
-    
-    // Legacy fields
-    form.firstFrameImage = newSegment.firstFrameImage
-    form.subjectReference = newSegment.subjectReference
   }
 }, { immediate: true })
 
@@ -461,13 +456,6 @@ const checkOverlaps = (startTime: number, endTime: number, currentIndex: number)
   return warnings
 }
 
-const handleImageUpload = (field: 'firstFrameImage' | 'subjectReference' | 'image' | 'lastFrame', file: File | string | null) => {
-  form[field] = file as any
-}
-
-const handleReferenceImagesUpload = (files: (File | string | null)[]) => {
-  form.referenceImages = files.filter(f => f !== null)
-}
 
 const handleSave = async (event: any) => {
   console.log('[SegmentEditModal] handleSave called with event:', event)
@@ -496,8 +484,6 @@ const handleSave = async (event: any) => {
     // Prepare segment data
     // Include File objects - they will be uploaded by the parent component
     const updatedSegment: Segment & { 
-      firstFrameImage?: File | string
-      subjectReference?: File | string
       // Veo model parameters
       seed?: number | null
       duration?: number | null
@@ -505,9 +491,6 @@ const handleSave = async (event: any) => {
       aspectRatio?: string | null
       generateAudio?: boolean | null
       negativePrompt?: string | null
-      image?: File | string | null
-      lastFrame?: File | string | null
-      referenceImages?: (File | string | null)[]
     } = {
       type: validated.type,
       description: validated.description,
@@ -524,12 +507,6 @@ const handleSave = async (event: any) => {
       ...(validated.aspectRatio ? { aspectRatio: validated.aspectRatio } : {}),
       ...(validated.generateAudio !== null && validated.generateAudio !== undefined ? { generateAudio: validated.generateAudio } : {}),
       ...(validated.negativePrompt ? { negativePrompt: validated.negativePrompt } : {}),
-      ...(validated.image ? { image: validated.image } : {}),
-      ...(validated.lastFrame ? { lastFrame: validated.lastFrame } : {}),
-      ...(validated.referenceImages && validated.referenceImages.length > 0 ? { referenceImages: validated.referenceImages } : {}),
-      // Legacy fields
-      ...(validated.firstFrameImage ? { firstFrameImage: validated.firstFrameImage } : {}),
-      ...(validated.subjectReference ? { subjectReference: validated.subjectReference } : {}),
     }
     
     // Emit saved event with updated segment
