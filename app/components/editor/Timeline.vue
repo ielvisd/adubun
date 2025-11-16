@@ -8,7 +8,7 @@
         <div class="flex items-center gap-2 bg-gray-800 rounded-lg px-2 py-1">
           <button
             @click="zoomOut"
-            :disabled="zoomLevel <= 0.5"
+            :disabled="zoomLevel <= 0.25"
             class="p-1 hover:bg-gray-700 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             title="Zoom Out"
           >
@@ -93,7 +93,7 @@
           <div class="h-full flex items-center justify-between px-4 text-white text-sm pointer-events-none">
             <div class="flex items-center gap-2 flex-1 min-w-0">
               <div class="w-2 h-2 bg-white rounded-full"></div>
-              <span class="font-semibold truncate">Clip {{ index + 1 }}</span>
+              <span class="font-semibold truncate">{{ clip.name || `Clip ${index + 1}` }}</span>
               <span class="text-xs opacity-75">{{ formatTime(getClipDuration(clip)) }}</span>
             </div>
             <button
@@ -106,11 +106,11 @@
           </div>
           <!-- Start/End Labels -->
           <div class="absolute inset-0 pointer-events-none text-xs font-medium text-white/80">
-            <span class="absolute -top-5 left-3 bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">
-              {{ formatTime(clip.inTimelineStart) }}
+            <span class="absolute top-1 left-3 bg-black/30 px-2 py-0.5 rounded-full backdrop-blur-sm">
+              {{ formatTime(clip.startOffset) }}
             </span>
-            <span class="absolute -top-5 right-3 bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">
-              {{ formatTime(clip.inTimelineStart + getClipDuration(clip)) }}
+            <span class="absolute top-1 right-3 bg-black/30 px-2 py-0.5 rounded-full backdrop-blur-sm">
+              {{ formatTime(clip.originalDuration - clip.endOffset) }}
             </span>
           </div>
 
@@ -194,6 +194,7 @@ interface EditorClip {
   startOffset: number
   endOffset: number
   inTimelineStart: number
+  name: string
 }
 
 const props = defineProps<{
@@ -207,7 +208,7 @@ const emit = defineEmits<{
   'split': [clipId: string, time: number]
   'delete': [clipId: string]
   'seek': [time: number]
-  'reorder': [clips: EditorClip[]]
+  'reorder': [clips: EditorClip[], options?: { finalize?: boolean }]
 }>()
 
 const timelineContainer = ref<HTMLElement>()
@@ -216,28 +217,34 @@ const trimmingClipId = ref<string | null>(null)
 const draggingClipId = ref<string | null>(null)
 const snapPosition = ref<number | null>(null)
 const selectedClipId = ref<string | null>(null)
-const zoomLevel = ref(1) // 1x = 20px per second, 2x = 40px per second, etc.
+const zoomLevel = ref(1) // 1x = 10px per second (normalized so old 50% becomes new 100%)
 
 const pixelsPerSecond = computed(() => {
-  return 20 * zoomLevel.value // Base: 20px per second
+  return 10 * zoomLevel.value // Base: 10px per second (old 50% now 100%)
 })
 
 const totalDuration = computed(() => {
-  if (props.clips.length === 0) return 60
+  if (props.clips.length === 0) return 0
   return props.clips.reduce((sum, clip) => {
     return sum + getClipDuration(clip)
   }, 0)
 })
 
+const MIN_TIMELINE_SECONDS = 120
+
+const visualDuration = computed(() => {
+  return Math.max(MIN_TIMELINE_SECONDS, totalDuration.value + 5)
+})
+
 const timelineWidth = computed(() => {
-  return Math.max(800, totalDuration.value * pixelsPerSecond.value)
+  return Math.max(1600, visualDuration.value * pixelsPerSecond.value)
 })
 
 const timeMarks = computed(() => {
   const marks: number[] = []
   // Adjust interval based on zoom level
   const interval = zoomLevel.value >= 2 ? 1 : zoomLevel.value >= 1 ? 5 : 10
-  for (let i = 0; i <= totalDuration.value; i += interval) {
+  for (let i = 0; i <= visualDuration.value; i += interval) {
     marks.push(i)
   }
   return marks
@@ -273,12 +280,16 @@ const zoomIn = () => {
 }
 
 const zoomOut = () => {
-  zoomLevel.value = Math.max(0.5, zoomLevel.value - 0.25)
+  zoomLevel.value = Math.max(0.25, zoomLevel.value - 0.25)
 }
 
 const resetZoom = () => {
   zoomLevel.value = 1
 }
+
+onMounted(() => {
+  zoomLevel.value = 1
+})
 
 const handleWheel = (event: WheelEvent) => {
   if (event.ctrlKey || event.metaKey) {
@@ -352,6 +363,8 @@ const handleTimelineMouseMove = (event: MouseEvent) => {
     snapPosition.value = null
   }
 }
+
+const lastReorderedClips = ref<EditorClip[] | null>(null)
 
 const handleClipMouseDown = (event: MouseEvent, clip: EditorClip, index: number) => {
   // Only drag if clicking on the clip body, not on trim handles
@@ -429,8 +442,10 @@ const handleClipMouseDown = (event: MouseEvent, clip: EditorClip, index: number)
       
       let newStartTime = startTime + deltaTime
       
-      // Clamp to timeline bounds
-      newStartTime = Math.max(0, Math.min(newStartTime, totalDuration.value - clipDuration))
+      // Allow overlap beyond edges (CapCut-style) so clips can pass ends while reordering
+      const minStart = -clipDuration + 0.05
+      const maxStart = visualDuration.value - 0.05
+      newStartTime = Math.max(minStart, Math.min(newStartTime, maxStart))
       
       // Check for snapping
       checkSnapPoints(newStartTime)
@@ -441,22 +456,17 @@ const handleClipMouseDown = (event: MouseEvent, clip: EditorClip, index: number)
         }
       }
       
-      // Update clip position
-      const updatedClips = [...props.clips]
-      updatedClips[index].inTimelineStart = newStartTime
+      // Update clip position on a cloned array
+      const updatedClips = props.clips.map(c => ({ ...c }))
+      const draggedClip = updatedClips.find(c => c.id === clip.id)
+      if (!draggedClip) return
+      draggedClip.inTimelineStart = newStartTime
+
+      // Sort clips by timeline start to mimic CapCut ordering
+      const reordered = [...updatedClips].sort((a, b) => a.inTimelineStart - b.inTimelineStart)
+      lastReorderedClips.value = reordered
       
-      // Check for collisions and reorder
-      const sortedClips = [...updatedClips].sort((a, b) => a.inTimelineStart - b.inTimelineStart)
-      const newIndex = sortedClips.findIndex(c => c.id === clip.id)
-      
-      // Reorder if needed
-      if (newIndex !== index) {
-        updatedClips.splice(index, 1)
-        updatedClips.splice(newIndex, 0, clip)
-        emit('reorder', updatedClips)
-      } else {
-        emit('reorder', updatedClips)
-      }
+      emit('reorder', reordered, { finalize: false })
     })
   }
 
@@ -468,6 +478,11 @@ const handleClipMouseDown = (event: MouseEvent, clip: EditorClip, index: number)
     snapPosition.value = null
     document.removeEventListener('mousemove', handleMouseMove)
     document.removeEventListener('mouseup', handleMouseUp)
+
+    if (lastReorderedClips.value) {
+      emit('reorder', lastReorderedClips.value, { finalize: true })
+      lastReorderedClips.value = null
+    }
   }
 
   document.addEventListener('mousemove', handleMouseMove)

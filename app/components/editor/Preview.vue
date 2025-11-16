@@ -45,6 +45,7 @@ interface EditorClip {
   startOffset: number
   endOffset: number
   inTimelineStart: number
+  name: string
 }
 
 const props = defineProps<{
