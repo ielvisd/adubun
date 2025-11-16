@@ -11,11 +11,11 @@
 ```
 Phase 1: ✅✅✅✅✅✅✅✅✅✅✅✅ 12/12 (100%) ⭐
 Phase 2: ✅✅✅✅✅✅✅✅✅✅✅✅✅✅ 14/14 (100%) ⭐
-Phase 3: ✅✅✅✅⬜⬜⬜⬜⬜⬜⬜⬜ 4/12 (33%)
+Phase 3: ✅✅✅✅✅✅⬜⬜⬜⬜⬜⬜ 6/12 (50%)
 Phase 4: ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ 0/10 (0%)
 Phase 5: ⬜⬜⬜⬜⬜⬜⬜⬜ 0/8 (0%)
 
-Overall: ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅ 30/56 tasks (54%)
+Overall: ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅ 32/56 tasks (57%)
 ```
 
 ---
@@ -93,7 +93,7 @@ Overall: ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅�
 ## Phase 3: Pipeline Integration (Week 5-6)
 
 **Goal:** Connect all pieces into unified flow  
-**Progress:** 4/12 tasks
+**Progress:** 6/12 tasks
 
 ### API Updates (4 tasks)
 - [x] **TASK-027** Update `/api/plan-storyboard` | _Backend_ | 4h | TASK-008 ✅
@@ -102,8 +102,8 @@ Overall: ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅�
 - [x] **TASK-030** Remove old frame extraction (kept as fallback) | _Backend_ | 3h | TASK-029 ✅
 
 ### Story Selection UI (2 tasks)
-- [ ] **TASK-031** Create StorySelector component | _Frontend_ | 8h | TASK-003
-- [ ] **TASK-032** Add story comparison highlights | _Frontend_ | 4h | TASK-031
+- [x] **TASK-031** Create StorySelector component | _Frontend_ | 8h | TASK-003 ✅
+- [x] **TASK-032** Add story comparison highlights | _Frontend_ | 4h | TASK-031 ✅
 
 ### Generation Flow (3 tasks)
 - [ ] **TASK-033** Update `generate.vue` with new steps | _Frontend Lead_ | 10h | TASK-031, 026
