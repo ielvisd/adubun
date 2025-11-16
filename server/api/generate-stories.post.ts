@@ -101,6 +101,7 @@ export default defineEventHandler(async (event) => {
         bodyOne: story.bodyOne || story.body1 || story.body_one || '',
         bodyTwo: story.bodyTwo || story.body2 || story.body_two || '',
         callToAction: story.callToAction || story.cta || story.call_to_action || '',
+        emoji: story.emoji || '', // Include emoji field, default to empty string if missing
       }
     })
 

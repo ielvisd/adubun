@@ -1453,8 +1453,11 @@ Each story must:
 - Have distinct creative approaches (different angles, styles, or messaging)
 - Be suitable for a ${duration}-second ad format
 - Include a full paragraph description that captures the entire story arc
+- Include a single, contextually relevant emoji that represents the story's theme, mood, or key message
 
 IMPORTANT: Each story needs a full paragraph description that describes the complete narrative. This description will be used to generate storyboards later.
+
+IMPORTANT: Each story must include an "emoji" field with a single Unicode emoji character that best represents the story. Choose emojis that are distinct from each other to help users quickly differentiate between the three story options.
 
 Return ONLY valid JSON with this exact structure:
 {
@@ -1465,7 +1468,8 @@ Return ONLY valid JSON with this exact structure:
       "hook": "Brief hook description for the opening scene",
       "bodyOne": "Brief body 1 description for the first body scene",
       "bodyTwo": "Brief body 2 description for the second body scene",
-      "callToAction": "Brief CTA description for the closing scene"
+      "callToAction": "Brief CTA description for the closing scene",
+      "emoji": "🎯"
     },
     {
       "id": "story-2",
@@ -1473,7 +1477,8 @@ Return ONLY valid JSON with this exact structure:
       "hook": "...",
       "bodyOne": "...",
       "bodyTwo": "...",
-      "callToAction": "..."
+      "callToAction": "...",
+      "emoji": "✨"
     },
     {
       "id": "story-3",
@@ -1481,7 +1486,8 @@ Return ONLY valid JSON with this exact structure:
       "hook": "...",
       "bodyOne": "...",
       "bodyTwo": "...",
-      "callToAction": "..."
+      "callToAction": "...",
+      "emoji": "🚀"
     }
   ]
 }`
@@ -1528,6 +1534,10 @@ Each story should be unique but all should relate to the core prompt.`
       for (const story of parsed.stories) {
         if (!story.description || !story.hook || !story.bodyOne || !story.bodyTwo || !story.callToAction) {
           throw new Error('Story missing required fields (description, hook, bodyOne, bodyTwo, callToAction)')
+        }
+        // Emoji is optional but preferred - if missing, we'll use empty string as fallback
+        if (story.emoji && typeof story.emoji !== 'string') {
+          throw new Error('Story emoji must be a string')
         }
       }
 

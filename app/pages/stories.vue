@@ -76,9 +76,14 @@
           >
             <template #header>
               <div class="flex items-center justify-between">
-                <UBadge color="secondary" variant="soft" size="lg">
-                  Story {{ index + 1 }}
-                </UBadge>
+                <div class="flex items-center gap-2">
+                  <UBadge color="secondary" variant="soft" size="lg">
+                    Story {{ index + 1 }}
+                  </UBadge>
+                  <span v-if="story.emoji" class="text-2xl" :aria-label="`Emoji for story ${index + 1}`">
+                    {{ story.emoji }}
+                  </span>
+                </div>
                 <div
                   v-if="selectedStoryId === story.id"
                   class="w-6 h-6 rounded-full bg-secondary-500 flex items-center justify-center"
