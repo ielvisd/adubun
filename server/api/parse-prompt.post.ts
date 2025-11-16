@@ -35,6 +35,11 @@ export default defineEventHandler(async (event) => {
           } else if (item.name === 'inputImage') {
             body.inputImage = filePath
           }
+          // Product images (NEW)
+          else if (item.name === 'productImages') {
+            if (!body.productImages) body.productImages = []
+            body.productImages.push(filePath)
+          }
         } else if (item.name) {
           // It's a form field
           const value = item.data.toString('utf-8')
@@ -50,6 +55,10 @@ export default defineEventHandler(async (event) => {
             // Handle array of reference images (URLs)
             if (!body.referenceImages) body.referenceImages = []
             if (value) body.referenceImages.push(value)
+          } else if (item.name === 'productImages') {
+            // Handle array of product images (URLs)
+            if (!body.productImages) body.productImages = []
+            if (value) body.productImages.push(value)
           } else if (item.name === 'model') {
             // Model ID
             body[item.name] = value || undefined
@@ -192,6 +201,9 @@ export default defineEventHandler(async (event) => {
         style: validated.style,
         mode: validated.mode || 'demo',
         model: validated.model || 'google/veo-3.1', // Default to google/veo-3.1
+        // NEW: Product images for keyframe generation
+        productImages: validated.productImages || undefined,
+        productName: parsedData.product || undefined,
         // Veo 3.1 fields
         image: validated.image || undefined,
         lastFrame: validated.lastFrame || undefined,

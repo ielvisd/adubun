@@ -313,6 +313,17 @@ const handleSubmit = async (formData: any) => {
       formDataToSend.append('inputImage', formData.inputImage)
     }
     
+    // Product images (NEW)
+    if (formData.productImages && Array.isArray(formData.productImages)) {
+      for (const productImage of formData.productImages) {
+        if (productImage instanceof File) {
+          formDataToSend.append('productImages', productImage)
+        } else if (typeof productImage === 'string') {
+          formDataToSend.append('productImages', productImage)
+        }
+      }
+    }
+    
     // Add other fields
     formDataToSend.append('prompt', formData.prompt)
     if (formData.model) {
@@ -344,7 +355,8 @@ const handleSubmit = async (formData: any) => {
     // Use FormData if we have file uploads, otherwise use JSON
     const hasFiles = formData.image instanceof File || formData.lastFrame instanceof File || 
       (formData.referenceImages && formData.referenceImages.some((img: any) => img instanceof File)) ||
-      formData.firstFrameImage instanceof File || formData.subjectReference instanceof File || formData.inputImage instanceof File
+      formData.firstFrameImage instanceof File || formData.subjectReference instanceof File || formData.inputImage instanceof File ||
+      (formData.productImages && formData.productImages.some((img: any) => img instanceof File))
     
     const parsed = await $fetch('/api/parse-prompt', {
       method: 'POST',

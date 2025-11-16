@@ -37,8 +37,8 @@ export const parsePromptSchema = z.object({
   firstFrameImage: z.string().optional().nullable(),
   subjectReference: z.string().optional().nullable(),
   inputImage: z.string().optional().nullable(), // Generic image input for some models
-  // NEW: Product images (1-10 images required)
-  productImages: z.array(z.string().url()).min(1).max(10).optional(),
+  // NEW: Product images (1-10 images required) - can be URLs, paths, or base64
+  productImages: z.array(z.string()).min(1).max(10).optional(),
 })
 
 export const planStoryboardSchema = z.object({
