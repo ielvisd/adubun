@@ -24,6 +24,7 @@ export interface Segment {
   selectedPromptIndex?: number // Index of selected prompt (0 = visualPrompt, 1+ = alternatives)
   audioNotes?: string
   firstFrameImage?: string // File path or URL for first frame image
+  lastFrameImage?: string // File path or URL for last frame image
   subjectReference?: string // File path or URL for subject reference image
   status?: 'pending' | 'processing' | 'completed' | 'failed'
 }
@@ -115,5 +116,14 @@ export interface CostSummary {
   total: number
   byOperation: Record<string, number>
   count: number
+}
+
+export interface Story {
+  id: string
+  hook: string
+  bodyOne: string
+  bodyTwo: string
+  callToAction: string
+  description: string // Full paragraph description of the story
 }
 
