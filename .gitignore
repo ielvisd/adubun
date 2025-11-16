@@ -26,6 +26,12 @@ logs
 # Generated assets and storyboards
 data/assets/
 data/storyboards/
+data/jobs/
+data/jobs.json
+data/costs.json
+
+# Playwright MCP screenshots
+.playwright-mcp/
 
 .cursor
 .taskmaster/

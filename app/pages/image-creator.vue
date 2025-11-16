@@ -3,11 +3,19 @@
     <UContainer class="max-w-5xl">
       <div class="mb-8">
         <h1 class="text-4xl font-bold text-gray-900 mb-2">Image Creator</h1>
-        <p class="text-gray-600">Generate high-quality images using Seedream 4.0</p>
+        <p class="text-gray-600">Generate high-quality images using AI models</p>
       </div>
 
       <UCard class="p-6">
         <UForm :state="form" @submit="handleSubmit">
+          <!-- Model Selection -->
+          <UFormField label="Model" name="model" class="mb-6">
+            <URadioGroup v-model="selectedModel" :items="modelOptions" />
+            <template #description>
+              Select the AI model to use for image generation
+            </template>
+          </UFormField>
+
           <!-- Prompt -->
           <UFormField label="Prompt" name="prompt" required>
             <UTextarea
@@ -37,103 +45,135 @@
             />
           </UFormField>
 
-          <!-- Size -->
-          <UFormField label="Size" name="size" class="mt-4">
-            <USelect
-              v-model="form.size"
-              :items="sizeOptions"
-            />
-            <template #description>
-              Image resolution: 1K (1024px), 2K (2048px), 4K (4096px), or custom for specific dimensions.
-            </template>
-          </UFormField>
-
-          <!-- Aspect Ratio (only when size is not custom) -->
-          <UFormField 
-            v-if="form.size !== 'custom'"
-            label="Aspect Ratio" 
-            name="aspect_ratio" 
-            class="mt-4"
-          >
-            <USelect
-              v-model="form.aspect_ratio"
-              :items="aspectRatioOptions"
-            />
-            <template #description>
-              Image aspect ratio. Use 'match_input_image' to automatically match the input image's aspect ratio.
-            </template>
-          </UFormField>
-
-          <!-- Custom Width and Height (only when size is custom) -->
-          <div v-if="form.size === 'custom'" class="grid grid-cols-2 gap-4 mt-4">
-            <UFormField label="Width" name="width">
-              <UInput
-                v-model.number="form.width"
-                type="number"
-                :min="1024"
-                :max="4096"
+          <!-- Seedream 4.0 specific fields -->
+          <template v-if="selectedModel === 'seedream'">
+            <!-- Size -->
+            <UFormField label="Size" name="size" class="mt-4">
+              <USelect
+                v-model="form.size"
+                :items="sizeOptions"
               />
               <template #description>
-                Custom image width (1024-4096 pixels)
+                Image resolution: 1K (1024px), 2K (2048px), 4K (4096px), or custom for specific dimensions.
               </template>
             </UFormField>
-            <UFormField label="Height" name="height">
-              <UInput
-                v-model.number="form.height"
-                type="number"
-                :min="1024"
-                :max="4096"
+
+            <!-- Aspect Ratio (only when size is not custom) -->
+            <UFormField 
+              v-if="form.size !== 'custom'"
+              label="Aspect Ratio" 
+              name="aspect_ratio" 
+              class="mt-4"
+            >
+              <USelect
+                v-model="form.aspect_ratio"
+                :items="aspectRatioOptions"
               />
               <template #description>
-                Custom image height (1024-4096 pixels)
+                Image aspect ratio. Use 'match_input_image' to automatically match the input image's aspect ratio.
               </template>
             </UFormField>
-          </div>
 
-          <!-- Max Images -->
-          <UFormField 
-            label="Max Images" 
-            name="max_images" 
-            class="mt-4"
-          >
-            <UInput
-              v-model.number="form.max_images"
-              type="number"
-              :min="1"
-              :max="15"
-            />
-            <template #description>
-              Maximum number of images to generate (1-15). Set Sequential Image Generation to 'auto' to generate multiple images.
-            </template>
-          </UFormField>
+            <!-- Custom Width and Height (only when size is custom) -->
+            <div v-if="form.size === 'custom'" class="grid grid-cols-2 gap-4 mt-4">
+              <UFormField label="Width" name="width">
+                <UInput
+                  v-model.number="form.width"
+                  type="number"
+                  :min="1024"
+                  :max="4096"
+                />
+                <template #description>
+                  Custom image width (1024-4096 pixels)
+                </template>
+              </UFormField>
+              <UFormField label="Height" name="height">
+                <UInput
+                  v-model.number="form.height"
+                  type="number"
+                  :min="1024"
+                  :max="4096"
+                />
+                <template #description>
+                  Custom image height (1024-4096 pixels)
+                </template>
+              </UFormField>
+            </div>
 
-          <!-- Sequential Image Generation -->
-          <UFormField 
-            label="Sequential Image Generation" 
-            name="sequential_image_generation" 
-            class="mt-4"
-          >
-            <USelect
-              v-model="form.sequential_image_generation"
-              :items="sequentialOptions"
-            />
-            <template #description>
-              <span v-if="form.sequential_image_generation === 'disabled'">
-                <strong>Disabled:</strong> Generates a single image. Set to 'auto' to generate multiple images (up to Max Images).
-              </span>
-              <span v-else>
-                <strong>Auto:</strong> The model will generate multiple related images (up to Max Images). This enables multi-image generation.
-              </span>
-            </template>
-          </UFormField>
+            <!-- Max Images -->
+            <UFormField 
+              label="Max Images" 
+              name="max_images" 
+              class="mt-4"
+            >
+              <UInput
+                v-model.number="form.max_images"
+                type="number"
+                :min="1"
+                :max="15"
+              />
+              <template #description>
+                Maximum number of images to generate (1-15). Set Sequential Image Generation to 'auto' to generate multiple images.
+              </template>
+            </UFormField>
 
-          <!-- Enhance Prompt -->
-          <UFormField label="Enhance Prompt" name="enhance_prompt" class="mt-4">
-            <USwitch v-model="form.enhance_prompt" />
-            <template #description>
-              Enable prompt enhancement for higher quality results (takes longer to generate).
-            </template>
-          </UFormField>
+            <!-- Sequential Image Generation -->
+            <UFormField 
+              label="Sequential Image Generation" 
+              name="sequential_image_generation" 
+              class="mt-4"
+            >
+              <USelect
+                v-model="form.sequential_image_generation"
+                :items="sequentialOptions"
+              />
+              <template #description>
+                <span v-if="form.sequential_image_generation === 'disabled'">
+                  <strong>Disabled:</strong> Generates a single image. Set to 'auto' to generate multiple images (up to Max Images).
+                </span>
+                <span v-else>
+                  <strong>Auto:</strong> The model will generate multiple related images (up to Max Images). This enables multi-image generation.
+                </span>
+              </template>
+            </UFormField>
+
+            <!-- Enhance Prompt -->
+            <UFormField label="Enhance Prompt" name="enhance_prompt" class="mt-4">
+              <USwitch v-model="form.enhance_prompt" />
+              <template #description>
+                Enable prompt enhancement for higher quality results (takes longer to generate).
+              </template>
+            </UFormField>
+          </template>
+
+          <!-- Nano Banana specific fields -->
+          <template v-if="selectedModel === 'nano-banana'">
+            <!-- Aspect Ratio -->
+            <UFormField 
+              label="Aspect Ratio" 
+              name="aspect_ratio" 
+              class="mt-4"
+            >
+              <USelect
+                v-model="form.aspect_ratio"
+                :items="aspectRatioOptions"
+              />
+              <template #description>
+                Image aspect ratio. Use 'match_input_image' to automatically match the input image's aspect ratio.
+              </template>
+            </UFormField>
+
+            <!-- Output Format -->
+            <UFormField label="Output Format" name="output_format" class="mt-4">
+              <USelect
+                v-model="form.output_format"
+                :items="outputFormatOptions"
+              />
+              <template #description>
+                Format of the output image
+              </template>
+            </UFormField>
+          </template>
 
           <!-- Submit Button -->
           <div class="mt-6">
@@ -179,7 +219,7 @@
                 class="relative group border-2 border-gray-200 rounded-lg overflow-hidden hover:border-secondary-500 transition-colors bg-white"
               >
                 <!-- Loading state -->
-                <div v-if="(!imageLoaded || !imageLoaded[index]) && (!imageErrors || !imageErrors[index])" class="flex items-center justify-center min-h-[200px] bg-gray-50">
+                <div v-if="(!imageLoaded || !imageLoaded[index]) && (!imageErrors || !imageErrors[index])" class="absolute inset-0 flex items-center justify-center min-h-[200px] bg-gray-50 z-10">
                   <div class="text-center">
                     <UIcon name="i-heroicons-arrow-path" class="w-8 h-8 text-gray-400 animate-spin mx-auto mb-2" />
                     <p class="text-sm text-gray-500">Loading image...</p>
@@ -187,7 +227,7 @@
                 </div>
                 
                 <!-- Error state -->
-                <div v-if="imageErrors && imageErrors[index]" class="p-4 text-center text-red-600 min-h-[200px] flex flex-col items-center justify-center">
+                <div v-if="imageErrors && imageErrors[index]" class="absolute inset-0 p-4 text-center text-red-600 min-h-[200px] flex flex-col items-center justify-center bg-white z-10">
                   <UIcon name="i-heroicons-exclamation-triangle" class="w-8 h-8 text-red-500 mb-2" />
                   <p class="text-sm font-medium">Failed to load image</p>
                   <p class="text-xs text-gray-500 mt-1 break-all px-2">{{ imageErrors[index] }}</p>
@@ -215,20 +255,20 @@
                   v-if="!imageErrors || !imageErrors[index]"
                   :src="imageUrl"
                   :alt="`Generated image ${index + 1}`"
-                  class="w-full h-auto object-contain"
-                  :class="{ 'opacity-0': !imageLoaded || !imageLoaded[index] }"
-                  crossorigin="anonymous"
+                  class="w-full h-auto object-contain block relative z-0"
+                  :class="{ 'opacity-0 invisible': !imageLoaded || !imageLoaded[index], 'opacity-100 visible': imageLoaded && imageLoaded[index] }"
                   @error="handleImageError($event, index)"
                   @load="handleImageLoad($event, index)"
                 />
                 
                 <!-- Hover overlay with download button -->
-                <div v-if="imageLoaded && imageLoaded[index] && (!imageErrors || !imageErrors[index])" class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-opacity flex items-center justify-center">
+                <div v-if="imageLoaded && imageLoaded[index] && (!imageErrors || !imageErrors[index])" class="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:pointer-events-auto z-10">
+                  <div class="absolute inset-0 bg-black opacity-0 group-hover:opacity-50 transition-opacity"></div>
                   <UButton
                     variant="solid"
                     color="secondary"
                     size="sm"
-                    class="opacity-0 group-hover:opacity-100 transition-opacity"
+                    class="relative opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto z-10"
                     @click="downloadImage(imageUrl, index)"
                   >
                     Download
@@ -259,6 +299,9 @@ import MultiImageUpload from '~/components/ui/MultiImageUpload.vue'
 
 const toast = useToast()
 
+// Model selection
+const selectedModel = ref<'seedream' | 'nano-banana'>('seedream')
+
 // Form state
 const form = ref({
   prompt: '',
@@ -270,6 +313,7 @@ const form = ref({
   sequential_image_generation: 'disabled' as 'disabled' | 'auto',
   max_images: 1,
   enhance_prompt: true,
+  output_format: 'jpg' as 'jpg' | 'png',
 })
 
 // Generation state
@@ -300,6 +344,16 @@ const aspectRatioOptions = [
 const sequentialOptions = [
   { label: 'Disabled', value: 'disabled' },
   { label: 'Auto', value: 'auto' },
+]
+
+const modelOptions = [
+  { label: 'Seedream 4.0', value: 'seedream' },
+  { label: 'Nano Banana', value: 'nano-banana' },
+]
+
+const outputFormatOptions = [
+  { label: 'JPG', value: 'jpg' },
+  { label: 'PNG', value: 'png' },
 ]
 
 // Handle image upload
@@ -409,20 +463,28 @@ const handleSubmit = async () => {
       })
     }
 
-    // Add other parameters
-    formDataToSend.append('size', form.value.size)
-    if (form.value.size !== 'custom') {
+    // Add model
+    formDataToSend.append('model', selectedModel.value === 'seedream' ? 'bytedance/seedream-4' : 'google/nano-banana')
+
+    // Add model-specific parameters
+    if (selectedModel.value === 'seedream') {
+      formDataToSend.append('size', form.value.size)
+      if (form.value.size !== 'custom') {
+        formDataToSend.append('aspect_ratio', form.value.aspect_ratio)
+      }
+      if (form.value.size === 'custom') {
+        formDataToSend.append('width', form.value.width.toString())
+        formDataToSend.append('height', form.value.height.toString())
+      }
+      formDataToSend.append('sequential_image_generation', form.value.sequential_image_generation)
+      if (form.value.sequential_image_generation === 'auto') {
+        formDataToSend.append('max_images', form.value.max_images.toString())
+      }
+      formDataToSend.append('enhance_prompt', form.value.enhance_prompt.toString())
+    } else if (selectedModel.value === 'nano-banana') {
       formDataToSend.append('aspect_ratio', form.value.aspect_ratio)
+      formDataToSend.append('output_format', form.value.output_format)
     }
-    if (form.value.size === 'custom') {
-      formDataToSend.append('width', form.value.width.toString())
-      formDataToSend.append('height', form.value.height.toString())
-    }
-    formDataToSend.append('sequential_image_generation', form.value.sequential_image_generation)
-    if (form.value.sequential_image_generation === 'auto') {
-      formDataToSend.append('max_images', form.value.max_images.toString())
-    }
-    formDataToSend.append('enhance_prompt', form.value.enhance_prompt.toString())
 
     // Call API
     const result = await $fetch('/api/generate-image', {
@@ -467,7 +529,8 @@ const handleSubmit = async () => {
 const downloadImage = (url: string, index: number) => {
   const link = document.createElement('a')
   link.href = url
-  link.download = `seedream-image-${index + 1}.png`
+  const extension = selectedModel.value === 'nano-banana' ? form.value.output_format : 'png'
+  link.download = `${selectedModel.value}-image-${index + 1}.${extension}`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)

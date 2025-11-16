@@ -210,10 +210,16 @@ class ReplicateMCPServer {
         },
         {
           name: 'generate_image',
-          description: 'Generate image(s) using bytedance/seedream-4 model',
+          description: 'Generate image(s) using Seedream 4.0 or Nano Banana model',
           inputSchema: {
             type: 'object',
             properties: {
+              model: {
+                type: 'string',
+                enum: ['bytedance/seedream-4', 'google/nano-banana'],
+                description: 'Model to use for image generation',
+                default: 'bytedance/seedream-4',
+              },
               prompt: {
                 type: 'string',
                 description: 'Text prompt for image generation (required)',
@@ -223,42 +229,50 @@ class ReplicateMCPServer {
                 items: { type: 'string' },
                 description: 'Input image(s) for image-to-image generation. List of 1-10 images for single or multi-reference generation.',
               },
+              // Seedream-specific parameters
               size: {
                 type: 'string',
                 enum: ['1K', '2K', '4K', 'custom'],
-                description: 'Image resolution: 1K (1024px), 2K (2048px), 4K (4096px), or custom for specific dimensions.',
+                description: 'Image resolution (Seedream only): 1K (1024px), 2K (2048px), 4K (4096px), or custom for specific dimensions.',
                 default: '2K',
               },
               aspect_ratio: {
                 type: 'string',
-                description: 'Image aspect ratio. Only used when size is not custom. Use match_input_image to automatically match the input images aspect ratio.',
+                description: 'Image aspect ratio. Use match_input_image to automatically match the input images aspect ratio.',
                 default: 'match_input_image',
               },
               width: {
                 type: 'number',
-                description: 'Custom image width (only used when size=custom). Range: 1024-4096 pixels.',
+                description: 'Custom image width (Seedream only, when size=custom). Range: 1024-4096 pixels.',
                 default: 2048,
               },
               height: {
                 type: 'number',
-                description: 'Custom image height (only used when size=custom). Range: 1024-4096 pixels.',
+                description: 'Custom image height (Seedream only, when size=custom). Range: 1024-4096 pixels.',
                 default: 2048,
               },
               sequential_image_generation: {
                 type: 'string',
                 enum: ['disabled', 'auto'],
-                description: 'Group image generation mode. disabled generates a single image. auto lets the model decide whether to generate multiple related images.',
+                description: 'Group image generation mode (Seedream only). disabled generates a single image. auto lets the model decide whether to generate multiple related images.',
                 default: 'disabled',
               },
               max_images: {
                 type: 'number',
-                description: 'Maximum number of images to generate when sequential_image_generation=auto. Range: 1-15. Total images (input + generated) cannot exceed 15.',
+                description: 'Maximum number of images to generate (Seedream only, when sequential_image_generation=auto). Range: 1-15.',
                 default: 1,
               },
               enhance_prompt: {
                 type: 'boolean',
-                description: 'Enable prompt enhancement for higher quality results, this will take longer to generate.',
+                description: 'Enable prompt enhancement (Seedream only) for higher quality results, this will take longer to generate.',
                 default: true,
+              },
+              // Nano Banana-specific parameters
+              output_format: {
+                type: 'string',
+                enum: ['jpg', 'png'],
+                description: 'Output format (Nano Banana only). Format of the output image.',
+                default: 'jpg',
               },
             },
             required: ['prompt'],
@@ -298,6 +312,7 @@ class ReplicateMCPServer {
           
           case 'generate_image':
             return await this.generateImage(
+              args.model || 'bytedance/seedream-4',
               args.prompt,
               args.image_input,
               args.size || '2K',
@@ -306,7 +321,8 @@ class ReplicateMCPServer {
               args.height || 2048,
               args.sequential_image_generation || 'disabled',
               args.max_images || 1,
-              args.enhance_prompt !== undefined ? args.enhance_prompt : true
+              args.enhance_prompt !== undefined ? args.enhance_prompt : true,
+              args.output_format || 'jpg'
             )
           
           default:
@@ -491,6 +507,7 @@ class ReplicateMCPServer {
   }
 
   private async generateImage(
+    model: string = 'bytedance/seedream-4',
     prompt: string,
     imageInput?: string[],
     size: string = '2K',
@@ -499,33 +516,19 @@ class ReplicateMCPServer {
     height: number = 2048,
     sequentialImageGeneration: string = 'disabled',
     maxImages: number = 1,
-    enhancePrompt: boolean = true
+    enhancePrompt: boolean = true,
+    outputFormat: string = 'jpg'
   ) {
     if (!prompt) {
       throw new Error('Prompt is required for image generation')
     }
 
-    const modelId = 'bytedance/seedream-4'
+    const modelId = model || 'bytedance/seedream-4'
     const input: any = {
       prompt,
-      size,
-      aspect_ratio: aspectRatio,
-      sequential_image_generation: sequentialImageGeneration,
-      enhance_prompt: enhancePrompt,
     }
 
-    // Handle custom size
-    if (size === 'custom') {
-      input.width = width
-      input.height = height
-    }
-
-    // Handle sequential image generation
-    if (sequentialImageGeneration === 'auto') {
-      input.max_images = maxImages
-    }
-
-    // Handle image inputs - upload files if needed
+    // Handle image inputs - upload files if needed (common for both models)
     if (imageInput && imageInput.length > 0) {
       if (imageInput.length > 10) {
         throw new Error('Maximum 10 input images allowed')
@@ -535,6 +538,28 @@ class ReplicateMCPServer {
         imageInput.map(img => this.uploadFileIfNeeded(img))
       )
       input.image_input = uploadedImages
+    }
+
+    // Model-specific parameters
+    if (modelId === 'bytedance/seedream-4') {
+      input.size = size
+      input.aspect_ratio = aspectRatio
+      input.sequential_image_generation = sequentialImageGeneration
+      input.enhance_prompt = enhancePrompt
+
+      // Handle custom size
+      if (size === 'custom') {
+        input.width = width
+        input.height = height
+      }
+
+      // Handle sequential image generation
+      if (sequentialImageGeneration === 'auto') {
+        input.max_images = maxImages
+      }
+    } else if (modelId === 'google/nano-banana') {
+      input.aspect_ratio = aspectRatio
+      input.output_format = outputFormat
     }
 
     console.error(`[Replicate MCP] Creating image prediction with model: ${modelId}`)

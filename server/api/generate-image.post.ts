@@ -172,20 +172,32 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    // Get model from body (default to seedream for backward compatibility)
+    const model = body.model || 'bytedance/seedream-4'
+
     // Build parameters for Replicate MCP call
     const params: any = {
+      model,
       prompt: body.prompt,
-      size: body.size || '2K',
-      aspect_ratio: body.aspect_ratio || 'match_input_image',
-      width: body.width || 2048,
-      height: body.height || 2048,
-      sequential_image_generation: body.sequential_image_generation || 'disabled',
-      max_images: body.max_images || 1,
-      enhance_prompt: body.enhance_prompt !== undefined ? body.enhance_prompt : true,
     }
 
+    // Add image inputs if any
     if (imageInputUrls && imageInputUrls.length > 0) {
       params.image_input = imageInputUrls
+    }
+
+    // Add model-specific parameters
+    if (model === 'bytedance/seedream-4') {
+      params.size = body.size || '2K'
+      params.aspect_ratio = body.aspect_ratio || 'match_input_image'
+      params.width = body.width || 2048
+      params.height = body.height || 2048
+      params.sequential_image_generation = body.sequential_image_generation || 'disabled'
+      params.max_images = body.max_images || 1
+      params.enhance_prompt = body.enhance_prompt !== undefined ? body.enhance_prompt : true
+    } else if (model === 'google/nano-banana') {
+      params.aspect_ratio = body.aspect_ratio || 'match_input_image'
+      params.output_format = body.output_format || 'jpg'
     }
 
     console.log('[Generate Image] Calling Replicate MCP generate_image with params:', JSON.stringify(params, null, 2))
