@@ -10,6 +10,24 @@
 
       <!-- Storyboard content -->
       <template v-else>
+        <!-- Story Selection (New Pipeline) -->
+        <div v-if="stories.length > 0 && !storyboard" class="mb-8">
+          <StorySelector
+            :stories="stories"
+            :selected-story-id="selectedStory?.id"
+            :is-loading="false"
+            @select="handleStorySelect"
+            @confirm="handleStoryConfirm"
+          />
+          
+          <StoryComparison
+            v-if="stories.length > 1"
+            :stories="stories"
+            :selected-story-id="selectedStory?.id"
+            class="mt-6"
+          />
+        </div>
+
         <div v-if="storyboard" class="mb-6">
           <div class="flex items-center gap-4 mb-2">
             <UBadge 
@@ -56,6 +74,15 @@
         <AudioScriptView
           v-if="storyboard"
           :segments="storyboard.segments"
+          class="mt-6"
+        />
+
+        <!-- Keyframe Preview (New Pipeline) -->
+        <KeyframeGrid
+          v-if="storyboard && storyboard.segments.some(s => s.firstFrameUrl || s.keyframeStatus)"
+          :segments="storyboard.segments"
+          :resolution="storyboard.meta.aspectRatio === '1:1' ? '2K' : '2K'"
+          :show-progress="generationStarted"
           class="mt-6"
         />
 
@@ -106,7 +133,10 @@ import AudioScriptView from '~/components/generation/AudioScriptView.vue'
 import GenerationProgress from '~/components/ui/GenerationProgress.vue'
 import CompositionTimeline from '~/components/generation/CompositionTimeline.vue'
 import SegmentEditModal from '~/components/generation/SegmentEditModal.vue'
-import type { Segment, Storyboard } from '~/app/types/generation'
+import StorySelector from '~/components/generation/StorySelector.vue'
+import StoryComparison from '~/components/generation/StoryComparison.vue'
+import KeyframeGrid from '~/components/generation/KeyframeGrid.vue'
+import type { Segment, Storyboard, Story } from '~/app/types/generation'
 
 const route = useRoute()
 // Get storyboard from sessionStorage (passed via navigateTo)
@@ -120,7 +150,20 @@ const editModalOpen = ref(false)
 const selectedSegment = ref<Segment | null>(null)
 const selectedSegmentIndex = ref<number | null>(null)
 
-const { segments, overallProgress, status, overallError, jobId, startGeneration: startGen, pollProgress: pollGenProgress } = useGeneration()
+const { 
+  segments, 
+  overallProgress, 
+  status, 
+  overallError, 
+  jobId, 
+  startGeneration: startGen, 
+  pollProgress: pollGenProgress,
+  // New pipeline state
+  stories,
+  selectedStory,
+  generateStories,
+  selectStory,
+} = useGeneration()
 const { currentCost, estimatedTotal, startPolling } = useCostTracking()
 const toast = useToast()
 
@@ -663,6 +706,34 @@ const handlePromptSelected = async (segmentIdx: number, promptIndex: number) => 
       color: 'error',
     })
   }
+}
+
+// New Pipeline Handlers
+const handleStorySelect = (story: Story) => {
+  selectStory(story)
+  console.log('[Generate] Story selected:', story.title)
+}
+
+const handleStoryConfirm = async () => {
+  if (!selectedStory.value) {
+    toast.add({
+      title: 'No story selected',
+      description: 'Please select a story first',
+      color: 'red',
+    })
+    return
+  }
+  
+  console.log('[Generate] Story confirmed, planning storyboard...')
+  toast.add({
+    title: 'Story confirmed',
+    description: `Proceeding with: ${selectedStory.value.title}`,
+    color: 'green',
+  })
+  
+  // The story will be used when planning the storyboard
+  // This would typically trigger navigation back to the prompt input
+  // or proceed directly to storyboard planning if we have the parsed data
 }
 
 const handleSegmentSaved = async (updatedSegment: Segment, index: number) => {
