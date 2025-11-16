@@ -770,11 +770,14 @@ class ReplicateMCPServer {
       const { Readable } = await import('stream')
       
       formData = new FormDataClass()
-      formData.append('file', Readable.from(fileBuffer), {
+      // Replicate API requires 'content' field (not 'file') with filename in options
+      formData.append('content', Readable.from(fileBuffer), {
         filename: filename,
         contentType: mimeType,
       })
       headers = { ...headers, ...formData.getHeaders() }
+      
+      console.error('[Replicate MCP] Uploading file:', { filename, mimeType, size: fileBuffer.length })
       
       // Upload to Replicate using fetch (Replicate's files API)
       const response = await fetch('https://api.replicate.com/v1/files', {
@@ -785,14 +788,15 @@ class ReplicateMCPServer {
       
       if (!response.ok) {
         const errorText = await response.text()
+        console.error('[Replicate MCP] Upload failed:', { status: response.status, error: errorText })
         throw new Error(`Replicate file upload failed: ${response.status} ${errorText}`)
       }
       
       const result = await response.json()
       console.error('[Replicate MCP] File upload response:', JSON.stringify(result, null, 2))
       
-      // Return the public URL - Replicate returns { urls: { get: "..." } }
-      const url = result.urls?.get || result.url || (typeof result === 'string' ? result : null)
+      // New API returns { url: "...", id: "...", filename: "...", ... }
+      const url = result.url || result.urls?.get || (typeof result === 'string' ? result : null)
       if (!url) {
         throw new Error(`Invalid response from Replicate file upload: ${JSON.stringify(result)}`)
       }
