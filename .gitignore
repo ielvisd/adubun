@@ -35,3 +35,5 @@ data/costs.json
 
 .cursor
 .taskmaster/
+.cursorrules
+memory-bank/

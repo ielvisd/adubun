@@ -11,6 +11,7 @@
             <UButton to="/" variant="ghost" color="gray" class="text-gray-700 hover:text-black">Home</UButton>
             <UButton to="/history" variant="ghost" color="gray" class="text-gray-700 hover:text-black">History</UButton>
             <UButton to="/image-creator" variant="ghost" color="gray" class="text-gray-700 hover:text-black">Image Creator</UButton>
+            <UButton to="/editor" variant="ghost" color="gray" class="text-gray-700 hover:text-black">Video Editor</UButton>
             <UButton 
               to="/generate" 
               color="secondary" 
@@ -38,6 +39,7 @@
               <li><NuxtLink to="/" class="hover:text-white transition-colors">Home</NuxtLink></li>
               <li><NuxtLink to="/generate" class="hover:text-white transition-colors">Generate</NuxtLink></li>
               <li><NuxtLink to="/image-creator" class="hover:text-white transition-colors">Image Creator</NuxtLink></li>
+              <li><NuxtLink to="/editor" class="hover:text-white transition-colors">Video Editor</NuxtLink></li>
               <li><NuxtLink to="/history" class="hover:text-white transition-colors">History</NuxtLink></li>
             </ul>
           </div>

@@ -248,3 +248,19 @@ export async function extractFramesFromVideo(
   return [framePath]
 }
 
+/**
+ * Get video duration in seconds
+ */
+export async function getVideoDuration(videoPath: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(videoPath, (err, metadata) => {
+      if (err) {
+        reject(err)
+        return
+      }
+      const duration = metadata.format.duration || 0
+      resolve(duration)
+    })
+  })
+}
+

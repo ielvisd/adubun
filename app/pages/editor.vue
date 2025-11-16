@@ -1,0 +1,475 @@
+<template>
+  <div class="min-h-screen bg-gray-900">
+    <UContainer class="max-w-7xl py-6">
+      <div class="mb-6">
+        <h1 class="text-3xl font-bold text-white">Video Editor Studio</h1>
+        <p class="text-gray-400 mt-2">Professional video editing with trim and split</p>
+      </div>
+
+      <div class="grid grid-cols-12 gap-6">
+        <!-- Media Bin (Left Sidebar) -->
+        <div class="col-span-3">
+          <EditorMediaBin
+            :videos="uploadedVideos"
+            @upload="handleVideoUpload"
+            @select="handleVideoSelect"
+            @remove="handleVideoRemove"
+          />
+        </div>
+
+        <!-- Main Editor Area -->
+        <div class="col-span-9 flex flex-col gap-4">
+          <!-- Preview Player -->
+          <div class="bg-black rounded-lg overflow-hidden border border-gray-800" style="aspect-ratio: 16/9; max-height: 500px;">
+            <EditorPreview
+              :clips="timelineClips"
+              :current-time="currentTime"
+              :is-playing="isPlaying"
+              @time-update="handleTimeUpdate"
+              @seek="handleSeek"
+              @play="handlePlay"
+              @pause="handlePause"
+            />
+          </div>
+
+          <!-- Timeline Editor -->
+          <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+            <EditorTimeline
+              ref="timelineRef"
+              :clips="timelineClips"
+              :current-time="currentTime"
+              :snap-threshold="8"
+              @trim="handleTrim"
+              @split="handleSplit"
+              @delete="handleDelete"
+              @seek="handleSeek"
+              @reorder="handleReorder"
+            />
+          </div>
+
+          <!-- Controls -->
+          <div class="flex justify-between items-center">
+            <div class="flex gap-2">
+              <UButton
+                @click="handlePlayPause"
+                :disabled="timelineClips.length === 0"
+                color="primary"
+              >
+                <UIcon :name="isPlaying ? 'i-heroicons-pause' : 'i-heroicons-play'" class="mr-2" />
+                {{ isPlaying ? 'Pause' : 'Play' }}
+              </UButton>
+              <UButton
+                variant="outline"
+                @click="handleStop"
+                :disabled="timelineClips.length === 0"
+              >
+                <UIcon name="i-heroicons-stop" class="mr-2" />
+                Stop
+              </UButton>
+              <UButton
+                variant="outline"
+                @click="handleSplitAtPlayhead"
+                :disabled="!canSplitAtCurrentTime"
+              >
+                <UIcon name="i-heroicons-scissors" class="mr-2" />
+                Split (S)
+              </UButton>
+            </div>
+
+            <UButton
+              color="primary"
+              @click="handleExport"
+              :loading="isExporting"
+              :disabled="timelineClips.length === 0"
+            >
+              <UIcon name="i-heroicons-arrow-down-tray" class="mr-2" />
+              Export Video
+            </UButton>
+          </div>
+        </div>
+      </div>
+    </UContainer>
+  </div>
+</template>
+
+<script setup lang="ts">
+import EditorMediaBin from '~/components/editor/MediaBin.vue'
+import EditorPreview from '~/components/editor/Preview.vue'
+import EditorTimeline from '~/components/editor/Timeline.vue'
+
+interface EditorClip {
+  id: string
+  videoId: string
+  sourceUrl: string
+  originalDuration: number
+  startOffset: number
+  endOffset: number
+  inTimelineStart: number
+  file?: File  // Keep file reference for export
+}
+
+interface UploadedVideo {
+  id: string
+  url: string
+  duration: number
+  name: string
+  file?: File  // Keep file reference
+}
+
+const toast = useToast()
+
+const uploadedVideos = ref<UploadedVideo[]>([])
+const timelineClips = ref<EditorClip[]>([])
+const currentTime = ref(0)
+const isPlaying = ref(false)
+const isExporting = ref(false)
+const timelineRef = ref<InstanceType<typeof EditorTimeline>>()
+
+const totalDuration = computed(() => {
+  return timelineClips.value.reduce((sum, clip) => {
+    return sum + getClipDuration(clip)
+  }, 0)
+})
+
+const canSplitAtCurrentTime = computed(() => {
+  const clip = getClipAtTime(currentTime.value)
+  if (!clip) return false
+  
+  const relativeTime = currentTime.value - clip.inTimelineStart
+  const clipDuration = getClipDuration(clip)
+  
+  // Can't split at boundaries
+  return relativeTime > 0.1 && relativeTime < clipDuration - 0.1
+})
+
+const getClipDuration = (clip: EditorClip): number => {
+  return clip.originalDuration - clip.startOffset - clip.endOffset
+}
+
+const getClipAtTime = (time: number): EditorClip | null => {
+  return timelineClips.value.find(clip => {
+    const duration = getClipDuration(clip)
+    return time >= clip.inTimelineStart && time < clip.inTimelineStart + duration
+  }) || null
+}
+
+// Get video duration from File object (local, no server)
+const getVideoDurationFromFile = (file: File): Promise<number> => {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video')
+    video.preload = 'metadata'
+    
+    video.onloadedmetadata = () => {
+      window.URL.revokeObjectURL(video.src)
+      resolve(video.duration)
+    }
+    
+    video.onerror = () => {
+      window.URL.revokeObjectURL(video.src)
+      reject(new Error('Failed to load video metadata'))
+    }
+    
+    video.src = URL.createObjectURL(file)
+  })
+}
+
+const handleVideoUpload = async (files: File[]) => {
+  for (const file of files) {
+    if (!file.type.startsWith('video/')) {
+      toast.add({
+        title: 'Invalid file',
+        description: `${file.name} is not a video file`,
+        color: 'error',
+      })
+      continue
+    }
+
+    try {
+      // Get duration locally from file
+      const duration = await getVideoDurationFromFile(file)
+      
+      // Create local object URL (no server upload)
+      const videoUrl = URL.createObjectURL(file)
+      
+      const videoId = `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      
+      uploadedVideos.value.push({
+        id: videoId,
+        url: videoUrl,
+        duration,
+        name: file.name,
+        file, // Keep file reference for export
+      })
+
+      toast.add({
+        title: 'Video loaded',
+        description: `${file.name} ready for editing`,
+        color: 'success',
+      })
+    } catch (error: any) {
+      toast.add({
+        title: 'Load failed',
+        description: error.message || 'Failed to load video',
+        color: 'error',
+      })
+    }
+  }
+}
+
+const handleVideoSelect = (video: UploadedVideo) => {
+  const lastEnd = timelineClips.value.length > 0
+    ? timelineClips.value[timelineClips.value.length - 1].inTimelineStart + 
+      getClipDuration(timelineClips.value[timelineClips.value.length - 1])
+    : 0
+
+  const clip: EditorClip = {
+    id: `clip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    videoId: video.id,
+    sourceUrl: video.url,
+    originalDuration: video.duration,
+    startOffset: 0,
+    endOffset: 0,
+    inTimelineStart: lastEnd,
+    file: video.file, // Keep file reference
+  }
+
+  timelineClips.value.push(clip)
+}
+
+const handleVideoRemove = (videoId: string) => {
+  const video = uploadedVideos.value.find(v => v.id === videoId)
+  if (video && video.url.startsWith('blob:')) {
+    URL.revokeObjectURL(video.url) // Clean up blob URL
+  }
+  
+  uploadedVideos.value = uploadedVideos.value.filter(v => v.id !== videoId)
+  timelineClips.value = timelineClips.value.filter(c => c.videoId !== videoId)
+  recalculateTimeline()
+}
+
+const recalculateTimeline = () => {
+  let currentStart = 0
+  timelineClips.value.forEach(clip => {
+    clip.inTimelineStart = currentStart
+    currentStart += getClipDuration(clip)
+  })
+}
+
+const handleSeek = (time: number) => {
+  currentTime.value = Math.max(0, Math.min(time, totalDuration.value))
+  if (isPlaying.value) {
+    handleStop()
+  }
+}
+
+const handleTimeUpdate = (time: number) => {
+  currentTime.value = time
+  if (currentTime.value >= totalDuration.value) {
+    handleStop()
+    currentTime.value = totalDuration.value
+  }
+}
+
+const handlePlay = () => {
+  if (timelineClips.value.length === 0) return
+  if (!isPlaying.value) {
+    if (currentTime.value >= totalDuration.value) {
+      currentTime.value = 0
+    }
+    isPlaying.value = true
+  }
+}
+
+const handlePause = () => {
+  if (isPlaying.value) {
+    isPlaying.value = false
+  }
+}
+
+const handlePlayPause = () => {
+  if (isPlaying.value) {
+    handleStop()
+  } else {
+    if (currentTime.value >= totalDuration.value) {
+      currentTime.value = 0
+    }
+    isPlaying.value = true
+  }
+}
+
+const handleStop = () => {
+  isPlaying.value = false
+}
+
+const handleTrim = (clipId: string, startOffset: number, endOffset: number) => {
+  const clipIndex = timelineClips.value.findIndex(c => c.id === clipId)
+  if (clipIndex === -1) return
+
+  const clip = timelineClips.value[clipIndex]
+  
+  // Clamp values
+  const newStartOffset = Math.max(0, Math.min(startOffset, clip.originalDuration - 0.1))
+  const maxEndOffset = clip.originalDuration - newStartOffset - 0.1
+  const newEndOffset = Math.max(0, Math.min(endOffset, maxEndOffset))
+  
+  clip.startOffset = newStartOffset
+  clip.endOffset = newEndOffset
+  
+  recalculateTimeline()
+}
+
+const handleSplit = (clipId: string, splitTime: number) => {
+  const clipIndex = timelineClips.value.findIndex(c => c.id === clipId)
+  if (clipIndex === -1) return
+
+  const clip = timelineClips.value[clipIndex]
+  const relativeTime = splitTime - clip.inTimelineStart
+  const clipDuration = getClipDuration(clip)
+
+  if (relativeTime <= 0.1 || relativeTime >= clipDuration - 0.1) return
+
+  // Calculate split point in original media time
+  const splitPointInOriginal = clip.startOffset + relativeTime
+
+  // Create two clips
+  const clipA: EditorClip = {
+    ...clip,
+    id: `clip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    startOffset: clip.startOffset,
+    endOffset: clip.originalDuration - splitPointInOriginal,
+    inTimelineStart: clip.inTimelineStart,
+  }
+
+  const clipB: EditorClip = {
+    ...clip,
+    id: `clip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    startOffset: splitPointInOriginal,
+    endOffset: clip.endOffset,
+    inTimelineStart: clip.inTimelineStart + relativeTime,
+  }
+
+  timelineClips.value.splice(clipIndex, 1, clipA, clipB)
+  recalculateTimeline()
+}
+
+const handleSplitAtPlayhead = () => {
+  if (!canSplitAtCurrentTime.value) return
+  
+  const clip = getClipAtTime(currentTime.value)
+  if (clip) {
+    handleSplit(clip.id, currentTime.value)
+  }
+}
+
+const handleDelete = (clipId: string) => {
+  timelineClips.value = timelineClips.value.filter(c => c.id !== clipId)
+  recalculateTimeline()
+}
+
+const handleReorder = (clips: EditorClip[]) => {
+  timelineClips.value = clips
+  recalculateTimeline()
+}
+
+const handleExport = async () => {
+  if (timelineClips.value.length === 0) return
+
+  isExporting.value = true
+
+  try {
+    const formData = new FormData()
+    
+    // Upload files to server only when exporting
+    const clipsData = await Promise.all(
+      timelineClips.value.map(async (clip) => {
+        let videoUrl = clip.sourceUrl
+        
+        // If it's a local blob URL, we need to upload the file
+        if (clip.file && clip.sourceUrl.startsWith('blob:')) {
+          toast.add({
+            title: 'Uploading videos...',
+            description: 'Preparing videos for export',
+            color: 'info',
+          })
+          
+          try {
+            const uploadFormData = new FormData()
+            uploadFormData.append('video', clip.file)
+            
+            const response = await $fetch<{ id: string; url: string; duration: number }>('/api/editor/upload', {
+              method: 'POST',
+              body: uploadFormData,
+            })
+            
+            videoUrl = response.url
+          } catch (error: any) {
+            console.error('[Editor Export] Failed to upload clip:', error)
+            throw new Error(`Failed to upload ${clip.file.name}: ${error.message}`)
+          }
+        }
+        
+        return {
+          videoUrl,
+          trimStart: clip.startOffset,
+          trimEnd: clip.originalDuration - clip.endOffset,
+        }
+      })
+    )
+
+    formData.append('clips', JSON.stringify(clipsData))
+
+    const response = await $fetch<{ videoUrl: string; videoId: string }>('/api/editor/export', {
+      method: 'POST',
+      body: formData,
+    })
+
+    toast.add({
+      title: 'Export successful',
+      description: 'Your video has been exported',
+      color: 'success',
+    })
+
+    await navigateTo(`/preview?videoId=${response.videoId}`)
+  } catch (error: any) {
+    toast.add({
+      title: 'Export failed',
+      description: error.message || 'Failed to export video',
+      color: 'error',
+    })
+  } finally {
+    isExporting.value = false
+  }
+}
+
+// Keyboard shortcuts
+onMounted(() => {
+  const handleKeyPress = (e: KeyboardEvent) => {
+    if (e.key === 's' || e.key === 'S') {
+      if (!e.ctrlKey && !e.metaKey) {
+        e.preventDefault()
+        handleSplitAtPlayhead()
+      }
+    } else if (e.key === ' ') {
+      if (document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault()
+        handlePlayPause()
+      }
+    }
+  }
+
+  window.addEventListener('keydown', handleKeyPress)
+  onUnmounted(() => {
+    window.removeEventListener('keydown', handleKeyPress)
+  })
+})
+
+onBeforeUnmount(() => {
+  handleStop()
+  // Clean up all blob URLs
+  uploadedVideos.value.forEach(video => {
+    if (video.url.startsWith('blob:')) {
+      URL.revokeObjectURL(video.url)
+    }
+  })
+})
+</script>
