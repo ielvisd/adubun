@@ -8,7 +8,7 @@
         <p class="text-gray-600 text-center">We're analyzing your prompt and creating a detailed storyboard...</p>
       </div>
 
-      <!-- Storyboard content -->
+        <!-- Storyboard content -->
       <template v-else>
         <!-- Story Selection (New Pipeline) -->
         <div v-if="stories.length > 0 && !storyboard" class="mb-8">
@@ -28,7 +28,16 @@
           />
         </div>
 
-        <div v-if="storyboard" class="mb-6">
+        <!-- Keyframe Approval (New Pipeline - Before Video Generation) -->
+        <div v-if="showKeyframeApproval && storyboard" class="mb-8">
+          <KeyframeApproval
+            :segments="segments"
+            @approve="handleKeyframeApproval"
+            @regenerate="handleKeyframeRegeneration"
+          />
+        </div>
+
+        <div v-if="storyboard && !showKeyframeApproval" class="mb-6">
           <div class="flex items-center gap-4 mb-2">
             <UBadge 
               :color="storyboard.meta.mode === 'demo' ? 'yellow' : 'green'"
@@ -104,7 +113,7 @@
         />
 
         <UButton
-          v-if="!generationStarted && storyboard"
+          v-if="!generationStarted && storyboard && !showKeyframeApproval"
           size="xl"
           color="secondary"
           variant="solid"
@@ -136,6 +145,7 @@ import SegmentEditModal from '~/components/generation/SegmentEditModal.vue'
 import StorySelector from '~/components/generation/StorySelector.vue'
 import StoryComparison from '~/components/generation/StoryComparison.vue'
 import KeyframeGrid from '~/components/generation/KeyframeGrid.vue'
+import KeyframeApproval from '~/components/generation/KeyframeApproval.vue'
 import type { Segment, Storyboard, Story } from '~/app/types/generation'
 
 const route = useRoute()
@@ -150,6 +160,10 @@ const editModalOpen = ref(false)
 const selectedSegment = ref<Segment | null>(null)
 const selectedSegmentIndex = ref<number | null>(null)
 
+// Keyframe approval state
+const showKeyframeApproval = ref(false)
+const keyframesGenerated = ref(false)
+
 const { 
   segments, 
   overallProgress, 
@@ -161,8 +175,11 @@ const {
   // New pipeline state
   stories,
   selectedStory,
+  keyframeProgress,
+  currentPhase,
   generateStories,
   selectStory,
+  generateKeyframes,
 } = useGeneration()
 const { currentCost, estimatedTotal, startPolling } = useCostTracking()
 const toast = useToast()
@@ -464,6 +481,40 @@ watch(storyboard, (newStoryboard) => {
   }
 }, { deep: true })
 
+// Watch for new storyboard and trigger keyframe generation if product images exist
+watch(storyboard, async (newStoryboard, oldStoryboard) => {
+  // Only trigger once when storyboard is first created
+  if (newStoryboard && !oldStoryboard && !keyframesGenerated.value) {
+    const hasProductImages = newStoryboard.meta.productImages && 
+                             newStoryboard.meta.productImages.length > 0 &&
+                             newStoryboard.meta.productName
+    
+    if (hasProductImages) {
+      console.log('[Generate] Storyboard created with product images, generating keyframes...')
+      
+      try {
+        await generateKeyframes(newStoryboard)
+        
+        // Show keyframe approval UI
+        showKeyframeApproval.value = true
+        
+        toast.add({
+          title: 'Keyframes generated',
+          description: 'Review the scene images before proceeding',
+          color: 'green',
+        })
+      } catch (error: any) {
+        console.error('[Generate] Failed to generate keyframes:', error)
+        toast.add({
+          title: 'Keyframe generation failed',
+          description: error.message || 'Failed to generate keyframes',
+          color: 'red',
+        })
+      }
+    }
+  }
+})
+
 // Watch for status changes (set up once, not inside startGeneration)
 const statusWatcher = watch(status, (newStatus) => {
   if (newStatus === 'completed') {
@@ -731,9 +782,54 @@ const handleStoryConfirm = async () => {
     color: 'green',
   })
   
-  // The story will be used when planning the storyboard
-  // This would typically trigger navigation back to the prompt input
-  // or proceed directly to storyboard planning if we have the parsed data
+  // After story selection, trigger keyframe generation if product images exist
+  // The storyboard planning will happen, then keyframes will be generated
+  // User will review keyframes before proceeding to video generation
+}
+
+// Handle keyframe approval - proceed to video generation
+const handleKeyframeApproval = async () => {
+  console.log('[Generate] Keyframes approved, proceeding to video generation...')
+  showKeyframeApproval.value = false
+  keyframesGenerated.value = true
+  
+  toast.add({
+    title: 'Keyframes approved',
+    description: 'Starting video generation...',
+    color: 'green',
+  })
+  
+  // Proceed to video generation
+  await startGeneration()
+}
+
+// Handle keyframe regeneration
+const handleKeyframeRegeneration = async () => {
+  if (!storyboard.value) return
+  
+  console.log('[Generate] Regenerating keyframes...')
+  toast.add({
+    title: 'Regenerating keyframes',
+    description: 'This may take a few moments...',
+    color: 'blue',
+  })
+  
+  try {
+    await generateKeyframes(storyboard.value)
+    
+    toast.add({
+      title: 'Keyframes regenerated',
+      description: 'Review the new keyframes',
+      color: 'green',
+    })
+  } catch (error: any) {
+    console.error('[Generate] Keyframe regeneration failed:', error)
+    toast.add({
+      title: 'Regeneration failed',
+      description: error.message || 'Failed to regenerate keyframes',
+      color: 'red',
+    })
+  }
 }
 
 const handleSegmentSaved = async (updatedSegment: Segment, index: number) => {

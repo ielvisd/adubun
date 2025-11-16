@@ -50,6 +50,95 @@ export const useGeneration = () => {
   }
 
   /**
+   * Generate keyframes for all segments (Phase 2 of new pipeline)
+   * This happens after story selection and before video generation
+   */
+  const generateKeyframes = async (storyboard: any) => {
+    status.value = 'keyframe_generation'
+    currentPhase.value = 'keyframes'
+    keyframeProgress.value = 0
+    
+    try {
+      console.log('[useGeneration] Generating keyframes for all segments...')
+      
+      // Initialize segments with pending status
+      segments.value = storyboard.segments.map((seg: Segment, idx: number) => ({
+        ...seg,
+        status: 'pending',
+        segmentId: idx,
+        keyframeStatus: 'pending',
+      }))
+      
+      // Call the keyframe generation endpoint
+      const response = await $fetch('/api/generate-keyframes', {
+        method: 'POST',
+        body: {
+          storyboard,
+          segmentsToGenerate: storyboard.segments.map((_: any, idx: number) => idx),
+        },
+      })
+      
+      console.log('[useGeneration] Keyframe generation initiated:', response)
+      
+      // Poll for keyframe completion
+      const pollInterval = setInterval(async () => {
+        try {
+          // Fetch updated storyboard data
+          const updatedStoryboard = await $fetch(`/api/storyboard/${storyboard.id}`)
+          
+          // Update segments with keyframe data
+          segments.value = updatedStoryboard.segments.map((seg: any, idx: number) => ({
+            ...seg,
+            status: seg.keyframeStatus === 'completed' ? 'completed' : 'processing',
+            segmentId: idx,
+          }))
+          
+          // Calculate progress
+          const completedCount = updatedStoryboard.segments.filter(
+            (seg: any) => seg.keyframeStatus === 'completed'
+          ).length
+          keyframeProgress.value = Math.round((completedCount / updatedStoryboard.segments.length) * 100)
+          
+          // Check if all keyframes are completed
+          const allCompleted = updatedStoryboard.segments.every(
+            (seg: any) => seg.keyframeStatus === 'completed'
+          )
+          
+          if (allCompleted) {
+            console.log('[useGeneration] All keyframes generated successfully')
+            clearInterval(pollInterval)
+            // Don't change status - let user review keyframes
+            return updatedStoryboard
+          }
+          
+          // Check for failures
+          const anyFailed = updatedStoryboard.segments.some(
+            (seg: any) => seg.keyframeStatus === 'failed'
+          )
+          
+          if (anyFailed) {
+            console.error('[useGeneration] Some keyframes failed to generate')
+            clearInterval(pollInterval)
+            status.value = 'failed'
+            throw new Error('Keyframe generation failed for some segments')
+          }
+        } catch (error) {
+          console.error('[useGeneration] Error polling keyframe progress:', error)
+          clearInterval(pollInterval)
+          status.value = 'failed'
+          throw error
+        }
+      }, 2000)
+      
+      return response
+    } catch (error) {
+      status.value = 'failed'
+      console.error('Keyframe generation failed:', error)
+      throw error
+    }
+  }
+
+  /**
    * Start the full generation flow (backward compatible)
    */
   const startGeneration = async (storyboard: any, generateKeyframesFirst: boolean = false) => {
@@ -239,6 +328,7 @@ export const useGeneration = () => {
     // New pipeline methods
     generateStories,
     selectStory,
+    generateKeyframes,
   }
 }
 
