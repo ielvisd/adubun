@@ -11,11 +11,11 @@
 ```
 Phase 1: ✅✅✅✅✅✅✅✅✅✅✅✅ 12/12 (100%) ⭐
 Phase 2: ✅✅✅✅✅✅✅✅✅✅✅✅✅✅ 14/14 (100%) ⭐
-Phase 3: ✅✅✅✅✅✅✅✅✅⬜⬜⬜ 9/12 (75%)
+Phase 3: ✅✅✅✅✅✅✅✅✅✅✅⬜ 11/12 (92%)
 Phase 4: ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ 0/10 (0%)
 Phase 5: ⬜⬜⬜⬜⬜⬜⬜⬜ 0/8 (0%)
 
-Overall: ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅ 35/56 tasks (63%)
+Overall: ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅ 37/56 tasks (66%)
 ```
 
 ---
@@ -93,7 +93,7 @@ Overall: ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅�
 ## Phase 3: Pipeline Integration (Week 5-6)
 
 **Goal:** Connect all pieces into unified flow  
-**Progress:** 9/12 tasks
+**Progress:** 11/12 tasks
 
 ### API Updates (4 tasks)
 - [x] **TASK-027** Update `/api/plan-storyboard` | _Backend_ | 4h | TASK-008 ✅
@@ -107,8 +107,8 @@ Overall: ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅�
 
 ### Generation Flow (3 tasks)
 - [ ] **TASK-033** Update `generate.vue` with new steps | _Frontend Lead_ | 10h | TASK-031, 026
-- [ ] **TASK-034** Create `useKeyframeGeneration` composable | _Frontend_ | 6h | TASK-023
-- [ ] **TASK-035** Update `useGeneration` composable | _Frontend_ | 4h | TASK-034
+- [x] **TASK-034** Create `useKeyframeGeneration` composable | _Frontend_ | 6h | TASK-023 ✅
+- [x] **TASK-035** Update `useGeneration` composable | _Frontend_ | 4h | TASK-034 ✅
 
 ### Cost Tracking (3 tasks)
 - [x] **TASK-036** Track story generation costs (done in TASK-007) | _Backend_ | 2h | TASK-008 ✅
