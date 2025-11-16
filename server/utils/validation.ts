@@ -173,3 +173,32 @@ export const generateStoriesSchema = z.object({
   productImages: z.array(z.string()).min(0).max(10).optional(),
 })
 
+// Segment schema for keyframe generation (subset of full Segment type)
+const segmentForKeyframeSchema = z.object({
+  type: z.enum(['hook', 'body', 'cta']),
+  description: z.string().min(1).max(500),
+  startTime: z.number().min(0),
+  endTime: z.number().min(0),
+  visualPrompt: z.string().min(10).max(2000),
+  audioNotes: z.string().optional(),
+  // New keyframe fields
+  firstFrameUrl: z.string().optional(),
+  lastFrameUrl: z.string().optional(),
+  enhancedPrompt: z.string().optional(),
+  keyframeStatus: z.enum(['pending', 'generating', 'completed', 'failed']).optional(),
+  keyframeError: z.string().optional(),
+})
+
+// NEW: Generate keyframes validation schema
+export const generateKeyframesSchema = z.object({
+  segment: segmentForKeyframeSchema,
+  segmentIndex: z.number().int().min(0),
+  productName: z.string().min(1).max(100),
+  productImages: z.array(z.string()).min(1).max(10),
+  aspectRatio: z.enum(['16:9', '9:16', '1:1']).default('16:9'),
+  resolution: z.enum(['1K', '2K', '4K']).default('2K'),
+  story: storySchema.optional(),
+  allSegments: z.array(segmentForKeyframeSchema).min(1),
+  waitForCompletion: z.boolean().default(false),
+})
+
