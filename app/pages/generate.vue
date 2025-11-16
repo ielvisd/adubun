@@ -279,8 +279,10 @@ onMounted(async () => {
         const stateRestored = await restoreGenerationState()
         if (stateRestored) {
           console.log('[Generate] Generation state restored and polling resumed')
+          // If state was restored (job is active), don't auto-start
+          return
         }
-        return
+        // If state was NOT restored, continue to auto-start check below
       }
       
       // Check if we have parsed prompt data (new flow)
@@ -327,7 +329,7 @@ onMounted(async () => {
               meta: {
                 ...parsed.meta,
                 duration: 24,
-                mode: 'demo',
+                mode: 'production',
               },
               createdAt: Date.now(),
             }
@@ -362,13 +364,15 @@ onMounted(async () => {
           sessionStorage.removeItem('parsedPrompt')
           sessionStorage.removeItem('selectedStory')
         } catch (error: any) {
+          console.error('[Generate] Storyboard planning error:', error)
           const toast = useToast()
           toast.add({
             title: 'Error',
             description: error.message || 'Failed to plan storyboard. Please try again.',
             color: 'error',
           })
-          navigateTo('/')
+          // Don't navigate away - let user stay on page to see error
+          // navigateTo('/')
         } finally {
           planningStoryboard.value = false
         }
@@ -382,25 +386,36 @@ onMounted(async () => {
           // Clear temporary storage
           sessionStorage.removeItem('storyboard')
         } else {
-          // If no storyboard found, redirect back to home
+          // If no storyboard found, show error but don't redirect
+          console.error('[Generate] No storyboard found in sessionStorage')
           const toast = useToast()
           toast.add({
             title: 'No storyboard found',
             description: 'Please start a new generation from the home page',
             color: 'warning',
           })
-          navigateTo('/')
+          // Don't navigate away immediately - let user see the error
+          // navigateTo('/')
         }
       }
     } catch (error) {
-      console.error('Failed to load storyboard:', error)
+      console.error('[Generate] Failed to load storyboard:', error)
       const toast = useToast()
       toast.add({
         title: 'Error',
         description: 'Failed to load storyboard. Please try again.',
         color: 'error',
       })
-      navigateTo('/')
+      // Don't navigate away - let user retry or see what went wrong
+      // navigateTo('/')
+    }
+    
+    // Auto-start generation if storyboard is loaded and no state was restored
+    if (storyboard.value && status.value === 'idle') {
+      // Small delay to ensure UI is ready
+      await nextTick()
+      console.log('[Generate] Auto-starting video generation...')
+      startGeneration()
     }
   }
 })
@@ -473,7 +488,7 @@ const startGeneration = async () => {
   }
 
   // Log mode and warn if in demo mode with multiple segments
-  const mode = storyboard.value.meta.mode || 'demo'
+  const mode = storyboard.value.meta.mode || 'production'
   const segmentCount = storyboard.value.segments.length
   console.log(`[Generate] Starting generation in ${mode} mode with ${segmentCount} segments`)
   console.log(`[Generate] Storyboard ID: ${storyboard.value.id}`)
@@ -495,23 +510,30 @@ const startGeneration = async () => {
 }
 
 const clips = computed(() => {
+  console.log('[Generate] Computing clips...')
+  console.log('[Generate] Segments value:', segments.value)
+  console.log('[Generate] Segments length:', segments.value?.length || 0)
+  
   if (!segments.value || segments.value.length === 0) {
     console.log('[Generate] No segments available for clips')
     return []
   }
   
+  // Log all segments with their status and videoUrl
+  segments.value.forEach((s: any, idx: number) => {
+    console.log(`[Generate] Segment ${idx}:`, {
+      segmentId: s.segmentId,
+      status: s.status,
+      hasVideoUrl: !!s.videoUrl,
+      hasMetadataVideoUrl: !!s.metadata?.videoUrl,
+      hasMetadataReplicateUrl: !!s.metadata?.replicateVideoUrl,
+      videoUrl: s.videoUrl?.substring(0, 50) || 'none',
+    })
+  })
+  
   const filtered = segments.value.filter((s: any) => s.status === 'completed' && s.videoUrl)
   console.log('[Generate] Segments filtered for clips:', filtered.length, 'out of', segments.value.length)
-  console.log('[Generate] Segment details:', JSON.stringify(filtered.map((s: any) => ({
-    segmentId: s.segmentId,
-    hasVideo: !!s.videoUrl,
-    hasAudio: !!s.voiceUrl,
-    videoUrl: s.videoUrl,
-    voiceUrl: s.voiceUrl,
-    startTime: s.startTime,
-    endTime: s.endTime,
-    type: s.type,
-  })), null, 2))
+  console.log('[Generate] Filtered segment IDs:', filtered.map((s: any) => s.segmentId))
   
   const result = filtered.map((s: any) => ({
     videoUrl: s.videoUrl!,
@@ -521,8 +543,12 @@ const clips = computed(() => {
     type: s.type,
   }))
   
-  const clipsWithAudio = result.filter(c => c.voiceUrl).length
-  console.log('[Generate] Clips with audio:', clipsWithAudio, 'out of', result.length)
+  console.log('[Generate] Final clips count:', result.length)
+  console.log('[Generate] Final clips:', result.map((c: any) => ({
+    type: c.type,
+    hasVideo: !!c.videoUrl,
+    hasAudio: !!c.voiceUrl,
+  })))
   
   return result
 })
@@ -532,82 +558,86 @@ const totalDuration = computed(() => {
 })
 
 const handleCompose = async (options: any) => {
+  const toast = useToast()
+  
+  console.log('[Generate] ===== handleCompose CALLED =====')
+  console.log('[Generate] assetsReady:', assetsReady.value)
+  console.log('[Generate] segments.value length:', segments.value?.length || 0)
+  console.log('[Generate] status:', status.value)
+  console.log('[Generate] clips.value:', clips.value)
+  console.log('[Generate] clips.value length:', clips.value?.length || 0)
+  
   try {
-    console.log('[Generate] Starting video composition')
-    console.log('[Generate] Clips to compose:', JSON.stringify(clips.value, null, 2))
-    console.log('[Generate] Composition options:', JSON.stringify(options, null, 2))
+    console.log('[Generate] Starting video generation - storing separate clips')
     
-    const result = await $fetch('/api/compose-video', {
-      method: 'POST',
-      body: {
-        clips: clips.value,
-        options,
-      },
-    })
-
-    console.log('[Generate] Compose video API response:', JSON.stringify(result, null, 2))
-    console.log('[Generate] Video URL from API:', result.videoUrl)
-    console.log('[Generate] Video ID from API:', result.videoId)
-
-    // Store video data in sessionStorage for preview page
-    if (process.client) {
-      // Merge generation segments with storyboard segments to preserve audioNotes
-      const mergedSegments = segments.value.map((genSeg: any) => {
-        // Find corresponding storyboard segment to get audioNotes
-        const storyboardSeg = storyboard.value?.segments?.[genSeg.segmentId]
-        return {
-          ...genSeg,
-          // Preserve audioNotes from storyboard if not in generation segment
-          audioNotes: genSeg.audioNotes || storyboardSeg?.audioNotes,
-          // Get voiceUrl from generation segment (either direct or from metadata)
-          voiceUrl: genSeg.voiceUrl || genSeg.metadata?.voiceUrl,
-          // Preserve type and timing from generation segment
-          type: genSeg.type || storyboardSeg?.type,
-          startTime: genSeg.startTime || storyboardSeg?.startTime,
-          endTime: genSeg.endTime || storyboardSeg?.endTime,
-        }
+    // Validate clips exist and have videoUrls
+    if (!clips.value || clips.value.length === 0) {
+      console.error('[Generate] VALIDATION FAILED: No clips available')
+      console.error('[Generate] segments.value:', segments.value)
+      console.error('[Generate] clips.value:', clips.value)
+      toast.add({
+        title: 'No Videos Available',
+        description: 'Please wait for video generation to complete before proceeding.',
+        color: 'error',
       })
+      return
+    }
+    
+    console.log('[Generate] Clips validation passed, count:', clips.value.length)
+    
+    // Validate all clips have videoUrls
+    const clipsWithoutVideo = clips.value.filter((clip: any) => !clip.videoUrl)
+    console.log('[Generate] Checking clips for videoUrls...')
+    console.log('[Generate] Clips without video:', clipsWithoutVideo.length)
+    
+    if (clipsWithoutVideo.length > 0) {
+      console.error('[Generate] VALIDATION FAILED: Some clips missing videoUrls')
+      console.error('[Generate] Clips without video:', clipsWithoutVideo)
+      toast.add({
+        title: 'Videos Not Ready',
+        description: `${clipsWithoutVideo.length} video(s) are still being generated. Please wait for all videos to complete.`,
+        color: 'error',
+      })
+      return
+    }
+    
+    console.log('[Generate] All clips have videoUrls, proceeding...')
+    
+    // Store the 3 separate clips in sessionStorage for editor
+    if (process.client) {
+      // Format clips for editor: { videoUrl, duration, name, type, voiceUrl }
+      const editorClips = clips.value.map((clip: any) => ({
+        videoUrl: clip.videoUrl,
+        voiceUrl: clip.voiceUrl,
+        duration: clip.endTime - clip.startTime,
+        name: `${clip.type} Scene`,
+        type: clip.type,
+      }))
       
-      // Collect segments with audio data (audioNotes and voiceUrl)
-      const segmentsWithAudio = mergedSegments
-        .filter((s: any) => s.audioNotes && s.voiceUrl)
-        .map((s: any) => ({
-          segmentId: s.segmentId,
-          type: s.type,
-          audioNotes: s.audioNotes,
-          voiceUrl: s.voiceUrl,
-          startTime: s.startTime,
-          endTime: s.endTime,
-        }))
-      
-      console.log('[Generate] Total segments:', segments.value.length)
-      console.log('[Generate] Merged segments:', mergedSegments.length)
-      console.log('[Generate] Segments with audio:', segmentsWithAudio.length)
-      console.log('[Generate] Segments with audio details:', JSON.stringify(segmentsWithAudio, null, 2))
-      
-      const videoData = {
-        videoUrl: result.videoUrl,
-        videoId: result.videoId,
-        duration: totalDuration.value,
-        cost: currentCost.value,
-        segments: segmentsWithAudio,
-      }
-      sessionStorage.setItem('videoPreview', JSON.stringify(videoData))
-      console.log('[Generate] Video data stored in sessionStorage:', JSON.stringify(videoData, null, 2))
+      console.log('[Generate] Editor clips formatted:', JSON.stringify(editorClips, null, 2))
+      sessionStorage.setItem('editorClips', JSON.stringify(editorClips))
+      console.log('[Generate] Clips stored in sessionStorage for editor')
     }
 
-    // Navigate to preview page
-    await navigateTo('/preview')
-    console.log('[Generate] Navigation to preview completed')
+    // Navigate to editor page
+    console.log('[Generate] About to navigate to /editor...')
+    try {
+      await navigateTo('/editor')
+      console.log('[Generate] Navigation to editor completed successfully')
+    } catch (navError: any) {
+      console.error('[Generate] Navigation error:', navError)
+      console.error('[Generate] Navigation error message:', navError.message)
+      console.error('[Generate] Navigation error stack:', navError.stack)
+      throw navError
+    }
   } catch (error: any) {
-    console.error('[Generate] Composition error:', error.message)
+    console.error('[Generate] Error storing clips:', error.message)
     console.error('[Generate] Error stack:', error.stack)
     console.error('[Generate] Error details:', JSON.stringify(error, null, 2))
     
-    const toast = useToast()
     toast.add({
-      title: 'Composition failed',
-      description: error.message,
+      title: 'Failed to generate video',
+      description: error.message || 'An error occurred while preparing videos for editing. Please try again.',
       color: 'error',
     })
   }

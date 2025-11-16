@@ -76,9 +76,19 @@
           >
             <template #header>
               <div class="flex items-center justify-between">
-                <UBadge color="secondary" variant="soft" size="lg">
-                  Story {{ index + 1 }}
-                </UBadge>
+                <div class="flex items-center gap-3">
+                  <UBadge color="secondary" variant="soft" size="lg">
+                    Story {{ index + 1 }}
+                  </UBadge>
+                  <span
+                    v-if="story.emoji"
+                    class="text-3xl leading-none"
+                    role="img"
+                    :aria-label="`Emoji representing story ${index + 1}`"
+                  >
+                    {{ story.emoji }}
+                  </span>
+                </div>
                 <div
                   v-if="selectedStoryId === story.id"
                   class="w-6 h-6 rounded-full bg-secondary-500 flex items-center justify-center"
@@ -157,7 +167,7 @@ const stories = ref<Story[]>([])
 const selectedStoryId = ref<string | null>(null)
 const promptData = ref<any>(null)
 const isNavigating = ref(false)
-const isProductionMode = ref(false) // Default to demo mode for faster testing
+const isProductionMode = ref(true) // Default to production mode
 
 onMounted(async () => {
   // Load mode from sessionStorage first
@@ -320,6 +330,19 @@ const proceedToStoryboards = async () => {
 
     // Store selected story and prompt data for storyboard generation
     if (process.client) {
+      // Clear all old storyboard state from localStorage
+      Object.keys(localStorage)
+        .filter(key => key.startsWith('storyboard-state-'))
+        .forEach(key => localStorage.removeItem(key))
+      
+      // Clear old storyboard-related sessionStorage
+      sessionStorage.removeItem('selectedStory')
+      sessionStorage.removeItem('promptData')
+      sessionStorage.removeItem('generationMode')
+      sessionStorage.removeItem('editorClips')
+      sessionStorage.removeItem('editorComposedVideo')
+      
+      // Now set the NEW story data
       sessionStorage.setItem('selectedStory', JSON.stringify(selectedStory))
       sessionStorage.setItem('promptData', JSON.stringify(promptData.value))
       // Store mode selection

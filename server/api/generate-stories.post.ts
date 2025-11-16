@@ -97,6 +97,7 @@ export default defineEventHandler(async (event) => {
       return {
         id: story.id || `story-${index + 1}`,
         description: story.description || `${story.hook || ''} ${story.bodyOne || ''} ${story.bodyTwo || ''} ${story.callToAction || ''}`.trim(),
+        emoji: story.emoji || '',
         hook: story.hook || story.hookText || '',
         bodyOne: story.bodyOne || story.body1 || story.body_one || '',
         bodyTwo: story.bodyTwo || story.body2 || story.body_two || '',

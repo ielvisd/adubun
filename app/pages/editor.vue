@@ -156,6 +156,25 @@ const getVideoDurationFromFile = (file: File): Promise<number> => {
   })
 }
 
+// Get video duration from URL
+const getVideoDurationFromUrl = (url: string): Promise<number> => {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video')
+    video.preload = 'metadata'
+    video.crossOrigin = 'anonymous'
+    
+    video.onloadedmetadata = () => {
+      resolve(video.duration)
+    }
+    
+    video.onerror = () => {
+      reject(new Error('Failed to load video metadata from URL'))
+    }
+    
+    video.src = url
+  })
+}
+
 const handleVideoUpload = async (files: File[]) => {
   for (const file of files) {
     if (!file.type.startsWith('video/')) {
@@ -447,8 +466,140 @@ const handleExport = async () => {
   }
 }
 
+// Load clips from sessionStorage on mount
+const loadClipsFromStorage = async () => {
+  if (!process.client) return
+
+  try {
+    // Check for composed video first (prioritize if both exist)
+    const composedVideoData = sessionStorage.getItem('editorComposedVideo')
+    if (composedVideoData) {
+      const videoData = JSON.parse(composedVideoData)
+      console.log('[Editor] Loading composed video from sessionStorage:', videoData)
+      
+      // Get duration from video URL
+      try {
+        const duration = await getVideoDurationFromUrl(videoData.videoUrl)
+        
+        const videoId = `composed-${Date.now()}`
+        const uploadedVideo: UploadedVideo = {
+          id: videoId,
+          url: videoData.videoUrl,
+          duration,
+          name: videoData.name || 'Composed Video',
+        }
+        
+        uploadedVideos.value.push(uploadedVideo)
+        
+        // Automatically add to timeline
+        const clip: EditorClip = {
+          id: `clip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          videoId,
+          sourceUrl: videoData.videoUrl,
+          originalDuration: duration,
+          startOffset: 0,
+          endOffset: 0,
+          inTimelineStart: 0,
+          name: uploadedVideo.name,
+        }
+        
+        timelineClips.value.push(clip)
+        
+        toast.add({
+          title: 'Video loaded',
+          description: 'Composed video loaded into editor',
+          color: 'success',
+        })
+        
+        // Clear sessionStorage after loading
+        sessionStorage.removeItem('editorComposedVideo')
+        return
+      } catch (error: any) {
+        console.error('[Editor] Failed to load composed video duration:', error)
+        toast.add({
+          title: 'Load failed',
+          description: 'Failed to load composed video metadata',
+          color: 'error',
+        })
+      }
+    }
+    
+    // Check for separate clips
+    const clipsData = sessionStorage.getItem('editorClips')
+    if (clipsData) {
+      const clips = JSON.parse(clipsData)
+      console.log('[Editor] Loading clips from sessionStorage:', clips)
+      
+      // Load each clip
+      for (let i = 0; i < clips.length; i++) {
+        const clipData = clips[i]
+        
+        try {
+          // Use provided duration or fetch from URL
+          let duration = clipData.duration
+          if (!duration || duration <= 0) {
+            duration = await getVideoDurationFromUrl(clipData.videoUrl)
+          }
+          
+          const videoId = `clip-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 9)}`
+          const uploadedVideo: UploadedVideo = {
+            id: videoId,
+            url: clipData.videoUrl,
+            duration,
+            name: clipData.name || `${clipData.type} Scene`,
+          }
+          
+          uploadedVideos.value.push(uploadedVideo)
+          
+          // Automatically add to timeline in sequence
+          const lastEnd = timelineClips.value.length > 0
+            ? timelineClips.value[timelineClips.value.length - 1].inTimelineStart + 
+              getClipDuration(timelineClips.value[timelineClips.value.length - 1])
+            : 0
+          
+          const clip: EditorClip = {
+            id: `clip-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 9)}`,
+            videoId,
+            sourceUrl: clipData.videoUrl,
+            originalDuration: duration,
+            startOffset: 0,
+            endOffset: 0,
+            inTimelineStart: lastEnd,
+            name: uploadedVideo.name,
+          }
+          
+          timelineClips.value.push(clip)
+        } catch (error: any) {
+          console.error(`[Editor] Failed to load clip ${i}:`, error)
+          toast.add({
+            title: 'Load failed',
+            description: `Failed to load ${clipData.name || 'clip'}: ${error.message}`,
+            color: 'error',
+          })
+        }
+      }
+      
+      if (clips.length > 0) {
+        toast.add({
+          title: 'Clips loaded',
+          description: `${clips.length} clip(s) loaded into editor`,
+          color: 'success',
+        })
+      }
+      
+      // Clear sessionStorage after loading
+      sessionStorage.removeItem('editorClips')
+    }
+  } catch (error: any) {
+    console.error('[Editor] Error loading clips from sessionStorage:', error)
+  }
+}
+
 // Keyboard shortcuts
-onMounted(() => {
+onMounted(async () => {
+  // Load clips from sessionStorage first
+  await loadClipsFromStorage()
+  
   const handleKeyPress = (e: KeyboardEvent) => {
     if (e.key === 's' || e.key === 'S') {
       if (!e.ctrlKey && !e.metaKey) {
