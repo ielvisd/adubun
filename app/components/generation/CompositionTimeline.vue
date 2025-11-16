@@ -47,7 +47,7 @@
         @click="startComposition"
       >
         <UIcon name="i-heroicons-film" class="mr-2" />
-        Compose Video
+        Generate Video
       </UButton>
     </div>
   </UCard>

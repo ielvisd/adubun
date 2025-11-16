@@ -125,5 +125,6 @@ export interface Story {
   bodyTwo: string
   callToAction: string
   description: string // Full paragraph description of the story
+  emoji?: string // Emoji that best represents the story
 }
 

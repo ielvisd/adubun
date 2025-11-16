@@ -1453,8 +1453,11 @@ Each story must:
 - Have distinct creative approaches (different angles, styles, or messaging)
 - Be suitable for a ${duration}-second ad format
 - Include a full paragraph description that captures the entire story arc
+- Include a single emoji that best represents the story's theme, mood, and content
 
-IMPORTANT: Each story needs a full paragraph description that describes the complete narrative. This description will be used to generate storyboards later.
+IMPORTANT: 
+- Each story needs a full paragraph description that describes the complete narrative. This description will be used to generate storyboards later.
+- For each story, analyze its theme, mood, and content, then select a single Unicode emoji that best represents it. The emoji should be visually distinctive and help users quickly identify the story's character.
 
 Return ONLY valid JSON with this exact structure:
 {
@@ -1462,6 +1465,7 @@ Return ONLY valid JSON with this exact structure:
     {
       "id": "story-1",
       "description": "A full paragraph (3-5 sentences) describing the complete story arc from Hook to CTA",
+      "emoji": "🎯",
       "hook": "Brief hook description for the opening scene",
       "bodyOne": "Brief body 1 description for the first body scene",
       "bodyTwo": "Brief body 2 description for the second body scene",
@@ -1470,6 +1474,7 @@ Return ONLY valid JSON with this exact structure:
     {
       "id": "story-2",
       "description": "...",
+      "emoji": "✨",
       "hook": "...",
       "bodyOne": "...",
       "bodyTwo": "...",
@@ -1478,6 +1483,7 @@ Return ONLY valid JSON with this exact structure:
     {
       "id": "story-3",
       "description": "...",
+      "emoji": "🚀",
       "hook": "...",
       "bodyOne": "...",
       "bodyTwo": "...",

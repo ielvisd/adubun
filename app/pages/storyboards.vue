@@ -49,14 +49,27 @@
                 </span>
               </div>
             </div>
-            <UButton
-              variant="ghost"
-              color="gray"
-              @click="$router.push('/stories')"
-              class="text-white hover:bg-gray-700 min-h-[44px]"
-            >
-              Back to Stories
-            </UButton>
+            <div class="flex items-center gap-3">
+              <UButton
+                v-if="hasGeneratedVideos"
+                color="secondary"
+                variant="solid"
+                @click="handleEditComposedVideo"
+                :loading="composingVideo"
+                class="bg-secondary-500 hover:bg-secondary-600 text-white font-semibold min-h-[44px]"
+              >
+                <UIcon name="i-heroicons-pencil-square" class="mr-2" />
+                Edit Composed Video
+              </UButton>
+              <UButton
+                variant="ghost"
+                color="gray"
+                @click="$router.push('/stories')"
+                class="text-white hover:bg-gray-700 min-h-[44px]"
+              >
+                Back to Stories
+              </UButton>
+            </div>
           </div>
         </div>
         
@@ -80,6 +93,34 @@
             </UFormField>
           </div>
         </div>
+
+        <!-- Manual Frame Generation Button -->
+        <UCard v-if="selectedStoryboard" class="mb-6">
+          <template #header>
+            <h3 class="text-lg font-semibold">Generate Frame Images</h3>
+          </template>
+          <div class="flex items-center justify-between">
+            <div class="flex-1">
+              <div class="font-medium">All Scenes</div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">
+                <span v-if="allFramesReady">✓ All frames generated</span>
+                <span v-else-if="generatingFrames">Generating frames...</span>
+                <span v-else>Frames not generated</span>
+              </div>
+            </div>
+            <UButton
+              :loading="generatingFrames"
+              :disabled="generatingFrames"
+              @click="generateFrames"
+              color="primary"
+              size="sm"
+            >
+              <UIcon name="i-heroicons-photo" class="mr-2" />
+              <span v-if="allFramesReady">Regenerate All Frames</span>
+              <span v-else>Generate All Frames</span>
+            </UButton>
+          </div>
+        </UCard>
 
         <!-- Frame Generation Status -->
         <UAlert
@@ -160,6 +201,7 @@
                   :rows="2"
                   placeholder="Describe what happens in this scene"
                   class="w-full"
+                  @input="debouncedSave"
                 />
               </UFormField>
 
@@ -169,6 +211,7 @@
                   :rows="3"
                   placeholder="Describe the visual style and composition for this scene"
                   class="w-full"
+                  @input="debouncedSave"
                 />
                 <template #description>
                   This prompt will be used to generate the frame image for this scene
@@ -297,6 +340,17 @@
             Back to Stories
           </UButton>
           <UButton
+            v-if="hasGeneratedVideos"
+            color="secondary"
+            variant="solid"
+            @click="handleEditComposedVideo"
+            :loading="composingVideo"
+            class="bg-secondary-500 hover:bg-secondary-600 text-white font-semibold min-h-[44px]"
+          >
+            <UIcon name="i-heroicons-pencil-square" class="mr-2" />
+            Edit Composed Video
+          </UButton>
+          <UButton
             color="secondary"
             variant="solid"
             :disabled="!allFramesReady"
@@ -336,6 +390,76 @@ const promptData = ref<any>(null)
 const generatingFrames = ref(false)
 const frameGenerationError = ref<string | null>(null)
 const currentStyle = ref<string>('Cinematic')
+const composingVideo = ref(false)
+
+// Check if videos have been generated (exist in sessionStorage)
+const hasGeneratedVideos = computed(() => {
+  if (!process.client) return false
+  const clipsData = sessionStorage.getItem('editorClips')
+  return !!clipsData
+})
+
+// Debounce timer for auto-save
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+
+// Save storyboard state to localStorage
+const saveStoryboardState = () => {
+  if (!process.client || !selectedStoryboard.value) return
+  
+  try {
+    const stateToSave = {
+      segments: selectedStoryboard.value.segments.map(seg => ({
+        description: seg.description,
+        visualPrompt: seg.visualPrompt,
+        firstFrameImage: seg.firstFrameImage,
+        lastFrameImage: seg.lastFrameImage,
+        type: seg.type,
+        startTime: seg.startTime,
+        endTime: seg.endTime,
+      })),
+      meta: {
+        style: selectedStoryboard.value.meta.style,
+        mode: selectedStoryboard.value.meta.mode,
+        aspectRatio: selectedStoryboard.value.meta.aspectRatio,
+      },
+      timestamp: Date.now(),
+    }
+    
+    const storageKey = `storyboard-state-${selectedStoryboard.value.id}`
+    localStorage.setItem(storageKey, JSON.stringify(stateToSave))
+    console.log('[Storyboards] Saved storyboard state to localStorage:', storageKey)
+  } catch (error) {
+    console.error('[Storyboards] Failed to save storyboard state:', error)
+  }
+}
+
+// Debounced save function
+const debouncedSave = () => {
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+  }
+  saveTimer = setTimeout(() => {
+    saveStoryboardState()
+  }, 500)
+}
+
+// Load storyboard state from localStorage
+const loadStoryboardState = (storyboardId: string): any | null => {
+  if (!process.client) return null
+  
+  try {
+    const storageKey = `storyboard-state-${storyboardId}`
+    const saved = localStorage.getItem(storageKey)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      console.log('[Storyboards] Loaded storyboard state from localStorage:', storageKey)
+      return parsed
+    }
+  } catch (error) {
+    console.error('[Storyboards] Failed to load storyboard state:', error)
+  }
+  return null
+}
 const frameGenerationStatus = ref<Map<number, { 
   first?: boolean; 
   last?: boolean; 
@@ -385,10 +509,8 @@ const toggleMode = async (newMode: 'demo' | 'production') => {
     frameGenerationStatus.value.delete(2)
     frameGenerationStatus.value.delete(3)
   } else {
-    // Production mode: regenerate all frames if needed
-    if (!allFramesReady.value) {
-      generateFrames()
-    }
+    // Production mode: frames are now generated manually per segment
+    // No automatic generation
   }
   
   toast.add({
@@ -407,10 +529,34 @@ onMounted(async () => {
     const storedPromptData = sessionStorage.getItem('promptData')
     const storedMode = sessionStorage.getItem('generationMode')
     
+    // Try to load from localStorage if sessionStorage is empty (user navigated away and came back)
     if (!storedStory || !storedPromptData) {
-      error.value = 'No story or prompt data found. Please start from the home page.'
-      loading.value = false
-      return
+      // Check if there's a saved storyboard state in localStorage
+      const savedStoryboards = Object.keys(localStorage)
+        .filter(key => key.startsWith('storyboard-state-'))
+        .map(key => {
+          try {
+            const data = JSON.parse(localStorage.getItem(key) || '{}')
+            return { key, data, timestamp: data.timestamp || 0 }
+          } catch {
+            return null
+          }
+        })
+        .filter(Boolean)
+        .sort((a, b) => (b?.timestamp || 0) - (a?.timestamp || 0))
+      
+      if (savedStoryboards.length > 0 && savedStoryboards[0]) {
+        const latest = savedStoryboards[0]
+        console.log('[Storyboards] Found saved storyboard state, attempting to restore...')
+        // We can't fully restore without story/prompt data, but we can show a message
+        error.value = 'Session expired. Please start a new generation from the home page.'
+        loading.value = false
+        return
+      } else {
+        error.value = 'No story or prompt data found. Please start from the home page.'
+        loading.value = false
+        return
+      }
     }
 
     try {
@@ -418,7 +564,7 @@ onMounted(async () => {
       promptData.value = JSON.parse(storedPromptData)
       
       // Parse mode BEFORE generating storyboards
-      const mode = storedMode === 'production' ? 'production' : 'demo'
+      const mode = storedMode === 'demo' ? 'demo' : 'production'
       
       // Pass mode to generateStoryboards so it's set correctly before frame generation
       await generateStoryboards(undefined, mode)
@@ -427,6 +573,17 @@ onMounted(async () => {
       error.value = err.message || 'Failed to load story data'
       loading.value = false
     }
+  }
+})
+
+// Cleanup timer on unmount
+onBeforeUnmount(() => {
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+  }
+  // Final save before unmount
+  if (selectedStoryboard.value) {
+    saveStoryboardState()
   }
 })
 
@@ -453,20 +610,41 @@ const generateStoryboards = async (style?: string, mode?: 'demo' | 'production')
     selectedStoryboard.value = result.storyboard || result
     if (selectedStoryboard.value) {
       currentStyle.value = selectedStoryboard.value.meta.style || 'Cinematic'
-      // Set mode from parameter, or default to demo
+      // Set mode from parameter, or default to production
       if (!selectedStoryboard.value.meta) {
         selectedStoryboard.value.meta = {}
       }
-      selectedStoryboard.value.meta.mode = mode || 'demo'
+      selectedStoryboard.value.meta.mode = mode || 'production'
       console.log('[Storyboards] Mode set to:', selectedStoryboard.value.meta.mode)
+      
+      // Try to load saved state from localStorage
+      const savedState = loadStoryboardState(selectedStoryboard.value.id)
+      if (savedState && savedState.segments) {
+        // Restore segment edits if they exist
+        savedState.segments.forEach((savedSeg: any, index: number) => {
+          if (selectedStoryboard.value && selectedStoryboard.value.segments[index]) {
+            const currentSeg = selectedStoryboard.value.segments[index]
+            // Only restore if saved state is newer or if current is empty
+            if (savedSeg.description) {
+              currentSeg.description = savedSeg.description
+            }
+            if (savedSeg.visualPrompt) {
+              currentSeg.visualPrompt = savedSeg.visualPrompt
+            }
+            if (savedSeg.firstFrameImage) {
+              currentSeg.firstFrameImage = savedSeg.firstFrameImage
+            }
+            if (savedSeg.lastFrameImage) {
+              currentSeg.lastFrameImage = savedSeg.lastFrameImage
+            }
+          }
+        })
+        console.log('[Storyboards] Restored storyboard state from localStorage')
+      }
     }
     loading.value = false
     
-    // Start frame generation in background when storyboard is ready (non-blocking)
-    if (selectedStoryboard.value) {
-      // Don't await - let it run in background
-      generateFrames()
-    }
+    // Frame generation is now manual - user clicks buttons to generate per segment
   } catch (err: any) {
     console.error('Error generating storyboards:', err)
     error.value = err.data?.message || err.message || 'Failed to generate storyboards'
@@ -812,12 +990,106 @@ const proceedToGeneration = () => {
 
   // Save selected storyboard for generation
   if (process.client) {
-    sessionStorage.setItem('selectedStoryboard', JSON.stringify(selectedStoryboard.value))
+    sessionStorage.setItem('generateStoryboard', JSON.stringify(selectedStoryboard.value))
     sessionStorage.setItem('promptData', JSON.stringify(promptData.value))
   }
 
   // Navigate to generation page
   router.push('/generate')
+}
+
+const handleEditComposedVideo = async () => {
+  if (!selectedStoryboard.value) {
+    toast.add({
+      title: 'No Storyboard',
+      description: 'Storyboard is not available',
+      color: 'yellow',
+    })
+    return
+  }
+
+  composingVideo.value = true
+
+  try {
+    // Check if there are generated clips in sessionStorage from the generate page
+    if (process.client) {
+      const clipsData = sessionStorage.getItem('editorClips')
+      if (clipsData) {
+        const clips = JSON.parse(clipsData)
+        console.log('[Storyboards] Found clips in sessionStorage, composing video:', clips)
+        
+        // Format clips for composition API
+        // Calculate cumulative start/end times for proper sequencing
+        let currentStartTime = 0
+        const formattedClips = clips.map((clip: any) => {
+          const clipStart = currentStartTime
+          const clipEnd = currentStartTime + clip.duration
+          currentStartTime = clipEnd
+          
+          return {
+            videoUrl: clip.videoUrl,
+            voiceUrl: clip.voiceUrl || undefined,
+            startTime: clipStart,
+            endTime: clipEnd,
+            type: clip.type || 'scene',
+          }
+        })
+        
+        // Compose the clips into one video
+        const result = await $fetch('/api/compose-video', {
+          method: 'POST',
+          body: {
+            clips: formattedClips,
+            options: {
+              transition: 'fade',
+              musicVolume: 70,
+              aspectRatio: selectedStoryboard.value.meta.aspectRatio || '9:16',
+            },
+          },
+        })
+
+        console.log('[Storyboards] Composed video result:', result)
+
+        // Store composed video in sessionStorage for editor
+        const composedVideoData = {
+          videoUrl: result.videoUrl,
+          videoId: result.videoId,
+          name: 'Composed Video',
+        }
+        sessionStorage.setItem('editorComposedVideo', JSON.stringify(composedVideoData))
+        
+        // Clear the separate clips since we're using composed video
+        sessionStorage.removeItem('editorClips')
+
+        toast.add({
+          title: 'Video Composed',
+          description: 'Composed video ready for editing',
+          color: 'success',
+        })
+
+        // Navigate to editor
+        await router.push('/editor')
+        return
+      }
+    }
+
+    // If no clips found, check if we can get them from the storyboard segments
+    // (This would require segments to have video URLs, which they don't at this stage)
+    toast.add({
+      title: 'No Videos Found',
+      description: 'Please generate videos first by continuing to the generation page',
+      color: 'yellow',
+    })
+  } catch (error: any) {
+    console.error('[Storyboards] Error composing video:', error)
+    toast.add({
+      title: 'Composition Failed',
+      description: error.message || 'Failed to compose video',
+      color: 'error',
+    })
+  } finally {
+    composingVideo.value = false
+  }
 }
 
 const handleFrameImageUpload = async (segmentIndex: number, field: 'firstFrameImage' | 'lastFrameImage', file: File | string | null) => {
@@ -852,6 +1124,8 @@ const handleFrameImageUpload = async (segmentIndex: number, field: 'firstFrameIm
           description: 'Frame image has been uploaded successfully',
           color: 'green',
         })
+        // Save state after image upload
+        debouncedSave()
       } else {
         throw new Error('Upload failed: No URL returned')
       }
@@ -873,6 +1147,8 @@ const handleFrameImageUpload = async (segmentIndex: number, field: 'firstFrameIm
       status.last = true
     }
     frameGenerationStatus.value.set(segmentIndex, status)
+    // Save state after image change
+    debouncedSave()
   } else {
     // Clear the image
     segment[field] = undefined
@@ -884,6 +1160,8 @@ const handleFrameImageUpload = async (segmentIndex: number, field: 'firstFrameIm
       status.last = false
     }
     frameGenerationStatus.value.set(segmentIndex, status)
+    // Save state after image removal
+    debouncedSave()
   }
 }
 </script>

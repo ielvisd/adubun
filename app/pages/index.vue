@@ -2,7 +2,7 @@
   <div>
     <!-- Hero Section - Mendo Split-Screen Style -->
     <div class="relative overflow-hidden bg-white dark:bg-gray-900 mb-0">
-      <div class="min-h-[60vh] lg:min-h-[70vh]">
+      <div class="lg:min-h-[70vh]">
         <!-- Left Side - White Background with Typography -->
         <div class="flex flex-col justify-center px-6 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-12 sm:py-16 md:py-20 lg:py-28 bg-white dark:bg-gray-900">
           <div class="max-w-2xl">
