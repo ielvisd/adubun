@@ -740,7 +740,7 @@ class ReplicateMCPServer {
       return filePathOrUrl
     }
 
-    // It's a local file path - upload to Replicate using their files API
+    // It's a local file path - upload to Replicate using their JavaScript client
     try {
       const fs = await import('fs/promises')
       const path = await import('path')
@@ -758,52 +758,25 @@ class ReplicateMCPServer {
       const filename = path.basename(absolutePath)
       const mimeType = this.getMimeType(filename)
       
-      // Try to use form-data package, fallback to native FormData
-      let formData: any
-      let headers: Record<string, string> = {
-        'Authorization': `Token ${process.env.REPLICATE_API_KEY || ''}`,
-      }
-      
-      // Use form-data package for Node.js compatibility
-      const FormDataModule = await import('form-data')
-      const FormDataClass = FormDataModule.default || FormDataModule
-      const { Readable } = await import('stream')
-      
-      formData = new FormDataClass()
-      // Replicate API requires 'content' field (not 'file') with filename in options
-      formData.append('content', Readable.from(fileBuffer), {
-        filename: filename,
-        contentType: mimeType,
-      })
-      headers = { ...headers, ...formData.getHeaders() }
-      
       console.error('[Replicate MCP] Uploading file:', { filename, mimeType, size: fileBuffer.length })
       
-      // Upload to Replicate using fetch (Replicate's files API)
-      const response = await fetch('https://api.replicate.com/v1/files', {
-        method: 'POST',
-        headers: headers,
-        body: formData,
-      })
+      // Create a File-like object from the buffer (Node.js 18+ has built-in File)
+      const file = new File([fileBuffer], filename, { type: mimeType })
       
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('[Replicate MCP] Upload failed:', { status: response.status, error: errorText })
-        throw new Error(`Replicate file upload failed: ${response.status} ${errorText}`)
-      }
+      // Use the Replicate JavaScript client's files.create() method
+      const uploadedFile = await replicate.files.create(file)
       
-      const result = await response.json()
-      console.error('[Replicate MCP] File upload response:', JSON.stringify(result, null, 2))
+      console.error('[Replicate MCP] File upload response:', JSON.stringify(uploadedFile, null, 2))
       
-      // New API returns { url: "...", id: "...", filename: "...", ... }
-      const url = result.url || result.urls?.get || (typeof result === 'string' ? result : null)
+      // The client returns an object with urls.get property
+      const url = uploadedFile.urls?.get || uploadedFile.url
       if (!url) {
-        throw new Error(`Invalid response from Replicate file upload: ${JSON.stringify(result)}`)
+        throw new Error(`Invalid response from Replicate file upload: ${JSON.stringify(uploadedFile)}`)
       }
       console.error('[Replicate MCP] Extracted URL:', url)
       return url
     } catch (error: any) {
-      console.error('Failed to upload file to Replicate:', error)
+      console.error('[Replicate MCP] Failed to upload file:', error)
       throw new Error(`Failed to upload file to Replicate: ${error.message}`)
     }
   }
