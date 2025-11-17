@@ -132,11 +132,13 @@ export interface CostSummary {
 
 export interface Story {
   id: string
+  title?: string // Descriptive title (e.g., "The Busy Professional's Journey")
   hook: string
   bodyOne: string
   bodyTwo: string
   callToAction: string
   description: string // Full paragraph description of the story
   emoji?: string // Emoji that best represents the story
+  previewImageUrl?: string // Preview image generated from hook
 }
 

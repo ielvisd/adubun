@@ -1477,16 +1477,15 @@ PRIMARY TASK: Select the frame where any product (can, bottle, package, label, e
 
       const systemPrompt = `You are an expert at creating emotionally captivating ad stories for short-form video content. Your goal is to create narratives that deeply resonate with viewers through emotional storytelling techniques.
 
-Generate exactly 3 cohesive story options for a ${duration}-second ad. Each story will be broken down into 4 scenes: Hook, Body 1, Body 2, and CTA.
+Generate exactly 1 cohesive story option for a ${duration}-second ad. The story will be broken down into 4 scenes: Hook, Body 1, Body 2, and CTA.
 
-Each story must:
+The story must:
 - Be a cohesive, complete narrative that flows from Hook → Body 1 → Body 2 → CTA
 - Be emotionally captivating and create a strong emotional connection between the viewer and the product/story
 - Evoke specific emotions (joy, aspiration, relief, excitement, inspiration, trust, etc.) through relatable moments and emotional triggers
 - Use emotional storytelling techniques: create an emotional hook that grabs attention, build emotional investment through the body scenes, and deliver an emotional payoff in the CTA
 - Include relatable moments that viewers can connect with on a personal level
 - Be related to the initial prompt
-- Have distinct creative approaches (different angles, styles, or messaging)
 - Be suitable for a ${duration}-second ad format
 - Include a full paragraph description that captures the entire story arc and emotional journey
 - Include a single emoji that best represents the story's theme, mood, and content
@@ -1497,47 +1496,31 @@ EMOTIONAL STORYTELLING REQUIREMENTS:
 - CTA: Deliver an emotional payoff that connects the emotional journey to the product, creating a memorable and compelling call to action
 
 IMPORTANT: 
-- Each story needs a full paragraph description that describes the complete narrative and emotional arc. This description will be used to generate storyboards later.
-- For each story, analyze its theme, mood, and content, then select a single Unicode emoji that best represents it. The emoji should be visually distinctive and help users quickly identify the story's character.
+- The story needs a short, catchy title (4-6 words) that captures the main character's journey or transformation
+- The story needs a full paragraph description that describes the complete narrative and emotional arc. This description will be used to generate storyboards later.
+- Analyze the story's theme, mood, and content, then select a single Unicode emoji that best represents it. The emoji should be visually distinctive and help users quickly identify the story's character.
 
 Return ONLY valid JSON with this exact structure:
 {
   "stories": [
     {
       "id": "story-1",
+      "title": "The Busy Professional's Journey",
       "description": "A full paragraph (3-5 sentences) describing the complete story arc from Hook to CTA",
       "emoji": "🎯",
       "hook": "Brief hook description for the opening scene",
       "bodyOne": "Brief body 1 description for the first body scene",
       "bodyTwo": "Brief body 2 description for the second body scene",
       "callToAction": "Brief CTA description for the closing scene"
-    },
-    {
-      "id": "story-2",
-      "description": "...",
-      "emoji": "✨",
-      "hook": "...",
-      "bodyOne": "...",
-      "bodyTwo": "...",
-      "callToAction": "..."
-    },
-    {
-      "id": "story-3",
-      "description": "...",
-      "emoji": "🚀",
-      "hook": "...",
-      "bodyOne": "...",
-      "bodyTwo": "...",
-      "callToAction": "..."
     }
   ]
 }`
 
-      const userPrompt = `Create 3 emotionally captivating ad story options based on this prompt: "${prompt}"
+      const userPrompt = `Create 1 emotionally captivating ad story based on this prompt: "${prompt}"
 
 ${imageUrls.length > 0 ? `Reference images are available to inform the visual style and product details.` : ''}
 
-Each story should be unique but all should relate to the core prompt. Focus on creating stories that evoke strong emotions and create a deep connection with viewers through relatable moments, emotional triggers, and compelling narratives.`
+Focus on creating a story that evokes strong emotions and creates a deep connection with viewers through relatable moments, emotional triggers, and compelling narratives.`
 
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o',
@@ -1567,8 +1550,8 @@ Each story should be unique but all should relate to the core prompt. Focus on c
         throw new Error('Response missing stories array')
       }
 
-      if (parsed.stories.length !== 3) {
-        throw new Error(`Expected 3 stories, got ${parsed.stories.length}`)
+      if (parsed.stories.length !== 1) {
+        throw new Error(`Expected 1 story, got ${parsed.stories.length}`)
       }
 
       // Validate each story has required fields

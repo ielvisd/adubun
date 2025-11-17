@@ -141,10 +141,12 @@ export default defineEventHandler(async (event) => {
     // Validate and format stories
     const stories = Array.isArray(data.stories) ? data.stories : (Array.isArray(data) ? data : [])
 
-    // Ensure we have exactly 3 stories with the correct structure
-    const formattedStories = stories.slice(0, 3).map((story: any, index: number) => {
+    // Format stories with the correct structure
+    // Always generate unique IDs to avoid conflicts when generating multiple stories
+    const formattedStories = stories.map((story: any, index: number) => {
       return {
-        id: story.id || `story-${index + 1}`,
+        id: `story-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        title: story.title || `Story ${index + 1}`,
         description: story.description || `${story.hook || ''} ${story.bodyOne || ''} ${story.bodyTwo || ''} ${story.callToAction || ''}`.trim(),
         emoji: story.emoji || '',
         hook: story.hook || story.hookText || '',
@@ -154,13 +156,103 @@ export default defineEventHandler(async (event) => {
       }
     })
 
-    // If we don't have 3 stories, throw error (don't generate placeholders)
-    if (formattedStories.length < 3) {
-      throw new Error(`Expected 3 stories, but only received ${formattedStories.length}`)
+    // Validate we have at least 1 story
+    if (formattedStories.length < 1) {
+      throw new Error(`Expected at least 1 story, but received ${formattedStories.length}`)
+    }
+
+    // Generate preview image for the story's hook
+    console.log('[Generate Stories] Generating preview image...')
+    console.log('[Generate Stories] Story hook:', formattedStories[0]?.hook)
+    let previewUrl: string | null = null
+    
+    try {
+      const story = formattedStories[0]
+      const nanoPrompt = `${story.hook}, professional product photography, cinematic lighting, high quality, detailed scene`
+      console.log('[Generate Stories] Preview prompt:', nanoPrompt)
+
+      const nanoResult = await callReplicateMCP('generate_image', {
+        model: 'google/nano-banana',
+        prompt: nanoPrompt,
+        aspect_ratio: aspectRatio,
+        output_format: 'jpg',
+        seed: Math.floor(Math.random() * 1000000),
+      })
+
+      // Parse result
+      let prediction
+      if (nanoResult.content && Array.isArray(nanoResult.content) && nanoResult.content[0]?.text) {
+        prediction = JSON.parse(nanoResult.content[0].text)
+      } else if (typeof nanoResult === 'object' && nanoResult.id) {
+        prediction = nanoResult
+      } else {
+        throw new Error('Unexpected response format from nano-banana')
+      }
+
+      console.log('[Generate Stories] Nano-banana prediction ID:', prediction.id)
+
+      // Poll for result (simplified polling)
+      let attempts = 0
+      const maxAttempts = 30 // 30 seconds max
+
+      while (attempts < maxAttempts && !previewUrl) {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+
+        const statusResult = await callReplicateMCP('check_prediction_status', {
+          predictionId: prediction.id,
+        })
+
+        let status
+        if (statusResult.content && Array.isArray(statusResult.content) && statusResult.content[0]?.text) {
+          status = JSON.parse(statusResult.content[0].text)
+        } else {
+          status = statusResult
+        }
+
+        console.log(`[Generate Stories] Preview status check ${attempts + 1}/${maxAttempts}:`, status.status)
+
+        if (status.status === 'succeeded') {
+          // Get the output directly from the status check
+          previewUrl = Array.isArray(status.output) ? status.output[0] : status.output
+          console.log(`[Generate Stories] Preview succeeded, URL:`, previewUrl)
+          break
+        } else if (status.status === 'failed') {
+          console.error(`[Generate Stories] Preview failed:`, status.error)
+          break
+        }
+
+        attempts++
+      }
+
+      if (!previewUrl) {
+        console.error(`[Generate Stories] Preview timed out after ${maxAttempts} seconds`)
+      } else {
+        // Track cost
+        await trackCost('generate-story-preview', 0.0025, { storyId: story.id })
+        console.log('[Generate Stories] Preview image generated successfully:', previewUrl)
+      }
+    } catch (error: any) {
+      console.error(`[Generate Stories] Error generating preview:`, error)
+      console.error(`[Generate Stories] Error stack:`, error.stack)
+      // Don't fail the entire request if preview fails
+    }
+    
+    console.log('[Generate Stories] Preview URL result:', previewUrl || 'null - preview failed')
+
+    // Add preview URL to story
+    const storiesWithPreview = formattedStories.map((story: any, index: number) => ({
+      ...story,
+      previewImageUrl: index === 0 ? (previewUrl || undefined) : undefined,
+    }))
+
+    console.log('[Generate Stories] Story generation complete')
+    console.log('[Generate Stories] First story has preview:', !!storiesWithPreview[0]?.previewImageUrl)
+    if (storiesWithPreview[0]?.previewImageUrl) {
+      console.log('[Generate Stories] Preview URL starts with:', storiesWithPreview[0].previewImageUrl.substring(0, 50))
     }
 
     return {
-      stories: formattedStories.slice(0, 3),
+      stories: storiesWithPreview,
       promptData: {
         prompt,
         productImages: imageUrls,
