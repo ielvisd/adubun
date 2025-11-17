@@ -1,0 +1,228 @@
+import { composeVideoSchema } from '../utils/validation'
+import { composeVideoWithSmartStitching } from '../utils/ffmpeg'
+import { downloadFile, saveVideo, cleanupTempFiles } from '../utils/storage'
+import { trackCost } from '../utils/cost-tracker'
+import { nanoid } from 'nanoid'
+import path from 'path'
+import { promises as fs } from 'fs'
+import type { Video } from '../../app/types/generation'
+import type { StitchAdjustment } from '../utils/ffmpeg'
+
+const VIDEOS_FILE = path.join(process.env.MCP_FILESYSTEM_ROOT || './data', 'videos.json')
+
+async function saveVideoMetadata(video: Video) {
+  let videos: Video[] = []
+  try {
+    const content = await fs.readFile(VIDEOS_FILE, 'utf-8')
+    videos = JSON.parse(content)
+  } catch {
+    // File doesn't exist
+  }
+
+  videos.push(video)
+  await fs.mkdir(path.dirname(VIDEOS_FILE), { recursive: true })
+  await fs.writeFile(VIDEOS_FILE, JSON.stringify(videos, null, 2))
+}
+
+export default defineEventHandler(async (event) => {
+  const { clips, options } = composeVideoSchema.parse(await readBody(event))
+  
+  console.log('[Compose Video Smart] Starting smart composition with frame matching')
+  console.log('[Compose Video Smart] Input clips count:', clips.length)
+  console.log('[Compose Video Smart] Clips:', JSON.stringify(clips.map(c => ({
+    videoUrl: c.videoUrl,
+    voiceUrl: c.voiceUrl,
+    startTime: c.startTime,
+    endTime: c.endTime,
+    type: c.type,
+  })), null, 2))
+  console.log('[Compose Video Smart] Options:', JSON.stringify(options, null, 2))
+  
+  // Determine output resolution based on aspect ratio (default to 9:16 for ads)
+  const aspectRatio = options.aspectRatio || '9:16'
+  const outputWidth = aspectRatio === '9:16' ? 1080 : aspectRatio === '16:9' ? 1920 : 1080
+  const outputHeight = aspectRatio === '9:16' ? 1920 : aspectRatio === '16:9' ? 1080 : 1080
+  
+  const outputPath = path.join(
+    process.env.MCP_FILESYSTEM_ROOT || './data',
+    'videos',
+    `${nanoid()}_smart.mp4`
+  )
+  console.log('[Compose Video Smart] Output path:', outputPath)
+  console.log('[Compose Video Smart] Output resolution:', `${outputWidth}x${outputHeight}`)
+
+  // Ensure output directory exists
+  const outputDir = path.dirname(outputPath)
+  try {
+    await fs.mkdir(outputDir, { recursive: true })
+    console.log('[Compose Video Smart] Output directory ensured:', outputDir)
+  } catch (dirError: any) {
+    console.error('[Compose Video Smart] Failed to create output directory:', dirError.message)
+    throw createError({
+      statusCode: 500,
+      message: `Failed to create output directory: ${dirError.message}`,
+    })
+  }
+
+  const tempPaths: string[] = []
+
+  try {
+    // Download clips
+    console.log('[Compose Video Smart] Downloading clips...')
+    const localClips = await Promise.all(
+      clips.map(async (clip, idx) => {
+        console.log(`[Compose Video Smart] Downloading clip ${idx}:`, clip.videoUrl)
+        try {
+          const videoPath = await downloadFile(clip.videoUrl)
+          tempPaths.push(videoPath)
+          console.log(`[Compose Video Smart] Clip ${idx} video downloaded to:`, videoPath)
+          
+          // Verify file exists
+          try {
+            const stats = await fs.stat(videoPath)
+            console.log(`[Compose Video Smart] Clip ${idx} file verified, size: ${stats.size} bytes`)
+          } catch (statError: any) {
+            throw new Error(`Downloaded file does not exist: ${videoPath} - ${statError.message}`)
+          }
+
+          let voicePath: string | undefined
+          if (clip.voiceUrl) {
+            console.log(`[Compose Video Smart] Downloading clip ${idx} audio:`, clip.voiceUrl)
+            try {
+              voicePath = await downloadFile(clip.voiceUrl)
+              tempPaths.push(voicePath)
+              console.log(`[Compose Video Smart] Clip ${idx} audio downloaded to:`, voicePath)
+              
+              // Verify audio file exists
+              try {
+                const stats = await fs.stat(voicePath)
+                console.log(`[Compose Video Smart] Clip ${idx} audio file verified, size: ${stats.size} bytes`)
+              } catch (statError: any) {
+                console.warn(`[Compose Video Smart] Audio file verification failed: ${voicePath} - ${statError.message}`)
+                voicePath = undefined // Don't use invalid audio
+              }
+            } catch (audioError: any) {
+              console.error(`[Compose Video Smart] Failed to download audio for clip ${idx}:`, audioError.message)
+              // Continue without audio rather than failing completely
+              voicePath = undefined
+            }
+          } else {
+            console.log(`[Compose Video Smart] Clip ${idx} has no audio (voiceUrl is missing)`)
+          }
+
+          return {
+            localPath: videoPath,
+            voicePath,
+            startTime: clip.startTime,
+            endTime: clip.endTime,
+            type: clip.type,
+          }
+        } catch (clipError: any) {
+          console.error(`[Compose Video Smart] Failed to process clip ${idx}:`, clipError.message)
+          throw new Error(`Failed to download clip ${idx} (${clip.type}): ${clipError.message}`)
+        }
+      })
+    )
+    console.log('[Compose Video Smart] All clips downloaded. Local clips:', JSON.stringify(localClips.map(c => ({
+      localPath: c.localPath,
+      voicePath: c.voicePath,
+      hasAudio: !!c.voicePath,
+    })), null, 2))
+
+    // Download background music if provided
+    let backgroundMusicPath: string | undefined
+    if (options.backgroundMusicUrl) {
+      console.log('[Compose Video Smart] Downloading background music:', options.backgroundMusicUrl)
+      backgroundMusicPath = await downloadFile(options.backgroundMusicUrl)
+      tempPaths.push(backgroundMusicPath)
+      console.log('[Compose Video Smart] Background music downloaded to:', backgroundMusicPath)
+    }
+
+    // Compose video with smart stitching
+    console.log('[Compose Video Smart] Starting smart video composition with frame matching...')
+    const { outputPath: finalOutputPath, adjustments } = await composeVideoWithSmartStitching(localClips, {
+      transition: options.transition,
+      musicVolume: options.musicVolume,
+      outputPath,
+      backgroundMusicPath,
+      outputWidth,
+      outputHeight,
+    })
+    console.log('[Compose Video Smart] Smart video composition completed')
+    console.log('[Compose Video Smart] Adjustments:', JSON.stringify(adjustments, null, 2))
+
+    // Check if output file exists
+    try {
+      const stats = await fs.stat(finalOutputPath)
+      console.log('[Compose Video Smart] Output file exists, size:', stats.size, 'bytes')
+    } catch (statError) {
+      console.error('[Compose Video Smart] Output file does not exist or cannot be read:', finalOutputPath)
+    }
+
+    // Read composed video
+    const videoBuffer = await fs.readFile(finalOutputPath)
+    console.log('[Compose Video Smart] Video buffer read, size:', videoBuffer.length, 'bytes')
+    
+    const videoId = nanoid()
+    const finalPath = await saveVideo(videoBuffer, `${videoId}_smart.mp4`)
+    console.log('[Compose Video Smart] Video saved, videoId:', videoId, 'finalPath:', finalPath)
+
+    // Calculate duration
+    const duration = Math.max(...clips.map(c => c.endTime))
+    console.log('[Compose Video Smart] Calculated duration:', duration, 'seconds')
+
+    // Save video metadata
+    const video: Video = {
+      id: videoId,
+      url: finalPath,
+      duration,
+      resolution: '1920x1080',
+      aspectRatio: '16:9', // Default, could be calculated
+      generationCost: 0, // Will be calculated from cost tracker
+      createdAt: Date.now(),
+      storyboardId: '',
+      jobId: '',
+    }
+    await saveVideoMetadata(video)
+    console.log('[Compose Video Smart] Video metadata saved')
+
+    // Track cost (slightly higher for smart stitching due to frame analysis)
+    await trackCost('video-composition-smart', 0.15, {
+      videoId,
+      duration,
+      clipsCount: clips.length,
+      adjustmentsCount: adjustments.length,
+    })
+
+    // Cleanup temp files
+    await cleanupTempFiles(tempPaths)
+    console.log('[Compose Video Smart] Temp files cleaned up')
+
+    // Return API URL instead of file path, plus adjustment metadata
+    const apiUrl = `/api/watch/${videoId}`
+    console.log('[Compose Video Smart] Returning response:', {
+      videoUrl: apiUrl,
+      videoId,
+      originalPath: finalPath,
+      adjustments,
+    })
+
+    return {
+      videoUrl: apiUrl,
+      videoId,
+      adjustments,
+    }
+  } catch (error: any) {
+    console.error('[Compose Video Smart] Error occurred:', error.message)
+    console.error('[Compose Video Smart] Error stack:', error.stack)
+    console.error('[Compose Video Smart] Error details:', JSON.stringify(error, null, 2))
+    
+    // Cleanup on error
+    await cleanupTempFiles(tempPaths)
+    throw createError({
+      statusCode: 500,
+      message: `Smart video composition failed: ${error.message}`,
+    })
+  }
+})
+

@@ -73,6 +73,7 @@
         <VideoPreview
           :clips="clips"
           :status="status"
+          @version-selected="handleVersionSelected"
         />
 
         <UButton
@@ -594,6 +595,32 @@ const clips = computed(() => {
 const totalDuration = computed(() => {
   return Math.max(...clips.value.map((c: any) => c.endTime), 0)
 })
+
+const selectedCompositionVersion = ref<'original' | 'smart' | null>(null)
+const selectedCompositionVideoUrl = ref<string | null>(null)
+const selectedCompositionVideoId = ref<string | null>(null)
+
+const handleVersionSelected = (version: 'original' | 'smart', videoUrl: string, videoId: string) => {
+  console.log('[Generate] Video version selected:', version, videoUrl, videoId)
+  selectedCompositionVersion.value = version
+  selectedCompositionVideoUrl.value = videoUrl
+  selectedCompositionVideoId.value = videoId
+  
+  // Save to sessionStorage for editor
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem('editorComposedVideo', JSON.stringify({
+      version,
+      videoUrl,
+      videoId,
+    }))
+  }
+  
+  toast.add({
+    title: `${version === 'original' ? 'Original' : 'Smart Stitched'} Version Selected`,
+    description: 'This version will be used for editing and export.',
+    color: 'success',
+  })
+}
 
 const handleCompose = async (options: any) => {
   const toast = useToast()

@@ -25,6 +25,14 @@
             >
               Editor
             </UButton>
+            <UButton 
+              to="/frame-match" 
+              variant="ghost" 
+              color="gray" 
+              class="text-black hover:text-gray-700 dark:text-white dark:hover:text-gray-300 text-sm sm:text-base font-medium hidden md:inline-flex"
+            >
+              Frame Match
+            </UButton>
             <ColorModeButton />
             <UButton 
               to="/generate" 
