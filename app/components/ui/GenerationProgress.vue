@@ -55,25 +55,11 @@
             </UButton>
           </div>
           
-          <!-- Success Metadata with Video/Audio Players -->
+          <!-- Success Metadata with Audio Players -->
           <div
             v-if="segment.status === 'completed'"
             class="mt-2 p-3 bg-success-50 border border-success-200 rounded-lg space-y-4"
           >
-            <!-- Video Player -->
-            <div v-if="getVideoUrl(segment)">
-              <p class="text-sm font-medium text-success-800 mb-2">Video Preview:</p>
-              <div class="aspect-video bg-black rounded-lg overflow-hidden">
-                <video
-                  :ref="el => setVideoRef(el, idx)"
-                  :src="getVideoUrl(segment)"
-                  class="w-full h-full object-contain"
-                  controls
-                  @loadedmetadata="onVideoLoaded(idx)"
-                />
-              </div>
-            </div>
-
             <!-- Audio Player -->
             <div v-if="getVoiceUrl(segment)" class="flex items-center gap-3 p-3 bg-white rounded-lg border border-success-200">
               <UButton
@@ -199,7 +185,6 @@ const props = defineProps<{
 
 // Audio player state
 const audioRefs = ref<Record<number, HTMLAudioElement>>({})
-const videoRefs = ref<Record<number, HTMLVideoElement>>({})
 const audioPlaying = ref<Record<number, boolean>>({})
 const audioProgress = ref<Record<number, number>>({})
 const audioCurrentTime = ref<Record<number, number>>({})
@@ -224,13 +209,6 @@ const getAudioUrl = (voiceUrl: string | null): string => {
   return `/api/assets/${filename}`
 }
 
-// Set video element ref
-const setVideoRef = (el: any, segmentIdx: number) => {
-  if (el) {
-    videoRefs.value[segmentIdx] = el
-  }
-}
-
 // Set audio element ref
 const setAudioRef = (el: any, segmentIdx: number) => {
   if (el) {
@@ -239,11 +217,6 @@ const setAudioRef = (el: any, segmentIdx: number) => {
       audioDuration.value[segmentIdx] = el.duration
     })
   }
-}
-
-// Video loaded handler
-const onVideoLoaded = (segmentIdx: number) => {
-  console.log(`[GenerationProgress] Video loaded for segment ${segmentIdx + 1}`)
 }
 
 // Audio player functions

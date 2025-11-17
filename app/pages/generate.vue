@@ -554,7 +554,25 @@ const clips = computed(() => {
   console.log('[Generate] Segments filtered for clips:', filtered.length, 'out of', segments.value.length)
   console.log('[Generate] Filtered segment IDs:', filtered.map((s: any) => s.segmentId))
   
-  const result = filtered.map((s: any) => ({
+  // Sort clips to ensure proper order: Hook -> body -> body -> CTA
+  // Sort by segmentId (which corresponds to order in storyboard) to maintain original sequence
+  const sorted = filtered.sort((a: any, b: any) => {
+    // First, sort by segmentId if available (maintains storyboard order)
+    if (a.segmentId !== undefined && b.segmentId !== undefined) {
+      return a.segmentId - b.segmentId
+    }
+    // Fallback: sort by type (hook first, then body, then cta)
+    const typeOrder: Record<string, number> = { hook: 0, body: 1, cta: 2 }
+    const aOrder = typeOrder[a.type] ?? 999
+    const bOrder = typeOrder[b.type] ?? 999
+    if (aOrder !== bOrder) {
+      return aOrder - bOrder
+    }
+    // If same type, sort by startTime
+    return (a.startTime || 0) - (b.startTime || 0)
+  })
+  
+  const result = sorted.map((s: any) => ({
     videoUrl: s.videoUrl!,
     voiceUrl: s.voiceUrl,
     startTime: s.startTime,
@@ -563,7 +581,8 @@ const clips = computed(() => {
   }))
   
   console.log('[Generate] Final clips count:', result.length)
-  console.log('[Generate] Final clips:', result.map((c: any) => ({
+  console.log('[Generate] Final clips (ordered):', result.map((c: any, idx: number) => ({
+    index: idx,
     type: c.type,
     hasVideo: !!c.videoUrl,
     hasAudio: !!c.voiceUrl,

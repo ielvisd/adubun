@@ -50,6 +50,19 @@ export default defineEventHandler(async (event) => {
   console.log('[Compose Video] Output path:', outputPath)
   console.log('[Compose Video] Output resolution:', `${outputWidth}x${outputHeight}`)
 
+  // Ensure output directory exists
+  const outputDir = path.dirname(outputPath)
+  try {
+    await fs.mkdir(outputDir, { recursive: true })
+    console.log('[Compose Video] Output directory ensured:', outputDir)
+  } catch (dirError: any) {
+    console.error('[Compose Video] Failed to create output directory:', dirError.message)
+    throw createError({
+      statusCode: 500,
+      message: `Failed to create output directory: ${dirError.message}`,
+    })
+  }
+
   const tempPaths: string[] = []
 
   try {
@@ -58,26 +71,54 @@ export default defineEventHandler(async (event) => {
     const localClips = await Promise.all(
       clips.map(async (clip, idx) => {
         console.log(`[Compose Video] Downloading clip ${idx}:`, clip.videoUrl)
-        const videoPath = await downloadFile(clip.videoUrl)
-        tempPaths.push(videoPath)
-        console.log(`[Compose Video] Clip ${idx} video downloaded to:`, videoPath)
+        try {
+          const videoPath = await downloadFile(clip.videoUrl)
+          tempPaths.push(videoPath)
+          console.log(`[Compose Video] Clip ${idx} video downloaded to:`, videoPath)
+          
+          // Verify file exists
+          try {
+            const stats = await fs.stat(videoPath)
+            console.log(`[Compose Video] Clip ${idx} file verified, size: ${stats.size} bytes`)
+          } catch (statError: any) {
+            throw new Error(`Downloaded file does not exist: ${videoPath} - ${statError.message}`)
+          }
 
-        let voicePath: string | undefined
-        if (clip.voiceUrl) {
-          console.log(`[Compose Video] Downloading clip ${idx} audio:`, clip.voiceUrl)
-          voicePath = await downloadFile(clip.voiceUrl)
-          tempPaths.push(voicePath)
-          console.log(`[Compose Video] Clip ${idx} audio downloaded to:`, voicePath)
-        } else {
-          console.log(`[Compose Video] Clip ${idx} has no audio (voiceUrl is missing)`)
-        }
+          let voicePath: string | undefined
+          if (clip.voiceUrl) {
+            console.log(`[Compose Video] Downloading clip ${idx} audio:`, clip.voiceUrl)
+            try {
+              voicePath = await downloadFile(clip.voiceUrl)
+              tempPaths.push(voicePath)
+              console.log(`[Compose Video] Clip ${idx} audio downloaded to:`, voicePath)
+              
+              // Verify audio file exists
+              try {
+                const stats = await fs.stat(voicePath)
+                console.log(`[Compose Video] Clip ${idx} audio file verified, size: ${stats.size} bytes`)
+              } catch (statError: any) {
+                console.warn(`[Compose Video] Audio file verification failed: ${voicePath} - ${statError.message}`)
+                voicePath = undefined // Don't use invalid audio
+              }
+            } catch (audioError: any) {
+              console.error(`[Compose Video] Failed to download audio for clip ${idx}:`, audioError.message)
+              // Continue without audio rather than failing completely
+              voicePath = undefined
+            }
+          } else {
+            console.log(`[Compose Video] Clip ${idx} has no audio (voiceUrl is missing)`)
+          }
 
-        return {
-          localPath: videoPath,
-          voicePath,
-          startTime: clip.startTime,
-          endTime: clip.endTime,
-          type: clip.type,
+          return {
+            localPath: videoPath,
+            voicePath,
+            startTime: clip.startTime,
+            endTime: clip.endTime,
+            type: clip.type,
+          }
+        } catch (clipError: any) {
+          console.error(`[Compose Video] Failed to process clip ${idx}:`, clipError.message)
+          throw new Error(`Failed to download clip ${idx} (${clip.type}): ${clipError.message}`)
         }
       })
     )

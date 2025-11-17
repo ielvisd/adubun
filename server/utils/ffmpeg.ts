@@ -54,10 +54,8 @@ export async function composeVideo(
     console.log('[FFmpeg] Filter complex:', filterComplex)
     command.complexFilter(filterComplex)
 
-    // Set output resolution (default to 1080×1920 for 9:16)
-    const outputWidth = options.outputWidth || 1080
-    const outputHeight = options.outputHeight || 1920
-    command.size(`${outputWidth}x${outputHeight}`)
+    // Note: Output resolution is already set in the complex filter via scale and pad operations
+    // Do not use command.size() here as it conflicts with complexFilter
 
     // Output settings
     command
@@ -95,6 +93,10 @@ export async function composeVideo(
 function buildFilterComplex(clips: Clip[], options: CompositionOptions): string[] {
   const filters: string[] = []
   
+  // Calculate total video duration from clips
+  const totalDuration = Math.max(...clips.map(c => c.endTime), 0)
+  console.log('[FFmpeg] Total video duration calculated:', totalDuration, 'seconds')
+  
   // Output resolution (default to 1080×1920 for 9:16)
   const outputWidth = options.outputWidth || 1080
   const outputHeight = options.outputHeight || 1920
@@ -127,40 +129,58 @@ function buildFilterComplex(clips: Clip[], options: CompositionOptions): string[
 
   // Audio mixing
   // Calculate audio input indices:
-  // - Video inputs: 0, 1, 2, 3 (4 clips)
-  // - Voiceover audio: 4, 5, 6, 7 (if voicePath exists for each clip)
+  // - Video inputs: 0, 1, 2, 3 (4 clips) - each video may have embedded audio at [idx:a]
+  // - Voiceover audio: separate inputs after video inputs (if voicePath exists)
   // - Background music: last input (if provided)
   const audioInputs: string[] = []
   let audioInputIndex = clips.length // Start after video inputs
   
-  // Add voiceover audio from clips
+  // Add audio from clips - prefer separate voiceover, fallback to embedded video audio
   clips.forEach((clip, idx) => {
     if (clip.voicePath) {
+      // Use separate voiceover audio file
       const volume = 1.0 // Full volume for voiceover
       console.log(`[FFmpeg] Adding voiceover audio from clip ${idx}, audio index ${audioInputIndex}, volume ${volume}`)
       filters.push(`[${audioInputIndex}:a]volume=${volume}[vo${idx}]`)
       audioInputs.push(`[vo${idx}]`)
       audioInputIndex++
     } else {
-      console.log(`[FFmpeg] Clip ${idx} has no voiceover audio (voicePath missing)`)
+      // Extract audio from embedded video stream
+      console.log(`[FFmpeg] Using embedded audio from video ${idx}`)
+      filters.push(`[${idx}:a]volume=1.0[vo${idx}]`)
+      audioInputs.push(`[vo${idx}]`)
     }
   })
 
   // Add background music if provided
   if (options.backgroundMusicPath) {
     const musicVolume = options.musicVolume / 100 // Convert percentage to decimal (0.0-1.0)
-    console.log(`[FFmpeg] Adding background music, audio index ${audioInputIndex}, volume ${musicVolume}`)
-    filters.push(`[${audioInputIndex}:a]volume=${musicVolume},aloop=loop=-1:size=2e+09[bgm]`)
+    console.log(`[FFmpeg] Adding background music, audio index ${audioInputIndex}, volume ${musicVolume}, duration: ${totalDuration}s`)
+    // Loop and trim background music to match video duration
+    if (totalDuration > 0) {
+      filters.push(`[${audioInputIndex}:a]volume=${musicVolume},aloop=loop=-1:size=2e+09,atrim=0:${totalDuration}[bgm]`)
+    } else {
+      // Fallback if duration is 0 (shouldn't happen, but safety check)
+      filters.push(`[${audioInputIndex}:a]volume=${musicVolume}[bgm]`)
+    }
     audioInputs.push(`[bgm]`)
   }
 
   if (audioInputs.length > 0) {
-    console.log(`[FFmpeg] Mixing ${audioInputs.length} audio inputs (voiceover + background music)`)
+    console.log(`[FFmpeg] Mixing ${audioInputs.length} audio inputs (video audio/voiceover + background music)`)
+    // Use duration=longest to match video duration, not infinite
     filters.push(`${audioInputs.join('')}amix=inputs=${audioInputs.length}:duration=longest:dropout_transition=2[outa]`)
   } else {
-    // No audio, create silent track
-    console.log('[FFmpeg] No audio inputs found, creating silent track')
-    filters.push(`anullsrc=channel_layout=stereo:sample_rate=48000[outa]`)
+    // No audio at all - create silent track with duration matching video
+    console.log('[FFmpeg] No audio inputs found, creating silent track with duration:', totalDuration)
+    if (totalDuration > 0) {
+      filters.push(`anullsrc=channel_layout=stereo:sample_rate=48000:duration=${totalDuration}[outa]`)
+    } else {
+      // Fallback: estimate from clip count (each clip is typically ~4 seconds)
+      const estimatedDuration = clips.length * 4
+      console.log('[FFmpeg] Using estimated duration:', estimatedDuration)
+      filters.push(`anullsrc=channel_layout=stereo:sample_rate=48000:duration=${estimatedDuration}[outa]`)
+    }
   }
 
   return filters
