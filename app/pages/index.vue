@@ -4,22 +4,22 @@
     <div class="relative overflow-hidden bg-gradient-to-br from-white via-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
       <!-- Decorative Background Elements -->
       <div class="absolute inset-0 overflow-hidden pointer-events-none">
-        <div class="absolute -top-40 -right-40 w-80 h-80 bg-primary-200/20 dark:bg-primary-800/10 rounded-full blur-3xl"></div>
-        <div class="absolute top-60 -left-40 w-96 h-96 bg-secondary-200/20 dark:bg-secondary-800/10 rounded-full blur-3xl"></div>
+        <div class="absolute -top-40 -right-40 w-80 h-80 bg-brand-cream-200/30 dark:bg-brand-cream-300/10 rounded-full blur-3xl"></div>
+        <div class="absolute top-60 -left-40 w-96 h-96 bg-brand-cream-300/20 dark:bg-brand-cream-400/10 rounded-full blur-3xl"></div>
       </div>
       
       <UContainer class="relative max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div class="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center min-h-[85vh] py-12 sm:py-16 md:py-20 lg:py-24">
+        <div class="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center min-h-[70vh] py-12 sm:py-14 md:py-16">
           <!-- Left Side - Content -->
-          <div class="space-y-6 sm:space-y-8 z-10">
+          <div class="space-y-5 sm:space-y-6 z-10">
             <!-- Badge -->
-            <div class="inline-flex items-center gap-2 px-4 py-2 bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-800 rounded-full text-sm font-medium text-primary-700 dark:text-primary-300">
+            <div class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-primary-900/30 border border-gray-200 dark:border-primary-800 rounded-full text-sm font-medium text-gray-800 dark:text-primary-300">
               <UIcon name="i-heroicons-sparkles" class="w-4 h-4" />
               <span>AI-Powered Video Generation</span>
             </div>
             
             <!-- Main Headline -->
-            <h1 class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight tracking-tight text-gray-900 dark:text-white">
+            <h1 class="text-4xl sm:text-5xl md:text-6xl lg:text-6xl font-bold leading-tight tracking-tight text-gray-900 dark:text-white">
               Transform
               <span class="block text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-secondary-600 dark:from-primary-400 dark:to-secondary-400">
                 Prompts
@@ -28,7 +28,7 @@
             </h1>
             
             <!-- Subheadline -->
-            <p class="text-lg sm:text-xl md:text-2xl text-gray-600 dark:text-gray-300 leading-relaxed max-w-2xl">
+            <p class="text-lg sm:text-xl md:text-xl text-gray-600 dark:text-gray-300 leading-relaxed max-w-2xl">
               Create stunning, professional ad content in minutes with our AI-powered video generation platform. No editing skills required.
             </p>
             
@@ -61,7 +61,7 @@
               </div>
               <div class="flex items-center gap-2">
                 <UIcon name="i-heroicons-clock" class="w-5 h-5 text-blue-500" />
-                <span>Generate in 10 minutes</span>
+                <span>Fully Automated</span>
               </div>
               <div class="flex items-center gap-2">
                 <UIcon name="i-heroicons-shield-check" class="w-5 h-5 text-purple-500" />
@@ -74,29 +74,26 @@
           <div class="relative lg:block hidden">
             <div class="relative">
               <!-- Main Showcase Card -->
-              <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 border border-gray-200 dark:border-gray-700">
-                <div class="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-lg flex items-center justify-center overflow-hidden">
-                  <div class="text-center space-y-4">
-                    <UIcon name="i-heroicons-video-camera" class="w-16 h-16 mx-auto text-gray-400 dark:text-gray-500" />
-                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Video Preview</p>
-                  </div>
+              <div class="relative bg-brand-cream-200 dark:bg-brand-cream-300 rounded-2xl shadow-2xl p-5 border border-brand-cream-300 dark:border-brand-cream-400">
+                <div class="aspect-video bg-gradient-to-br from-brand-cream-300 to-brand-cream-400 dark:from-brand-cream-400 dark:to-brand-cream-500 rounded-lg flex items-center justify-center overflow-hidden p-6">
+                  <img src="/favicon.svg" alt="AdUbun" class="w-full h-full object-contain" />
                 </div>
                 <!-- Floating Stats Cards -->
-                <div class="absolute -bottom-4 -left-4 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-200 dark:border-gray-700">
-                  <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-                      <UIcon name="i-heroicons-check-circle" class="w-6 h-6 text-green-600 dark:text-green-400" />
+                <div class="absolute -bottom-3 -left-3 bg-brand-cream-200 dark:bg-brand-cream-300 rounded-xl shadow-lg p-3 border border-brand-cream-300 dark:border-brand-cream-400">
+                  <div class="flex items-center gap-2">
+                    <div class="w-9 h-9 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                      <UIcon name="i-heroicons-check-circle" class="w-5 h-5 text-green-600 dark:text-green-400" />
                     </div>
                     <div>
-                      <p class="text-xs text-gray-500 dark:text-gray-400">Status</p>
-                      <p class="text-sm font-semibold text-gray-900 dark:text-white">Completed</p>
+                      <p class="text-xs text-gray-500 dark:text-gray-700">Status</p>
+                      <p class="text-sm font-semibold text-gray-900 dark:text-gray-900">Completed</p>
                     </div>
                   </div>
                 </div>
-                <div class="absolute -top-4 -right-4 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-200 dark:border-gray-700">
+                <div class="absolute -top-3 -right-3 bg-brand-cream-200 dark:bg-brand-cream-300 rounded-xl shadow-lg p-3 border border-brand-cream-300 dark:border-brand-cream-400">
                   <div class="text-center">
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">10min</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Generation Time</p>
+                    <p class="text-xl font-bold text-gray-900 dark:text-gray-900">AI-Powered</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-700">Technology</p>
                   </div>
                 </div>
               </div>
@@ -107,34 +104,34 @@
     </div>
 
     <!-- Quick Start Section - Modern Card Design -->
-    <div id="prompt-section" class="py-16 sm:py-20 md:py-24 lg:py-28 bg-white dark:bg-gray-900">
+    <div id="prompt-section" class="py-12 sm:py-16 md:py-20 bg-white dark:bg-gray-900">
       <UContainer class="max-w-4xl px-4 sm:px-6">
-        <div class="text-center mb-12 sm:mb-16">
-          <h2 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 text-gray-900 dark:text-white">
+        <div class="text-center mb-8 sm:mb-12">
+          <h2 class="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-bold mb-3 sm:mb-4 text-gray-900 dark:text-white">
             Create Your Video
           </h2>
-          <p class="text-lg sm:text-xl md:text-2xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+          <p class="text-lg sm:text-xl md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
             Get started in seconds with our AI-powered video generator. Just describe your vision and watch it come to life.
           </p>
         </div>
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 sm:p-8 md:p-10 lg:p-12">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 sm:p-8 md:p-10">
           <UiPromptInput :loading="isLoading" @submit="handleSubmit" />
         </div>
       </UContainer>
     </div>
 
     <!-- Example Prompts Section - Modern Grid Design -->
-    <div id="examples-section" class="py-16 sm:py-20 md:py-24 lg:py-28 bg-gray-50 dark:bg-gray-800/50">
+    <div id="examples-section" class="py-12 sm:py-16 md:py-20 bg-brand-cream-50 dark:bg-brand-cream-100/30">
       <UContainer class="max-w-7xl px-4 sm:px-6">
-        <div class="text-center mb-12 sm:mb-16">
-          <h2 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 text-gray-900 dark:text-white">
+        <div class="text-center mb-8 sm:mb-12">
+          <h2 class="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-bold mb-3 sm:mb-4 text-gray-900 dark:text-white">
             Try These Examples
           </h2>
-          <p class="text-lg sm:text-xl md:text-2xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+          <p class="text-lg sm:text-xl md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
             Get inspired with these ready-to-use templates. Click any example to get started instantly.
           </p>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8" ref="examplesGrid" v-auto-animate>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6" ref="examplesGrid" v-auto-animate>
           <UCard
             v-for="(example, index) in examplePrompts"
             :key="index"
@@ -146,13 +143,13 @@
             @keydown.space.prevent="useExample(example)"
           >
             <template #header>
-              <div class="flex items-start gap-4">
-                <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
-                  <span class="text-3xl sm:text-4xl">{{ example.icon }}</span>
+              <div class="flex items-start gap-3">
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
+                  <span class="text-2xl sm:text-3xl">{{ example.icon }}</span>
                 </div>
                 <div class="flex-1 min-w-0">
-                  <h3 class="font-bold text-lg sm:text-xl text-gray-900 dark:text-white mb-1">{{ example.title }}</h3>
-                  <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                  <h3 class="font-bold text-base sm:text-lg text-gray-900 dark:text-white mb-1">{{ example.title }}</h3>
+                  <div class="flex items-center gap-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                     <span>{{ example.duration }}s</span>
                     <span>•</span>
                     <span>{{ example.aspectRatio }}</span>
@@ -162,7 +159,7 @@
                 </div>
               </div>
             </template>
-            <p class="text-gray-600 dark:text-gray-300 mb-6 leading-relaxed text-sm sm:text-base">
+            <p class="text-gray-600 dark:text-gray-300 mb-4 leading-relaxed text-sm sm:text-base">
               {{ example.description }}
             </p>
             <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -181,49 +178,49 @@
     </div>
 
     <!-- Feature Cards Section - Modern Design -->
-    <div class="py-16 sm:py-20 md:py-24 lg:py-28 bg-white dark:bg-gray-900" ref="featuresSection">
+    <div class="py-12 sm:py-16 md:py-20 bg-brand-cream-50 dark:bg-brand-cream-100/20" ref="featuresSection">
       <UContainer class="max-w-7xl px-4 sm:px-6">
-        <div class="text-center mb-12 sm:mb-16">
-          <h2 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 text-gray-900 dark:text-white">
+        <div class="text-center mb-8 sm:mb-12">
+          <h2 class="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-bold mb-3 sm:mb-4 text-gray-900 dark:text-white">
             Why Choose AdUbun?
           </h2>
-          <p class="text-lg sm:text-xl md:text-2xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+          <p class="text-lg sm:text-xl md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
             Everything you need to create professional videos at scale, powered by cutting-edge AI
           </p>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8" ref="featuresGrid" v-auto-animate>
-          <UCard class="text-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] p-6 sm:p-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6" ref="featuresGrid" v-auto-animate>
+          <UCard class="text-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] p-5 sm:p-6">
             <template #header>
-              <div class="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-yellow-100 to-yellow-200 dark:from-yellow-900/30 dark:to-yellow-800/30 flex items-center justify-center">
-                <span class="text-4xl sm:text-5xl">⚡</span>
+              <div class="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-yellow-100 to-yellow-200 dark:from-yellow-900/30 dark:to-yellow-800/30 flex items-center justify-center">
+                <span class="text-3xl sm:text-4xl">⚡</span>
               </div>
-              <h3 class="font-bold text-xl sm:text-2xl text-gray-900 dark:text-white mb-3">Fast Generation</h3>
+              <h3 class="font-bold text-lg sm:text-xl text-gray-900 dark:text-white mb-2">Fast Generation</h3>
             </template>
-            <p class="text-gray-600 dark:text-gray-300 leading-relaxed text-base sm:text-lg">
-              Generate professional ad videos in under 10 minutes with our AI-powered pipeline
+            <p class="text-gray-600 dark:text-gray-300 leading-relaxed text-sm sm:text-base">
+              Generate professional ad videos with fully automated AI-powered pipeline
             </p>
           </UCard>
 
-          <UCard class="text-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] p-6 sm:p-8">
+          <UCard class="text-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] p-5 sm:p-6">
             <template #header>
-              <div class="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900/30 dark:to-green-800/30 flex items-center justify-center">
-                <span class="text-4xl sm:text-5xl">💰</span>
+              <div class="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900/30 dark:to-green-800/30 flex items-center justify-center">
+                <span class="text-3xl sm:text-4xl">💰</span>
               </div>
-              <h3 class="font-bold text-xl sm:text-2xl text-gray-900 dark:text-white mb-3">Cost Effective</h3>
+              <h3 class="font-bold text-lg sm:text-xl text-gray-900 dark:text-white mb-2">Cost Effective</h3>
             </template>
-            <p class="text-gray-600 dark:text-gray-300 leading-relaxed text-base sm:text-lg">
+            <p class="text-gray-600 dark:text-gray-300 leading-relaxed text-sm sm:text-base">
               Less than $2 per minute of video content. No hidden fees, transparent pricing
             </p>
           </UCard>
 
-          <UCard class="text-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] p-6 sm:p-8">
+          <UCard class="text-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] p-5 sm:p-6">
             <template #header>
-              <div class="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 flex items-center justify-center">
-                <span class="text-4xl sm:text-5xl">🤖</span>
+              <div class="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 flex items-center justify-center">
+                <span class="text-3xl sm:text-4xl">🤖</span>
               </div>
-              <h3 class="font-bold text-xl sm:text-2xl text-gray-900 dark:text-white mb-3">AI-Powered</h3>
+              <h3 class="font-bold text-lg sm:text-xl text-gray-900 dark:text-white mb-2">AI-Powered</h3>
             </template>
-            <p class="text-gray-600 dark:text-gray-300 leading-relaxed text-base sm:text-lg">
+            <p class="text-gray-600 dark:text-gray-300 leading-relaxed text-sm sm:text-base">
               Leveraging cutting-edge AI models including GPT-4, Replicate, and ElevenLabs
             </p>
           </UCard>
@@ -232,26 +229,26 @@
     </div>
 
     <!-- Stats Section - Modern Design -->
-    <div class="py-16 sm:py-20 md:py-24 lg:py-28 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900" ref="statsSection">
+    <div class="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-brand-cream-50 to-brand-cream-100 dark:from-brand-cream-100/30 dark:to-brand-cream-200/20" ref="statsSection">
       <UContainer class="max-w-7xl px-4 sm:px-6">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-12 lg:gap-16">
-          <div class="text-center p-6 sm:p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
-            <div class="text-5xl sm:text-6xl md:text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-secondary-600 dark:from-primary-400 dark:to-secondary-400 mb-3 sm:mb-4" ref="stat1">
-              10min
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
+          <div class="text-center p-5 sm:p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
+            <div class="text-4xl sm:text-5xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-secondary-600 dark:from-primary-400 dark:to-secondary-400 mb-2 sm:mb-3" ref="stat1">
+              AI-Powered
             </div>
-            <div class="text-gray-600 dark:text-gray-400 text-base sm:text-lg font-medium">Average Generation Time</div>
+            <div class="text-gray-600 dark:text-gray-400 text-sm sm:text-base font-medium">Fully Automated</div>
           </div>
-          <div class="text-center p-6 sm:p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
-            <div class="text-5xl sm:text-6xl md:text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600 dark:from-green-400 dark:to-emerald-400 mb-3 sm:mb-4" ref="stat2">
+          <div class="text-center p-5 sm:p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
+            <div class="text-4xl sm:text-5xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600 dark:from-green-400 dark:to-emerald-400 mb-2 sm:mb-3" ref="stat2">
               $2/min
             </div>
-            <div class="text-gray-600 dark:text-gray-400 text-base sm:text-lg font-medium">Cost Per Minute</div>
+            <div class="text-gray-600 dark:text-gray-400 text-sm sm:text-base font-medium">Cost Per Minute</div>
           </div>
-          <div class="text-center p-6 sm:p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
-            <div class="text-5xl sm:text-6xl md:text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 mb-3 sm:mb-4" ref="stat3">
+          <div class="text-center p-5 sm:p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
+            <div class="text-4xl sm:text-5xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 mb-2 sm:mb-3" ref="stat3">
               100%
             </div>
-            <div class="text-gray-600 dark:text-gray-400 text-base sm:text-lg font-medium">AI Generated</div>
+            <div class="text-gray-600 dark:text-gray-400 text-sm sm:text-base font-medium">AI Generated</div>
           </div>
         </div>
       </UContainer>
@@ -265,10 +262,14 @@ const router = useRouter()
 const toast = useToast()
 
 // Check authentication - but don't redirect in dev mode (demo login is allowed)
+// Use onMounted to ensure this only runs on client side to avoid hydration issues
 onMounted(() => {
-  if (!authLoading.value && !user.value && !process.dev) {
-    // Redirect to login if not authenticated (only in production)
-    router.push('/auth/login')
+  if (process.client) {
+    const isDev = process.dev
+    if (!authLoading.value && !user.value && !isDev) {
+      // Redirect to login if not authenticated (only in production)
+      router.push('/auth/login')
+    }
   }
 })
 
@@ -373,7 +374,9 @@ const handleSubmit = async (formData: any) => {
   console.log('[Index] handleSubmit called with:', formData)
   
   // Check authentication - in dev mode, allow demo login
-  if (!user.value && !process.dev) {
+  // Only check process.dev on client side to avoid hydration issues
+  const isDev = process.client ? process.dev : false
+  if (!user.value && !isDev) {
     toast.add({
       title: 'Authentication Required',
       description: 'Please sign in to create an ad',
@@ -384,7 +387,7 @@ const handleSubmit = async (formData: any) => {
   }
 
   // In dev mode, if no user, use demo login
-  if (!user.value && process.dev) {
+  if (!user.value && isDev) {
     console.log('[Index] No user in dev mode, using demo login')
     const { demoLogin } = useAuth()
     try {
@@ -445,3 +448,4 @@ const handleSubmit = async (formData: any) => {
   }
 }
 </script>
+

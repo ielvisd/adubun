@@ -14,6 +14,17 @@ export interface VideoModel {
   optionalInputs: string[] // e.g., ['first_frame_image', 'subject_reference']
 }
 
+export interface Character {
+  id: string // Unique identifier for the character
+  name?: string // Character name if mentioned (e.g., "John", "the teen", "the elderly man")
+  description: string // Full character description
+  gender: 'male' | 'female' | 'non-binary' | 'unspecified'
+  age?: string // Age description (e.g., "teenage", "elderly", "middle-aged", "young adult")
+  physicalFeatures?: string // Physical appearance details (hair color/style, build, distinctive features)
+  clothing?: string // Clothing style description
+  role: string // Role in the story (e.g., "main character", "supporting character", "the person who cheers up")
+}
+
 export interface Segment {
   type: 'hook' | 'body' | 'cta'
   description: string
@@ -32,6 +43,7 @@ export interface Segment {
 export interface Storyboard {
   id: string
   segments: Segment[]
+  characters?: Character[] // Character descriptions extracted from the story
   meta: {
     duration: number
     aspectRatio: '16:9' | '9:16' | '1:1'

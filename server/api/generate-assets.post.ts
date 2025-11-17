@@ -260,15 +260,15 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Generate assets sequentially (for frame continuity)
+    // Generate assets in parallel for all segments
     const assets: Asset[] = []
-    let previousVideoUrl: string | null = null
     
-    console.log(`[Generate Assets] Starting sequential generation of ${segmentsToProcess.length} segments`)
+    console.log(`[Generate Assets] Starting parallel generation of ${segmentsToProcess.length} segments`)
     console.log(`[Generate Assets] Total segments in storyboard: ${storyboard.segments.length}`)
     console.log(`[Generate Assets] Frames provided: ${frames?.length || 0}`)
     
-    for (const [idx, segment] of segmentsToProcess.entries()) {
+    // Extract segment processing into a function for parallel execution
+    const generateSegmentAsset = async (idx: number, segment: any): Promise<Asset> => {
       console.log(`\n[Generate Assets] ===== Starting Segment ${idx + 1}/${segmentsToProcess.length} =====`)
       console.log(`[Segment ${idx}] Type: ${segment.type}, Duration: ${segment.endTime - segment.startTime}s`)
       
@@ -280,7 +280,6 @@ export default defineEventHandler(async (event) => {
         lastFrameImage: segment.lastFrameImage,
       })
       
-      const asset = await (async () => {
       try {
         // Determine which images to use - only use frame images from generate-frames API or segment
         const segmentFrames = frameMap.get(String(idx))
@@ -294,13 +293,17 @@ export default defineEventHandler(async (event) => {
         
         let childrenDetected = false
         if (frameImagesToCheck.length > 0) {
-          console.log(`[Segment ${idx}] Checking ${frameImagesToCheck.length} frame image(s) for children...`)
-          for (const imageUrl of frameImagesToCheck) {
-            const containsChildren = await checkFrameForChildren(imageUrl)
-            if (containsChildren) {
-              childrenDetected = true
-              console.warn(`[Segment ${idx}] Children detected in frame image: ${imageUrl}`)
-            }
+          console.log(`[Segment ${idx}] Checking ${frameImagesToCheck.length} frame image(s) for children in parallel...`)
+          const childrenCheckResults = await Promise.all(
+            frameImagesToCheck.map(imageUrl => checkFrameForChildren(imageUrl))
+          )
+          childrenDetected = childrenCheckResults.some(containsChildren => containsChildren)
+          if (childrenDetected) {
+            frameImagesToCheck.forEach((imageUrl, i) => {
+              if (childrenCheckResults[i]) {
+                console.warn(`[Segment ${idx}] Children detected in frame image: ${imageUrl}`)
+              }
+            })
           }
         }
 
@@ -320,8 +323,8 @@ export default defineEventHandler(async (event) => {
         // Sanitize prompt to avoid content moderation flags
         const sanitizedPrompt = sanitizeVideoPrompt(selectedPrompt)
         
-        // Add hold-final-frame instruction for smooth transitions and product name accuracy
-        const videoPrompt = `${sanitizedPrompt} The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene. CRITICAL: Any product name, brand name, or text displayed in the video must be spelled correctly and match exactly as mentioned in the prompt. Ensure all text, labels, and product names are accurate and legible.`
+        // Add hold-final-frame instruction, face quality, and people count limits
+        const videoPrompt = `${sanitizedPrompt} The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene. CRITICAL: Any product name, brand name, or text displayed in the video must be spelled correctly and match exactly as mentioned in the prompt. Ensure all text, labels, and product names are accurate and legible. FACE QUALITY: Limit scene to 3-4 people maximum. Use close-ups and medium shots to ensure sharp faces, clear facial features, detailed faces, professional portrait quality. Avoid large groups, crowds, or more than 4 people.`
         
         const videoParams: any = {
           model,
@@ -343,10 +346,12 @@ export default defineEventHandler(async (event) => {
             console.log(`[Segment ${idx}] Using last frame image: ${lastFrameImage}`)
           }
           
-          // Build negative prompt - add children-related terms if detected in frames
-          let negativePrompt = ''
+          // Build negative prompt - add children-related terms if detected in frames, and default face quality terms
+          const defaultFaceQualityNegative = 'blurry faces, distorted faces, crowds, large groups, more than 4 people, deformed faces, bad anatomy'
+          let negativePrompt = defaultFaceQualityNegative
+          
           if (childrenDetected) {
-            negativePrompt = 'no children, no kids, no minors, no toddlers, only adults'
+            negativePrompt = `${defaultFaceQualityNegative}, no children, no kids, no minors, no toddlers, only adults`
             console.log(`[Segment ${idx}] Adding children-related negative prompt due to frame content detection`)
           }
           
@@ -354,13 +359,13 @@ export default defineEventHandler(async (event) => {
           if ((segment as any).negativePrompt) {
             videoParams.negative_prompt = childrenDetected 
               ? `${(segment as any).negativePrompt}, ${negativePrompt}`
-              : (segment as any).negativePrompt
+              : `${(segment as any).negativePrompt}, ${defaultFaceQualityNegative}`
             console.log(`[Segment ${idx}] Using segment-specific negative prompt`)
           } else if (storyboard.meta.negativePrompt) {
             videoParams.negative_prompt = childrenDetected
               ? `${storyboard.meta.negativePrompt}, ${negativePrompt}`
-              : storyboard.meta.negativePrompt
-          } else if (childrenDetected) {
+              : `${storyboard.meta.negativePrompt}, ${defaultFaceQualityNegative}`
+          } else {
             videoParams.negative_prompt = negativePrompt
           }
           
@@ -396,12 +401,17 @@ export default defineEventHandler(async (event) => {
             console.log(`[Segment ${idx}] Using first frame image: ${firstFrameImage}`)
           }
           
-          // Priority: segment.negativePrompt > storyboard.meta.negativePrompt
+          // Build negative prompt with default face quality terms
+          const defaultFaceQualityNegative = 'blurry faces, distorted faces, crowds, large groups, more than 4 people, deformed faces, bad anatomy'
+          
+          // Priority: segment.negativePrompt > storyboard.meta.negativePrompt > auto-generated
           if ((segment as any).negativePrompt) {
-            videoParams.negative_prompt = (segment as any).negativePrompt
+            videoParams.negative_prompt = `${(segment as any).negativePrompt}, ${defaultFaceQualityNegative}`
             console.log(`[Segment ${idx}] Using segment-specific negative prompt`)
           } else if (storyboard.meta.negativePrompt) {
-            videoParams.negative_prompt = storyboard.meta.negativePrompt
+            videoParams.negative_prompt = `${storyboard.meta.negativePrompt}, ${defaultFaceQualityNegative}`
+          } else {
+            videoParams.negative_prompt = defaultFaceQualityNegative
           }
           
           // Priority: segment.resolution > storyboard.meta.resolution
@@ -648,48 +658,8 @@ export default defineEventHandler(async (event) => {
         console.log(`[Segment ${idx}] Final video URL:`, finalVideoUrl)
         console.log(`[Segment ${idx}] Prediction ID:`, predictionId)
 
-        // Voice Over (OpenAI TTS)
-        let voiceUrl: string | undefined
-        if (segment.audioNotes) {
-          try {
-            // Extract actual VO script from audioNotes, filtering out descriptive notes
-            const voScript = extractVOScript(segment.audioNotes)
-            
-            if (!voScript) {
-              console.log(`[Segment ${idx}] No valid VO script found in audioNotes: "${segment.audioNotes}"`)
-              // Skip TTS if no valid script found
-            } else {
-              console.log(`[Segment ${idx}] Extracted VO script: "${voScript}" (from: "${segment.audioNotes}")`)
-              
-              const voiceResult = await callOpenAIMCP('text_to_speech', {
-                text: voScript,
-                voice: 'alloy',
-                model: 'tts-1',
-              })
-
-              // Save audio file
-              if (!voiceResult?.audioBase64) {
-                console.error('[Generate Assets] No audioBase64 in voice result:', JSON.stringify(voiceResult, null, 2))
-                console.error('[Generate Assets] Voice result keys:', voiceResult ? Object.keys(voiceResult) : 'null')
-                // Don't fail the entire segment if voice synthesis fails - just log and continue
-                console.warn(`[Segment ${idx}] Voice synthesis failed, continuing without audio`)
-              } else {
-                const audioBuffer = Buffer.from(voiceResult.audioBase64, 'base64')
-                const audioPath = await saveAsset(audioBuffer, 'mp3')
-                voiceUrl = audioPath
-
-                await trackCost('voice-synthesis', 0.05, {
-                  segmentId: idx,
-                  textLength: voScript.length,
-                })
-              }
-            }
-          } catch (voiceError: any) {
-            // Don't fail the entire segment if voice synthesis fails - just log and continue
-            console.error(`[Segment ${idx}] Voice synthesis error:`, voiceError.message)
-            console.warn(`[Segment ${idx}] Continuing without audio due to voice synthesis failure`)
-          }
-        }
+        // Voice synthesis will be done in parallel after all videos complete
+        // Store audioNotes for later processing
 
         // Store metadata including prediction ID and video URL for frontend access
         const metadata = {
@@ -697,7 +667,7 @@ export default defineEventHandler(async (event) => {
           videoUrl: finalVideoUrl, // S3 URL or Replicate URL (fallback)
           replicateVideoUrl: videoUrl, // Original Replicate URL
           s3VideoUrl: finalVideoUrl !== videoUrl ? finalVideoUrl : undefined, // S3 URL if uploaded
-          voiceUrl,
+          voiceUrl: undefined, // Will be set after parallel voice synthesis completes
           segmentIndex: idx,
           segmentType: segment.type,
           startTime: segment.startTime,
@@ -712,9 +682,12 @@ export default defineEventHandler(async (event) => {
         return {
           segmentId: idx,
           videoUrl: finalVideoUrl, // Use S3 URL or Replicate fallback
-          voiceUrl,
+          voiceUrl: undefined, // Will be set after parallel voice synthesis
           status: 'completed',
-          metadata, // Include metadata for frontend access
+          metadata: {
+            ...metadata,
+            audioNotes: segment.audioNotes, // Store for voice synthesis
+          }, // Include metadata for frontend access
         } as Asset
       } catch (error: any) {
         const errorMessage = error.message || 'Unknown error occurred'
@@ -729,120 +702,130 @@ export default defineEventHandler(async (event) => {
           error: errorMessage,
         } as Asset
       }
-      })()
-      
-      assets.push(asset)
-      
-      console.log(`[Segment ${idx}] Asset generation completed. Status: ${asset.status}`)
-      if (asset.status === 'completed') {
-        console.log(`[Segment ${idx}] Video URL: ${asset.videoUrl || 'none'}`)
-      } else if (asset.status === 'failed') {
-        console.log(`[Segment ${idx}] Error: ${asset.error || 'unknown'}`)
-      }
-      
-      // Update job with current progress
-      job.assets = assets
-      const allCompleted = assets.every(a => a.status === 'completed')
-      const someFailed = assets.some(a => a.status === 'failed')
-      job.status = allCompleted 
-        ? 'completed' 
-        : someFailed 
-          ? 'failed' 
-          : 'processing'
-      
-      console.log(`[Segment ${idx}] Job status updated: ${job.status} (completed: ${assets.filter(a => a.status === 'completed').length}/${assets.length})`)
-      await saveJob(job)
-      
-      // If segment succeeded and it's not the last segment, extract frames for next segment
-      if (asset.status === 'completed' && asset.videoUrl && idx < segmentsToProcess.length - 1) {
-        console.log(`[Segment ${idx}] Segment completed successfully. Starting frame extraction for next segment...`)
-        console.log(`[Segment ${idx}] Video URL: ${asset.videoUrl}`)
-        console.log(`[Segment ${idx}] Remaining segments: ${segmentsToProcess.length - idx - 1}`)
+    }
+    
+    // Generate all segments in parallel
+    const segmentPromises = segmentsToProcess.map((segment, idx) => 
+      generateSegmentAsset(idx, segment)
+    )
+    
+    console.log(`[Generate Assets] Executing ${segmentPromises.length} segment generations in parallel...`)
+    const segmentResults = await Promise.allSettled(segmentPromises)
+    
+    // Process results and update job status incrementally
+    for (const [idx, result] of segmentResults.entries()) {
+      if (result.status === 'fulfilled') {
+        const asset = result.value
+        assets.push(asset)
         
-        try {
-          const segmentDuration = segment.endTime - segment.startTime
-          console.log(`[Segment ${idx}] Segment duration: ${segmentDuration}s`)
-          
-          // Download video to local temp file
-          console.log(`[Segment ${idx}] Downloading video from: ${asset.videoUrl}`)
-          const localVideoPath = await downloadFile(asset.videoUrl)
-          console.log(`[Segment ${idx}] Video downloaded to: ${localVideoPath}`)
-          const tempPaths = [localVideoPath]
-          
-          try {
-            // Extract the last frame from the end of the video
-            console.log(`[Segment ${idx}] Extracting last frame from video...`)
-            const framePaths = await extractFramesFromVideo(localVideoPath, segmentDuration)
-            console.log(`[Segment ${idx}] Successfully extracted last frame:`, framePaths[0])
-            tempPaths.push(...framePaths)
-            
-            if (framePaths.length === 0) {
-              throw new Error('No frame was extracted from video')
-            }
-            
-            // Upload the last frame to Replicate to get public URL
-            console.log(`[Segment ${idx}] Uploading last frame to Replicate...`)
-            console.log(`[Segment ${idx}] Frame path to upload: ${framePaths[0]}`)
-            console.log(`[Segment ${idx}] Frame path type: ${typeof framePaths[0]}, length: ${framePaths[0]?.length}`)
-            
-            // Validate frame path before uploading
-            if (!framePaths[0] || typeof framePaths[0] !== 'string') {
-              throw new Error(`Invalid frame path: ${typeof framePaths[0]}`)
-            }
-            
-            const lastFrameUrl = await uploadFileToReplicate(framePaths[0])
-            console.log(`[Segment ${idx}] Last frame uploaded to: ${lastFrameUrl}`)
-            
-            // Always use the last frame for the next segment
-            // Validate the URL before storing
-            if (!lastFrameUrl || typeof lastFrameUrl !== 'string') {
-              throw new Error(`Invalid frame URL returned: ${typeof lastFrameUrl}`)
-            }
-            // Frame extracted successfully (no longer used for continuity since we use frame images)
-            console.log(`[Segment ${idx}] ✓ Last frame extracted successfully`)
-            console.log(`[Segment ${idx}] Last frame URL: ${lastFrameUrl}`)
-          } catch (innerError: any) {
-            console.error(`[Segment ${idx}] Error during frame extraction/analysis:`, innerError.message)
-            console.error(`[Segment ${idx}] Error stack:`, innerError.stack)
-            throw innerError // Re-throw to be caught by outer catch
-          } finally {
-            // Clean up temp files (video and frames)
-            console.log(`[Segment ${idx}] Cleaning up ${tempPaths.length} temp files...`)
-            await cleanupTempFiles(tempPaths).catch((cleanupError) => {
-              console.warn(`[Segment ${idx}] Error during cleanup:`, cleanupError.message)
-            })
-            console.log(`[Segment ${idx}] Cleanup completed`)
-          }
-        } catch (frameError: any) {
-          // Don't fail the entire job if frame extraction fails - just log and continue
-          console.error(`[Segment ${idx}] ✗ Last frame extraction failed:`, frameError.message)
-          console.error(`[Segment ${idx}] Frame error stack:`, frameError.stack)
-          console.warn(`[Segment ${idx}] Continuing to next segment`)
+        console.log(`[Segment ${idx}] Asset generation completed. Status: ${asset.status}`)
+        if (asset.status === 'completed') {
+          console.log(`[Segment ${idx}] Video URL: ${asset.videoUrl || 'none'}`)
+        } else if (asset.status === 'failed') {
+          console.log(`[Segment ${idx}] Error: ${asset.error || 'unknown'}`)
         }
         
-        console.log(`[Segment ${idx}] Last frame extraction completed`)
+        // Update job with current progress as each segment completes
+        job.assets = assets
+        const allCompleted = assets.every(a => a.status === 'completed')
+        const someFailed = assets.some(a => a.status === 'failed')
+        job.status = allCompleted 
+          ? 'completed' 
+          : someFailed 
+            ? 'failed' 
+            : 'processing'
+        
+        console.log(`[Segment ${idx}] Job status updated: ${job.status} (completed: ${assets.filter(a => a.status === 'completed').length}/${assets.length})`)
+        await saveJob(job)
       } else {
-        if (asset.status !== 'completed') {
-          console.log(`[Segment ${idx}] Segment did not complete successfully (status: ${asset.status}), skipping frame extraction`)
-        } else if (!asset.videoUrl) {
-          console.log(`[Segment ${idx}] Segment completed but no video URL, skipping frame extraction`)
-        } else if (idx >= segmentsToProcess.length - 1) {
-          console.log(`[Segment ${idx}] This is the last segment, no frame extraction needed`)
-        }
+        console.error(`[Segment ${idx}] Segment generation failed:`, result.reason)
+        assets.push({
+          segmentId: idx,
+          status: 'failed',
+          error: result.reason?.message || 'Unknown error',
+        } as Asset)
+        
+        // Update job status
+        job.assets = assets
+        job.status = 'failed'
+        await saveJob(job)
       }
-      
-      // Log that we're continuing to next segment
-      if (idx < segmentsToProcess.length - 1) {
-        console.log(`[Segment ${idx}] Moving to next segment (${idx + 1}/${segmentsToProcess.length})...`)
-      } else {
-        console.log(`[Segment ${idx}] This was the last segment. Generation complete.`)
-      }
-      
-      console.log(`[Segment ${idx}] ===== Completed Segment ${idx + 1}/${segmentsToProcess.length} =====\n`)
     }
     
     console.log(`[Generate Assets] All segments processed. Total assets: ${assets.length}`)
     console.log(`[Generate Assets] Completed: ${assets.filter(a => a.status === 'completed').length}, Failed: ${assets.filter(a => a.status === 'failed').length}`)
+
+    // Generate all voiceovers in parallel after videos complete
+    console.log(`[Generate Assets] Starting parallel voice synthesis for completed segments...`)
+    const voicePromises = assets
+      .filter(asset => asset.status === 'completed' && asset.metadata?.audioNotes)
+      .map(async (asset) => {
+        const idx = asset.segmentId
+        const audioNotes = asset.metadata?.audioNotes as string | undefined
+        
+        if (!audioNotes) {
+          return { idx, voiceUrl: undefined }
+        }
+        
+        try {
+          // Extract actual VO script from audioNotes, filtering out descriptive notes
+          const voScript = extractVOScript(audioNotes)
+          
+          if (!voScript) {
+            console.log(`[Segment ${idx}] No valid VO script found in audioNotes: "${audioNotes}"`)
+            return { idx, voiceUrl: undefined }
+          }
+          
+          console.log(`[Segment ${idx}] Extracted VO script: "${voScript}" (from: "${audioNotes}")`)
+          
+          const voiceResult = await callOpenAIMCP('text_to_speech', {
+            text: voScript,
+            voice: 'alloy',
+            model: 'tts-1',
+          })
+
+          // Save audio file
+          if (!voiceResult?.audioBase64) {
+            console.error(`[Segment ${idx}] No audioBase64 in voice result`)
+            console.warn(`[Segment ${idx}] Voice synthesis failed, continuing without audio`)
+            return { idx, voiceUrl: undefined }
+          }
+          
+          const audioBuffer = Buffer.from(voiceResult.audioBase64, 'base64')
+          const audioPath = await saveAsset(audioBuffer, 'mp3')
+          
+          await trackCost('voice-synthesis', 0.05, {
+            segmentId: idx,
+            textLength: voScript.length,
+          })
+          
+          console.log(`[Segment ${idx}] Voice synthesis completed: ${audioPath}`)
+          return { idx, voiceUrl: audioPath }
+        } catch (voiceError: any) {
+          console.error(`[Segment ${idx}] Voice synthesis error:`, voiceError.message)
+          console.warn(`[Segment ${idx}] Continuing without audio due to voice synthesis failure`)
+          return { idx, voiceUrl: undefined }
+        }
+      })
+    
+    const voiceResults = await Promise.allSettled(voicePromises)
+    
+    // Update assets with voice URLs
+    for (const result of voiceResults) {
+      if (result.status === 'fulfilled') {
+        const { idx, voiceUrl } = result.value
+        const asset = assets.find(a => a.segmentId === idx)
+        if (asset && voiceUrl) {
+          asset.voiceUrl = voiceUrl
+          if (asset.metadata) {
+            asset.metadata.voiceUrl = voiceUrl
+          }
+          console.log(`[Segment ${idx}] Voice URL updated: ${voiceUrl}`)
+        }
+      }
+    }
+    
+    console.log(`[Generate Assets] Parallel voice synthesis completed`)
 
     // Update job
     job.assets = assets

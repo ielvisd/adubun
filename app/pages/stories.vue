@@ -17,13 +17,23 @@
         class="mb-6"
       >
         <template #actions>
-          <UButton
-            variant="ghost"
-            color="red"
-            @click="$router.push('/')"
-          >
-            Go Back
-          </UButton>
+          <div class="flex gap-2">
+            <UButton
+              v-if="isRetryable"
+              color="red"
+              @click="generateStories"
+              :loading="loading"
+            >
+              {{ loading ? 'Retrying...' : 'Retry' }}
+            </UButton>
+            <UButton
+              variant="ghost"
+              color="red"
+              @click="$router.push('/')"
+            >
+              Go Back
+            </UButton>
+          </div>
         </template>
       </UAlert>
 
@@ -163,6 +173,7 @@ const toast = useToast()
 
 const loading = ref(true)
 const error = ref<string | null>(null)
+const isRetryable = ref(false)
 const stories = ref<Story[]>([])
 const selectedStoryId = ref<string | null>(null)
 const promptData = ref<any>(null)
@@ -198,6 +209,7 @@ onMounted(async () => {
 const generateStories = async () => {
   loading.value = true
   error.value = null
+  isRetryable.value = false
 
   try {
     // Prepare form data for API
@@ -261,7 +273,12 @@ const generateStories = async () => {
     loading.value = false
   } catch (err: any) {
     console.error('Error generating stories:', err)
-    error.value = err.data?.message || err.message || 'Failed to generate stories'
+    
+    // Extract error message and retryable flag from response
+    const errorData = err.data || {}
+    error.value = errorData.message || err.data?.message || err.message || 'Failed to generate stories'
+    isRetryable.value = errorData.retryable !== false // Default to true if not explicitly false
+    
     loading.value = false
   }
 }

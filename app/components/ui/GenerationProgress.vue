@@ -12,13 +12,14 @@
       <UProgress :value="overallProgress" class="mb-4" />
 
       <!-- Overall Error Message -->
-      <div
+      <UAlert
         v-if="status === 'failed' && overallError"
-        class="mb-4 p-4 bg-error-50 border border-error-200 rounded-lg"
-      >
-        <p class="text-sm font-medium text-error-800">Generation Failed:</p>
-        <p class="text-sm text-error-600 mt-1">{{ overallError }}</p>
-      </div>
+        color="error"
+        variant="soft"
+        title="Generation Failed"
+        :description="overallError"
+        class="mb-4"
+      />
 
       <!-- Segment Progress -->
       <div class="space-y-3">
@@ -26,40 +27,63 @@
           v-for="(segment, idx) in segments"
           :key="idx"
         >
-          <div class="flex items-center gap-3">
-            <UIcon
-              :name="getStatusIcon(segment.status)"
-              :class="getStatusClass(segment.status)"
-              class="w-5 h-5"
-            />
-            <span class="flex-1">Segment {{ idx + 1 }}: {{ segment.type }}</span>
-            <span class="text-sm text-gray-500">{{ segment.status }}</span>
-          </div>
+          <div class="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <div class="flex items-center gap-3 mb-2">
+              <UIcon
+                :name="getStatusIcon(segment.status)"
+                :class="getStatusClass(segment.status)"
+                class="w-5 h-5"
+              />
+              <span class="flex-1 font-medium">Segment {{ idx + 1 }}: {{ segment.type }}</span>
+              <UBadge :color="getStatusBadgeColor(segment.status)" size="sm">{{ segment.status }}</UBadge>
+            </div>
+            
+            <!-- Progress bar for processing segments -->
+            <div v-if="segment.status === 'processing' || segment.status === 'pending'" class="mt-2">
+              <UProgress :value="segment.progress || 0" :indeterminate="!segment.progress" size="sm" />
+            </div>
+            
+            <!-- Skeleton placeholders for processing segments -->
+            <div v-if="(segment.status === 'processing' || segment.status === 'pending') && !getVideoUrl(segment)" class="mt-3 space-y-2">
+              <div class="flex gap-2">
+                <USkeleton class="w-32 h-20 rounded" />
+                <USkeleton class="w-32 h-20 rounded" />
+                <USkeleton class="w-32 h-20 rounded" />
+              </div>
+              <p class="text-xs text-gray-500">Generating video assets...</p>
+            </div>
           <!-- Error Messages -->
-          <div
+          <UAlert
             v-if="segment.status === 'failed' && segment.error"
-            class="mt-2 p-3 bg-error-50 border border-error-200 rounded-lg"
+            color="error"
+            variant="soft"
+            :title="`Segment ${idx + 1} Error`"
+            :description="segment.error"
+            class="mt-2"
           >
-            <p class="text-sm font-medium text-error-800">Segment {{ idx + 1 }} Error:</p>
-            <p class="text-sm text-error-600 mt-1">{{ segment.error }}</p>
-            <UButton
-              v-if="segment.metadata"
-              size="xs"
-              variant="outline"
-              color="error"
-              class="mt-2"
-              @click="downloadMetadata(segment, idx)"
-            >
-              <UIcon name="i-heroicons-arrow-down-tray" class="mr-1" />
-              Download Error Metadata
-            </UButton>
-          </div>
+            <template v-if="segment.metadata" #actions>
+              <UButton
+                size="xs"
+                variant="outline"
+                color="error"
+                @click="downloadMetadata(segment, idx)"
+              >
+                <UIcon name="i-heroicons-arrow-down-tray" class="mr-1" />
+                Download Error Metadata
+              </UButton>
+            </template>
+          </UAlert>
           
           <!-- Success Metadata with Audio Players -->
-          <div
+          <UAlert
             v-if="segment.status === 'completed'"
-            class="mt-2 p-3 bg-success-50 border border-success-200 rounded-lg space-y-4"
+            color="success"
+            variant="soft"
+            title="Segment Completed"
+            description="Video and audio assets have been generated successfully."
+            class="mt-2"
           >
+            <div class="mt-3 space-y-4">
             <!-- Audio Player -->
             <div v-if="getVoiceUrl(segment)" class="flex items-center gap-3 p-3 bg-white rounded-lg border border-success-200">
               <UButton
@@ -139,6 +163,8 @@
                 Download Metadata
               </UButton>
             </div>
+            </div>
+          </UAlert>
           </div>
         </template>
       </div>
@@ -354,6 +380,19 @@ const getStatusClass = (status: string) => {
       return 'text-accent-500 animate-spin'
     default:
       return 'text-gray-400'
+  }
+}
+
+const getStatusBadgeColor = (status: string) => {
+  switch (status) {
+    case 'completed':
+      return 'success'
+    case 'failed':
+      return 'error'
+    case 'processing':
+      return 'accent'
+    default:
+      return 'gray'
   }
 }
 </script>

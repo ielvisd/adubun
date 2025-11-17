@@ -67,12 +67,17 @@
         <!-- Video Preview and Audio Player -->
         <div v-if="getAssetForSegment(idx)" class="mt-4 space-y-4">
           <!-- Video Preview -->
-          <div v-if="getVideoUrl(idx)" class="mt-4">
+          <div class="mt-4">
             <p class="text-sm font-medium text-gray-700 mb-2">Video Preview:</p>
-            <div class="aspect-video bg-black rounded-lg overflow-hidden">
+            <!-- Skeleton while generating -->
+            <div v-if="!getVideoUrl(idx) && (getAssetForSegment(idx)?.status === 'pending' || getAssetForSegment(idx)?.status === 'processing')" class="aspect-video rounded-lg overflow-hidden">
+              <USkeleton class="w-full h-full" />
+            </div>
+            <!-- Actual video when available -->
+            <div v-else-if="getVideoUrl(idx)" class="aspect-video bg-black rounded-lg overflow-hidden">
               <video
                 :ref="el => setVideoRef(el, idx)"
-                :src="getVideoUrl(idx)"
+                :src="getVideoUrl(idx) || undefined"
                 class="w-full h-full object-contain"
                 controls
                 @loadedmetadata="onVideoLoaded(idx)"
@@ -107,7 +112,7 @@
                   color="primary"
                   size="sm"
                   class="flex-1"
-                  @update:model-value="onAudioSeek(idx, $event)"
+                  @update:model-value="(value: number | undefined) => value !== undefined && onAudioSeek(idx, value)"
                 />
                 <span class="text-xs text-gray-500 min-w-[60px] text-right">
                   {{ formatAudioTime(idx) }}
@@ -130,6 +135,7 @@ const props = defineProps<{
     segmentId: number
     videoUrl?: string
     voiceUrl?: string
+    status?: 'pending' | 'processing' | 'completed' | 'failed'
     metadata?: {
       videoUrl?: string
       replicateVideoUrl?: string
@@ -292,7 +298,8 @@ const onAudioEnded = (segmentIdx: number) => {
   audioCurrentTime.value[segmentIdx] = 0
 }
 
-const onAudioSeek = (segmentIdx: number, value: number) => {
+const onAudioSeek = (segmentIdx: number, value: number | undefined) => {
+  if (value === undefined) return
   const audio = audioRefs.value[segmentIdx]
   if (audio && audio.duration) {
     audio.currentTime = (value / 100) * audio.duration
@@ -301,8 +308,8 @@ const onAudioSeek = (segmentIdx: number, value: number) => {
   }
 }
 
-const getSegmentColor = (type: string) => {
-  const colors: Record<string, string> = {
+const getSegmentColor = (type: string): 'neutral' | 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' => {
+  const colors: Record<string, 'neutral' | 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error'> = {
     hook: 'secondary',
     body: 'primary',
     cta: 'success',

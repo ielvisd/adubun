@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-brand-cream">
+  <div class="min-h-screen bg-white dark:bg-gray-900">
     <UContainer>
       <header class="py-6 border-b border-primary-200 bg-white">
         <div class="flex justify-between items-center">

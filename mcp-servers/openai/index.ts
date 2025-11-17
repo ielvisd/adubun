@@ -981,12 +981,21 @@ Each segment needs:
   * Product placement and interaction details
   * Background and setting specifics
   * Avoid abstract or unrealistic descriptions - focus on professional, realistic product showcase
+  * EMOTIONAL VISUAL STORYTELLING: Include details that create emotional impact - facial expressions, body language, visual mood, and emotional atmosphere that connects with viewers
+  * PEOPLE COUNT LIMITATION: Limit scenes to 3-4 people maximum. Prefer smaller groups (1-3 people) when possible for better face quality. Avoid large groups, crowds, or more than 4 people in any scene
+  * FACE QUALITY: Use close-ups and medium shots to ensure clear, sharp faces. Emphasize "sharp faces, clear facial features, detailed faces, professional portrait quality" in prompts. Avoid scenes with many people that could result in blurry or distorted faces
   * CRITICAL: For story continuity - Each segment must logically flow from the previous segment:
     - Hook segment: ${sceneDescription ? `🚨 MANDATORY: MUST start with exactly what is shown in the reference image: "${sceneDescription}". The visualPrompt MUST begin by describing this exact scene. Example: If sceneDescription is "a man wearing a watch on his wrist", the prompt must start with "Close-up/Medium/Wide shot of a man wearing a watch on his wrist..." NOT "watch on table" or any other variation.` : 'Establish the scene, character, or action'}
     - Body segment(s): Continue the story from the hook, building on the narrative. Use transition language like "continuing", "as the action progresses", "building on the momentum", etc.
     - CTA segment: Build to a natural conclusion that showcases the product, transitioning smoothly from the body segment(s)
   * Create a cohesive narrative arc where each segment feels like a natural continuation, not an abrupt change
   * ${sceneDescription ? `🚨 CRITICAL REMINDER: The hook segment visualPrompt MUST start with "${sceneDescription}". This is non-negotiable. Before finalizing your response, verify that the hook segment visualPrompt begins with this exact scene description.` : ''}
+  * 🚨 CHARACTER CONSISTENCY: Extract ALL characters from the hook segment and maintain their EXACT appearance across ALL segments:
+    - In hook segment: Include explicit character descriptions with gender, age, physical features (hair color/style, build), and clothing
+    - In body and CTA segments: Use phrases like "the same [age] [gender] person with [features]" or "continuing with the identical character appearance"
+    - CRITICAL: Characters must maintain the SAME gender, age, physical features, and clothing style across ALL segments
+    - Do NOT change character gender, age, or physical appearance between scenes
+    - Example: If hook describes "a teenage boy with brown hair", body segments must reference "the same teenage boy with brown hair", not "a teen" or "a young person"
 - visualPromptAlternatives: Array of 3-5 alternative visual prompts for this segment. Each alternative should:
   * Offer a different creative approach (different camera angle, lighting, composition, or perspective)
   * Maintain the same core message and product focus
@@ -1064,6 +1073,29 @@ STORY CONTINUITY REQUIREMENTS:
 - Maintain consistent characters, settings, or themes across segments when appropriate
 - For product videos: Ensure the product appears consistently throughout, maintaining its appearance and text readability
 - IMPORTANT: For product videos with text/labels (cans, bottles, packages), use shorter segment durations (2-5 seconds) to minimize text degradation and maintain product consistency throughout the video
+
+🚨 CHARACTER CONSISTENCY REQUIREMENTS (CRITICAL):
+- Extract ALL characters mentioned in the hook segment and maintain their EXACT appearance across ALL segments
+- For each character, identify and maintain: gender (male/female/non-binary), age (teenage/elderly/young adult/etc.), physical features (hair color/style, build, distinctive features), and clothing style
+- Hook segment visualPrompt: MUST include explicit character descriptions (e.g., "a teenage [gender] with [hair color] hair, [build], wearing [clothing]")
+- Body and CTA segment visualPrompts: MUST reference characters as "the same [age] [gender] person with [features]" or "continuing with the identical character appearance"
+- CRITICAL: Characters must maintain the SAME gender, age, physical features, and clothing style across ALL segments
+- Do NOT use vague terms like "a teen" or "a person" in later segments - always reference "the same teenage [gender]" or "the same elderly [gender]" from the hook
+- Do NOT change character gender, age, or physical appearance between scenes
+- Example: If hook describes "a teenage boy with brown hair cheering up an elderly man", body segments must reference "the same teenage boy with brown hair" and "the same elderly man", not generic terms
+
+EMOTIONAL CAPTIVATION REQUIREMENTS:
+- Create visually compelling scenes that evoke emotions through facial expressions, body language, and visual mood
+- Use emotional visual storytelling techniques: capture genuine expressions, meaningful gestures, and atmospheric details that create emotional resonance
+- Ensure each visual prompt includes emotional elements that connect with viewers (joy, aspiration, relief, excitement, inspiration, etc.)
+
+FACE QUALITY AND PEOPLE COUNT REQUIREMENTS:
+- CRITICAL: Limit all scenes to 3-4 people maximum per scene
+- Prefer smaller groups (1-3 people) when possible for better face quality
+- Use close-ups and medium shots to ensure clear, sharp faces
+- Avoid large groups, crowds, or more than 4 people in any scene
+- Include face quality keywords in visual prompts: "sharp faces, clear facial features, detailed faces, professional portrait quality"
+- Negative prompt suggestions: "blurry faces, distorted faces, crowds, large groups, more than 4 people, deformed faces, bad anatomy"
 
 Return JSON with a "segments" array. Each segment must include:
 - visualPrompt (string): The primary/default visual prompt${imageEnhancements ? ' (enhanced with reference image details)' : ''} that creates narrative flow
@@ -1443,20 +1475,29 @@ PRIMARY TASK: Select the frame where any product (can, bottle, package, label, e
         throw new Error('OPENAI_API_KEY environment variable is not set')
       }
 
-      const systemPrompt = `You are an expert at creating compelling ad stories for short-form video content.
+      const systemPrompt = `You are an expert at creating emotionally captivating ad stories for short-form video content. Your goal is to create narratives that deeply resonate with viewers through emotional storytelling techniques.
 
 Generate exactly 3 cohesive story options for a ${duration}-second ad. Each story will be broken down into 4 scenes: Hook, Body 1, Body 2, and CTA.
 
 Each story must:
 - Be a cohesive, complete narrative that flows from Hook → Body 1 → Body 2 → CTA
+- Be emotionally captivating and create a strong emotional connection between the viewer and the product/story
+- Evoke specific emotions (joy, aspiration, relief, excitement, inspiration, trust, etc.) through relatable moments and emotional triggers
+- Use emotional storytelling techniques: create an emotional hook that grabs attention, build emotional investment through the body scenes, and deliver an emotional payoff in the CTA
+- Include relatable moments that viewers can connect with on a personal level
 - Be related to the initial prompt
 - Have distinct creative approaches (different angles, styles, or messaging)
 - Be suitable for a ${duration}-second ad format
-- Include a full paragraph description that captures the entire story arc
+- Include a full paragraph description that captures the entire story arc and emotional journey
 - Include a single emoji that best represents the story's theme, mood, and content
 
+EMOTIONAL STORYTELLING REQUIREMENTS:
+- Hook: Create an emotional opening that immediately captures attention and establishes an emotional connection (curiosity, surprise, relatability, aspiration)
+- Body 1 & 2: Build emotional investment through relatable moments, emotional triggers, or aspirational scenarios that make viewers feel something
+- CTA: Deliver an emotional payoff that connects the emotional journey to the product, creating a memorable and compelling call to action
+
 IMPORTANT: 
-- Each story needs a full paragraph description that describes the complete narrative. This description will be used to generate storyboards later.
+- Each story needs a full paragraph description that describes the complete narrative and emotional arc. This description will be used to generate storyboards later.
 - For each story, analyze its theme, mood, and content, then select a single Unicode emoji that best represents it. The emoji should be visually distinctive and help users quickly identify the story's character.
 
 Return ONLY valid JSON with this exact structure:
@@ -1492,11 +1533,11 @@ Return ONLY valid JSON with this exact structure:
   ]
 }`
 
-      const userPrompt = `Create 3 cohesive ad story options based on this prompt: "${prompt}"
+      const userPrompt = `Create 3 emotionally captivating ad story options based on this prompt: "${prompt}"
 
 ${imageUrls.length > 0 ? `Reference images are available to inform the visual style and product details.` : ''}
 
-Each story should be unique but all should relate to the core prompt.`
+Each story should be unique but all should relate to the core prompt. Focus on creating stories that evoke strong emotions and create a deep connection with viewers through relatable moments, emotional triggers, and compelling narratives.`
 
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o',

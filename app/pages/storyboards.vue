@@ -228,8 +228,13 @@
 
               <!-- First Frame Image -->
               <UFormField label="First Frame Image" :name="`segment-${index}-first-frame`">
-                <div v-if="segment.firstFrameImage" class="space-y-2">
-                  <div class="relative w-full max-w-md">
+                <div v-if="segment.firstFrameImage || (generatingFrames && !segment.firstFrameImage)" class="space-y-2">
+                  <!-- Skeleton while generating -->
+                  <div v-if="generatingFrames && !segment.firstFrameImage" class="relative w-full max-w-md">
+                    <USkeleton class="w-full aspect-video rounded-lg" />
+                  </div>
+                  <!-- Actual image when available -->
+                  <div v-else-if="segment.firstFrameImage" class="relative w-full max-w-md">
                     <NuxtImg
                       :src="segment.firstFrameImage"
                       alt="First frame preview"
@@ -280,8 +285,13 @@
                 :label="segment.type === 'cta' ? 'Final Frame Image' : 'Last Frame Image'" 
                 :name="`segment-${index}-last-frame`"
               >
-                <div v-if="segment.lastFrameImage" class="space-y-2">
-                  <div class="relative w-full max-w-md">
+                <div v-if="segment.lastFrameImage || (generatingFrames && !segment.lastFrameImage)" class="space-y-2">
+                  <!-- Skeleton while generating -->
+                  <div v-if="generatingFrames && !segment.lastFrameImage" class="relative w-full max-w-md">
+                    <USkeleton class="w-full aspect-video rounded-lg" />
+                  </div>
+                  <!-- Actual image when available -->
+                  <div v-else-if="segment.lastFrameImage" class="relative w-full max-w-md">
                     <NuxtImg
                       :src="segment.lastFrameImage"
                       alt="Last frame preview"

@@ -148,8 +148,13 @@ export async function callOpenAIMCP(
       throw new Error('OpenAI MCP client not initialized')
     }
 
-    // Use a longer timeout for storyboard planning (5 minutes) since it can take a while
-    const timeoutMs = tool === 'plan_storyboard' ? 5 * 60 * 1000 : 60 * 1000
+    // Use longer timeouts for operations that can take a while
+    let timeoutMs = 60 * 1000 // Default 60 seconds
+    if (tool === 'plan_storyboard') {
+      timeoutMs = 5 * 60 * 1000 // 5 minutes
+    } else if (tool === 'generate_ad_stories') {
+      timeoutMs = 2 * 60 * 1000 // 2 minutes for story generation
+    }
     
     const result = await Promise.race([
       clients.openai.callTool({
@@ -219,6 +224,14 @@ export async function callOpenAIMCP(
   } catch (error: any) {
     console.error('OpenAI MCP call error:', error)
     console.error('Tool:', tool, 'Args:', args)
+    
+    // Handle MCP SDK timeout errors (error code -32001)
+    if (error.code === -32001 || 
+        error.message?.includes('-32001') ||
+        error.message?.includes('Request timed out')) {
+      console.error('MCP SDK timeout detected')
+      throw new Error(`Request timed out after ${timeoutMs / 1000} seconds`)
+    }
     
     // Handle EPIPE errors gracefully
     if (error.code === 'EPIPE' || error.message?.includes('EPIPE')) {
