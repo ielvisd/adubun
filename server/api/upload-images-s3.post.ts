@@ -21,9 +21,9 @@ export default defineEventHandler(async (event) => {
         const extension = file.filename.split('.').pop() || 'jpg'
         const tempPath = await saveAsset(Buffer.from(file.data), extension)
         
-        // Upload to S3
-        const s3Url = await uploadFileToS3(tempPath)
-        uploadedUrls.push(s3Url)
+      // Upload to S3 in product_images folder
+      const s3Url = await uploadFileToS3(tempPath, 'product_images')
+      uploadedUrls.push(s3Url)
         
         // Clean up temp file
         const { deleteFile } = await import('../utils/storage')
