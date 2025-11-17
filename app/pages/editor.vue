@@ -258,9 +258,15 @@ const recalculateTimeline = () => {
   })
 }
 
-const handleSeek = (time: number) => {
-  currentTime.value = Math.max(0, Math.min(time, totalDuration.value))
-  if (isPlaying.value) {
+interface SeekOptions {
+  keepPlaying?: boolean
+}
+
+const handleSeek = (time: number, options?: SeekOptions) => {
+  const clampedTime = Math.max(0, Math.min(time, totalDuration.value))
+  currentTime.value = clampedTime
+  
+  if (isPlaying.value && !options?.keepPlaying) {
     handleStop()
   }
 }
@@ -384,43 +390,28 @@ const handleExport = async () => {
   try {
     const formData = new FormData()
     
-    // Upload files to server only when exporting
-    const clipsData = await Promise.all(
-      timelineClips.value.map(async (clip) => {
-        let videoUrl = clip.sourceUrl
-        
-        // If it's a local blob URL, we need to upload the file
-        if (clip.file && clip.sourceUrl.startsWith('blob:')) {
-          toast.add({
-            title: 'Uploading videos...',
-            description: 'Preparing videos for export',
-            color: 'info',
-          })
-          
-          try {
-            const uploadFormData = new FormData()
-            uploadFormData.append('video', clip.file)
-            
-            const response = await $fetch<{ id: string; url: string; duration: number }>('/api/editor/upload', {
-              method: 'POST',
-              body: uploadFormData,
-            })
-            
-            videoUrl = response.url
-          } catch (error: any) {
-            console.error('[Editor Export] Failed to upload clip:', error)
-            throw new Error(`Failed to upload ${clip.file.name}: ${error.message}`)
-          }
-        }
-        
-        return {
-          videoUrl,
-          trimStart: clip.startOffset,
-          trimEnd: clip.originalDuration - clip.endOffset,
-        }
-      })
-    )
-
+    const clipsData = timelineClips.value.map((clip, index) => {
+      const clipPayload: {
+        videoUrl?: string
+        fileField?: string
+        trimStart: number
+        trimEnd: number
+      } = {
+        trimStart: clip.startOffset,
+        trimEnd: clip.originalDuration - clip.endOffset,
+      }
+      
+      if (clip.file) {
+        const fieldName = `clipFile-${index}`
+        clipPayload.fileField = fieldName
+        formData.append(fieldName, clip.file, clip.name || `clip-${index + 1}.mp4`)
+      } else {
+        clipPayload.videoUrl = clip.sourceUrl
+      }
+      
+      return clipPayload
+    })
+    
     formData.append('clips', JSON.stringify(clipsData))
 
     const response = await $fetch<{ videoUrl: string; videoId: string }>('/api/editor/export', {

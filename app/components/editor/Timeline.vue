@@ -203,11 +203,15 @@ const props = defineProps<{
   snapThreshold?: number
 }>()
 
+interface SeekOptions {
+  keepPlaying?: boolean
+}
+
 const emit = defineEmits<{
   'trim': [clipId: string, startOffset: number, endOffset: number]
   'split': [clipId: string, time: number]
   'delete': [clipId: string]
-  'seek': [time: number]
+  'seek': [time: number, options?: SeekOptions]
   'reorder': [clips: EditorClip[], options?: { finalize?: boolean }]
 }>()
 

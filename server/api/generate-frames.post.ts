@@ -1,6 +1,10 @@
 import { z } from 'zod'
+import path from 'path'
+import sharp from 'sharp'
 import { callReplicateMCP } from '../utils/mcp-client'
 import { trackCost } from '../utils/cost-tracker'
+import { saveAsset, deleteFile } from '../utils/storage'
+import { uploadFileToS3 } from '../utils/s3-upload'
 import type { Storyboard, Segment } from '~/types/generation'
 
 const generateFramesSchema = z.object({
@@ -28,6 +32,67 @@ const generateFramesSchema = z.object({
   }),
   mode: z.enum(['demo', 'production']).optional(),
 })
+
+const ALLOWED_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp'])
+
+const getDimensions = (aspectRatio: string) => {
+  switch (aspectRatio) {
+    case '9:16':
+      return { width: 1080, height: 1920 }
+    case '16:9':
+      return { width: 1920, height: 1080 }
+    case '1:1':
+      return { width: 1080, height: 1080 }
+    default:
+      return { width: 1080, height: 1920 }
+  }
+}
+
+const getExtensionFromUrl = (url: string): string => {
+  const sanitized = url.split('?')[0]
+  const ext = sanitized.split('.').pop()?.toLowerCase() || 'jpg'
+  return ALLOWED_IMAGE_EXTENSIONS.has(ext) ? ext : 'jpg'
+}
+
+const getLocalAssetUrl = (filePath: string): string => {
+  const assetId = path.basename(filePath)
+  return `/api/assets/${assetId}`
+}
+
+const persistImageBuffer = async (buffer: Buffer, extension: string): Promise<string> => {
+  const tempPath = await saveAsset(buffer, extension)
+  try {
+    const url = await uploadFileToS3(tempPath)
+    await deleteFile(tempPath).catch(() => {})
+    return url
+  } catch (error: any) {
+    console.warn('[Generate Frames] S3 upload unavailable, serving from local assets:', error.message)
+    return getLocalAssetUrl(tempPath)
+  }
+}
+
+const enforceImageResolution = async (
+  imageUrl: string,
+  width: number,
+  height: number,
+): Promise<string> => {
+  try {
+    const response = await fetch(imageUrl)
+    if (!response.ok) {
+      throw new Error(`Failed to download image (${response.status})`)
+    }
+    const arrayBuffer = await response.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    const resized = await sharp(buffer)
+      .resize(width, height, { fit: 'cover', position: 'center' })
+      .toBuffer()
+    const extension = getExtensionFromUrl(imageUrl)
+    return await persistImageBuffer(resized, extension)
+  } catch (error) {
+    console.error('[Generate Frames] Failed to enforce image resolution:', error)
+    return imageUrl
+  }
+}
 
 export default defineEventHandler(async (event) => {
   try {
@@ -82,20 +147,6 @@ export default defineEventHandler(async (event) => {
       seedreamImageUrl?: string;
     }> = []
     const aspectRatio = storyboard.meta.aspectRatio
-
-    // Determine image dimensions based on aspect ratio
-    const getDimensions = (aspectRatio: string) => {
-      switch (aspectRatio) {
-        case '9:16':
-          return { width: 1080, height: 1920 }
-        case '16:9':
-          return { width: 1920, height: 1080 }
-        case '1:1':
-          return { width: 1080, height: 1080 }
-        default:
-          return { width: 1080, height: 1920 }
-      }
-    }
 
     const dimensions = getDimensions(aspectRatio)
 
@@ -180,14 +231,16 @@ export default defineEventHandler(async (event) => {
                 
                 try {
                   console.log(`[Generate Frames] Starting seedream-4 enhancement for hook first frame...`)
-                  const seedreamResult = await callReplicateMCP('generate_image', {
-                    model: 'bytedance/seedream-4',
-                    prompt: seedreamPrompt,
-                    image_input: [nanoImageUrl],
-                    size: '2K',
-                    aspect_ratio: 'match_input_image',
-                    enhance_prompt: true,
-                  })
+                const seedreamResult = await callReplicateMCP('generate_image', {
+                  model: 'bytedance/seedream-4',
+                  prompt: seedreamPrompt,
+                  image_input: [nanoImageUrl],
+                  size: 'custom',
+                  width: dimensions.width,
+                  height: dimensions.height,
+                  aspect_ratio,
+                  enhance_prompt: true,
+                })
 
                   const seedreamPredictionId = seedreamResult.predictionId || seedreamResult.id
                   if (seedreamPredictionId) {
@@ -226,6 +279,9 @@ export default defineEventHandler(async (event) => {
                 }
                 
                 // Add frame with model source indicator
+                if (modelSource === 'nano-banana') {
+                  finalImageUrl = await enforceImageResolution(finalImageUrl, dimensions.width, dimensions.height)
+                }
                 frames.push({
                   segmentIndex: 0,
                   frameType: 'first',
@@ -295,14 +351,16 @@ export default defineEventHandler(async (event) => {
                 
                 try {
                   console.log(`[Generate Frames] Starting seedream-4 enhancement for hook last frame...`)
-                  const seedreamResult = await callReplicateMCP('generate_image', {
-                    model: 'bytedance/seedream-4',
-                    prompt: seedreamPrompt,
-                    image_input: [nanoImageUrl],
-                    size: '2K',
-                    aspect_ratio: 'match_input_image',
-                    enhance_prompt: true,
-                  })
+                const seedreamResult = await callReplicateMCP('generate_image', {
+                  model: 'bytedance/seedream-4',
+                  prompt: seedreamPrompt,
+                  image_input: [nanoImageUrl],
+                  size: 'custom',
+                  width: dimensions.width,
+                  height: dimensions.height,
+                  aspect_ratio,
+                  enhance_prompt: true,
+                })
 
                   const seedreamPredictionId = seedreamResult.predictionId || seedreamResult.id
                   if (seedreamPredictionId) {
@@ -340,6 +398,9 @@ export default defineEventHandler(async (event) => {
                 }
                 
                 // Add frame with model source indicator
+                if (modelSource === 'nano-banana') {
+                  finalImageUrl = await enforceImageResolution(finalImageUrl, dimensions.width, dimensions.height)
+                }
                 frames.push({
                   segmentIndex: 0,
                   frameType: 'last',
@@ -424,14 +485,16 @@ export default defineEventHandler(async (event) => {
                 
                 try {
                   console.log(`[Generate Frames] Starting seedream-4 enhancement for body1 last frame...`)
-                  const seedreamResult = await callReplicateMCP('generate_image', {
-                    model: 'bytedance/seedream-4',
-                    prompt: seedreamPrompt,
-                    image_input: [nanoImageUrl],
-                    size: '2K',
-                    aspect_ratio: 'match_input_image',
-                    enhance_prompt: true,
-                  })
+                const seedreamResult = await callReplicateMCP('generate_image', {
+                  model: 'bytedance/seedream-4',
+                  prompt: seedreamPrompt,
+                  image_input: [nanoImageUrl],
+                  size: 'custom',
+                  width: dimensions.width,
+                  height: dimensions.height,
+                  aspect_ratio,
+                  enhance_prompt: true,
+                })
 
                   const seedreamPredictionId = seedreamResult.predictionId || seedreamResult.id
                   if (seedreamPredictionId) {
@@ -469,6 +532,9 @@ export default defineEventHandler(async (event) => {
                 }
                 
                 // Add frame with model source indicator
+                if (modelSource === 'nano-banana') {
+                  finalImageUrl = await enforceImageResolution(finalImageUrl, dimensions.width, dimensions.height)
+                }
                 frames.push({
                   segmentIndex: 1,
                   frameType: 'last',
@@ -533,14 +599,16 @@ export default defineEventHandler(async (event) => {
                 
                 try {
                   console.log(`[Generate Frames] Starting seedream-4 enhancement for body2 last frame...`)
-                  const seedreamResult = await callReplicateMCP('generate_image', {
-                    model: 'bytedance/seedream-4',
-                    prompt: seedreamPrompt,
-                    image_input: [nanoImageUrl],
-                    size: '2K',
-                    aspect_ratio: 'match_input_image',
-                    enhance_prompt: true,
-                  })
+                const seedreamResult = await callReplicateMCP('generate_image', {
+                  model: 'bytedance/seedream-4',
+                  prompt: seedreamPrompt,
+                  image_input: [nanoImageUrl],
+                  size: 'custom',
+                  width: dimensions.width,
+                  height: dimensions.height,
+                  aspect_ratio,
+                  enhance_prompt: true,
+                })
 
                   const seedreamPredictionId = seedreamResult.predictionId || seedreamResult.id
                   if (seedreamPredictionId) {
@@ -578,6 +646,9 @@ export default defineEventHandler(async (event) => {
                 }
                 
                 // Add frame with model source indicator
+                if (modelSource === 'nano-banana') {
+                  finalImageUrl = await enforceImageResolution(finalImageUrl, dimensions.width, dimensions.height)
+                }
                 frames.push({
                   segmentIndex: 2,
                   frameType: 'last',
@@ -641,14 +712,16 @@ export default defineEventHandler(async (event) => {
                 
                 try {
                   console.log(`[Generate Frames] Starting seedream-4 enhancement for CTA frame...`)
-                  const seedreamResult = await callReplicateMCP('generate_image', {
-                    model: 'bytedance/seedream-4',
-                    prompt: seedreamPrompt,
-                    image_input: [nanoImageUrl],
-                    size: '2K',
-                    aspect_ratio: 'match_input_image',
-                    enhance_prompt: true,
-                  })
+                const seedreamResult = await callReplicateMCP('generate_image', {
+                  model: 'bytedance/seedream-4',
+                  prompt: seedreamPrompt,
+                  image_input: [nanoImageUrl],
+                  size: 'custom',
+                  width: dimensions.width,
+                  height: dimensions.height,
+                  aspect_ratio,
+                  enhance_prompt: true,
+                })
 
                   const seedreamPredictionId = seedreamResult.predictionId || seedreamResult.id
                   if (seedreamPredictionId) {
@@ -686,6 +759,9 @@ export default defineEventHandler(async (event) => {
                 }
                 
                 // Add frame with model source indicator
+                if (modelSource === 'nano-banana') {
+                  finalImageUrl = await enforceImageResolution(finalImageUrl, dimensions.width, dimensions.height)
+                }
                 frames.push({
                   segmentIndex: 3,
                   frameType: 'first',

@@ -1,5 +1,5 @@
-import { readMultipartFormData } from 'h3'
-import { downloadFile, saveVideo, cleanupTempFiles } from '../../utils/storage'
+import { readMultipartFormData, getRequestURL } from 'h3'
+import { downloadFile, saveVideo, cleanupTempFiles, saveAsset } from '../../utils/storage'
 import { composeVideo } from '../../utils/ffmpeg'
 import { nanoid } from 'nanoid'
 import path from 'path'
@@ -8,8 +8,9 @@ import type { Video } from '../../../app/types/generation'
 
 const VIDEOS_FILE = path.join(process.env.MCP_FILESYSTEM_ROOT || './data', 'videos.json')
 
-interface EditorClip {
-  videoUrl: string
+interface EditorClipPayload {
+  videoUrl?: string
+  fileField?: string
   trimStart: number
   trimEnd: number
   transitionBefore?: 'cut' | 'crossfade'
@@ -50,7 +51,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const clips: EditorClip[] = JSON.parse(clipsField.data.toString())
+    const clips: EditorClipPayload[] = JSON.parse(clipsField.data.toString())
     if (!Array.isArray(clips) || clips.length === 0) {
       throw createError({
         statusCode: 400,
@@ -72,13 +73,36 @@ export default defineEventHandler(async (event) => {
     const tempPaths: string[] = []
 
     try {
+      const fileFieldMap = new Map<string, (typeof formData)[number]>()
+      for (const field of formData) {
+        if (field.name && field.filename && field.data) {
+          fileFieldMap.set(field.name, field)
+        }
+      }
+      
+      const requestUrl = getRequestURL(event)
+
       // Download and process clips
       const localClips = await Promise.all(
         clips.map(async (clip, idx) => {
           console.log(`[Editor Export] Processing clip ${idx}:`, clip.videoUrl)
           
-          // Download video
-          const videoPath = await downloadFile(clip.videoUrl)
+          let videoPath: string
+          
+          if (clip.fileField) {
+            const fileField = fileFieldMap.get(clip.fileField)
+            if (!fileField || !fileField.data) {
+              throw new Error(`Missing video data for ${clip.fileField}`)
+            }
+            const extension = getFileExtension(fileField.filename) || 'mp4'
+            videoPath = await saveAsset(Buffer.from(fileField.data), extension)
+          } else if (clip.videoUrl) {
+            const resolvedUrl = resolveVideoUrl(requestUrl.origin, clip.videoUrl)
+            videoPath = await downloadFile(resolvedUrl)
+          } else {
+            throw new Error(`Clip ${idx} missing video source`)
+          }
+          
           tempPaths.push(videoPath)
 
           // Trim video to get exact segment
@@ -176,6 +200,25 @@ async function trimVideo(videoPath: string, startTime: number, endTime: number):
       .on('error', reject)
       .run()
   })
+}
+
+function resolveVideoUrl(origin: string, videoUrl: string): string {
+  if (!videoUrl) {
+    throw new Error('Video URL is empty')
+  }
+  
+  if (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) {
+    return videoUrl
+  }
+  
+  return new URL(videoUrl, origin).toString()
+}
+
+function getFileExtension(filename?: string | null): string {
+  if (!filename) return 'mp4'
+  const ext = filename.split('.').pop()
+  if (!ext) return 'mp4'
+  return ext.toLowerCase()
 }
 
 async function addBackgroundMusic(
