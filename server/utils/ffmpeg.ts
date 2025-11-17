@@ -101,10 +101,13 @@ function buildFilterComplex(clips: Clip[], options: CompositionOptions): string[
   const outputWidth = options.outputWidth || 1080
   const outputHeight = options.outputHeight || 1920
   
-  // Scale and pad all video inputs to output resolution
+  // Scale, trim, and pad all video inputs to output resolution
   clips.forEach((clip, idx) => {
+    const duration = clip.endTime - clip.startTime
+    // For trim filter, we need source video timestamps (0-based for each file)
+    // Not timeline positions. So we trim from 0 to the duration we want.
     filters.push(
-      `[${idx}:v]scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=decrease,pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30[v${idx}]`
+      `[${idx}:v]trim=duration=${duration},setpts=PTS-STARTPTS,scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=decrease,pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30[v${idx}]`
     )
   })
 
@@ -137,17 +140,18 @@ function buildFilterComplex(clips: Clip[], options: CompositionOptions): string[
   
   // Add audio from clips - prefer separate voiceover, fallback to embedded video audio
   clips.forEach((clip, idx) => {
+    const duration = clip.endTime - clip.startTime
     if (clip.voicePath) {
       // Use separate voiceover audio file
       const volume = 1.0 // Full volume for voiceover
       console.log(`[FFmpeg] Adding voiceover audio from clip ${idx}, audio index ${audioInputIndex}, volume ${volume}`)
-      filters.push(`[${audioInputIndex}:a]volume=${volume}[vo${idx}]`)
+      filters.push(`[${audioInputIndex}:a]atrim=duration=${duration},asetpts=PTS-STARTPTS,volume=${volume}[vo${idx}]`)
       audioInputs.push(`[vo${idx}]`)
       audioInputIndex++
     } else {
       // Extract audio from embedded video stream
       console.log(`[FFmpeg] Using embedded audio from video ${idx}`)
-      filters.push(`[${idx}:a]volume=1.0[vo${idx}]`)
+      filters.push(`[${idx}:a]atrim=duration=${duration},asetpts=PTS-STARTPTS,volume=1.0[vo${idx}]`)
       audioInputs.push(`[vo${idx}]`)
     }
   })
@@ -316,5 +320,426 @@ export async function getVideoDuration(videoPath: string): Promise<number> {
       resolve(duration)
     })
   })
+}
+
+/**
+ * Get video dimensions (width and height)
+ * @param videoPath - Path to the video file
+ * @returns Object with width and height
+ */
+export async function getVideoDimensions(videoPath: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(videoPath, (err, metadata) => {
+      if (err) {
+        reject(err)
+        return
+      }
+      const videoStream = metadata.streams.find(s => s.codec_type === 'video')
+      if (!videoStream) {
+        reject(new Error('No video stream found'))
+        return
+      }
+      resolve({
+        width: videoStream.width || 1920,
+        height: videoStream.height || 1080,
+      })
+    })
+  })
+}
+
+/**
+ * Extract a single frame at specific timestamp
+ * @param videoPath - Path to the video file
+ * @param timestamp - Timestamp in seconds
+ * @param index - Frame index for naming
+ * @returns Path to extracted frame
+ */
+async function extractSingleFrame(
+  videoPath: string,
+  timestamp: number,
+  index: number
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const tempFramePath = path.join(
+      process.env.MCP_FILESYSTEM_ROOT || './data',
+      'assets',
+      `frame_${Date.now()}_${index}.jpg`
+    )
+    
+    fs.mkdir(path.dirname(tempFramePath), { recursive: true })
+      .then(() => {
+        ffmpeg(videoPath)
+          .seekInput(timestamp)
+          .outputOptions([
+            '-vframes', '1',
+            '-q:v', '2',
+            '-f', 'image2',
+          ])
+          .output(tempFramePath)
+          .on('end', () => {
+            console.log(`[FFmpeg] Extracted frame ${index} at ${timestamp}s`)
+            resolve(tempFramePath)
+          })
+          .on('error', (err) => {
+            console.error(`[FFmpeg] Error extracting frame ${index}:`, err.message)
+            reject(err)
+          })
+          .run()
+      })
+      .catch(reject)
+  })
+}
+
+/**
+ * Compare two frames using SSIM (Structural Similarity Index)
+ * Returns similarity score 0-1 (1 = identical)
+ * Falls back to pixel difference if SSIM fails
+ */
+async function compareFrames(
+  frame1Path: string,
+  frame2Path: string
+): Promise<number> {
+  console.log(`[FFmpeg] Comparing frames: ${path.basename(frame1Path)} vs ${path.basename(frame2Path)}`)
+  
+  return new Promise((resolve) => {
+    let ssimOutput = ''
+    
+    // Try SSIM first - capture output from stderr
+    const command = ffmpeg()
+      .input(frame1Path)
+      .input(frame2Path)
+      .complexFilter([
+        '[0:v][1:v]scale2ref[main][ref]',
+        '[main][ref]ssim'  // Remove stats_file, capture from stderr
+      ])
+      .outputOptions(['-f', 'null'])
+      .output('-')
+      .on('stderr', (stderrLine) => {
+        ssimOutput += stderrLine + '\n'
+      })
+      .on('end', async () => {
+        try {
+          console.log(`[FFmpeg] SSIM raw output (first 300 chars):`, ssimOutput.substring(0, 300))
+          
+          // Parse SSIM score from output
+          // Look for patterns like: All:0.96 or SSIM All:0.96
+          const patterns = [
+            /All:([0-9.]+)/,
+            /SSIM.*?All:([0-9.]+)/i,
+            /ssim_avg:([0-9.]+)/i
+          ]
+          
+          let similarity = null
+          for (const pattern of patterns) {
+            const match = ssimOutput.match(pattern)
+            if (match) {
+              similarity = parseFloat(match[1])
+              console.log(`[FFmpeg] ✓ SSIM similarity found: ${similarity}`)
+              break
+            }
+          }
+          
+          if (similarity !== null && !isNaN(similarity)) {
+            resolve(similarity)
+          } else {
+            console.warn('[FFmpeg] ✗ Could not parse SSIM score from output, falling back to pixel difference')
+            resolve(await compareFramesPixelDiff(frame1Path, frame2Path))
+          }
+        } catch (error: any) {
+          console.warn('[FFmpeg] SSIM parsing failed, falling back to pixel difference:', error.message)
+          resolve(await compareFramesPixelDiff(frame1Path, frame2Path))
+        }
+      })
+      .on('error', async (err, stdout, stderr) => {
+        console.warn('[FFmpeg] SSIM error:', err.message)
+        if (stderr) {
+          console.warn('[FFmpeg] SSIM stderr (first 300 chars):', stderr.substring(0, 300))
+        }
+        try {
+          resolve(await compareFramesPixelDiff(frame1Path, frame2Path))
+        } catch (fallbackError: any) {
+          console.error('[FFmpeg] Both SSIM and fallback failed:', fallbackError.message)
+          resolve(0.0)  // Return 0 instead of rejecting
+        }
+      })
+    
+    command.run()
+  })
+}
+
+/**
+ * Fallback: Compare frames using simple pixel difference
+ */
+async function compareFramesPixelDiff(
+  frame1Path: string,
+  frame2Path: string
+): Promise<number> {
+  console.log(`[FFmpeg] Using PSNR fallback for comparison`)
+  
+  return new Promise((resolve) => {
+    let psnrOutput = ''
+    
+    ffmpeg()
+      .input(frame1Path)
+      .input(frame2Path)
+      .complexFilter([
+        '[0:v][1:v]scale2ref[main][ref]',
+        '[main][ref]psnr'  // Remove stats_file, capture from stderr
+      ])
+      .outputOptions(['-f', 'null'])
+      .output('-')
+      .on('stderr', (stderrLine) => {
+        psnrOutput += stderrLine + '\n'
+      })
+      .on('end', async () => {
+        try {
+          console.log(`[FFmpeg] PSNR raw output (first 300 chars):`, psnrOutput.substring(0, 300))
+          
+          // Parse PSNR score
+          const patterns = [
+            /psnr_avg:([0-9.]+)/i,
+            /PSNR.*?average:([0-9.]+)/i,
+            /average:([0-9.]+)/i,
+            /psnr.*?y:([0-9.]+)/i
+          ]
+          
+          let psnr = null
+          for (const pattern of patterns) {
+            const match = psnrOutput.match(pattern)
+            if (match) {
+              psnr = parseFloat(match[1])
+              console.log(`[FFmpeg] ✓ PSNR value found: ${psnr} dB`)
+              break
+            }
+          }
+          
+          if (psnr !== null && !isNaN(psnr)) {
+            // Convert PSNR to similarity: normalize 20-50 dB range to 0-1
+            const similarity = Math.min(Math.max((psnr - 20) / 30, 0), 1)
+            console.log(`[FFmpeg] ✓ PSNR similarity: ${similarity} (${psnr} dB)`)
+            resolve(similarity)
+          } else {
+            console.error('[FFmpeg] ✗ Could not parse PSNR score from output')
+            resolve(0.0)  // Return 0 instead of default 0.5
+          }
+        } catch (error: any) {
+          console.error('[FFmpeg] PSNR parsing failed:', error.message)
+          resolve(0.0)
+        }
+      })
+      .on('error', (err, stdout, stderr) => {
+        console.error('[FFmpeg] PSNR error:', err.message)
+        if (stderr) {
+          console.error('[FFmpeg] PSNR stderr (first 300 chars):', stderr.substring(0, 300))
+        }
+        resolve(0.0)
+      })
+      .run()
+  })
+}
+
+/**
+ * Find best stitch point by comparing last 30 frames of video to first frame of next clip
+ * Always returns the best match found, even if similarity is low
+ */
+export async function findBestStitchPoint(
+  videoPath: string,
+  videoDuration: number,
+  targetFramePath: string,
+  numFramesToAnalyze: number = 30
+): Promise<{ timestamp: number; similarity: number; frameIndex: number }> {
+  console.log(`[FFmpeg] Finding best stitch point in last ${numFramesToAnalyze} frames of video`)
+  console.log(`[FFmpeg] Video duration: ${videoDuration}s`)
+  
+  const fps = 30
+  const searchWindowSeconds = numFramesToAnalyze / fps
+  const startTime = Math.max(0, videoDuration - searchWindowSeconds)
+  
+  // Calculate safe end time (0.1s before actual end to avoid FFmpeg extraction errors)
+  const safeEndTime = Math.max(startTime, videoDuration - 0.1)
+  
+  console.log(`[FFmpeg] Analyzing last ${numFramesToAnalyze} frames (${searchWindowSeconds.toFixed(2)}s) from ${startTime.toFixed(3)}s to ${safeEndTime.toFixed(3)}s`)
+  
+  let bestMatch = {
+    timestamp: safeEndTime,
+    similarity: 0,
+    frameIndex: 0
+  }
+  
+  const extractedFrames: string[] = []
+  
+  try {
+    // Extract exactly numFramesToAnalyze frames from the end
+    for (let i = 0; i < numFramesToAnalyze; i++) {
+      const timestamp = startTime + (i / fps)
+      
+      // Stop if we're too close to the end (within 0.1s)
+      if (timestamp >= safeEndTime) {
+        console.log(`[FFmpeg] Stopping at frame ${i} (${timestamp.toFixed(3)}s too close to end)`)
+        break
+      }
+      
+      const framePath = await extractSingleFrame(videoPath, timestamp, i)
+      extractedFrames.push(framePath)
+      
+      // Compare with target frame (first frame of next clip)
+      const similarity = await compareFrames(framePath, targetFramePath)
+      
+      console.log(`[FFmpeg] Frame ${i + 1}/${numFramesToAnalyze} at ${timestamp.toFixed(3)}s: similarity ${similarity.toFixed(4)}`)
+      
+      if (similarity > bestMatch.similarity) {
+        bestMatch = {
+          timestamp,
+          similarity,
+          frameIndex: i
+        }
+      }
+    }
+    
+    console.log(`[FFmpeg] ✓ Best match found: frame ${bestMatch.frameIndex + 1} at ${bestMatch.timestamp.toFixed(3)}s with similarity ${bestMatch.similarity.toFixed(4)}`)
+    
+    return bestMatch
+  } finally {
+    // Clean up extracted frames
+    for (const framePath of extractedFrames) {
+      await fs.unlink(framePath).catch(() => {})
+    }
+  }
+}
+
+export interface StitchAdjustment {
+  clipIndex: number
+  originalEndTime: number
+  adjustedEndTime: number
+  trimmedSeconds: number
+  similarity: number
+  transitionName: string
+}
+
+/**
+ * Compose video with smart stitching - analyzes frame matches to find optimal stitch points
+ * Analyzes last 30 frames of each clip and always applies the best match found
+ * Returns both the output path and adjustment metadata
+ */
+export async function composeVideoWithSmartStitching(
+  clips: Clip[],
+  options: CompositionOptions
+): Promise<{ outputPath: string; adjustments: StitchAdjustment[] }> {
+  console.log('[FFmpeg] ========================================')
+  console.log('[FFmpeg] Starting SMART VIDEO COMPOSITION')
+  console.log('[FFmpeg] Analyzing', clips.length, 'clips for optimal stitch points')
+  console.log('[FFmpeg] Will analyze last 30 frames of each clip')
+  console.log('[FFmpeg] ========================================')
+  
+  const adjustments: StitchAdjustment[] = []
+  const adjustedClips: Clip[] = []
+  
+  // Process each clip transition
+  for (let i = 0; i < clips.length; i++) {
+    const currentClip = clips[i]
+    const nextClip = clips[i + 1]
+    
+    let adjustedClip = { ...currentClip }
+    
+    if (nextClip) {
+      // Get transition name for logging
+      const transitionName = `${currentClip.type} → ${nextClip.type}`
+      
+      console.log(`\n[FFmpeg] ----------------------------------------`)
+      console.log(`[FFmpeg] Analyzing transition: ${transitionName}`)
+      console.log(`[FFmpeg] ----------------------------------------`)
+      
+      try {
+        // Get duration of current clip
+        const currentDuration = await getVideoDuration(currentClip.localPath)
+        console.log(`[FFmpeg] Current clip duration: ${currentDuration.toFixed(3)}s`)
+        
+        // Extract first frame of next clip (at t=0)
+        console.log(`[FFmpeg] Extracting first frame of next clip...`)
+        const nextClipFirstFrame = await extractSingleFrame(nextClip.localPath, 0, 0)
+        
+        // Find best stitch point in last 30 frames of current clip
+        console.log(`[FFmpeg] Analyzing last 30 frames of current clip...`)
+        const bestMatch = await findBestStitchPoint(
+          currentClip.localPath,
+          currentDuration,
+          nextClipFirstFrame,
+          30  // Analyze exactly 30 frames
+        )
+        
+        // Clean up extracted frame
+        await fs.unlink(nextClipFirstFrame).catch(() => {})
+        
+        // Always apply the best match found (no threshold)
+        const trimmedSeconds = currentDuration - bestMatch.timestamp
+        
+        console.log(`[FFmpeg] ${transitionName}: Applying best match at ${bestMatch.timestamp.toFixed(3)}s`)
+        console.log(`[FFmpeg] ${transitionName}: Similarity score: ${bestMatch.similarity.toFixed(4)}`)
+        console.log(`[FFmpeg] ${transitionName}: Trimming ${trimmedSeconds.toFixed(3)}s from end`)
+        
+        // Adjust clip end time
+        const clipDuration = currentClip.endTime - currentClip.startTime
+        const adjustmentRatio = bestMatch.timestamp / currentDuration
+        const newEndTime = currentClip.startTime + (clipDuration * adjustmentRatio)
+        
+        adjustedClip = {
+          ...currentClip,
+          endTime: newEndTime
+        }
+        
+        adjustments.push({
+          clipIndex: i,
+          originalEndTime: currentClip.endTime,
+          adjustedEndTime: newEndTime,
+          trimmedSeconds,
+          similarity: bestMatch.similarity,
+          transitionName
+        })
+        
+        console.log(`[FFmpeg] ${transitionName}: ✓ Adjustment applied successfully`)
+      } catch (error: any) {
+        console.error(`[FFmpeg] ${transitionName}: ✗ Error analyzing transition:`, error.message)
+        console.error(`[FFmpeg] ${transitionName}: Stack trace:`, error.stack)
+        console.log(`[FFmpeg] ${transitionName}: Keeping original timing due to error`)
+        
+        // Keep original clip timing when error occurs
+        adjustedClip = { ...currentClip }
+        
+        adjustments.push({
+          clipIndex: i,
+          originalEndTime: currentClip.endTime,
+          adjustedEndTime: currentClip.endTime,
+          trimmedSeconds: 0,
+          similarity: 0,
+          transitionName
+        })
+      }
+    }
+    
+    adjustedClips.push(adjustedClip)
+  }
+  
+  // Log summary of adjustments
+  console.log('\n[FFmpeg] ========================================')
+  console.log('[FFmpeg] SMART STITCHING ANALYSIS COMPLETE')
+  console.log('[FFmpeg] ========================================')
+  adjustments.forEach(adj => {
+    if (adj.trimmedSeconds > 0) {
+      console.log(`  ✓ ${adj.transitionName}: Trimmed ${adj.trimmedSeconds.toFixed(3)}s (similarity: ${(adj.similarity * 100).toFixed(1)}%)`)
+    } else {
+      console.log(`  ✗ ${adj.transitionName}: No adjustment (error occurred)`)
+    }
+  })
+  console.log('[FFmpeg] ========================================\n')
+  
+  // Compose video with adjusted clips using existing function
+  console.log('[FFmpeg] Composing video with adjusted clips...')
+  await composeVideo(adjustedClips, options)
+  console.log('[FFmpeg] Video composition complete!')
+  
+  return {
+    outputPath: options.outputPath,
+    adjustments
+  }
 }
 
