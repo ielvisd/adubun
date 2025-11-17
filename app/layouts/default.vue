@@ -17,6 +17,14 @@
           <nav class="flex gap-4 sm:gap-6 items-center">
             <UButton to="/" variant="ghost" color="gray" class="text-black hover:text-gray-700 dark:text-white dark:hover:text-gray-300 text-sm sm:text-base font-medium hidden sm:inline-flex">Home</UButton>
             <UButton to="/history" variant="ghost" color="gray" class="text-black hover:text-gray-700 dark:text-white dark:hover:text-gray-300 text-sm sm:text-base font-medium hidden sm:inline-flex">History</UButton>
+            <UButton 
+              to="/editor" 
+              variant="ghost" 
+              color="gray" 
+              class="text-black hover:text-gray-700 dark:text-white dark:hover:text-gray-300 text-sm sm:text-base font-medium hidden lg:inline-flex"
+            >
+              Editor
+            </UButton>
             <ColorModeButton />
             <UButton 
               to="/generate" 

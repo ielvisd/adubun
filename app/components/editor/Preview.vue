@@ -54,9 +54,13 @@ const props = defineProps<{
   isPlaying: boolean
 }>()
 
+interface SeekOptions {
+  keepPlaying?: boolean
+}
+
 const emit = defineEmits<{
   'time-update': [time: number]
-  'seek': [time: number]
+  'seek': [time: number, options?: SeekOptions]
   'play': []
   'pause': []
 }>()
@@ -64,6 +68,7 @@ const emit = defineEmits<{
 const videoPlayer = ref<HTMLVideoElement>()
 const animationFrameId = ref<number | null>(null)
 const lastEmittedTime = ref(0)
+const isTransitioningClip = ref(false)
 
 const totalDuration = computed(() => {
   return props.clips.reduce((sum, clip) => {
@@ -109,19 +114,21 @@ const emitTimelineTime = () => {
   }
   
   if (videoTime >= clipEnd) {
-    videoPlayer.value.pause()
     videoPlayer.value.currentTime = clipEnd
     
     const currentClipIndex = props.clips.findIndex(c => c.id === clip.id)
     const nextClip = props.clips[currentClipIndex + 1]
     
     if (nextClip) {
-      emit('seek', nextClip.inTimelineStart)
-    } else {
-      emit('pause')
-      emit('time-update', totalDuration.value)
-      cancelAnimation()
+      isTransitioningClip.value = true
+      emit('seek', nextClip.inTimelineStart, { keepPlaying: true })
+      return
     }
+    
+    videoPlayer.value.pause()
+    emit('pause')
+    emit('time-update', totalDuration.value)
+    cancelAnimation()
     return
   }
   
@@ -196,6 +203,10 @@ const handlePlay = () => {
 }
 
 const handlePause = () => {
+  if (isTransitioningClip.value) {
+    isTransitioningClip.value = false
+    return
+  }
   emit('pause')
   cancelAnimation()
 }
@@ -228,16 +239,28 @@ watch(() => props.isPlaying, (playing) => {
 })
 
 watch(() => currentClip.value, (newClip, oldClip) => {
-  if (newClip && newClip.sourceUrl !== oldClip?.sourceUrl) {
-    if (videoPlayer.value) {
-      videoPlayer.value.src = newClip.sourceUrl
-      videoPlayer.value.load()
-      if (props.isPlaying) {
-        videoPlayer.value.play().then(() => {
-          startSyncLoop()
-        }).catch(() => {})
-      }
+  if (!newClip || !videoPlayer.value) return
+  
+  const sourceChanged = newClip.sourceUrl !== oldClip?.sourceUrl
+  if (sourceChanged) {
+    videoPlayer.value.src = newClip.sourceUrl
+    videoPlayer.value.load()
+    if (props.isPlaying) {
+      videoPlayer.value.play().then(() => {
+        startSyncLoop()
+        isTransitioningClip.value = false
+      }).catch(() => {})
+    } else {
+      isTransitioningClip.value = false
     }
+  } else if (newClip.id !== oldClip?.id) {
+    updateVideoTime()
+    if (props.isPlaying) {
+      videoPlayer.value.play().then(() => {
+        startSyncLoop()
+      }).catch(() => {})
+    }
+    isTransitioningClip.value = false
   }
 }, { immediate: true })
 
