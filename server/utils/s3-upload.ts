@@ -31,8 +31,10 @@ function getS3Client(): S3Client {
 
 /**
  * Upload a file to S3 and return a public URL
+ * @param filePath - Local file path to upload
+ * @param folder - Optional S3 folder prefix (e.g., 'product_images', 'scene_images', 'ai_videos')
  */
-export async function uploadFileToS3(filePath: string): Promise<string> {
+export async function uploadFileToS3(filePath: string, folder: string = 'assets'): Promise<string> {
   try {
     const bucketName = process.env.AWS_S3_BUCKET_NAME
     if (!bucketName) {
@@ -45,8 +47,9 @@ export async function uploadFileToS3(filePath: string): Promise<string> {
     const ext = path.extname(filename)
     
     // Generate a unique key for the file
-    // Format: assets/{timestamp}-{random}.{ext}
-    const key = `assets/${Date.now()}-${nanoid()}${ext}`
+    // Format: {folder}/{timestamp}-{random}.{ext}
+    // S3 automatically creates "folders" when you use / in the key
+    const key = `${folder}/${Date.now()}-${nanoid()}${ext}`
     
     // Determine content type
     const contentType = getContentType(filename)
@@ -79,7 +82,7 @@ export async function uploadFileToS3(filePath: string): Promise<string> {
     
     // 7 days = 604800 seconds
     const presignedUrl = await getSignedUrl(client, getCommand, { expiresIn: 604800 })
-    console.log('[S3 Upload] File uploaded to S3 (presigned URL, valid for 7 days)')
+    console.log(`[S3 Upload] File uploaded to S3: ${folder}/ (presigned URL, valid for 7 days)`)
     console.log('[S3 Upload] URL starts with:', presignedUrl.substring(0, 80) + '...')
     return presignedUrl
   } catch (error: any) {
