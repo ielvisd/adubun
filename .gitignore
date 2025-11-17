@@ -30,6 +30,21 @@ data/jobs/
 data/jobs.json
 data/costs.json
 
+# Video files - all formats
+data/videos/
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.flv
+*.wmv
+*.m4v
+*.mpg
+*.mpeg
+*.3gp
+*.ogv
+
 # Playwright MCP screenshots
 .playwright-mcp/
 
