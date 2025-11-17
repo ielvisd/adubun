@@ -174,7 +174,14 @@ export default defineEventHandler(async (event) => {
     const characters: Character[] = storyboard.characters || []
 
     // Helper function to build prompts that emphasize matching reference images
-    const buildNanoPrompt = (storyText: string, visualPrompt: string, isTransition: boolean = false, transitionText?: string, transitionVisual?: string) => {
+    const buildNanoPrompt = (
+      storyText: string, 
+      visualPrompt: string, 
+      isTransition: boolean = false, 
+      transitionText?: string, 
+      transitionVisual?: string,
+      previousFrameImage?: string  // NEW: Add previous frame as input
+    ) => {
       const hasReferenceImages = referenceImages.length > 0
       
       // Build the base prompt parts with full scene context for continuity
@@ -193,12 +200,18 @@ export default defineEventHandler(async (event) => {
         characterInstruction = `CRITICAL CHARACTER CONSISTENCY: The exact same characters from previous scenes must appear with IDENTICAL appearance: ${characterDescriptions}. Maintain exact same gender, age, physical features (hair color/style, build), and clothing style for each character. Do NOT change character gender, age, or physical appearance. Use phrases like "the same [age] [gender] person with [features]" to ensure consistency. `
       }
       
+      // Add previous frame continuity instruction if we have a previous frame
+      let previousFrameInstruction = ''
+      if (previousFrameImage) {
+        previousFrameInstruction = `CRITICAL VISUAL CONTINUITY: Use the previous frame image as a visual reference to maintain continuity. Keep the same characters, same environment, same lighting style, and same overall composition. The scene should flow naturally from the previous frame. `
+      }
+      
       // Add product consistency and reference image instructions if we have reference images
       if (hasReferenceImages) {
         const productConsistencyInstruction = `CRITICAL INSTRUCTIONS: Do not add new products to the scene. Only enhance existing products shown in the reference images. Keep product design and style exactly as shown in references. The reference images provided are the EXACT product you must recreate. You MUST copy the product from the reference images with pixel-perfect accuracy. Do NOT create a different product, do NOT use different colors, do NOT change the design, do NOT hallucinate new products. The product in your generated image must be visually IDENTICAL to the product in the reference images. Study every detail: exact color codes, exact design patterns, exact text/fonts, exact materials, exact textures, exact proportions, exact placement. The reference images are your ONLY source of truth for the product appearance. Ignore any text in the prompt that contradicts the reference images - the reference images take absolute priority. Generate the EXACT same product as shown in the reference images. `
-        return `${characterInstruction}${productConsistencyInstruction}${basePrompt}, professional product photography, high quality, product must be pixel-perfect match to reference images, product appearance must be identical to reference images`
+        return `${characterInstruction}${previousFrameInstruction}${productConsistencyInstruction}${basePrompt}, professional product photography, high quality, product must be pixel-perfect match to reference images, product appearance must be identical to reference images`
       } else {
-        return `${characterInstruction}${basePrompt}, professional product photography, high quality`
+        return `${characterInstruction}${previousFrameInstruction}${basePrompt}, professional product photography, high quality`
       }
     }
 
@@ -207,6 +220,7 @@ export default defineEventHandler(async (event) => {
       frameName: string,
       nanoPrompt: string,
       segmentVisualPrompt: string,
+      previousFrameImage?: string,  // NEW: Add previous frame image parameter
       currentSceneText?: string,
       isTransition: boolean = false,
       transitionText?: string,
@@ -222,12 +236,27 @@ export default defineEventHandler(async (event) => {
       try {
         console.log(`[Generate Frames] Generating ${frameName} with nano-banana...`)
         console.log(`[Generate Frames] Nano-banana prompt: ${nanoPrompt}`)
-        console.log(`[Generate Frames] Reference images being sent: ${referenceImages.length} images`)
+        
+        // Build image input array: product images + previous frame (if available)
+        const imageInputs: string[] = []
+        
+        // Add product images first
+        if (referenceImages.length > 0) {
+          imageInputs.push(...referenceImages)
+        }
+        
+        // Add previous frame image for continuity (as per PRD specification)
+        if (previousFrameImage) {
+          imageInputs.push(previousFrameImage)
+          console.log(`[Generate Frames] Including previous frame image for continuity: ${previousFrameImage}`)
+        }
+        
+        console.log(`[Generate Frames] Total image inputs being sent: ${imageInputs.length} images (${referenceImages.length} product + ${previousFrameImage ? 1 : 0} previous frame)`)
         
         const nanoResult = await callReplicateMCP('generate_image', {
           model: 'google/nano-banana',
           prompt: nanoPrompt,
-          image_input: referenceImages.length > 0 ? referenceImages : undefined,
+          image_input: imageInputs.length > 0 ? imageInputs : undefined,
           aspect_ratio: aspectRatio,
           output_format: 'jpg',
         })
@@ -238,18 +267,18 @@ export default defineEventHandler(async (event) => {
           return null
         }
 
-        // Poll for Nano-banana result
-        let nanoStatus = 'starting'
-        let nanoAttempts = 0
-        while (nanoStatus !== 'succeeded' && nanoStatus !== 'failed' && nanoAttempts < 60) {
-          await new Promise(resolve => setTimeout(resolve, 2000))
-          const statusResult = await callReplicateMCP('check_prediction_status', { predictionId: nanoPredictionId })
-          nanoStatus = statusResult.status || 'starting'
-          nanoAttempts++
+          // Poll for Nano-banana result
+          let nanoStatus = 'starting'
+          let nanoAttempts = 0
+          while (nanoStatus !== 'succeeded' && nanoStatus !== 'failed' && nanoAttempts < 60) {
+            await new Promise(resolve => setTimeout(resolve, 2000))
+            const statusResult = await callReplicateMCP('check_prediction_status', { predictionId: nanoPredictionId })
+            nanoStatus = statusResult.status || 'starting'
+            nanoAttempts++
 
-          if (nanoStatus === 'succeeded') {
-            const nanoResultData = await callReplicateMCP('get_prediction_result', { predictionId: nanoPredictionId })
-            const nanoImageUrl = nanoResultData.videoUrl
+            if (nanoStatus === 'succeeded') {
+              const nanoResultData = await callReplicateMCP('get_prediction_result', { predictionId: nanoPredictionId })
+              const nanoImageUrl = nanoResultData.videoUrl
 
             if (!nanoImageUrl) {
               console.error(`[Generate Frames] No image URL in nano-banana result for ${frameName}`)
@@ -257,11 +286,11 @@ export default defineEventHandler(async (event) => {
             }
 
             console.log(`[Generate Frames] Nano-banana succeeded for ${frameName}: ${nanoImageUrl}`)
-            
-            // Step 2: Enhance with Seedream-4
-            const referenceMatchInstruction = referenceImages.length > 0 
-              ? 'CRITICAL INSTRUCTIONS - READ CAREFULLY: Your ONLY job is to enhance lighting, color saturation, and image quality. DO NOT ALTER THE PRODUCT IN ANY WAY. The product must remain PIXEL-PERFECT identical to the reference images - same size, same shape, same colors, same design, same position. DO NOT change product dimensions, proportions, or placement, even slightly. DO NOT add new products. DO NOT modify existing products. Products that appear small in the frame must stay small - do not make them larger or more prominent. Preserve all text, labels, logos, and typography EXACTLY - no distortions, no alterations, no modifications. Keep all text perfectly readable and unchanged. CRITICAL: Keep human faces, facial features, body anatomy, body positions, hand positions, and poses EXACTLY as they appear in the input image - do not alter, modify, or change them in any way. Your enhancement should be LIMITED TO: improved lighting, better color saturation, enhanced clarity. Nothing else should change. The reference images show the EXACT product appearance - copy it with absolute precision. '
-              : ''
+                
+                // Step 2: Enhance with Seedream-4
+                const referenceMatchInstruction = referenceImages.length > 0 
+                  ? 'CRITICAL INSTRUCTIONS - READ CAREFULLY: Your ONLY job is to enhance lighting, color saturation, and image quality. DO NOT ALTER THE PRODUCT IN ANY WAY. The product must remain PIXEL-PERFECT identical to the reference images - same size, same shape, same colors, same design, same position. DO NOT change product dimensions, proportions, or placement, even slightly. DO NOT add new products. DO NOT modify existing products. Products that appear small in the frame must stay small - do not make them larger or more prominent. Preserve all text, labels, logos, and typography EXACTLY - no distortions, no alterations, no modifications. Keep all text perfectly readable and unchanged. CRITICAL: Keep human faces, facial features, body anatomy, body positions, hand positions, and poses EXACTLY as they appear in the input image - do not alter, modify, or change them in any way. Your enhancement should be LIMITED TO: improved lighting, better color saturation, enhanced clarity. Nothing else should change. The reference images show the EXACT product appearance - copy it with absolute precision. '
+                  : ''
             
             // Add character preservation instruction for seedream
             const characterPreservationInstruction = characters.length > 0
@@ -274,26 +303,26 @@ export default defineEventHandler(async (event) => {
             } else {
               seedreamPrompt = `${characterPreservationInstruction}${referenceMatchInstruction}${segmentVisualPrompt}, enhance product to match reference images exactly, maintain exact human faces and body positions from input image, ensure product colors and design match reference images precisely, professional product photography, preserve all human anatomy and facial features from source image, improve color saturation and product visibility to match reference images, limit scene to 3-4 people maximum, sharp faces, clear facial features, detailed faces, professional portrait quality, avoid large groups or crowds, ${aspectRatio} aspect ratio`
             }
-            
-            let finalImageUrl = nanoImageUrl
-            let modelSource: 'nano-banana' | 'seedream-4' = 'nano-banana'
-            let seedreamImageUrl: string | undefined = undefined
-            
-            try {
+                
+                let finalImageUrl = nanoImageUrl
+                let modelSource: 'nano-banana' | 'seedream-4' = 'nano-banana'
+                let seedreamImageUrl: string | undefined = undefined
+                
+                try {
               console.log(`[Generate Frames] Starting seedream-4 enhancement for ${frameName}...`)
               
-              const seedreamResult = await callReplicateMCP('generate_image', {
-                model: 'bytedance/seedream-4',
-                prompt: seedreamPrompt,
-                image_input: [nanoImageUrl],
+                  const seedreamResult = await callReplicateMCP('generate_image', {
+                    model: 'bytedance/seedream-4',
+                    prompt: seedreamPrompt,
+                    image_input: [nanoImageUrl],
                 size: 'custom',
                 width: dimensions.width,
                 height: dimensions.height,
                 aspect_ratio: aspectRatio,
-                enhance_prompt: true,
-              })
+                    enhance_prompt: true,
+                  })
 
-              const seedreamPredictionId = seedreamResult.predictionId || seedreamResult.id
+                  const seedreamPredictionId = seedreamResult.predictionId || seedreamResult.id
               if (!seedreamPredictionId) {
                 console.error(`[Generate Frames] Seedream-4 generate_image did not return a predictionId for ${frameName}`)
                 throw new Error('Seedream-4 generate_image did not return a predictionId')
@@ -302,53 +331,53 @@ export default defineEventHandler(async (event) => {
               console.log(`[Generate Frames] Seedream-4 prediction ID: ${seedreamPredictionId}, starting polling for ${frameName}...`)
               
               // Poll for Seedream-4 result with timeout (3 minutes = 90 attempts * 2 seconds)
-              let seedreamStatus = 'starting'
-              let seedreamAttempts = 0
+                    let seedreamStatus = 'starting'
+                    let seedreamAttempts = 0
               const maxAttempts = 90
-              
-              while (seedreamStatus !== 'succeeded' && seedreamStatus !== 'failed' && seedreamAttempts < maxAttempts) {
-                await new Promise(resolve => setTimeout(resolve, 2000))
-                const statusResult = await callReplicateMCP('check_prediction_status', { predictionId: seedreamPredictionId })
-                seedreamStatus = statusResult.status || 'starting'
-                seedreamAttempts++
+                    
+                    while (seedreamStatus !== 'succeeded' && seedreamStatus !== 'failed' && seedreamAttempts < maxAttempts) {
+                      await new Promise(resolve => setTimeout(resolve, 2000))
+                      const statusResult = await callReplicateMCP('check_prediction_status', { predictionId: seedreamPredictionId })
+                      seedreamStatus = statusResult.status || 'starting'
+                      seedreamAttempts++
 
                 if (seedreamAttempts % 10 === 0) {
                   console.log(`[Generate Frames] Seedream-4 polling attempt ${seedreamAttempts}/${maxAttempts} for ${frameName}, status: ${seedreamStatus}`)
                 }
 
-                if (seedreamStatus === 'succeeded') {
-                  const seedreamResultData = await callReplicateMCP('get_prediction_result', { predictionId: seedreamPredictionId })
+                      if (seedreamStatus === 'succeeded') {
+                        const seedreamResultData = await callReplicateMCP('get_prediction_result', { predictionId: seedreamPredictionId })
                   const seedreamResultUrl = seedreamResultData.videoUrl || seedreamResultData.output || seedreamResultData.url
                   
-                  if (seedreamResultUrl) {
-                    seedreamImageUrl = seedreamResultUrl
-                    finalImageUrl = seedreamImageUrl
-                    modelSource = 'seedream-4'
+                        if (seedreamResultUrl) {
+                          seedreamImageUrl = seedreamResultUrl
+                          finalImageUrl = seedreamImageUrl
+                          modelSource = 'seedream-4'
                     console.log(`[Generate Frames] Seedream-4 succeeded for ${frameName}: ${seedreamImageUrl}`)
                   } else {
                     console.error(`[Generate Frames] Seedream-4 result does not contain a valid URL for ${frameName}`)
                     throw new Error('Seedream-4 result does not contain a valid URL')
-                  }
+                        }
                   break
-                } else if (seedreamStatus === 'failed') {
+                      } else if (seedreamStatus === 'failed') {
                   const errorMessage = statusResult.error || 'Unknown error'
                   console.warn(`[Generate Frames] Seedream-4 failed for ${frameName} after ${seedreamAttempts} attempts. Error: ${errorMessage}`)
                   break
-                }
-              }
-              
-              if (seedreamAttempts >= maxAttempts && seedreamStatus !== 'succeeded') {
+                      }
+                    }
+                    
+                    if (seedreamAttempts >= maxAttempts && seedreamStatus !== 'succeeded') {
                 console.warn(`[Generate Frames] Seedream-4 timed out for ${frameName} after ${maxAttempts} attempts, using nano-banana fallback`)
-              }
+                    }
               
               if (!seedreamImageUrl) {
                 console.warn(`[Generate Frames] Seedream-4 enhancement did not produce an image URL for ${frameName}, using nano-banana fallback`)
-              }
-            } catch (seedreamError: any) {
+                  }
+                } catch (seedreamError: any) {
               console.error(`[Generate Frames] Seedream-4 error for ${frameName}:`, seedreamError)
               console.log(`[Generate Frames] Using nano-banana fallback for ${frameName}`)
-            }
-            
+                }
+                
             // Enforce image resolution if using nano-banana fallback
             if (modelSource === 'nano-banana') {
               finalImageUrl = await enforceImageResolution(finalImageUrl, dimensions.width, dimensions.height)
@@ -357,10 +386,10 @@ export default defineEventHandler(async (event) => {
             return {
               segmentIndex: 0, // Will be set by caller
               frameType: 'first' as const, // Will be set by caller
-              imageUrl: finalImageUrl,
-              modelSource,
-              nanoImageUrl,
-              seedreamImageUrl,
+                  imageUrl: finalImageUrl,
+                  modelSource,
+                  nanoImageUrl,
+                  seedreamImageUrl,
             }
           }
         }
@@ -373,7 +402,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Get all segments for parallel frame generation
+    // Get all segments for SEQUENTIAL frame generation (as per PRD specification)
     const hookSegment = storyboard.segments.find(s => s.type === 'hook')
     const bodySegments = storyboard.segments.filter(s => s.type === 'body')
     const body1Segment = bodySegments[0]
@@ -381,51 +410,69 @@ export default defineEventHandler(async (event) => {
     const ctaSegment = storyboard.segments.find(s => s.type === 'cta')
     
     console.log(`[Generate Frames] Found ${bodySegments.length} body segments`)
-    console.log(`[Generate Frames] Starting parallel frame generation...`)
+    console.log(`[Generate Frames] Starting SEQUENTIAL frame generation (each frame uses previous frame as input)...`)
 
-    // Generate all frames in parallel using Promise.allSettled() for graceful error handling
-    const framePromises: Promise<{
-      segmentIndex: number
-      frameType: 'first' | 'last'
-      imageUrl: string
-      modelSource: 'nano-banana' | 'seedream-4'
-      nanoImageUrl?: string
-      seedreamImageUrl?: string
-    } | null>[] = []
-
-    // Frame 1: Hook first frame
+    // SEQUENTIAL GENERATION: Each frame uses the previous frame as input
+    // This follows the EXACT pipeline specification from the PRD
+    
+    // Frame 1: Hook first frame (no previous frame)
+    let hookFirstFrameResult: any = null
     if (hookSegment) {
+      console.log('\n[Generate Frames] === FRAME 1: Hook First Frame ===')
       const nanoPrompt = buildNanoPrompt(story.hook, hookSegment.visualPrompt)
-      framePromises.push(
-        generateSingleFrame('hook first frame', nanoPrompt, hookSegment.visualPrompt)
-          .then(result => result ? { ...result, segmentIndex: 0, frameType: 'first' as const } : null)
+      hookFirstFrameResult = await generateSingleFrame(
+        'hook first frame', 
+        nanoPrompt, 
+        hookSegment.visualPrompt,
+        undefined  // No previous frame
       )
+      
+      if (hookFirstFrameResult) {
+        hookFirstFrameResult.segmentIndex = 0
+        hookFirstFrameResult.frameType = 'first'
+        frames.push(hookFirstFrameResult)
+        console.log(`[Generate Frames] ✓ Hook first frame generated (${hookFirstFrameResult.modelSource}): ${hookFirstFrameResult.imageUrl}`)
+      } else {
+        console.error('[Generate Frames] ✗ Hook first frame generation failed')
+      }
     }
 
-    // Frame 2: Hook last frame (transition to body1)
-    if (hookSegment && body1Segment) {
-      const nanoPrompt = buildNanoPrompt(story.hook, hookSegment.visualPrompt, true, story.bodyOne, body1Segment.visualPrompt)
-      framePromises.push(
-        generateSingleFrame('hook last frame', nanoPrompt, hookSegment.visualPrompt, story.hook, true, story.bodyOne, body1Segment.visualPrompt)
-          .then(result => result ? { ...result, segmentIndex: 0, frameType: 'last' as const } : null)
+    // Frame 2: Hook last frame (uses hook first frame as input)
+    let hookLastFrameResult: any = null
+    if (hookSegment && body1Segment && hookFirstFrameResult) {
+      console.log('\n[Generate Frames] === FRAME 2: Hook Last Frame ===')
+      const nanoPrompt = buildNanoPrompt(
+        story.hook, 
+        hookSegment.visualPrompt, 
+        true, 
+        story.bodyOne, 
+        body1Segment.visualPrompt,
+        hookFirstFrameResult.imageUrl  // Use hook first frame as input
       )
+      hookLastFrameResult = await generateSingleFrame(
+        'hook last frame', 
+        nanoPrompt, 
+        hookSegment.visualPrompt,
+        hookFirstFrameResult.imageUrl,  // Previous frame image
+        story.hook, 
+        true, 
+        story.bodyOne, 
+        body1Segment.visualPrompt
+      )
+      
+      if (hookLastFrameResult) {
+        hookLastFrameResult.segmentIndex = 0
+        hookLastFrameResult.frameType = 'last'
+        frames.push(hookLastFrameResult)
+        console.log(`[Generate Frames] ✓ Hook last frame generated (${hookLastFrameResult.modelSource}): ${hookLastFrameResult.imageUrl}`)
+      } else {
+        console.error('[Generate Frames] ✗ Hook last frame generation failed')
+      }
     }
 
     // In demo mode, only generate hook frames
     if (generationMode === 'demo') {
-      console.log('[Generate Frames] Demo mode: Only generating hook frames in parallel')
-      const hookFrameResults = await Promise.allSettled(framePromises)
-      
-      for (const result of hookFrameResults) {
-        if (result.status === 'fulfilled' && result.value) {
-          frames.push(result.value)
-          console.log(`[Generate Frames] Added ${result.value.frameType} frame for segment ${result.value.segmentIndex} (${result.value.modelSource}): ${result.value.imageUrl}`)
-        } else if (result.status === 'rejected') {
-          console.error('[Generate Frames] Frame generation failed:', result.reason)
-        }
-      }
-      
-      console.log('[Generate Frames] Demo mode: Hook frames completed')
+      console.log('\n[Generate Frames] Demo mode: Only hook frames generated')
       console.log(`[Generate Frames] Demo mode: Generated ${frames.length} frame(s)`)
       await trackCost('generate-frames', 0.05 * frames.length, {
         frameCount: frames.length,
@@ -439,48 +486,105 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Frame 3: Body1 last frame (transition to body2)
-    if (body1Segment && body2Segment) {
-      const nanoPrompt = buildNanoPrompt(story.bodyOne, body1Segment.visualPrompt, true, story.bodyTwo, body2Segment.visualPrompt)
-      framePromises.push(
-        generateSingleFrame('body1 last frame', nanoPrompt, body1Segment.visualPrompt, story.bodyOne, true, story.bodyTwo, body2Segment.visualPrompt)
-          .then(result => result ? { ...result, segmentIndex: 1, frameType: 'last' as const } : null)
+    // Frame 3: Body1 last frame (uses hook last frame as input, which is Body1 first frame)
+    let body1LastFrameResult: any = null
+    if (body1Segment && body2Segment && hookLastFrameResult) {
+      console.log('\n[Generate Frames] === FRAME 3: Body1 Last Frame ===')
+      console.log('[Generate Frames] Note: Body1 first frame = Hook last frame (same image)')
+      const nanoPrompt = buildNanoPrompt(
+        story.bodyOne, 
+        body1Segment.visualPrompt, 
+        true, 
+        story.bodyTwo, 
+        body2Segment.visualPrompt,
+        hookLastFrameResult.imageUrl  // Use hook last frame (= Body1 first frame) as input
       )
-    }
-
-    // Frame 4: Body2 last frame (transition to CTA)
-    if (body2Segment && ctaSegment) {
-      const nanoPrompt = buildNanoPrompt(story.bodyTwo, body2Segment.visualPrompt, true, story.callToAction, ctaSegment.visualPrompt)
-      framePromises.push(
-        generateSingleFrame('body2 last frame', nanoPrompt, body2Segment.visualPrompt, story.bodyTwo, true, story.callToAction, ctaSegment.visualPrompt)
-          .then(result => result ? { ...result, segmentIndex: 2, frameType: 'last' as const } : null)
+      body1LastFrameResult = await generateSingleFrame(
+        'body1 last frame', 
+        nanoPrompt, 
+        body1Segment.visualPrompt,
+        hookLastFrameResult.imageUrl,  // Previous frame image (Body1 first = Hook last)
+        story.bodyOne, 
+        true, 
+        story.bodyTwo, 
+        body2Segment.visualPrompt
       )
-    }
-
-    // Frame 5: CTA frame
-    if (ctaSegment) {
-      const nanoPrompt = buildNanoPrompt(story.callToAction, ctaSegment.visualPrompt)
-      framePromises.push(
-        generateSingleFrame('CTA frame', nanoPrompt, ctaSegment.visualPrompt)
-          .then(result => result ? { ...result, segmentIndex: 3, frameType: 'first' as const } : null)
+      
+      if (body1LastFrameResult) {
+        body1LastFrameResult.segmentIndex = 1
+        body1LastFrameResult.frameType = 'last'
+        frames.push(body1LastFrameResult)
+        console.log(`[Generate Frames] ✓ Body1 last frame generated (${body1LastFrameResult.modelSource}): ${body1LastFrameResult.imageUrl}`)
+      } else {
+        console.error('[Generate Frames] ✗ Body1 last frame generation failed')
+                      }
+                    }
+                    
+    // Frame 4: Body2 last frame (uses body1 last frame as input, which is Body2 first frame)
+    let body2LastFrameResult: any = null
+    if (body2Segment && ctaSegment && body1LastFrameResult) {
+      console.log('\n[Generate Frames] === FRAME 4: Body2 Last Frame ===')
+      console.log('[Generate Frames] Note: Body2 first frame = Body1 last frame (same image)')
+      const nanoPrompt = buildNanoPrompt(
+        story.bodyTwo, 
+        body2Segment.visualPrompt, 
+        true, 
+        story.callToAction, 
+        ctaSegment.visualPrompt,
+        body1LastFrameResult.imageUrl  // Use body1 last frame (= Body2 first frame) as input
       )
-    }
-
-    // Execute all frame generations in parallel
-    console.log(`[Generate Frames] Executing ${framePromises.length} frame generations in parallel...`)
-    const frameResults = await Promise.allSettled(framePromises)
-    
-    // Process results
-    for (const result of frameResults) {
-      if (result.status === 'fulfilled' && result.value) {
-        frames.push(result.value)
-        console.log(`[Generate Frames] Added ${result.value.frameType} frame for segment ${result.value.segmentIndex} (${result.value.modelSource}): ${result.value.imageUrl}`)
-      } else if (result.status === 'rejected') {
-        console.error('[Generate Frames] Frame generation failed:', result.reason)
+      body2LastFrameResult = await generateSingleFrame(
+        'body2 last frame', 
+        nanoPrompt, 
+        body2Segment.visualPrompt,
+        body1LastFrameResult.imageUrl,  // Previous frame image (Body2 first = Body1 last)
+        story.bodyTwo, 
+        true, 
+        story.callToAction, 
+        ctaSegment.visualPrompt
+      )
+      
+      if (body2LastFrameResult) {
+        body2LastFrameResult.segmentIndex = 2
+        body2LastFrameResult.frameType = 'last'
+        frames.push(body2LastFrameResult)
+        console.log(`[Generate Frames] ✓ Body2 last frame generated (${body2LastFrameResult.modelSource}): ${body2LastFrameResult.imageUrl}`)
+      } else {
+        console.error('[Generate Frames] ✗ Body2 last frame generation failed')
+      }
+                }
+                
+    // Frame 5: CTA last frame (uses body2 last frame as input, which is CTA first frame)
+    let ctaLastFrameResult: any = null
+    if (ctaSegment && body2LastFrameResult) {
+      console.log('\n[Generate Frames] === FRAME 5: CTA Last Frame ===')
+      console.log('[Generate Frames] Note: CTA first frame = Body2 last frame (same image)')
+      const nanoPrompt = buildNanoPrompt(
+        story.callToAction, 
+        ctaSegment.visualPrompt,
+        false,
+        undefined,
+        undefined,
+        body2LastFrameResult.imageUrl  // Use body2 last frame (= CTA first frame) as input
+      )
+      ctaLastFrameResult = await generateSingleFrame(
+        'CTA last frame', 
+        nanoPrompt, 
+        ctaSegment.visualPrompt,
+        body2LastFrameResult.imageUrl  // Previous frame image (CTA first = Body2 last)
+      )
+      
+      if (ctaLastFrameResult) {
+        ctaLastFrameResult.segmentIndex = 3
+        ctaLastFrameResult.frameType = 'last'
+        frames.push(ctaLastFrameResult)
+        console.log(`[Generate Frames] ✓ CTA last frame generated (${ctaLastFrameResult.modelSource}): ${ctaLastFrameResult.imageUrl}`)
+      } else {
+        console.error('[Generate Frames] ✗ CTA last frame generation failed')
       }
     }
 
-    console.log(`[Generate Frames] Parallel generation completed. Generated ${frames.length} frame(s) out of ${framePromises.length} attempts`)
+    console.log(`\n[Generate Frames] Sequential generation completed. Generated ${frames.length} frame(s)`)
 
     // Track cost (estimate: ~$0.05 per frame with both models)
     await trackCost('generate-frames', 0.05 * frames.length, {

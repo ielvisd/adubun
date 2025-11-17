@@ -970,17 +970,17 @@ const generateFrames = async () => {
         })
         console.log('[Storyboards] Assigned CTA first frame (from body2 last):', body2LastFrame)
       }
-      if (ctaFrames?.first) {
-        // CTA's "first" frame is actually its last frame (the final frame)
-        selectedStoryboard.value.segments[3].lastFrameImage = ctaFrames.first
+      if (ctaFrames?.last) {
+        // CTA's last frame is the final frame of the video
+        selectedStoryboard.value.segments[3].lastFrameImage = ctaFrames.last
         frameGenerationStatus.value.set(3, { 
           ...frameGenerationStatus.value.get(3), 
           last: true,
-          lastModelSource: ctaFrames.firstModelSource,
-          lastNanoImageUrl: ctaFrames.firstNanoImageUrl,
-          lastSeedreamImageUrl: ctaFrames.firstSeedreamImageUrl
+          lastModelSource: ctaFrames.lastModelSource,
+          lastNanoImageUrl: ctaFrames.lastNanoImageUrl,
+          lastSeedreamImageUrl: ctaFrames.lastSeedreamImageUrl
         })
-        console.log('[Storyboards] Assigned CTA last frame:', ctaFrames.first)
+        console.log('[Storyboards] Assigned CTA last frame:', ctaFrames.last)
       }
       
       // Trigger reactivity to ensure UI updates
@@ -1027,36 +1027,77 @@ const generateFrames = async () => {
 }
 
 const allFramesReady = computed(() => {
-  if (!selectedStoryboard.value) return false
+  if (!selectedStoryboard.value) {
+    console.log('[allFramesReady] No storyboard')
+    return false
+  }
+  
+  // Check if all required data exists for video generation
+  // This is reactive and will update whenever segment data changes
+  
+  const segments = selectedStoryboard.value.segments
+  if (!segments || segments.length === 0) {
+    console.log('[allFramesReady] No segments')
+    return false
+  }
   
   // In demo mode, only check hook segment (first scene)
   if (isDemoMode.value) {
-    const hookSegment = selectedStoryboard.value.segments[0]
-    if (!hookSegment) return false
+    const hookSegment = segments[0]
+    if (!hookSegment) {
+      console.log('[allFramesReady] Demo mode: No hook segment')
+      return false
+    }
     
-    const hookStatus = frameGenerationStatus.value.get(0) || {}
-    return !!(hookSegment.firstFrameImage && hookSegment.lastFrameImage && hookStatus.first && hookStatus.last)
+    // Check if hook has all required data
+    const hasRequiredData = !!(
+      hookSegment.firstFrameImage && 
+      hookSegment.lastFrameImage &&
+      hookSegment.visualPrompt &&
+      hookSegment.description
+    )
+    
+    if (!hasRequiredData) {
+      console.log('[allFramesReady] Demo mode: Hook segment missing data:', {
+        firstFrameImage: !!hookSegment.firstFrameImage,
+        lastFrameImage: !!hookSegment.lastFrameImage,
+        visualPrompt: !!hookSegment.visualPrompt,
+        description: !!hookSegment.description,
+      })
+    }
+    
+    return hasRequiredData
   }
   
-  // Production mode: Check that all required frames are ready
-  for (let i = 0; i < selectedStoryboard.value.segments.length; i++) {
-    const segment = selectedStoryboard.value.segments[i]
-    const status = frameGenerationStatus.value.get(i)
+  // Production mode: Check that all segments have required data
+  // We check actual data existence, not generation status
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i]
     
-    // Hook needs first and last
-    if (i === 0) {
-      if (!segment.firstFrameImage || !segment.lastFrameImage) return false
-    }
-    // Body segments need first (from previous) and last
-    else if (i < 3) {
-      if (!segment.firstFrameImage || !segment.lastFrameImage) return false
-    }
-    // CTA needs first (from previous) and last
-    else {
-      if (!segment.firstFrameImage || !segment.lastFrameImage) return false
+    // Each segment needs:
+    // 1. Frame images (first and last)
+    // 2. Visual prompt (for video generation)
+    // 3. Description (for context)
+    // 4. Timing (startTime, endTime)
+    const hasFrames = !!(segment.firstFrameImage && segment.lastFrameImage)
+    const hasPrompt = !!segment.visualPrompt
+    const hasDescription = !!segment.description
+    const hasTiming = segment.startTime !== undefined && segment.endTime !== undefined
+    
+    if (!hasFrames || !hasPrompt || !hasDescription || !hasTiming) {
+      console.log(`[allFramesReady] Segment ${i} (${segment.type}) missing requirements:`, {
+        firstFrameImage: !!segment.firstFrameImage,
+        lastFrameImage: !!segment.lastFrameImage,
+        visualPrompt: !!segment.visualPrompt,
+        description: !!segment.description,
+        startTime: segment.startTime,
+        endTime: segment.endTime,
+      })
+      return false
     }
   }
   
+  console.log('[allFramesReady] All requirements met! Ready for video generation.')
   return true
 })
 
