@@ -8,6 +8,7 @@ const generateStoriesSchema = z.object({
   prompt: z.string().min(1),
   productImages: z.array(z.union([z.instanceof(File), z.string()])).max(10).optional(),
   aspectRatio: z.enum(['16:9', '9:16', '1:1']),
+  mood: z.string().optional(),
   model: z.string().optional(),
   generateVoiceover: z.boolean().optional(),
 })
@@ -91,7 +92,7 @@ export default defineEventHandler(async (event) => {
       body = await readBody(event)
     }
 
-    const { prompt, productImages = [], aspectRatio, model, generateVoiceover } = generateStoriesSchema.parse(body)
+    const { prompt, productImages = [], aspectRatio, mood, model, generateVoiceover } = generateStoriesSchema.parse(body)
 
     // Convert product images to URLs (they should already be URLs if from formData, or File objects)
     const imageUrls: string[] = []
@@ -124,6 +125,7 @@ export default defineEventHandler(async (event) => {
         duration,
         clipCount: 4, // Hook, Body1, Body2, CTA
         clipDuration: 4, // ~4 seconds per scene for 16s total
+        mood, // Pass mood to story generation
       }),
       3, // max 3 retries
       2000 // start with 2 second delay
@@ -168,7 +170,7 @@ export default defineEventHandler(async (event) => {
     
     try {
       const story = formattedStories[0]
-      const nanoPrompt = `${story.hook}, professional product photography, cinematic lighting, high quality, detailed scene`
+      const nanoPrompt = `${story.hook}, ${mood || 'professional'} style, professional product photography, cinematic lighting, high quality, detailed scene`
       console.log('[Generate Stories] Preview prompt:', nanoPrompt)
 
       const nanoResult = await callReplicateMCP('generate_image', {
@@ -257,6 +259,7 @@ export default defineEventHandler(async (event) => {
         prompt,
         productImages: imageUrls,
         aspectRatio,
+        mood,
         model: model || 'google/veo-3-fast',
         generateVoiceover: generateVoiceover || false,
       },

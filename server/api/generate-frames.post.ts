@@ -31,6 +31,7 @@ const generateFramesSchema = z.object({
     meta: z.object({
       aspectRatio: z.enum(['16:9', '9:16', '1:1']),
       mode: z.enum(['demo', 'production']).optional(),
+      mood: z.string().optional(),
     }),
   }),
   productImages: z.array(z.string()).optional(),
@@ -127,6 +128,10 @@ export default defineEventHandler(async (event) => {
     // Determine mode: use explicit mode param, then storyboard meta, then default to production
     const generationMode = mode || storyboard.meta.mode || 'production'
     console.log(`[Generate Frames] Mode: ${generationMode}`)
+    
+    // Extract mood from storyboard meta
+    const mood = storyboard.meta.mood || 'professional'
+    console.log(`[Generate Frames] Mood: ${mood}`)
 
     // According to PRD, we need to generate 5 frame images:
     // 1. Hook first frame (using hook paragraph + story description)
@@ -182,6 +187,7 @@ export default defineEventHandler(async (event) => {
       transitionVisual?: string,
       previousFrameImage?: string  // NEW: Add previous frame as input
     ) => {
+      const moodStyle = mood ? `${mood} style` : 'professional style'
       const hasReferenceImages = referenceImages.length > 0
       
       // Build the base prompt parts with full scene context for continuity
@@ -209,9 +215,9 @@ export default defineEventHandler(async (event) => {
       // Add product consistency and reference image instructions if we have reference images
       if (hasReferenceImages) {
         const productConsistencyInstruction = `CRITICAL INSTRUCTIONS: Do not add new products to the scene. Only enhance existing products shown in the reference images. Keep product design and style exactly as shown in references. The reference images provided are the EXACT product you must recreate. You MUST copy the product from the reference images with pixel-perfect accuracy. Do NOT create a different product, do NOT use different colors, do NOT change the design, do NOT hallucinate new products. The product in your generated image must be visually IDENTICAL to the product in the reference images. Study every detail: exact color codes, exact design patterns, exact text/fonts, exact materials, exact textures, exact proportions, exact placement. The reference images are your ONLY source of truth for the product appearance. Ignore any text in the prompt that contradicts the reference images - the reference images take absolute priority. Generate the EXACT same product as shown in the reference images. `
-        return `${characterInstruction}${previousFrameInstruction}${productConsistencyInstruction}${basePrompt}, professional product photography, high quality, product must be pixel-perfect match to reference images, product appearance must be identical to reference images`
+        return `${characterInstruction}${previousFrameInstruction}${productConsistencyInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality, product must be pixel-perfect match to reference images, product appearance must be identical to reference images`
       } else {
-        return `${characterInstruction}${previousFrameInstruction}${basePrompt}, professional product photography, high quality`
+        return `${characterInstruction}${previousFrameInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality`
       }
     }
 
