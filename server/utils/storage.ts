@@ -17,7 +17,7 @@ async function ensureDirectories() {
   await fs.mkdir(JOBS_DIR, { recursive: true })
 }
 
-export async function saveVideo(fileBuffer: Buffer, filename?: string): Promise<string> {
+export async function saveVideo(fileBuffer: Buffer, filename?: string, folder: string = 'ai_videos'): Promise<string> {
   await ensureDirectories()
   const videoId = filename || `${nanoid()}.mp4`
   const filePath = path.join(VIDEOS_DIR, videoId)
@@ -26,10 +26,10 @@ export async function saveVideo(fileBuffer: Buffer, filename?: string): Promise<
   await fs.writeFile(filePath, fileBuffer)
   console.log('[Storage] Video saved locally:', filePath)
   
-  // Upload to S3 and return the S3 URL
+  // Upload to S3 with proper folder organization
   try {
-    const s3Url = await uploadFileToS3(filePath)
-    console.log('[Storage] Video uploaded to S3:', s3Url)
+    const s3Url = await uploadFileToS3(filePath, folder)
+    console.log(`[Storage] Video uploaded to S3 (${folder}):`, s3Url)
     return s3Url
   } catch (error: any) {
     console.error('[Storage] Failed to upload video to S3:', error.message)
