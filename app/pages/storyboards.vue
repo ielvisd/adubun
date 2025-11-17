@@ -415,6 +415,12 @@ const saveStoryboardState = () => {
   if (!process.client || !selectedStoryboard.value) return
   
   try {
+    // Convert frameGenerationStatus Map to plain object for storage
+    const frameStatusObj: Record<string, any> = {}
+    frameGenerationStatus.value.forEach((value, key) => {
+      frameStatusObj[String(key)] = value
+    })
+    
     const stateToSave = {
       segments: selectedStoryboard.value.segments.map(seg => ({
         description: seg.description,
@@ -431,6 +437,7 @@ const saveStoryboardState = () => {
         aspectRatio: selectedStoryboard.value.meta.aspectRatio,
         model: selectedStoryboard.value.meta.model,
       },
+      frameGenerationStatus: frameStatusObj,
       timestamp: Date.now(),
     }
     
@@ -489,7 +496,7 @@ const videoModelOptions = [
 ]
 
 const currentModel = computed(() => {
-  return selectedStoryboard.value?.meta?.model || 'google/veo-3-fast'
+  return selectedStoryboard.value?.meta?.model || 'google/veo-3.1'
 })
 
 // Demo/Production mode
@@ -634,9 +641,9 @@ const generateStoryboards = async (style?: string, mode?: 'demo' | 'production')
         selectedStoryboard.value.meta = {}
       }
       selectedStoryboard.value.meta.mode = mode || 'production'
-      // Set model if not already set, default to veo-3-fast
+      // Set model if not already set, default to veo-3.1
       if (!selectedStoryboard.value.meta.model) {
-        selectedStoryboard.value.meta.model = 'google/veo-3-fast'
+        selectedStoryboard.value.meta.model = 'google/veo-3.1'
       }
       console.log('[Storyboards] Mode set to:', selectedStoryboard.value.meta.mode)
       console.log('[Storyboards] Model set to:', selectedStoryboard.value.meta.model)
@@ -667,6 +674,15 @@ const generateStoryboards = async (style?: string, mode?: 'demo' | 'production')
         if (savedState.meta?.model && selectedStoryboard.value.meta) {
           selectedStoryboard.value.meta.model = savedState.meta.model
           console.log('[Storyboards] Restored model from localStorage:', savedState.meta.model)
+        }
+        // Restore frameGenerationStatus if saved
+        if (savedState.frameGenerationStatus) {
+          const restoredMap = new Map<number, any>()
+          Object.entries(savedState.frameGenerationStatus).forEach(([key, value]) => {
+            restoredMap.set(Number(key), value)
+          })
+          frameGenerationStatus.value = restoredMap
+          console.log('[Storyboards] Restored frameGenerationStatus from localStorage:', restoredMap.size, 'entries')
         }
         console.log('[Storyboards] Restored storyboard state from localStorage')
       }
@@ -732,6 +748,12 @@ const generateFrames = async () => {
     return
   }
 
+  // Prevent multiple simultaneous calls
+  if (generatingFrames.value) {
+    console.warn('[Storyboards] Frame generation already in progress, ignoring duplicate call')
+    return
+  }
+
   generatingFrames.value = true
   frameGenerationError.value = null
 
@@ -740,6 +762,11 @@ const generateFrames = async () => {
     console.log('[Storyboards] Product images from promptData:', promptData.value.productImages)
     console.log('[Storyboards] Product images count:', promptData.value.productImages?.length || 0)
     console.log('[Storyboards] Product images array:', Array.isArray(promptData.value.productImages) ? promptData.value.productImages : 'NOT AN ARRAY')
+    
+    // Clear existing frame generation status to ensure fresh regeneration
+    // This ensures that if frames are regenerated, the comparison URLs are also refreshed
+    frameGenerationStatus.value.clear()
+    console.log('[Storyboards] Cleared existing frame generation status for fresh regeneration')
     
     // Add timeout handling (5 minutes max)
     const timeoutPromise = new Promise((_, reject) => {
@@ -962,6 +989,10 @@ const generateFrames = async () => {
 
     const frameCount = frames.length
     const mode = selectedStoryboard.value.meta.mode || 'production'
+    
+    // Save storyboard state including frameGenerationStatus
+    saveStoryboardState()
+    
     toast.add({
       title: 'Frames Generated',
       description: mode === 'demo' 
@@ -1038,8 +1069,13 @@ const proceedToGeneration = () => {
     return
   }
 
-  // Save selected storyboard for generation
+  // Clear old generation data before navigating to start fresh
   if (process.client) {
+    sessionStorage.removeItem('generateJobState')
+    sessionStorage.removeItem('editorClips')
+    sessionStorage.removeItem('editorComposedVideo')
+    
+    // Save selected storyboard for generation
     sessionStorage.setItem('generateStoryboard', JSON.stringify(selectedStoryboard.value))
     sessionStorage.setItem('promptData', JSON.stringify(promptData.value))
   }
@@ -1093,7 +1129,7 @@ const handleEditComposedVideo = async () => {
             options: {
               transition: 'fade',
               musicVolume: 70,
-              aspectRatio: selectedStoryboard.value.meta.aspectRatio || '9:16',
+              aspectRatio: selectedStoryboard.value.meta.aspectRatio || '16:9',
             },
           },
         })

@@ -33,7 +33,7 @@ export const VIDEO_MODELS: VideoModel[] = [
   },
 ]
 
-export const DEFAULT_MODEL_ID = 'google/veo-3-fast'
+export const DEFAULT_MODEL_ID = 'google/veo-3.1'
 
 export function getModelById(id: string): VideoModel | undefined {
   return VIDEO_MODELS.find(model => model.id === id)

@@ -112,7 +112,7 @@ const schema = z.object({
 const getInitialFormState = () => ({
   prompt: '',
   productImages: [] as (File | string)[],
-  aspectRatio: '9:16' as '16:9' | '9:16' | '1:1', // Default to vertical for ads
+  aspectRatio: '16:9' as '16:9' | '9:16' | '1:1', // Default to 16:9
   model: DEFAULT_MODEL_ID,
   generateVoiceover: false, // Off by default
 })

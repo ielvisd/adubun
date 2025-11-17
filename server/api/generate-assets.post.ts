@@ -4,6 +4,8 @@ import { trackCost } from '../utils/cost-tracker'
 import { downloadFile, saveAsset, readFile, cleanupTempFiles } from '../utils/storage'
 import { uploadFileToReplicate } from '../utils/replicate-upload'
 import { extractFramesFromVideo } from '../utils/ffmpeg'
+import { sanitizeVideoPrompt } from '../utils/prompt-sanitizer'
+import { checkFrameForChildren } from '../utils/frame-content-checker'
 import { nanoid } from 'nanoid'
 import type { GenerationJob, Asset } from '../../app/types/generation'
 import { promises as fs } from 'fs'
@@ -285,8 +287,25 @@ export default defineEventHandler(async (event) => {
         const firstFrameImage = segmentFrames?.first || segment.firstFrameImage
         const lastFrameImage = segmentFrames?.last || segment.lastFrameImage
 
-        // Get model from storyboard meta, default to google/veo-3-fast
-        const model = storyboard.meta.model || 'google/veo-3-fast'
+        // Check frame images for children before video generation
+        const frameImagesToCheck: string[] = []
+        if (firstFrameImage) frameImagesToCheck.push(firstFrameImage)
+        if (lastFrameImage) frameImagesToCheck.push(lastFrameImage)
+        
+        let childrenDetected = false
+        if (frameImagesToCheck.length > 0) {
+          console.log(`[Segment ${idx}] Checking ${frameImagesToCheck.length} frame image(s) for children...`)
+          for (const imageUrl of frameImagesToCheck) {
+            const containsChildren = await checkFrameForChildren(imageUrl)
+            if (containsChildren) {
+              childrenDetected = true
+              console.warn(`[Segment ${idx}] Children detected in frame image: ${imageUrl}`)
+            }
+          }
+        }
+
+        // Get model from storyboard meta, default to google/veo-3.1
+        const model = storyboard.meta.model || 'google/veo-3.1'
 
         // Video Generation (Replicate MCP) - use model from storyboard
         // Get the selected prompt (primary or alternative)
@@ -298,8 +317,11 @@ export default defineEventHandler(async (event) => {
           }
         }
         
-        // Add hold-final-frame instruction for smooth transitions
-        const videoPrompt = `${selectedPrompt} The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene.`
+        // Sanitize prompt to avoid content moderation flags
+        const sanitizedPrompt = sanitizeVideoPrompt(selectedPrompt)
+        
+        // Add hold-final-frame instruction for smooth transitions and product name accuracy
+        const videoPrompt = `${sanitizedPrompt} The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene. CRITICAL: Any product name, brand name, or text displayed in the video must be spelled correctly and match exactly as mentioned in the prompt. Ensure all text, labels, and product names are accurate and legible.`
         
         const videoParams: any = {
           model,
@@ -321,12 +343,25 @@ export default defineEventHandler(async (event) => {
             console.log(`[Segment ${idx}] Using last frame image: ${lastFrameImage}`)
           }
           
-          // Priority: segment.negativePrompt > storyboard.meta.negativePrompt
+          // Build negative prompt - add children-related terms if detected in frames
+          let negativePrompt = ''
+          if (childrenDetected) {
+            negativePrompt = 'no children, no kids, no minors, no toddlers, only adults'
+            console.log(`[Segment ${idx}] Adding children-related negative prompt due to frame content detection`)
+          }
+          
+          // Priority: segment.negativePrompt > storyboard.meta.negativePrompt > auto-generated
           if ((segment as any).negativePrompt) {
-            videoParams.negative_prompt = (segment as any).negativePrompt
+            videoParams.negative_prompt = childrenDetected 
+              ? `${(segment as any).negativePrompt}, ${negativePrompt}`
+              : (segment as any).negativePrompt
             console.log(`[Segment ${idx}] Using segment-specific negative prompt`)
           } else if (storyboard.meta.negativePrompt) {
-            videoParams.negative_prompt = storyboard.meta.negativePrompt
+            videoParams.negative_prompt = childrenDetected
+              ? `${storyboard.meta.negativePrompt}, ${negativePrompt}`
+              : storyboard.meta.negativePrompt
+          } else if (childrenDetected) {
+            videoParams.negative_prompt = negativePrompt
           }
           
           // Priority: segment.resolution > storyboard.meta.resolution
@@ -499,8 +534,11 @@ export default defineEventHandler(async (event) => {
           console.warn(`[Segment ${idx}] E005 error detected: ${currentPredictionStatus.error}`)
           console.log(`[Segment ${idx}] Retrying with modified prompt to add professional context`)
           
-          // Modify prompt to add professional product showcase context
-          const modifiedPrompt = `${videoPrompt}, professional product showcase, safe for all audiences, appropriate content`
+          // Sanitize the videoPrompt again before retry (in case it wasn't sanitized initially)
+          const sanitizedVideoPrompt = sanitizeVideoPrompt(videoPrompt)
+          
+          // Modify prompt to add professional product showcase context and product name accuracy
+          const modifiedPrompt = `${sanitizedVideoPrompt}, professional product showcase, safe for all audiences, appropriate content. CRITICAL: Any product name, brand name, or text displayed in the video must be spelled correctly and match exactly as mentioned in the prompt. Ensure all text, labels, and product names are accurate and legible.`
           currentVideoParams = {
             ...videoParams,
             prompt: modifiedPrompt,

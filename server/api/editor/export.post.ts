@@ -149,7 +149,7 @@ export default defineEventHandler(async (event) => {
         url: finalPath,
         duration,
         resolution: '1920x1080',
-        aspectRatio: '9:16',
+        aspectRatio: '16:9',
         generationCost: 0,
         createdAt: Date.now(),
         storyboardId: '',

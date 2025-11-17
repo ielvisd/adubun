@@ -231,50 +231,90 @@ export default defineEventHandler(async (event) => {
                 
                 try {
                   console.log(`[Generate Frames] Starting seedream-4 enhancement for hook first frame...`)
-                const seedreamResult = await callReplicateMCP('generate_image', {
-                  model: 'bytedance/seedream-4',
-                  prompt: seedreamPrompt,
-                  image_input: [nanoImageUrl],
-                  size: 'custom',
-                  width: dimensions.width,
-                  height: dimensions.height,
-                  aspect_ratio,
-                  enhance_prompt: true,
-                })
+                  console.log(`[Generate Frames] Seedream input - nanoImageUrl: ${nanoImageUrl}, dimensions: ${dimensions.width}x${dimensions.height}, aspectRatio: ${aspectRatio}`)
+                  
+                  const seedreamResult = await callReplicateMCP('generate_image', {
+                    model: 'bytedance/seedream-4',
+                    prompt: seedreamPrompt,
+                    image_input: [nanoImageUrl],
+                    size: 'custom',
+                    width: dimensions.width,
+                    height: dimensions.height,
+                    aspect_ratio: aspectRatio,
+                    enhance_prompt: true,
+                  })
+
+                  console.log(`[Generate Frames] Seedream-4 generate_image response:`, JSON.stringify({
+                    hasPredictionId: !!seedreamResult.predictionId,
+                    hasId: !!seedreamResult.id,
+                    predictionId: seedreamResult.predictionId || seedreamResult.id,
+                    status: seedreamResult.status,
+                    allKeys: Object.keys(seedreamResult || {}),
+                  }, null, 2))
 
                   const seedreamPredictionId = seedreamResult.predictionId || seedreamResult.id
-                  if (seedreamPredictionId) {
-                    // Poll for Seedream-4 result with timeout (2 minutes = 60 attempts * 2 seconds)
-                    let seedreamStatus = 'starting'
-                    let seedreamAttempts = 0
-                    const maxAttempts = 60
-                    
-                    while (seedreamStatus !== 'succeeded' && seedreamStatus !== 'failed' && seedreamAttempts < maxAttempts) {
-                      await new Promise(resolve => setTimeout(resolve, 2000))
-                      const statusResult = await callReplicateMCP('check_prediction_status', { predictionId: seedreamPredictionId })
-                      seedreamStatus = statusResult.status || 'starting'
-                      seedreamAttempts++
+                  if (!seedreamPredictionId) {
+                    console.error(`[Generate Frames] Seedream-4 generate_image did not return a predictionId. Full response:`, JSON.stringify(seedreamResult, null, 2))
+                    throw new Error('Seedream-4 generate_image did not return a predictionId')
+                  }
 
-                      if (seedreamStatus === 'succeeded') {
-                        const seedreamResultData = await callReplicateMCP('get_prediction_result', { predictionId: seedreamPredictionId })
-                        const seedreamResultUrl = seedreamResultData.videoUrl
-                        if (seedreamResultUrl) {
-                          seedreamImageUrl = seedreamResultUrl
-                          finalImageUrl = seedreamImageUrl
-                          modelSource = 'seedream-4'
-                          console.log(`[Generate Frames] Seedream-4 succeeded for hook first frame: ${seedreamImageUrl}`)
-                        }
-                      } else if (seedreamStatus === 'failed') {
-                        console.warn(`[Generate Frames] Seedream-4 failed for hook first frame, using nano-banana fallback`)
+                  console.log(`[Generate Frames] Seedream-4 prediction ID: ${seedreamPredictionId}, starting polling...`)
+                  
+                  // Poll for Seedream-4 result with timeout (3 minutes = 90 attempts * 2 seconds)
+                  let seedreamStatus = 'starting'
+                  let seedreamAttempts = 0
+                  const maxAttempts = 90 // Increased from 60 to 90 (3 minutes)
+                  
+                  while (seedreamStatus !== 'succeeded' && seedreamStatus !== 'failed' && seedreamAttempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 2000))
+                    const statusResult = await callReplicateMCP('check_prediction_status', { predictionId: seedreamPredictionId })
+                    seedreamStatus = statusResult.status || 'starting'
+                    seedreamAttempts++
+
+                    if (seedreamAttempts % 10 === 0) {
+                      console.log(`[Generate Frames] Seedream-4 polling attempt ${seedreamAttempts}/${maxAttempts}, status: ${seedreamStatus}`)
+                    }
+
+                    if (seedreamStatus === 'succeeded') {
+                      console.log(`[Generate Frames] Seedream-4 prediction succeeded after ${seedreamAttempts} attempts, fetching result...`)
+                      const seedreamResultData = await callReplicateMCP('get_prediction_result', { predictionId: seedreamPredictionId })
+                      
+                      console.log(`[Generate Frames] Seedream-4 get_prediction_result response keys:`, Object.keys(seedreamResultData || {}))
+                      console.log(`[Generate Frames] Seedream-4 get_prediction_result response:`, JSON.stringify({
+                        hasVideoUrl: !!seedreamResultData.videoUrl,
+                        videoUrl: seedreamResultData.videoUrl,
+                        allKeys: Object.keys(seedreamResultData || {}),
+                      }, null, 2))
+                      
+                      const seedreamResultUrl = seedreamResultData.videoUrl || seedreamResultData.output || seedreamResultData.url
+                      if (seedreamResultUrl) {
+                        seedreamImageUrl = seedreamResultUrl
+                        finalImageUrl = seedreamImageUrl
+                        modelSource = 'seedream-4'
+                        console.log(`[Generate Frames] Seedream-4 succeeded for hook first frame: ${seedreamImageUrl}`)
+                      } else {
+                        console.error(`[Generate Frames] Seedream-4 result does not contain a valid URL. Full response:`, JSON.stringify(seedreamResultData, null, 2))
+                        throw new Error('Seedream-4 result does not contain a valid URL')
                       }
+                      break
+                    } else if (seedreamStatus === 'failed') {
+                      const errorMessage = statusResult.error || 'Unknown error'
+                      console.warn(`[Generate Frames] Seedream-4 failed for hook first frame after ${seedreamAttempts} attempts. Error: ${errorMessage}`)
+                      break
                     }
-                    
-                    if (seedreamAttempts >= maxAttempts && seedreamStatus !== 'succeeded') {
-                      console.warn(`[Generate Frames] Seedream-4 timed out for hook first frame after ${maxAttempts} attempts, using nano-banana fallback`)
-                    }
+                  }
+                  
+                  if (seedreamAttempts >= maxAttempts && seedreamStatus !== 'succeeded') {
+                    console.warn(`[Generate Frames] Seedream-4 timed out for hook first frame after ${maxAttempts} attempts (${maxAttempts * 2} seconds), final status: ${seedreamStatus}, using nano-banana fallback`)
+                  }
+                  
+                  if (!seedreamImageUrl) {
+                    console.warn(`[Generate Frames] Seedream-4 enhancement did not produce an image URL, using nano-banana fallback`)
                   }
                 } catch (seedreamError: any) {
                   console.error(`[Generate Frames] Seedream-4 error for hook first frame:`, seedreamError)
+                  console.error(`[Generate Frames] Seedream-4 error stack:`, seedreamError.stack)
+                  console.error(`[Generate Frames] Seedream-4 error message:`, seedreamError.message)
                   console.log(`[Generate Frames] Using nano-banana fallback for hook first frame`)
                 }
                 
@@ -351,49 +391,90 @@ export default defineEventHandler(async (event) => {
                 
                 try {
                   console.log(`[Generate Frames] Starting seedream-4 enhancement for hook last frame...`)
-                const seedreamResult = await callReplicateMCP('generate_image', {
-                  model: 'bytedance/seedream-4',
-                  prompt: seedreamPrompt,
-                  image_input: [nanoImageUrl],
-                  size: 'custom',
-                  width: dimensions.width,
-                  height: dimensions.height,
-                  aspect_ratio,
-                  enhance_prompt: true,
-                })
+                  console.log(`[Generate Frames] Seedream input - nanoImageUrl: ${nanoImageUrl}, dimensions: ${dimensions.width}x${dimensions.height}, aspectRatio: ${aspectRatio}`)
+                  
+                  const seedreamResult = await callReplicateMCP('generate_image', {
+                    model: 'bytedance/seedream-4',
+                    prompt: seedreamPrompt,
+                    image_input: [nanoImageUrl],
+                    size: 'custom',
+                    width: dimensions.width,
+                    height: dimensions.height,
+                    aspect_ratio: aspectRatio,
+                    enhance_prompt: true,
+                  })
+
+                  console.log(`[Generate Frames] Seedream-4 generate_image response:`, JSON.stringify({
+                    hasPredictionId: !!seedreamResult.predictionId,
+                    hasId: !!seedreamResult.id,
+                    predictionId: seedreamResult.predictionId || seedreamResult.id,
+                    status: seedreamResult.status,
+                    allKeys: Object.keys(seedreamResult || {}),
+                  }, null, 2))
 
                   const seedreamPredictionId = seedreamResult.predictionId || seedreamResult.id
-                  if (seedreamPredictionId) {
-                    let seedreamStatus = 'starting'
-                    let seedreamAttempts = 0
-                    const maxAttempts = 60
-                    
-                    while (seedreamStatus !== 'succeeded' && seedreamStatus !== 'failed' && seedreamAttempts < maxAttempts) {
-                      await new Promise(resolve => setTimeout(resolve, 2000))
-                      const statusResult = await callReplicateMCP('check_prediction_status', { predictionId: seedreamPredictionId })
-                      seedreamStatus = statusResult.status || 'starting'
-                      seedreamAttempts++
+                  if (!seedreamPredictionId) {
+                    console.error(`[Generate Frames] Seedream-4 generate_image did not return a predictionId. Full response:`, JSON.stringify(seedreamResult, null, 2))
+                    throw new Error('Seedream-4 generate_image did not return a predictionId')
+                  }
 
-                      if (seedreamStatus === 'succeeded') {
-                        const seedreamResultData = await callReplicateMCP('get_prediction_result', { predictionId: seedreamPredictionId })
-                        const seedreamResultUrl = seedreamResultData.videoUrl
-                        if (seedreamResultUrl) {
-                          seedreamImageUrl = seedreamResultUrl
-                          finalImageUrl = seedreamImageUrl
-                          modelSource = 'seedream-4'
-                          console.log(`[Generate Frames] Seedream-4 succeeded for hook last frame: ${seedreamImageUrl}`)
-                        }
-                      } else if (seedreamStatus === 'failed') {
-                        console.warn(`[Generate Frames] Seedream-4 failed for hook last frame, using nano-banana fallback`)
+                  console.log(`[Generate Frames] Seedream-4 prediction ID: ${seedreamPredictionId}, starting polling...`)
+                  
+                  // Poll for Seedream-4 result with timeout (3 minutes = 90 attempts * 2 seconds)
+                  let seedreamStatus = 'starting'
+                  let seedreamAttempts = 0
+                  const maxAttempts = 90 // Increased from 60 to 90 (3 minutes)
+                  
+                  while (seedreamStatus !== 'succeeded' && seedreamStatus !== 'failed' && seedreamAttempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 2000))
+                    const statusResult = await callReplicateMCP('check_prediction_status', { predictionId: seedreamPredictionId })
+                    seedreamStatus = statusResult.status || 'starting'
+                    seedreamAttempts++
+
+                    if (seedreamAttempts % 10 === 0) {
+                      console.log(`[Generate Frames] Seedream-4 polling attempt ${seedreamAttempts}/${maxAttempts}, status: ${seedreamStatus}`)
+                    }
+
+                    if (seedreamStatus === 'succeeded') {
+                      console.log(`[Generate Frames] Seedream-4 prediction succeeded after ${seedreamAttempts} attempts, fetching result...`)
+                      const seedreamResultData = await callReplicateMCP('get_prediction_result', { predictionId: seedreamPredictionId })
+                      
+                      console.log(`[Generate Frames] Seedream-4 get_prediction_result response keys:`, Object.keys(seedreamResultData || {}))
+                      console.log(`[Generate Frames] Seedream-4 get_prediction_result response:`, JSON.stringify({
+                        hasVideoUrl: !!seedreamResultData.videoUrl,
+                        videoUrl: seedreamResultData.videoUrl,
+                        allKeys: Object.keys(seedreamResultData || {}),
+                      }, null, 2))
+                      
+                      const seedreamResultUrl = seedreamResultData.videoUrl || seedreamResultData.output || seedreamResultData.url
+                      if (seedreamResultUrl) {
+                        seedreamImageUrl = seedreamResultUrl
+                        finalImageUrl = seedreamImageUrl
+                        modelSource = 'seedream-4'
+                        console.log(`[Generate Frames] Seedream-4 succeeded for hook last frame: ${seedreamImageUrl}`)
+                      } else {
+                        console.error(`[Generate Frames] Seedream-4 result does not contain a valid URL. Full response:`, JSON.stringify(seedreamResultData, null, 2))
+                        throw new Error('Seedream-4 result does not contain a valid URL')
                       }
+                      break
+                    } else if (seedreamStatus === 'failed') {
+                      const errorMessage = statusResult.error || 'Unknown error'
+                      console.warn(`[Generate Frames] Seedream-4 failed for hook last frame after ${seedreamAttempts} attempts. Error: ${errorMessage}`)
+                      break
                     }
-                    
-                    if (seedreamAttempts >= maxAttempts && seedreamStatus !== 'succeeded') {
-                      console.warn(`[Generate Frames] Seedream-4 timed out for hook last frame after ${maxAttempts} attempts, using nano-banana fallback`)
-                    }
+                  }
+                  
+                  if (seedreamAttempts >= maxAttempts && seedreamStatus !== 'succeeded') {
+                    console.warn(`[Generate Frames] Seedream-4 timed out for hook last frame after ${maxAttempts} attempts (${maxAttempts * 2} seconds), final status: ${seedreamStatus}, using nano-banana fallback`)
+                  }
+                  
+                  if (!seedreamImageUrl) {
+                    console.warn(`[Generate Frames] Seedream-4 enhancement did not produce an image URL, using nano-banana fallback`)
                   }
                 } catch (seedreamError: any) {
                   console.error(`[Generate Frames] Seedream-4 error for hook last frame:`, seedreamError)
+                  console.error(`[Generate Frames] Seedream-4 error stack:`, seedreamError.stack)
+                  console.error(`[Generate Frames] Seedream-4 error message:`, seedreamError.message)
                   console.log(`[Generate Frames] Using nano-banana fallback for hook last frame`)
                 }
                 
@@ -485,49 +566,90 @@ export default defineEventHandler(async (event) => {
                 
                 try {
                   console.log(`[Generate Frames] Starting seedream-4 enhancement for body1 last frame...`)
-                const seedreamResult = await callReplicateMCP('generate_image', {
-                  model: 'bytedance/seedream-4',
-                  prompt: seedreamPrompt,
-                  image_input: [nanoImageUrl],
-                  size: 'custom',
-                  width: dimensions.width,
-                  height: dimensions.height,
-                  aspect_ratio,
-                  enhance_prompt: true,
-                })
+                  console.log(`[Generate Frames] Seedream input - nanoImageUrl: ${nanoImageUrl}, dimensions: ${dimensions.width}x${dimensions.height}, aspectRatio: ${aspectRatio}`)
+                  
+                  const seedreamResult = await callReplicateMCP('generate_image', {
+                    model: 'bytedance/seedream-4',
+                    prompt: seedreamPrompt,
+                    image_input: [nanoImageUrl],
+                    size: 'custom',
+                    width: dimensions.width,
+                    height: dimensions.height,
+                    aspect_ratio: aspectRatio,
+                    enhance_prompt: true,
+                  })
+
+                  console.log(`[Generate Frames] Seedream-4 generate_image response:`, JSON.stringify({
+                    hasPredictionId: !!seedreamResult.predictionId,
+                    hasId: !!seedreamResult.id,
+                    predictionId: seedreamResult.predictionId || seedreamResult.id,
+                    status: seedreamResult.status,
+                    allKeys: Object.keys(seedreamResult || {}),
+                  }, null, 2))
 
                   const seedreamPredictionId = seedreamResult.predictionId || seedreamResult.id
-                  if (seedreamPredictionId) {
-                    let seedreamStatus = 'starting'
-                    let seedreamAttempts = 0
-                    const maxAttempts = 60
-                    
-                    while (seedreamStatus !== 'succeeded' && seedreamStatus !== 'failed' && seedreamAttempts < maxAttempts) {
-                      await new Promise(resolve => setTimeout(resolve, 2000))
-                      const statusResult = await callReplicateMCP('check_prediction_status', { predictionId: seedreamPredictionId })
-                      seedreamStatus = statusResult.status || 'starting'
-                      seedreamAttempts++
+                  if (!seedreamPredictionId) {
+                    console.error(`[Generate Frames] Seedream-4 generate_image did not return a predictionId. Full response:`, JSON.stringify(seedreamResult, null, 2))
+                    throw new Error('Seedream-4 generate_image did not return a predictionId')
+                  }
 
-                      if (seedreamStatus === 'succeeded') {
-                        const seedreamResultData = await callReplicateMCP('get_prediction_result', { predictionId: seedreamPredictionId })
-                        const seedreamResultUrl = seedreamResultData.videoUrl
-                        if (seedreamResultUrl) {
-                          seedreamImageUrl = seedreamResultUrl
-                          finalImageUrl = seedreamImageUrl
-                          modelSource = 'seedream-4'
-                          console.log(`[Generate Frames] Seedream-4 succeeded for body1 last frame: ${seedreamImageUrl}`)
-                        }
-                      } else if (seedreamStatus === 'failed') {
-                        console.warn(`[Generate Frames] Seedream-4 failed for body1 last frame, using nano-banana fallback`)
+                  console.log(`[Generate Frames] Seedream-4 prediction ID: ${seedreamPredictionId}, starting polling...`)
+                  
+                  // Poll for Seedream-4 result with timeout (3 minutes = 90 attempts * 2 seconds)
+                  let seedreamStatus = 'starting'
+                  let seedreamAttempts = 0
+                  const maxAttempts = 90 // Increased from 60 to 90 (3 minutes)
+                  
+                  while (seedreamStatus !== 'succeeded' && seedreamStatus !== 'failed' && seedreamAttempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 2000))
+                    const statusResult = await callReplicateMCP('check_prediction_status', { predictionId: seedreamPredictionId })
+                    seedreamStatus = statusResult.status || 'starting'
+                    seedreamAttempts++
+
+                    if (seedreamAttempts % 10 === 0) {
+                      console.log(`[Generate Frames] Seedream-4 polling attempt ${seedreamAttempts}/${maxAttempts}, status: ${seedreamStatus}`)
+                    }
+
+                    if (seedreamStatus === 'succeeded') {
+                      console.log(`[Generate Frames] Seedream-4 prediction succeeded after ${seedreamAttempts} attempts, fetching result...`)
+                      const seedreamResultData = await callReplicateMCP('get_prediction_result', { predictionId: seedreamPredictionId })
+                      
+                      console.log(`[Generate Frames] Seedream-4 get_prediction_result response keys:`, Object.keys(seedreamResultData || {}))
+                      console.log(`[Generate Frames] Seedream-4 get_prediction_result response:`, JSON.stringify({
+                        hasVideoUrl: !!seedreamResultData.videoUrl,
+                        videoUrl: seedreamResultData.videoUrl,
+                        allKeys: Object.keys(seedreamResultData || {}),
+                      }, null, 2))
+                      
+                      const seedreamResultUrl = seedreamResultData.videoUrl || seedreamResultData.output || seedreamResultData.url
+                      if (seedreamResultUrl) {
+                        seedreamImageUrl = seedreamResultUrl
+                        finalImageUrl = seedreamImageUrl
+                        modelSource = 'seedream-4'
+                        console.log(`[Generate Frames] Seedream-4 succeeded for body1 last frame: ${seedreamImageUrl}`)
+                      } else {
+                        console.error(`[Generate Frames] Seedream-4 result does not contain a valid URL. Full response:`, JSON.stringify(seedreamResultData, null, 2))
+                        throw new Error('Seedream-4 result does not contain a valid URL')
                       }
+                      break
+                    } else if (seedreamStatus === 'failed') {
+                      const errorMessage = statusResult.error || 'Unknown error'
+                      console.warn(`[Generate Frames] Seedream-4 failed for body1 last frame after ${seedreamAttempts} attempts. Error: ${errorMessage}`)
+                      break
                     }
-                    
-                    if (seedreamAttempts >= maxAttempts && seedreamStatus !== 'succeeded') {
-                      console.warn(`[Generate Frames] Seedream-4 timed out for body1 last frame after ${maxAttempts} attempts, using nano-banana fallback`)
-                    }
+                  }
+                  
+                  if (seedreamAttempts >= maxAttempts && seedreamStatus !== 'succeeded') {
+                    console.warn(`[Generate Frames] Seedream-4 timed out for body1 last frame after ${maxAttempts} attempts (${maxAttempts * 2} seconds), final status: ${seedreamStatus}, using nano-banana fallback`)
+                  }
+                  
+                  if (!seedreamImageUrl) {
+                    console.warn(`[Generate Frames] Seedream-4 enhancement did not produce an image URL, using nano-banana fallback`)
                   }
                 } catch (seedreamError: any) {
                   console.error(`[Generate Frames] Seedream-4 error for body1 last frame:`, seedreamError)
+                  console.error(`[Generate Frames] Seedream-4 error stack:`, seedreamError.stack)
+                  console.error(`[Generate Frames] Seedream-4 error message:`, seedreamError.message)
                   console.log(`[Generate Frames] Using nano-banana fallback for body1 last frame`)
                 }
                 
@@ -599,49 +721,90 @@ export default defineEventHandler(async (event) => {
                 
                 try {
                   console.log(`[Generate Frames] Starting seedream-4 enhancement for body2 last frame...`)
-                const seedreamResult = await callReplicateMCP('generate_image', {
-                  model: 'bytedance/seedream-4',
-                  prompt: seedreamPrompt,
-                  image_input: [nanoImageUrl],
-                  size: 'custom',
-                  width: dimensions.width,
-                  height: dimensions.height,
-                  aspect_ratio,
-                  enhance_prompt: true,
-                })
+                  console.log(`[Generate Frames] Seedream input - nanoImageUrl: ${nanoImageUrl}, dimensions: ${dimensions.width}x${dimensions.height}, aspectRatio: ${aspectRatio}`)
+                  
+                  const seedreamResult = await callReplicateMCP('generate_image', {
+                    model: 'bytedance/seedream-4',
+                    prompt: seedreamPrompt,
+                    image_input: [nanoImageUrl],
+                    size: 'custom',
+                    width: dimensions.width,
+                    height: dimensions.height,
+                    aspect_ratio: aspectRatio,
+                    enhance_prompt: true,
+                  })
+
+                  console.log(`[Generate Frames] Seedream-4 generate_image response:`, JSON.stringify({
+                    hasPredictionId: !!seedreamResult.predictionId,
+                    hasId: !!seedreamResult.id,
+                    predictionId: seedreamResult.predictionId || seedreamResult.id,
+                    status: seedreamResult.status,
+                    allKeys: Object.keys(seedreamResult || {}),
+                  }, null, 2))
 
                   const seedreamPredictionId = seedreamResult.predictionId || seedreamResult.id
-                  if (seedreamPredictionId) {
-                    let seedreamStatus = 'starting'
-                    let seedreamAttempts = 0
-                    const maxAttempts = 60
-                    
-                    while (seedreamStatus !== 'succeeded' && seedreamStatus !== 'failed' && seedreamAttempts < maxAttempts) {
-                      await new Promise(resolve => setTimeout(resolve, 2000))
-                      const statusResult = await callReplicateMCP('check_prediction_status', { predictionId: seedreamPredictionId })
-                      seedreamStatus = statusResult.status || 'starting'
-                      seedreamAttempts++
+                  if (!seedreamPredictionId) {
+                    console.error(`[Generate Frames] Seedream-4 generate_image did not return a predictionId. Full response:`, JSON.stringify(seedreamResult, null, 2))
+                    throw new Error('Seedream-4 generate_image did not return a predictionId')
+                  }
 
-                      if (seedreamStatus === 'succeeded') {
-                        const seedreamResultData = await callReplicateMCP('get_prediction_result', { predictionId: seedreamPredictionId })
-                        const seedreamResultUrl = seedreamResultData.videoUrl
-                        if (seedreamResultUrl) {
-                          seedreamImageUrl = seedreamResultUrl
-                          finalImageUrl = seedreamImageUrl
-                          modelSource = 'seedream-4'
-                          console.log(`[Generate Frames] Seedream-4 succeeded for body2 last frame: ${seedreamImageUrl}`)
-                        }
-                      } else if (seedreamStatus === 'failed') {
-                        console.warn(`[Generate Frames] Seedream-4 failed for body2 last frame, using nano-banana fallback`)
+                  console.log(`[Generate Frames] Seedream-4 prediction ID: ${seedreamPredictionId}, starting polling...`)
+                  
+                  // Poll for Seedream-4 result with timeout (3 minutes = 90 attempts * 2 seconds)
+                  let seedreamStatus = 'starting'
+                  let seedreamAttempts = 0
+                  const maxAttempts = 90 // Increased from 60 to 90 (3 minutes)
+                  
+                  while (seedreamStatus !== 'succeeded' && seedreamStatus !== 'failed' && seedreamAttempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 2000))
+                    const statusResult = await callReplicateMCP('check_prediction_status', { predictionId: seedreamPredictionId })
+                    seedreamStatus = statusResult.status || 'starting'
+                    seedreamAttempts++
+
+                    if (seedreamAttempts % 10 === 0) {
+                      console.log(`[Generate Frames] Seedream-4 polling attempt ${seedreamAttempts}/${maxAttempts}, status: ${seedreamStatus}`)
+                    }
+
+                    if (seedreamStatus === 'succeeded') {
+                      console.log(`[Generate Frames] Seedream-4 prediction succeeded after ${seedreamAttempts} attempts, fetching result...`)
+                      const seedreamResultData = await callReplicateMCP('get_prediction_result', { predictionId: seedreamPredictionId })
+                      
+                      console.log(`[Generate Frames] Seedream-4 get_prediction_result response keys:`, Object.keys(seedreamResultData || {}))
+                      console.log(`[Generate Frames] Seedream-4 get_prediction_result response:`, JSON.stringify({
+                        hasVideoUrl: !!seedreamResultData.videoUrl,
+                        videoUrl: seedreamResultData.videoUrl,
+                        allKeys: Object.keys(seedreamResultData || {}),
+                      }, null, 2))
+                      
+                      const seedreamResultUrl = seedreamResultData.videoUrl || seedreamResultData.output || seedreamResultData.url
+                      if (seedreamResultUrl) {
+                        seedreamImageUrl = seedreamResultUrl
+                        finalImageUrl = seedreamImageUrl
+                        modelSource = 'seedream-4'
+                        console.log(`[Generate Frames] Seedream-4 succeeded for body2 last frame: ${seedreamImageUrl}`)
+                      } else {
+                        console.error(`[Generate Frames] Seedream-4 result does not contain a valid URL. Full response:`, JSON.stringify(seedreamResultData, null, 2))
+                        throw new Error('Seedream-4 result does not contain a valid URL')
                       }
+                      break
+                    } else if (seedreamStatus === 'failed') {
+                      const errorMessage = statusResult.error || 'Unknown error'
+                      console.warn(`[Generate Frames] Seedream-4 failed for body2 last frame after ${seedreamAttempts} attempts. Error: ${errorMessage}`)
+                      break
                     }
-                    
-                    if (seedreamAttempts >= maxAttempts && seedreamStatus !== 'succeeded') {
-                      console.warn(`[Generate Frames] Seedream-4 timed out for body2 last frame after ${maxAttempts} attempts, using nano-banana fallback`)
-                    }
+                  }
+                  
+                  if (seedreamAttempts >= maxAttempts && seedreamStatus !== 'succeeded') {
+                    console.warn(`[Generate Frames] Seedream-4 timed out for body2 last frame after ${maxAttempts} attempts (${maxAttempts * 2} seconds), final status: ${seedreamStatus}, using nano-banana fallback`)
+                  }
+                  
+                  if (!seedreamImageUrl) {
+                    console.warn(`[Generate Frames] Seedream-4 enhancement did not produce an image URL, using nano-banana fallback`)
                   }
                 } catch (seedreamError: any) {
                   console.error(`[Generate Frames] Seedream-4 error for body2 last frame:`, seedreamError)
+                  console.error(`[Generate Frames] Seedream-4 error stack:`, seedreamError.stack)
+                  console.error(`[Generate Frames] Seedream-4 error message:`, seedreamError.message)
                   console.log(`[Generate Frames] Using nano-banana fallback for body2 last frame`)
                 }
                 
@@ -712,49 +875,90 @@ export default defineEventHandler(async (event) => {
                 
                 try {
                   console.log(`[Generate Frames] Starting seedream-4 enhancement for CTA frame...`)
-                const seedreamResult = await callReplicateMCP('generate_image', {
-                  model: 'bytedance/seedream-4',
-                  prompt: seedreamPrompt,
-                  image_input: [nanoImageUrl],
-                  size: 'custom',
-                  width: dimensions.width,
-                  height: dimensions.height,
-                  aspect_ratio,
-                  enhance_prompt: true,
-                })
+                  console.log(`[Generate Frames] Seedream input - nanoImageUrl: ${nanoImageUrl}, dimensions: ${dimensions.width}x${dimensions.height}, aspectRatio: ${aspectRatio}`)
+                  
+                  const seedreamResult = await callReplicateMCP('generate_image', {
+                    model: 'bytedance/seedream-4',
+                    prompt: seedreamPrompt,
+                    image_input: [nanoImageUrl],
+                    size: 'custom',
+                    width: dimensions.width,
+                    height: dimensions.height,
+                    aspect_ratio: aspectRatio,
+                    enhance_prompt: true,
+                  })
+
+                  console.log(`[Generate Frames] Seedream-4 generate_image response:`, JSON.stringify({
+                    hasPredictionId: !!seedreamResult.predictionId,
+                    hasId: !!seedreamResult.id,
+                    predictionId: seedreamResult.predictionId || seedreamResult.id,
+                    status: seedreamResult.status,
+                    allKeys: Object.keys(seedreamResult || {}),
+                  }, null, 2))
 
                   const seedreamPredictionId = seedreamResult.predictionId || seedreamResult.id
-                  if (seedreamPredictionId) {
-                    let seedreamStatus = 'starting'
-                    let seedreamAttempts = 0
-                    const maxAttempts = 60
-                    
-                    while (seedreamStatus !== 'succeeded' && seedreamStatus !== 'failed' && seedreamAttempts < maxAttempts) {
-                      await new Promise(resolve => setTimeout(resolve, 2000))
-                      const statusResult = await callReplicateMCP('check_prediction_status', { predictionId: seedreamPredictionId })
-                      seedreamStatus = statusResult.status || 'starting'
-                      seedreamAttempts++
+                  if (!seedreamPredictionId) {
+                    console.error(`[Generate Frames] Seedream-4 generate_image did not return a predictionId. Full response:`, JSON.stringify(seedreamResult, null, 2))
+                    throw new Error('Seedream-4 generate_image did not return a predictionId')
+                  }
 
-                      if (seedreamStatus === 'succeeded') {
-                        const seedreamResultData = await callReplicateMCP('get_prediction_result', { predictionId: seedreamPredictionId })
-                        const seedreamResultUrl = seedreamResultData.videoUrl
-                        if (seedreamResultUrl) {
-                          seedreamImageUrl = seedreamResultUrl
-                          finalImageUrl = seedreamImageUrl
-                          modelSource = 'seedream-4'
-                          console.log(`[Generate Frames] Seedream-4 succeeded for CTA frame: ${seedreamImageUrl}`)
-                        }
-                      } else if (seedreamStatus === 'failed') {
-                        console.warn(`[Generate Frames] Seedream-4 failed for CTA frame, using nano-banana fallback`)
+                  console.log(`[Generate Frames] Seedream-4 prediction ID: ${seedreamPredictionId}, starting polling...`)
+                  
+                  // Poll for Seedream-4 result with timeout (3 minutes = 90 attempts * 2 seconds)
+                  let seedreamStatus = 'starting'
+                  let seedreamAttempts = 0
+                  const maxAttempts = 90 // Increased from 60 to 90 (3 minutes)
+                  
+                  while (seedreamStatus !== 'succeeded' && seedreamStatus !== 'failed' && seedreamAttempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 2000))
+                    const statusResult = await callReplicateMCP('check_prediction_status', { predictionId: seedreamPredictionId })
+                    seedreamStatus = statusResult.status || 'starting'
+                    seedreamAttempts++
+
+                    if (seedreamAttempts % 10 === 0) {
+                      console.log(`[Generate Frames] Seedream-4 polling attempt ${seedreamAttempts}/${maxAttempts}, status: ${seedreamStatus}`)
+                    }
+
+                    if (seedreamStatus === 'succeeded') {
+                      console.log(`[Generate Frames] Seedream-4 prediction succeeded after ${seedreamAttempts} attempts, fetching result...`)
+                      const seedreamResultData = await callReplicateMCP('get_prediction_result', { predictionId: seedreamPredictionId })
+                      
+                      console.log(`[Generate Frames] Seedream-4 get_prediction_result response keys:`, Object.keys(seedreamResultData || {}))
+                      console.log(`[Generate Frames] Seedream-4 get_prediction_result response:`, JSON.stringify({
+                        hasVideoUrl: !!seedreamResultData.videoUrl,
+                        videoUrl: seedreamResultData.videoUrl,
+                        allKeys: Object.keys(seedreamResultData || {}),
+                      }, null, 2))
+                      
+                      const seedreamResultUrl = seedreamResultData.videoUrl || seedreamResultData.output || seedreamResultData.url
+                      if (seedreamResultUrl) {
+                        seedreamImageUrl = seedreamResultUrl
+                        finalImageUrl = seedreamImageUrl
+                        modelSource = 'seedream-4'
+                        console.log(`[Generate Frames] Seedream-4 succeeded for CTA frame: ${seedreamImageUrl}`)
+                      } else {
+                        console.error(`[Generate Frames] Seedream-4 result does not contain a valid URL. Full response:`, JSON.stringify(seedreamResultData, null, 2))
+                        throw new Error('Seedream-4 result does not contain a valid URL')
                       }
+                      break
+                    } else if (seedreamStatus === 'failed') {
+                      const errorMessage = statusResult.error || 'Unknown error'
+                      console.warn(`[Generate Frames] Seedream-4 failed for CTA frame after ${seedreamAttempts} attempts. Error: ${errorMessage}`)
+                      break
                     }
-                    
-                    if (seedreamAttempts >= maxAttempts && seedreamStatus !== 'succeeded') {
-                      console.warn(`[Generate Frames] Seedream-4 timed out for CTA frame after ${maxAttempts} attempts, using nano-banana fallback`)
-                    }
+                  }
+                  
+                  if (seedreamAttempts >= maxAttempts && seedreamStatus !== 'succeeded') {
+                    console.warn(`[Generate Frames] Seedream-4 timed out for CTA frame after ${maxAttempts} attempts (${maxAttempts * 2} seconds), final status: ${seedreamStatus}, using nano-banana fallback`)
+                  }
+                  
+                  if (!seedreamImageUrl) {
+                    console.warn(`[Generate Frames] Seedream-4 enhancement did not produce an image URL, using nano-banana fallback`)
                   }
                 } catch (seedreamError: any) {
                   console.error(`[Generate Frames] Seedream-4 error for CTA frame:`, seedreamError)
+                  console.error(`[Generate Frames] Seedream-4 error stack:`, seedreamError.stack)
+                  console.error(`[Generate Frames] Seedream-4 error message:`, seedreamError.message)
                   console.log(`[Generate Frames] Using nano-banana fallback for CTA frame`)
                 }
                 

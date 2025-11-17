@@ -252,7 +252,7 @@ const useExample = (example: typeof examplePrompts[0]) => {
         prompt: example.prompt,
         productImages: [],
         aspectRatio: example.aspectRatio as '16:9' | '9:16' | '1:1',
-        model: 'google/veo-3-fast', // Default model
+        model: 'google/veo-3.1', // Default model
         generateVoiceover: false,
       })
     }, 500)

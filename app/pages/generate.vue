@@ -41,8 +41,10 @@
           v-if="storyboard"
           :storyboard="storyboard"
           :assets="completedAssets"
+          :retry-segment="handleRetrySegment"
           @edit="handleEditSegment"
           @prompt-selected="handlePromptSelected"
+          @regenerate="handleRegenerateEvent"
         />
 
         <AudioScriptView
@@ -66,6 +68,11 @@
           :clips="clips"
           :total-duration="totalDuration"
           @compose="handleCompose"
+        />
+
+        <VideoPreview
+          :clips="clips"
+          :status="status"
         />
 
         <UButton
@@ -97,6 +104,7 @@ import StoryboardView from '~/components/generation/StoryboardView.vue'
 import AudioScriptView from '~/components/generation/AudioScriptView.vue'
 import GenerationProgress from '~/components/ui/GenerationProgress.vue'
 import CompositionTimeline from '~/components/generation/CompositionTimeline.vue'
+import VideoPreview from '~/components/generation/VideoPreview.vue'
 import SegmentEditModal from '~/components/generation/SegmentEditModal.vue'
 import type { Segment, Storyboard } from '~/app/types/generation'
 
@@ -112,7 +120,7 @@ const editModalOpen = ref(false)
 const selectedSegment = ref<Segment | null>(null)
 const selectedSegmentIndex = ref<number | null>(null)
 
-const { segments, overallProgress, status, overallError, jobId, startGeneration: startGen, pollProgress: pollGenProgress, reset } = useGeneration()
+const { segments, overallProgress, status, overallError, jobId, startGeneration: startGen, pollProgress: pollGenProgress, reset, retrySegment: retrySegmentGen } = useGeneration()
 const { currentCost, estimatedTotal, startPolling } = useCostTracking()
 const toast = useToast()
 
@@ -242,6 +250,17 @@ const restoreGenerationState = async () => {
         if (jobState.segments && Array.isArray(jobState.segments)) {
           segments.value = jobState.segments
           console.log(`[Generate] Restored ${segments.value.length} segments`)
+        }
+        
+        // Restore status, progress, and error for immediate UI update
+        if (jobState.status) {
+          status.value = jobState.status
+        }
+        if (jobState.overallProgress !== undefined) {
+          overallProgress.value = jobState.overallProgress
+        }
+        if (jobState.overallError !== undefined) {
+          overallError.value = jobState.overallError
         }
         
         // Resume polling if job is still active
@@ -650,6 +669,34 @@ const handlePromptSelected = async (segmentIdx: number, promptIndex: number) => 
       color: 'error',
     })
   }
+}
+
+const handleRetrySegment = async (segmentId: number) => {
+  if (!retrySegmentGen) {
+    toast.add({
+      title: 'Error',
+      description: 'Regeneration function not available',
+      color: 'error',
+    })
+    return
+  }
+
+  try {
+    await retrySegmentGen(segmentId)
+    // Polling will automatically update the segments
+    if (pollGenProgress) {
+      pollGenProgress()
+    }
+  } catch (error: any) {
+    console.error('[Generate] Error retrying segment:', error)
+    throw error // Re-throw to let StoryboardView handle the error display
+  }
+}
+
+const handleRegenerateEvent = (segmentIdx: number) => {
+  console.log(`[Generate] Regeneration started for segment ${segmentIdx}`)
+  // The actual regeneration is handled by handleRetrySegment
+  // This event can be used for additional UI updates if needed
 }
 
 const handleSegmentSaved = async (updatedSegment: Segment, index: number) => {

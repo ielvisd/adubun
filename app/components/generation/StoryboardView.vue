@@ -46,7 +46,15 @@
             </div>
           </div>
 
-          <div class="flex-shrink-0">
+          <div class="flex-shrink-0 flex gap-2">
+            <UButton
+              icon="i-heroicons-arrow-path"
+              size="sm"
+              variant="ghost"
+              :loading="regeneratingSegments[idx]"
+              :disabled="regeneratingSegments[idx] || !retrySegment"
+              @click="handleRegenerate(idx)"
+            />
             <UButton
               icon="i-heroicons-pencil"
               size="sm"
@@ -128,11 +136,13 @@ const props = defineProps<{
       voiceUrl?: string
     }
   }>
+  retrySegment?: (segmentId: number) => Promise<void>
 }>()
 
 const emit = defineEmits<{
   edit: [index: number]
   'prompt-selected': [segmentIdx: number, promptIndex: number]
+  regenerate: [segmentIdx: number]
 }>()
 
 // Audio player state
@@ -142,6 +152,29 @@ const audioPlaying = ref<Record<number, boolean>>({})
 const audioProgress = ref<Record<number, number>>({})
 const audioCurrentTime = ref<Record<number, number>>({})
 const audioDuration = ref<Record<number, number>>({})
+
+// Regeneration state
+const regeneratingSegments = ref<Record<number, boolean>>({})
+const toast = useToast()
+
+// Watch for segment updates to clear regenerating state
+watch(
+  () => props.assets,
+  (newAssets) => {
+    if (newAssets) {
+      newAssets.forEach((asset) => {
+        // Clear regenerating state when segment is completed
+        if (asset.videoUrl && regeneratingSegments.value[asset.segmentId]) {
+          // Small delay to ensure UI updates
+          setTimeout(() => {
+            regeneratingSegments.value[asset.segmentId] = false
+          }, 500)
+        }
+      })
+    }
+  },
+  { deep: true }
+)
 
 // Get asset for a segment by index
 const getAssetForSegment = (segmentIdx: number) => {
@@ -279,6 +312,39 @@ const getSegmentColor = (type: string) => {
 
 const editSegment = (idx: number) => {
   emit('edit', idx)
+}
+
+const handleRegenerate = async (segmentIdx: number) => {
+  if (!props.retrySegment) {
+    toast.add({
+      title: 'Error',
+      description: 'Regeneration function not available',
+      color: 'error',
+    })
+    return
+  }
+
+  regeneratingSegments.value[segmentIdx] = true
+  emit('regenerate', segmentIdx)
+
+  try {
+    await props.retrySegment(segmentIdx)
+    toast.add({
+      title: 'Success',
+      description: `Segment ${segmentIdx + 1} is being regenerated`,
+      color: 'success',
+    })
+  } catch (error: any) {
+    console.error(`[StoryboardView] Error regenerating segment ${segmentIdx}:`, error)
+    toast.add({
+      title: 'Regeneration Failed',
+      description: error.message || 'Failed to regenerate segment. Please try again.',
+      color: 'error',
+    })
+  } finally {
+    // Keep loading state until the segment is actually updated via polling
+    // The loading state will be cleared when the segment status updates
+  }
 }
 
 // Get the selected prompt for a segment

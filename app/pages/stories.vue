@@ -217,7 +217,7 @@ const generateStories = async () => {
         prompt: promptData.value.prompt,
         productImages: promptData.value.productImages,
         aspectRatio: promptData.value.aspectRatio,
-        model: promptData.value.model || 'google/veo-3-fast',
+        model: promptData.value.model || 'google/veo-3.1',
         generateVoiceover: promptData.value.generateVoiceover || false,
       }
 
@@ -243,7 +243,7 @@ const generateStories = async () => {
           prompt: promptData.value.prompt,
           productImages: [],
           aspectRatio: promptData.value.aspectRatio,
-          model: promptData.value.model || 'google/veo-3-fast',
+          model: promptData.value.model || 'google/veo-3.1',
           generateVoiceover: promptData.value.generateVoiceover || false,
         },
       })
