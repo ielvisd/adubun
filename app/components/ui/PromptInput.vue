@@ -43,6 +43,18 @@
           </template>
         </UFormField>
 
+        <!-- Video Tone/Mood dropdown -->
+        <UFormField label="Video Tone" name="mood" required>
+          <USelect
+            v-model="form.mood"
+            :items="moodOptions"
+            :disabled="props.loading"
+          />
+          <template #description>
+            <span class="text-gray-600 dark:text-gray-400">Choose the emotional tone for your video content</span>
+          </template>
+        </UFormField>
+
         <!-- Video model selection -->
         <UFormField label="Video Generation Model" name="model" required>
           <USelect
@@ -104,6 +116,7 @@ const schema = z.object({
   prompt: z.string().min(10, 'Please provide at least 10 characters describing your ad').max(1000, 'Description must be less than 1000 characters'),
   productImages: z.array(z.union([z.instanceof(File), z.string()])).max(10).optional(),
   aspectRatio: z.enum(['16:9', '9:16', '1:1']),
+  mood: z.string().min(1, 'Please select a video tone'),
   model: z.string().min(1, 'Please select a video generation model'),
   generateVoiceover: z.boolean().optional(),
 })
@@ -113,6 +126,7 @@ const getInitialFormState = () => ({
   prompt: '',
   productImages: [] as (File | string)[],
   aspectRatio: '16:9' as '16:9' | '9:16' | '1:1', // Default to 16:9
+  mood: 'professional', // Default to professional
   model: DEFAULT_MODEL_ID,
   generateVoiceover: false, // Off by default
 })
@@ -143,6 +157,18 @@ const aspectRatioOptions = [
   { label: '16:9 (Landscape)', value: '16:9' },
   { label: '9:16 (Vertical)', value: '9:16' },
   { label: '1:1 (Square)', value: '1:1' },
+]
+
+// Mood/tone options
+const moodOptions = [
+  { label: 'Professional', value: 'professional' },
+  { label: 'Playful', value: 'playful' },
+  { label: 'Inspirational', value: 'inspirational' },
+  { label: 'Dramatic', value: 'dramatic' },
+  { label: 'Calm', value: 'calm' },
+  { label: 'Energetic', value: 'energetic' },
+  { label: 'Luxurious', value: 'luxurious' },
+  { label: 'Friendly', value: 'friendly' },
 ]
 
 const props = defineProps<{

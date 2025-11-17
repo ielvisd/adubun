@@ -33,6 +33,7 @@ export const planStoryboardSchema = z.object({
       duration: z.number(),
       aspectRatio: z.enum(['16:9', '9:16', '1:1']),
       style: z.string(),
+      mood: z.string().optional(), // Video tone/mood
       mode: z.enum(['demo', 'production']).optional(),
       // Veo 3.1 fields
       image: z.string().optional().nullable(),
@@ -81,6 +82,7 @@ export const generateAssetsSchema = z.object({
       duration: z.number(),
       aspectRatio: z.enum(['16:9', '9:16', '1:1']),
       style: z.string(),
+      mood: z.string().optional(), // Video tone/mood
       mode: z.enum(['demo', 'production']).optional(),
       // Veo 3.1 fields
       image: z.string().optional().nullable(),

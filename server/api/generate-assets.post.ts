@@ -323,8 +323,12 @@ export default defineEventHandler(async (event) => {
         // Sanitize prompt to avoid content moderation flags
         const sanitizedPrompt = sanitizeVideoPrompt(selectedPrompt)
         
+        // Extract mood from storyboard meta
+        const mood = storyboard.meta.mood || 'professional'
+        const moodInstruction = mood ? ` ${mood.charAt(0).toUpperCase() + mood.slice(1)} tone and mood.` : ''
+        
         // Add hold-final-frame instruction, face quality, and people count limits
-        const videoPrompt = `${sanitizedPrompt} The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene. CRITICAL: Any product name, brand name, or text displayed in the video must be spelled correctly and match exactly as mentioned in the prompt. Ensure all text, labels, and product names are accurate and legible. FACE QUALITY: Limit scene to 3-4 people maximum. Use close-ups and medium shots to ensure sharp faces, clear facial features, detailed faces, professional portrait quality. Avoid large groups, crowds, or more than 4 people.`
+        const videoPrompt = `${sanitizedPrompt}${moodInstruction} The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene. CRITICAL: Any product name, brand name, or text displayed in the video must be spelled correctly and match exactly as mentioned in the prompt. Ensure all text, labels, and product names are accurate and legible. FACE QUALITY: Limit scene to 3-4 people maximum. Use close-ups and medium shots to ensure sharp faces, clear facial features, detailed faces, professional portrait quality. Avoid large groups, crowds, or more than 4 people.`
         
         const videoParams: any = {
           model,

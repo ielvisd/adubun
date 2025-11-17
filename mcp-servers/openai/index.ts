@@ -298,6 +298,10 @@ class OpenAIMCPServer {
                 description: 'Duration of each clip in seconds (default: 6)',
                 default: 6,
               },
+              mood: {
+                type: 'string',
+                description: 'The emotional tone/mood for the story (e.g., professional, playful, dramatic)',
+              },
             },
             required: ['prompt', 'imageUrls'],
           },
@@ -345,7 +349,8 @@ class OpenAIMCPServer {
               args.imageUrls || [],
               args.duration || 24,
               args.clipCount || 4,
-              args.clipDuration || 6
+              args.clipDuration || 6,
+              args.mood
             )
           
           default:
@@ -1468,7 +1473,8 @@ PRIMARY TASK: Select the frame where any product (can, bottle, package, label, e
     imageUrls: string[],
     duration: number = 24,
     clipCount: number = 4,
-    clipDuration: number = 6
+    clipDuration: number = 6,
+    mood?: string
   ) {
     try {
       if (!process.env.OPENAI_API_KEY) {
@@ -1479,6 +1485,8 @@ PRIMARY TASK: Select the frame where any product (can, bottle, package, label, e
 
 Generate exactly 1 cohesive story option for a ${duration}-second ad. The story will be broken down into 4 scenes: Hook, Body 1, Body 2, and CTA.
 
+${mood ? `IMPORTANT: The story must have a ${mood} tone throughout all scenes. Every element (visuals, pacing, emotion) should reflect this ${mood} mood.` : ''}
+
 The story must:
 - Be a cohesive, complete narrative that flows from Hook → Body 1 → Body 2 → CTA
 - Be emotionally captivating and create a strong emotional connection between the viewer and the product/story
@@ -1487,6 +1495,7 @@ The story must:
 - Include relatable moments that viewers can connect with on a personal level
 - Be related to the initial prompt
 - Be suitable for a ${duration}-second ad format
+- Have a consistent ${mood || 'appropriate'} tone across all scenes
 - Include a full paragraph description that captures the entire story arc and emotional journey
 - Include a single emoji that best represents the story's theme, mood, and content
 
@@ -1517,6 +1526,8 @@ Return ONLY valid JSON with this exact structure:
 }`
 
       const userPrompt = `Create 1 emotionally captivating ad story based on this prompt: "${prompt}"
+
+${mood ? `The story MUST have a ${mood} tone and mood. All scenes should reflect this emotional style.` : ''}
 
 ${imageUrls.length > 0 ? `Reference images are available to inform the visual style and product details.` : ''}
 
