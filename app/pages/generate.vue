@@ -41,8 +41,10 @@
           v-if="storyboard"
           :storyboard="storyboard"
           :assets="completedAssets"
+          :retry-segment="handleRetrySegment"
           @edit="handleEditSegment"
           @prompt-selected="handlePromptSelected"
+          @regenerate="handleRegenerateEvent"
         />
 
         <AudioScriptView
@@ -66,6 +68,11 @@
           :clips="clips"
           :total-duration="totalDuration"
           @compose="handleCompose"
+        />
+
+        <VideoPreview
+          :clips="clips"
+          :status="status"
         />
 
         <UButton
@@ -97,6 +104,7 @@ import StoryboardView from '~/components/generation/StoryboardView.vue'
 import AudioScriptView from '~/components/generation/AudioScriptView.vue'
 import GenerationProgress from '~/components/ui/GenerationProgress.vue'
 import CompositionTimeline from '~/components/generation/CompositionTimeline.vue'
+import VideoPreview from '~/components/generation/VideoPreview.vue'
 import SegmentEditModal from '~/components/generation/SegmentEditModal.vue'
 import type { Segment, Storyboard } from '~/app/types/generation'
 
@@ -112,7 +120,7 @@ const editModalOpen = ref(false)
 const selectedSegment = ref<Segment | null>(null)
 const selectedSegmentIndex = ref<number | null>(null)
 
-const { segments, overallProgress, status, overallError, jobId, startGeneration: startGen, pollProgress: pollGenProgress, reset } = useGeneration()
+const { segments, overallProgress, status, overallError, jobId, startGeneration: startGen, pollProgress: pollGenProgress, reset, retrySegment: retrySegmentGen } = useGeneration()
 const { currentCost, estimatedTotal, startPolling } = useCostTracking()
 const toast = useToast()
 
@@ -242,6 +250,17 @@ const restoreGenerationState = async () => {
         if (jobState.segments && Array.isArray(jobState.segments)) {
           segments.value = jobState.segments
           console.log(`[Generate] Restored ${segments.value.length} segments`)
+        }
+        
+        // Restore status, progress, and error for immediate UI update
+        if (jobState.status) {
+          status.value = jobState.status
+        }
+        if (jobState.overallProgress !== undefined) {
+          overallProgress.value = jobState.overallProgress
+        }
+        if (jobState.overallError !== undefined) {
+          overallError.value = jobState.overallError
         }
         
         // Resume polling if job is still active
@@ -535,7 +554,25 @@ const clips = computed(() => {
   console.log('[Generate] Segments filtered for clips:', filtered.length, 'out of', segments.value.length)
   console.log('[Generate] Filtered segment IDs:', filtered.map((s: any) => s.segmentId))
   
-  const result = filtered.map((s: any) => ({
+  // Sort clips to ensure proper order: Hook -> body -> body -> CTA
+  // Sort by segmentId (which corresponds to order in storyboard) to maintain original sequence
+  const sorted = filtered.sort((a: any, b: any) => {
+    // First, sort by segmentId if available (maintains storyboard order)
+    if (a.segmentId !== undefined && b.segmentId !== undefined) {
+      return a.segmentId - b.segmentId
+    }
+    // Fallback: sort by type (hook first, then body, then cta)
+    const typeOrder: Record<string, number> = { hook: 0, body: 1, cta: 2 }
+    const aOrder = typeOrder[a.type] ?? 999
+    const bOrder = typeOrder[b.type] ?? 999
+    if (aOrder !== bOrder) {
+      return aOrder - bOrder
+    }
+    // If same type, sort by startTime
+    return (a.startTime || 0) - (b.startTime || 0)
+  })
+  
+  const result = sorted.map((s: any) => ({
     videoUrl: s.videoUrl!,
     voiceUrl: s.voiceUrl,
     startTime: s.startTime,
@@ -544,7 +581,8 @@ const clips = computed(() => {
   }))
   
   console.log('[Generate] Final clips count:', result.length)
-  console.log('[Generate] Final clips:', result.map((c: any) => ({
+  console.log('[Generate] Final clips (ordered):', result.map((c: any, idx: number) => ({
+    index: idx,
     type: c.type,
     hasVideo: !!c.videoUrl,
     hasAudio: !!c.voiceUrl,
@@ -650,6 +688,34 @@ const handlePromptSelected = async (segmentIdx: number, promptIndex: number) => 
       color: 'error',
     })
   }
+}
+
+const handleRetrySegment = async (segmentId: number) => {
+  if (!retrySegmentGen) {
+    toast.add({
+      title: 'Error',
+      description: 'Regeneration function not available',
+      color: 'error',
+    })
+    return
+  }
+
+  try {
+    await retrySegmentGen(segmentId)
+    // Polling will automatically update the segments
+    if (pollGenProgress) {
+      pollGenProgress()
+    }
+  } catch (error: any) {
+    console.error('[Generate] Error retrying segment:', error)
+    throw error // Re-throw to let StoryboardView handle the error display
+  }
+}
+
+const handleRegenerateEvent = (segmentIdx: number) => {
+  console.log(`[Generate] Regeneration started for segment ${segmentIdx}`)
+  // The actual regeneration is handled by handleRetrySegment
+  // This event can be used for additional UI updates if needed
 }
 
 const handleSegmentSaved = async (updatedSegment: Segment, index: number) => {

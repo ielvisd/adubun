@@ -1,9 +1,9 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
-/* Apply Inter font globally */
+/* Apply Poppins font globally */
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Poppins', sans-serif;
 }
 
 /* Tailwind v4 Theme Configuration - Mendo-Inspired Minimalist Colors */
@@ -13,6 +13,7 @@ body {
   --color-mendo-light-blue: #E8F0F5;
   --color-mendo-green: #00FF88;
   --color-mendo-light-grey: #F5F5F5;
+  --color-mendo-cream: #E8C8A7;
   --color-mendo-success: #22c55e;
   --color-mendo-error: #dc2626;
 }
@@ -25,6 +26,7 @@ body {
   --mendo-light-blue: #E8F0F5;
   --mendo-green: #00FF88;
   --mendo-light-grey: #F5F5F5;
+  --mendo-cream: #E8C8A7;
   
   /* Semantic Colors */
   --mendo-primary: #000000;

@@ -12,13 +12,14 @@
       <UProgress :value="overallProgress" class="mb-4" />
 
       <!-- Overall Error Message -->
-      <div
+      <UAlert
         v-if="status === 'failed' && overallError"
-        class="mb-4 p-4 bg-error-50 border border-error-200 rounded-lg"
-      >
-        <p class="text-sm font-medium text-error-800">Generation Failed:</p>
-        <p class="text-sm text-error-600 mt-1">{{ overallError }}</p>
-      </div>
+        color="error"
+        variant="soft"
+        title="Generation Failed"
+        :description="overallError"
+        class="mb-4"
+      />
 
       <!-- Segment Progress -->
       <div class="space-y-3">
@@ -26,54 +27,63 @@
           v-for="(segment, idx) in segments"
           :key="idx"
         >
-          <div class="flex items-center gap-3">
-            <UIcon
-              :name="getStatusIcon(segment.status)"
-              :class="getStatusClass(segment.status)"
-              class="w-5 h-5"
-            />
-            <span class="flex-1">Segment {{ idx + 1 }}: {{ segment.type }}</span>
-            <span class="text-sm text-gray-500">{{ segment.status }}</span>
-          </div>
-          <!-- Error Messages -->
-          <div
-            v-if="segment.status === 'failed' && segment.error"
-            class="mt-2 p-3 bg-error-50 border border-error-200 rounded-lg"
-          >
-            <p class="text-sm font-medium text-error-800">Segment {{ idx + 1 }} Error:</p>
-            <p class="text-sm text-error-600 mt-1">{{ segment.error }}</p>
-            <UButton
-              v-if="segment.metadata"
-              size="xs"
-              variant="outline"
-              color="error"
-              class="mt-2"
-              @click="downloadMetadata(segment, idx)"
-            >
-              <UIcon name="i-heroicons-arrow-down-tray" class="mr-1" />
-              Download Error Metadata
-            </UButton>
-          </div>
-          
-          <!-- Success Metadata with Video/Audio Players -->
-          <div
-            v-if="segment.status === 'completed'"
-            class="mt-2 p-3 bg-success-50 border border-success-200 rounded-lg space-y-4"
-          >
-            <!-- Video Player -->
-            <div v-if="getVideoUrl(segment)">
-              <p class="text-sm font-medium text-success-800 mb-2">Video Preview:</p>
-              <div class="aspect-video bg-black rounded-lg overflow-hidden">
-                <video
-                  :ref="el => setVideoRef(el, idx)"
-                  :src="getVideoUrl(segment)"
-                  class="w-full h-full object-contain"
-                  controls
-                  @loadedmetadata="onVideoLoaded(idx)"
-                />
-              </div>
+          <div class="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <div class="flex items-center gap-3 mb-2">
+              <UIcon
+                :name="getStatusIcon(segment.status)"
+                :class="getStatusClass(segment.status)"
+                class="w-5 h-5"
+              />
+              <span class="flex-1 font-medium">Segment {{ idx + 1 }}: {{ segment.type }}</span>
+              <UBadge :color="getStatusBadgeColor(segment.status)" size="sm">{{ segment.status }}</UBadge>
             </div>
-
+            
+            <!-- Progress bar for processing segments -->
+            <div v-if="segment.status === 'processing' || segment.status === 'pending'" class="mt-2">
+              <UProgress :value="segment.progress || 0" :indeterminate="!segment.progress" size="sm" />
+            </div>
+            
+            <!-- Skeleton placeholders for processing segments -->
+            <div v-if="(segment.status === 'processing' || segment.status === 'pending') && !getVideoUrl(segment)" class="mt-3 space-y-2">
+              <div class="flex gap-2">
+                <USkeleton class="w-32 h-20 rounded" />
+                <USkeleton class="w-32 h-20 rounded" />
+                <USkeleton class="w-32 h-20 rounded" />
+              </div>
+              <p class="text-xs text-gray-500">Generating video assets...</p>
+            </div>
+          <!-- Error Messages -->
+          <UAlert
+            v-if="segment.status === 'failed' && segment.error"
+            color="error"
+            variant="soft"
+            :title="`Segment ${idx + 1} Error`"
+            :description="segment.error"
+            class="mt-2"
+          >
+            <template v-if="segment.metadata" #actions>
+              <UButton
+                size="xs"
+                variant="outline"
+                color="error"
+                @click="downloadMetadata(segment, idx)"
+              >
+                <UIcon name="i-heroicons-arrow-down-tray" class="mr-1" />
+                Download Error Metadata
+              </UButton>
+            </template>
+          </UAlert>
+          
+          <!-- Success Metadata with Audio Players -->
+          <UAlert
+            v-if="segment.status === 'completed'"
+            color="success"
+            variant="soft"
+            title="Segment Completed"
+            description="Video and audio assets have been generated successfully."
+            class="mt-2"
+          >
+            <div class="mt-3 space-y-4">
             <!-- Audio Player -->
             <div v-if="getVoiceUrl(segment)" class="flex items-center gap-3 p-3 bg-white rounded-lg border border-success-200">
               <UButton
@@ -153,6 +163,8 @@
                 Download Metadata
               </UButton>
             </div>
+            </div>
+          </UAlert>
           </div>
         </template>
       </div>
@@ -199,7 +211,6 @@ const props = defineProps<{
 
 // Audio player state
 const audioRefs = ref<Record<number, HTMLAudioElement>>({})
-const videoRefs = ref<Record<number, HTMLVideoElement>>({})
 const audioPlaying = ref<Record<number, boolean>>({})
 const audioProgress = ref<Record<number, number>>({})
 const audioCurrentTime = ref<Record<number, number>>({})
@@ -224,13 +235,6 @@ const getAudioUrl = (voiceUrl: string | null): string => {
   return `/api/assets/${filename}`
 }
 
-// Set video element ref
-const setVideoRef = (el: any, segmentIdx: number) => {
-  if (el) {
-    videoRefs.value[segmentIdx] = el
-  }
-}
-
 // Set audio element ref
 const setAudioRef = (el: any, segmentIdx: number) => {
   if (el) {
@@ -239,11 +243,6 @@ const setAudioRef = (el: any, segmentIdx: number) => {
       audioDuration.value[segmentIdx] = el.duration
     })
   }
-}
-
-// Video loaded handler
-const onVideoLoaded = (segmentIdx: number) => {
-  console.log(`[GenerationProgress] Video loaded for segment ${segmentIdx + 1}`)
 }
 
 // Audio player functions
@@ -381,6 +380,19 @@ const getStatusClass = (status: string) => {
       return 'text-accent-500 animate-spin'
     default:
       return 'text-gray-400'
+  }
+}
+
+const getStatusBadgeColor = (status: string) => {
+  switch (status) {
+    case 'completed':
+      return 'success'
+    case 'failed':
+      return 'error'
+    case 'processing':
+      return 'accent'
+    default:
+      return 'gray'
   }
 }
 </script>

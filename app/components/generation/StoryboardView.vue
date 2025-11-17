@@ -46,7 +46,15 @@
             </div>
           </div>
 
-          <div class="flex-shrink-0">
+          <div class="flex-shrink-0 flex gap-2">
+            <UButton
+              icon="i-heroicons-arrow-path"
+              size="sm"
+              variant="ghost"
+              :loading="regeneratingSegments[idx]"
+              :disabled="regeneratingSegments[idx] || !retrySegment"
+              @click="handleRegenerate(idx)"
+            />
             <UButton
               icon="i-heroicons-pencil"
               size="sm"
@@ -59,12 +67,17 @@
         <!-- Video Preview and Audio Player -->
         <div v-if="getAssetForSegment(idx)" class="mt-4 space-y-4">
           <!-- Video Preview -->
-          <div v-if="getVideoUrl(idx)" class="mt-4">
+          <div class="mt-4">
             <p class="text-sm font-medium text-gray-700 mb-2">Video Preview:</p>
-            <div class="aspect-video bg-black rounded-lg overflow-hidden">
+            <!-- Skeleton while generating -->
+            <div v-if="!getVideoUrl(idx) && (getAssetForSegment(idx)?.status === 'pending' || getAssetForSegment(idx)?.status === 'processing')" class="aspect-video rounded-lg overflow-hidden">
+              <USkeleton class="w-full h-full" />
+            </div>
+            <!-- Actual video when available -->
+            <div v-else-if="getVideoUrl(idx)" class="aspect-video bg-black rounded-lg overflow-hidden">
               <video
                 :ref="el => setVideoRef(el, idx)"
-                :src="getVideoUrl(idx)"
+                :src="getVideoUrl(idx) || undefined"
                 class="w-full h-full object-contain"
                 controls
                 @loadedmetadata="onVideoLoaded(idx)"
@@ -99,7 +112,7 @@
                   color="primary"
                   size="sm"
                   class="flex-1"
-                  @update:model-value="onAudioSeek(idx, $event)"
+                  @update:model-value="(value: number | undefined) => value !== undefined && onAudioSeek(idx, value)"
                 />
                 <span class="text-xs text-gray-500 min-w-[60px] text-right">
                   {{ formatAudioTime(idx) }}
@@ -122,17 +135,20 @@ const props = defineProps<{
     segmentId: number
     videoUrl?: string
     voiceUrl?: string
+    status?: 'pending' | 'processing' | 'completed' | 'failed'
     metadata?: {
       videoUrl?: string
       replicateVideoUrl?: string
       voiceUrl?: string
     }
   }>
+  retrySegment?: (segmentId: number) => Promise<void>
 }>()
 
 const emit = defineEmits<{
   edit: [index: number]
   'prompt-selected': [segmentIdx: number, promptIndex: number]
+  regenerate: [segmentIdx: number]
 }>()
 
 // Audio player state
@@ -142,6 +158,29 @@ const audioPlaying = ref<Record<number, boolean>>({})
 const audioProgress = ref<Record<number, number>>({})
 const audioCurrentTime = ref<Record<number, number>>({})
 const audioDuration = ref<Record<number, number>>({})
+
+// Regeneration state
+const regeneratingSegments = ref<Record<number, boolean>>({})
+const toast = useToast()
+
+// Watch for segment updates to clear regenerating state
+watch(
+  () => props.assets,
+  (newAssets) => {
+    if (newAssets) {
+      newAssets.forEach((asset) => {
+        // Clear regenerating state when segment is completed
+        if (asset.videoUrl && regeneratingSegments.value[asset.segmentId]) {
+          // Small delay to ensure UI updates
+          setTimeout(() => {
+            regeneratingSegments.value[asset.segmentId] = false
+          }, 500)
+        }
+      })
+    }
+  },
+  { deep: true }
+)
 
 // Get asset for a segment by index
 const getAssetForSegment = (segmentIdx: number) => {
@@ -259,7 +298,8 @@ const onAudioEnded = (segmentIdx: number) => {
   audioCurrentTime.value[segmentIdx] = 0
 }
 
-const onAudioSeek = (segmentIdx: number, value: number) => {
+const onAudioSeek = (segmentIdx: number, value: number | undefined) => {
+  if (value === undefined) return
   const audio = audioRefs.value[segmentIdx]
   if (audio && audio.duration) {
     audio.currentTime = (value / 100) * audio.duration
@@ -268,8 +308,8 @@ const onAudioSeek = (segmentIdx: number, value: number) => {
   }
 }
 
-const getSegmentColor = (type: string) => {
-  const colors: Record<string, string> = {
+const getSegmentColor = (type: string): 'neutral' | 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' => {
+  const colors: Record<string, 'neutral' | 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error'> = {
     hook: 'secondary',
     body: 'primary',
     cta: 'success',
@@ -279,6 +319,39 @@ const getSegmentColor = (type: string) => {
 
 const editSegment = (idx: number) => {
   emit('edit', idx)
+}
+
+const handleRegenerate = async (segmentIdx: number) => {
+  if (!props.retrySegment) {
+    toast.add({
+      title: 'Error',
+      description: 'Regeneration function not available',
+      color: 'error',
+    })
+    return
+  }
+
+  regeneratingSegments.value[segmentIdx] = true
+  emit('regenerate', segmentIdx)
+
+  try {
+    await props.retrySegment(segmentIdx)
+    toast.add({
+      title: 'Success',
+      description: `Segment ${segmentIdx + 1} is being regenerated`,
+      color: 'success',
+    })
+  } catch (error: any) {
+    console.error(`[StoryboardView] Error regenerating segment ${segmentIdx}:`, error)
+    toast.add({
+      title: 'Regeneration Failed',
+      description: error.message || 'Failed to regenerate segment. Please try again.',
+      color: 'error',
+    })
+  } finally {
+    // Keep loading state until the segment is actually updated via polling
+    // The loading state will be cleared when the segment status updates
+  }
 }
 
 // Get the selected prompt for a segment

@@ -3,6 +3,7 @@ import { callReplicateMCP, callOpenAIMCP } from '../../utils/mcp-client'
 import { trackCost } from '../../utils/cost-tracker'
 import { saveAsset, readStoryboard } from '../../utils/storage'
 import { uploadFileToReplicate } from '../../utils/replicate-upload'
+import { sanitizeVideoPrompt } from '../../utils/prompt-sanitizer'
 import path from 'path'
 import { promises as fs } from 'fs'
 
@@ -97,25 +98,132 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    // Get model from storyboard meta, default to google/veo-3.1
+    const model = storyboard.meta.model || 'google/veo-3.1'
+    
     // Determine which images to use (segment-specific or global fallback)
     const firstFrameImage = segment.firstFrameImage || storyboard.meta.firstFrameImage
+    const lastFrameImage = segment.lastFrameImage
     const subjectReference = segment.subjectReference || storyboard.meta.subjectReference
 
+    // Get the selected prompt (primary or alternative)
+    let selectedPrompt = segment.visualPrompt
+    if (segment.selectedPromptIndex !== undefined && segment.selectedPromptIndex > 0) {
+      const altIndex = segment.selectedPromptIndex - 1
+      if (segment.visualPromptAlternatives && segment.visualPromptAlternatives[altIndex]) {
+        selectedPrompt = segment.visualPromptAlternatives[altIndex]
+      }
+    }
+
+    // Sanitize prompt to avoid content moderation flags
+    const sanitizedPrompt = sanitizeVideoPrompt(selectedPrompt)
+
     // Retry video generation with hold-final-frame instruction for smooth transitions
-    const videoPrompt = `${segment.visualPrompt} The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene.`
+    const videoPrompt = `${sanitizedPrompt} The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene. CRITICAL: Any product name, brand name, or text displayed in the video must be spelled correctly and match exactly as mentioned in the prompt. Ensure all text, labels, and product names are accurate and legible.`
     
     const videoParams: any = {
+      model,
       prompt: videoPrompt,
       duration: segment.endTime - segment.startTime,
       aspect_ratio: storyboard.meta.aspectRatio,
     }
 
     // Add image inputs if provided - upload to Replicate and get public URLs
-    if (firstFrameImage) {
-      videoParams.first_frame_image = await prepareImageInput(firstFrameImage)
-    }
-    if (subjectReference) {
-      videoParams.subject_reference = await prepareImageInput(subjectReference)
+    // Use model-specific parameter names (matching generate-assets.post.ts)
+    if (model === 'google/veo-3.1') {
+      // Veo 3.1 uses 'image' for first frame and 'last_frame' for last frame
+      if (firstFrameImage) {
+        videoParams.image = await prepareImageInput(firstFrameImage)
+        console.log(`[Retry Segment ${segmentId}] Using first frame image: ${firstFrameImage}`)
+      }
+      
+      if (lastFrameImage) {
+        videoParams.last_frame = await prepareImageInput(lastFrameImage)
+        console.log(`[Retry Segment ${segmentId}] Using last frame image: ${lastFrameImage}`)
+      }
+      
+      if (subjectReference) {
+        videoParams.subject_reference = await prepareImageInput(subjectReference)
+      }
+      
+      // Priority: segment.negativePrompt > storyboard.meta.negativePrompt
+      if ((segment as any).negativePrompt) {
+        videoParams.negative_prompt = (segment as any).negativePrompt
+        console.log(`[Retry Segment ${segmentId}] Using segment-specific negative prompt`)
+      } else if (storyboard.meta.negativePrompt) {
+        videoParams.negative_prompt = storyboard.meta.negativePrompt
+      }
+      
+      // Priority: segment.resolution > storyboard.meta.resolution
+      if ((segment as any).resolution) {
+        videoParams.resolution = (segment as any).resolution
+        console.log(`[Retry Segment ${segmentId}] Using segment-specific resolution: ${(segment as any).resolution}`)
+      } else if (storyboard.meta.resolution) {
+        videoParams.resolution = storyboard.meta.resolution
+      }
+      
+      // Priority: segment.generateAudio > storyboard.meta.generateAudio
+      if ((segment as any).generateAudio !== undefined) {
+        videoParams.generate_audio = (segment as any).generateAudio
+        console.log(`[Retry Segment ${segmentId}] Using segment-specific generateAudio: ${(segment as any).generateAudio}`)
+      } else if (storyboard.meta.generateAudio !== undefined) {
+        videoParams.generate_audio = storyboard.meta.generateAudio
+      }
+      
+      // Priority: segment.seed > storyboard.meta.seed
+      if ((segment as any).seed !== undefined && (segment as any).seed !== null) {
+        videoParams.seed = (segment as any).seed
+        console.log(`[Retry Segment ${segmentId}] Using segment-specific seed: ${(segment as any).seed}`)
+      } else if (storyboard.meta.seed !== undefined && storyboard.meta.seed !== null) {
+        videoParams.seed = storyboard.meta.seed
+      }
+    } else if (model === 'google/veo-3-fast') {
+      // Veo 3 Fast only supports: prompt, aspect_ratio, duration, image, negative_prompt, resolution, generate_audio, seed
+      // Note: Does NOT support last_frame or reference_images
+      if (firstFrameImage) {
+        videoParams.image = await prepareImageInput(firstFrameImage)
+        console.log(`[Retry Segment ${segmentId}] Using first frame image: ${firstFrameImage}`)
+      }
+      
+      // Priority: segment.negativePrompt > storyboard.meta.negativePrompt
+      if ((segment as any).negativePrompt) {
+        videoParams.negative_prompt = (segment as any).negativePrompt
+        console.log(`[Retry Segment ${segmentId}] Using segment-specific negative prompt`)
+      } else if (storyboard.meta.negativePrompt) {
+        videoParams.negative_prompt = storyboard.meta.negativePrompt
+      }
+      
+      // Priority: segment.resolution > storyboard.meta.resolution
+      if ((segment as any).resolution) {
+        videoParams.resolution = (segment as any).resolution
+        console.log(`[Retry Segment ${segmentId}] Using segment-specific resolution: ${(segment as any).resolution}`)
+      } else if (storyboard.meta.resolution) {
+        videoParams.resolution = storyboard.meta.resolution
+      }
+      
+      // Priority: segment.generateAudio > storyboard.meta.generateAudio
+      if ((segment as any).generateAudio !== undefined) {
+        videoParams.generate_audio = (segment as any).generateAudio
+        console.log(`[Retry Segment ${segmentId}] Using segment-specific generateAudio: ${(segment as any).generateAudio}`)
+      } else if (storyboard.meta.generateAudio !== undefined) {
+        videoParams.generate_audio = storyboard.meta.generateAudio
+      }
+      
+      // Priority: segment.seed > storyboard.meta.seed
+      if ((segment as any).seed !== undefined && (segment as any).seed !== null) {
+        videoParams.seed = (segment as any).seed
+        console.log(`[Retry Segment ${segmentId}] Using segment-specific seed: ${(segment as any).seed}`)
+      } else if (storyboard.meta.seed !== undefined && storyboard.meta.seed !== null) {
+        videoParams.seed = storyboard.meta.seed
+      }
+    } else {
+      // Fallback for other models - use first_frame_image and subject_reference
+      if (firstFrameImage) {
+        videoParams.first_frame_image = await prepareImageInput(firstFrameImage)
+      }
+      if (subjectReference) {
+        videoParams.subject_reference = await prepareImageInput(subjectReference)
+      }
     }
 
     console.log(`[Retry Segment ${segmentId}] Calling Replicate MCP generate_video with params:`, JSON.stringify(videoParams, null, 2))

@@ -12,6 +12,51 @@ const generateStoriesSchema = z.object({
   generateVoiceover: z.boolean().optional(),
 })
 
+// Retry helper function with exponential backoff
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 2000
+): Promise<T> {
+  let lastError: any
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (error: any) {
+      lastError = error
+      
+      // Check if error is retryable (timeout or network errors)
+      const isTimeout = error.message?.includes('timed out') || 
+                       error.message?.includes('timeout') ||
+                       error.message?.includes('Request timed out') ||
+                       error.code === -32001
+      
+      const isNetworkError = error.code === 'EPIPE' || 
+                            error.message?.includes('connection') ||
+                            error.message?.includes('ECONNREFUSED') ||
+                            error.message?.includes('MCP server connection')
+      
+      // Don't retry on non-retryable errors (unless it's the last attempt)
+      if (!isTimeout && !isNetworkError && attempt < maxRetries - 1) {
+        throw error // Don't retry non-retryable errors
+      }
+      
+      // If this is the last attempt, throw the error
+      if (attempt >= maxRetries - 1) {
+        break
+      }
+      
+      // Calculate delay with exponential backoff
+      const delay = baseDelay * Math.pow(2, attempt)
+      console.log(`[Generate Stories] Attempt ${attempt + 1}/${maxRetries} failed, retrying in ${delay}ms...`)
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
+  }
+  
+  throw lastError
+}
+
 export default defineEventHandler(async (event) => {
   try {
     const formData = await readMultipartFormData(event)
@@ -71,14 +116,18 @@ export default defineEventHandler(async (event) => {
     // For now, use 16 seconds as default
     const duration = 16
 
-    // Generate 3 story options using OpenAI MCP with gpt-4o
-    const storiesData = await callOpenAIMCP('generate_ad_stories', {
-      prompt,
-      imageUrls,
-      duration,
-      clipCount: 4, // Hook, Body1, Body2, CTA
-      clipDuration: 4, // ~4 seconds per scene for 16s total
-    })
+    // Generate 3 story options using OpenAI MCP with retry logic
+    const storiesData = await retryWithBackoff(
+      () => callOpenAIMCP('generate_ad_stories', {
+        prompt,
+        imageUrls,
+        duration,
+        clipCount: 4, // Hook, Body1, Body2, CTA
+        clipDuration: 4, // ~4 seconds per scene for 16s total
+      }),
+      3, // max 3 retries
+      2000 // start with 2 second delay
+    )
 
     // callOpenAIMCP already parses JSON, so storiesData should be an object
     // Handle both direct object and content array formats
@@ -122,9 +171,50 @@ export default defineEventHandler(async (event) => {
     }
   } catch (error: any) {
     console.error('[Generate Stories] Error:', error)
+    
+    // Provide user-friendly error messages
+    let errorMessage = 'Failed to generate stories'
+    let statusCode = 500
+    let isRetryable = false
+    
+    // Check for timeout errors
+    if (error.message?.includes('timed out') || 
+        error.message?.includes('timeout') || 
+        error.message?.includes('Request timed out') ||
+        error.code === -32001) {
+      errorMessage = 'Story generation took too long. This can happen when the service is busy. Please try again in a moment.'
+      statusCode = 504 // Gateway Timeout
+      isRetryable = true
+    } 
+    // Check for connection errors
+    else if (error.message?.includes('connection') || 
+             error.code === 'EPIPE' ||
+             error.message?.includes('MCP server connection')) {
+      errorMessage = 'Connection error. Please check your internet connection and try again.'
+      statusCode = 503 // Service Unavailable
+      isRetryable = true
+    } 
+    // Check for other retryable errors
+    else if (error.message?.includes('ECONNREFUSED') || 
+             error.message?.includes('network')) {
+      errorMessage = 'Network error. Please try again.'
+      statusCode = 503
+      isRetryable = true
+    }
+    // Use original error message if available
+    else if (error.message) {
+      errorMessage = error.message
+      // Mark as retryable if it's a generic MCP error
+      isRetryable = error.message.includes('MCP') || error.message.includes('OpenAI')
+    }
+    
     throw createError({
-      statusCode: 500,
-      message: error.message || 'Failed to generate stories',
+      statusCode,
+      message: errorMessage,
+      data: {
+        originalError: error.message,
+        retryable: isRetryable,
+      },
     })
   }
 })

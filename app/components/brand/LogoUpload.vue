@@ -1,6 +1,6 @@
 <template>
   <UFormField label="Upload Logo" name="logo">
-    <div class="border-2 border-dashed border-primary-300 rounded-lg p-6 text-center bg-brand-cream">
+    <div class="border-2 border-dashed border-primary-300 rounded-lg p-6 text-center bg-gray-50 dark:bg-gray-800">
       <input
         ref="fileInput"
         type="file"

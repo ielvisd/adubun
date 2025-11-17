@@ -228,8 +228,13 @@
 
               <!-- First Frame Image -->
               <UFormField label="First Frame Image" :name="`segment-${index}-first-frame`">
-                <div v-if="segment.firstFrameImage" class="space-y-2">
-                  <div class="relative w-full max-w-md">
+                <div v-if="segment.firstFrameImage || (generatingFrames && !segment.firstFrameImage)" class="space-y-2">
+                  <!-- Skeleton while generating -->
+                  <div v-if="generatingFrames && !segment.firstFrameImage" class="relative w-full max-w-md">
+                    <USkeleton class="w-full aspect-video rounded-lg" />
+                  </div>
+                  <!-- Actual image when available -->
+                  <div v-else-if="segment.firstFrameImage" class="relative w-full max-w-md">
                     <NuxtImg
                       :src="segment.firstFrameImage"
                       alt="First frame preview"
@@ -280,8 +285,13 @@
                 :label="segment.type === 'cta' ? 'Final Frame Image' : 'Last Frame Image'" 
                 :name="`segment-${index}-last-frame`"
               >
-                <div v-if="segment.lastFrameImage" class="space-y-2">
-                  <div class="relative w-full max-w-md">
+                <div v-if="segment.lastFrameImage || (generatingFrames && !segment.lastFrameImage)" class="space-y-2">
+                  <!-- Skeleton while generating -->
+                  <div v-if="generatingFrames && !segment.lastFrameImage" class="relative w-full max-w-md">
+                    <USkeleton class="w-full aspect-video rounded-lg" />
+                  </div>
+                  <!-- Actual image when available -->
+                  <div v-else-if="segment.lastFrameImage" class="relative w-full max-w-md">
                     <NuxtImg
                       :src="segment.lastFrameImage"
                       alt="Last frame preview"
@@ -415,6 +425,12 @@ const saveStoryboardState = () => {
   if (!process.client || !selectedStoryboard.value) return
   
   try {
+    // Convert frameGenerationStatus Map to plain object for storage
+    const frameStatusObj: Record<string, any> = {}
+    frameGenerationStatus.value.forEach((value, key) => {
+      frameStatusObj[String(key)] = value
+    })
+    
     const stateToSave = {
       segments: selectedStoryboard.value.segments.map(seg => ({
         description: seg.description,
@@ -431,6 +447,7 @@ const saveStoryboardState = () => {
         aspectRatio: selectedStoryboard.value.meta.aspectRatio,
         model: selectedStoryboard.value.meta.model,
       },
+      frameGenerationStatus: frameStatusObj,
       timestamp: Date.now(),
     }
     
@@ -489,7 +506,7 @@ const videoModelOptions = [
 ]
 
 const currentModel = computed(() => {
-  return selectedStoryboard.value?.meta?.model || 'google/veo-3-fast'
+  return selectedStoryboard.value?.meta?.model || 'google/veo-3.1'
 })
 
 // Demo/Production mode
@@ -634,9 +651,9 @@ const generateStoryboards = async (style?: string, mode?: 'demo' | 'production')
         selectedStoryboard.value.meta = {}
       }
       selectedStoryboard.value.meta.mode = mode || 'production'
-      // Set model if not already set, default to veo-3-fast
+      // Set model if not already set, default to veo-3.1
       if (!selectedStoryboard.value.meta.model) {
-        selectedStoryboard.value.meta.model = 'google/veo-3-fast'
+        selectedStoryboard.value.meta.model = 'google/veo-3.1'
       }
       console.log('[Storyboards] Mode set to:', selectedStoryboard.value.meta.mode)
       console.log('[Storyboards] Model set to:', selectedStoryboard.value.meta.model)
@@ -667,6 +684,15 @@ const generateStoryboards = async (style?: string, mode?: 'demo' | 'production')
         if (savedState.meta?.model && selectedStoryboard.value.meta) {
           selectedStoryboard.value.meta.model = savedState.meta.model
           console.log('[Storyboards] Restored model from localStorage:', savedState.meta.model)
+        }
+        // Restore frameGenerationStatus if saved
+        if (savedState.frameGenerationStatus) {
+          const restoredMap = new Map<number, any>()
+          Object.entries(savedState.frameGenerationStatus).forEach(([key, value]) => {
+            restoredMap.set(Number(key), value)
+          })
+          frameGenerationStatus.value = restoredMap
+          console.log('[Storyboards] Restored frameGenerationStatus from localStorage:', restoredMap.size, 'entries')
         }
         console.log('[Storyboards] Restored storyboard state from localStorage')
       }
@@ -732,6 +758,12 @@ const generateFrames = async () => {
     return
   }
 
+  // Prevent multiple simultaneous calls
+  if (generatingFrames.value) {
+    console.warn('[Storyboards] Frame generation already in progress, ignoring duplicate call')
+    return
+  }
+
   generatingFrames.value = true
   frameGenerationError.value = null
 
@@ -740,6 +772,11 @@ const generateFrames = async () => {
     console.log('[Storyboards] Product images from promptData:', promptData.value.productImages)
     console.log('[Storyboards] Product images count:', promptData.value.productImages?.length || 0)
     console.log('[Storyboards] Product images array:', Array.isArray(promptData.value.productImages) ? promptData.value.productImages : 'NOT AN ARRAY')
+    
+    // Clear existing frame generation status to ensure fresh regeneration
+    // This ensures that if frames are regenerated, the comparison URLs are also refreshed
+    frameGenerationStatus.value.clear()
+    console.log('[Storyboards] Cleared existing frame generation status for fresh regeneration')
     
     // Add timeout handling (5 minutes max)
     const timeoutPromise = new Promise((_, reject) => {
@@ -933,17 +970,17 @@ const generateFrames = async () => {
         })
         console.log('[Storyboards] Assigned CTA first frame (from body2 last):', body2LastFrame)
       }
-      if (ctaFrames?.first) {
-        // CTA's "first" frame is actually its last frame (the final frame)
-        selectedStoryboard.value.segments[3].lastFrameImage = ctaFrames.first
+      if (ctaFrames?.last) {
+        // CTA's last frame is the final frame of the video
+        selectedStoryboard.value.segments[3].lastFrameImage = ctaFrames.last
         frameGenerationStatus.value.set(3, { 
           ...frameGenerationStatus.value.get(3), 
           last: true,
-          lastModelSource: ctaFrames.firstModelSource,
-          lastNanoImageUrl: ctaFrames.firstNanoImageUrl,
-          lastSeedreamImageUrl: ctaFrames.firstSeedreamImageUrl
+          lastModelSource: ctaFrames.lastModelSource,
+          lastNanoImageUrl: ctaFrames.lastNanoImageUrl,
+          lastSeedreamImageUrl: ctaFrames.lastSeedreamImageUrl
         })
-        console.log('[Storyboards] Assigned CTA last frame:', ctaFrames.first)
+        console.log('[Storyboards] Assigned CTA last frame:', ctaFrames.last)
       }
       
       // Trigger reactivity to ensure UI updates
@@ -962,6 +999,10 @@ const generateFrames = async () => {
 
     const frameCount = frames.length
     const mode = selectedStoryboard.value.meta.mode || 'production'
+    
+    // Save storyboard state including frameGenerationStatus
+    saveStoryboardState()
+    
     toast.add({
       title: 'Frames Generated',
       description: mode === 'demo' 
@@ -986,36 +1027,77 @@ const generateFrames = async () => {
 }
 
 const allFramesReady = computed(() => {
-  if (!selectedStoryboard.value) return false
+  if (!selectedStoryboard.value) {
+    console.log('[allFramesReady] No storyboard')
+    return false
+  }
+  
+  // Check if all required data exists for video generation
+  // This is reactive and will update whenever segment data changes
+  
+  const segments = selectedStoryboard.value.segments
+  if (!segments || segments.length === 0) {
+    console.log('[allFramesReady] No segments')
+    return false
+  }
   
   // In demo mode, only check hook segment (first scene)
   if (isDemoMode.value) {
-    const hookSegment = selectedStoryboard.value.segments[0]
-    if (!hookSegment) return false
+    const hookSegment = segments[0]
+    if (!hookSegment) {
+      console.log('[allFramesReady] Demo mode: No hook segment')
+      return false
+    }
     
-    const hookStatus = frameGenerationStatus.value.get(0) || {}
-    return !!(hookSegment.firstFrameImage && hookSegment.lastFrameImage && hookStatus.first && hookStatus.last)
+    // Check if hook has all required data
+    const hasRequiredData = !!(
+      hookSegment.firstFrameImage && 
+      hookSegment.lastFrameImage &&
+      hookSegment.visualPrompt &&
+      hookSegment.description
+    )
+    
+    if (!hasRequiredData) {
+      console.log('[allFramesReady] Demo mode: Hook segment missing data:', {
+        firstFrameImage: !!hookSegment.firstFrameImage,
+        lastFrameImage: !!hookSegment.lastFrameImage,
+        visualPrompt: !!hookSegment.visualPrompt,
+        description: !!hookSegment.description,
+      })
+    }
+    
+    return hasRequiredData
   }
   
-  // Production mode: Check that all required frames are ready
-  for (let i = 0; i < selectedStoryboard.value.segments.length; i++) {
-    const segment = selectedStoryboard.value.segments[i]
-    const status = frameGenerationStatus.value.get(i)
+  // Production mode: Check that all segments have required data
+  // We check actual data existence, not generation status
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i]
     
-    // Hook needs first and last
-    if (i === 0) {
-      if (!segment.firstFrameImage || !segment.lastFrameImage) return false
-    }
-    // Body segments need first (from previous) and last
-    else if (i < 3) {
-      if (!segment.firstFrameImage || !segment.lastFrameImage) return false
-    }
-    // CTA needs first (from previous) and last
-    else {
-      if (!segment.firstFrameImage || !segment.lastFrameImage) return false
+    // Each segment needs:
+    // 1. Frame images (first and last)
+    // 2. Visual prompt (for video generation)
+    // 3. Description (for context)
+    // 4. Timing (startTime, endTime)
+    const hasFrames = !!(segment.firstFrameImage && segment.lastFrameImage)
+    const hasPrompt = !!segment.visualPrompt
+    const hasDescription = !!segment.description
+    const hasTiming = segment.startTime !== undefined && segment.endTime !== undefined
+    
+    if (!hasFrames || !hasPrompt || !hasDescription || !hasTiming) {
+      console.log(`[allFramesReady] Segment ${i} (${segment.type}) missing requirements:`, {
+        firstFrameImage: !!segment.firstFrameImage,
+        lastFrameImage: !!segment.lastFrameImage,
+        visualPrompt: !!segment.visualPrompt,
+        description: !!segment.description,
+        startTime: segment.startTime,
+        endTime: segment.endTime,
+      })
+      return false
     }
   }
   
+  console.log('[allFramesReady] All requirements met! Ready for video generation.')
   return true
 })
 
@@ -1038,8 +1120,13 @@ const proceedToGeneration = () => {
     return
   }
 
-  // Save selected storyboard for generation
+  // Clear old generation data before navigating to start fresh
   if (process.client) {
+    sessionStorage.removeItem('generateJobState')
+    sessionStorage.removeItem('editorClips')
+    sessionStorage.removeItem('editorComposedVideo')
+    
+    // Save selected storyboard for generation
     sessionStorage.setItem('generateStoryboard', JSON.stringify(selectedStoryboard.value))
     sessionStorage.setItem('promptData', JSON.stringify(promptData.value))
   }
@@ -1093,7 +1180,7 @@ const handleEditComposedVideo = async () => {
             options: {
               transition: 'fade',
               musicVolume: 70,
-              aspectRatio: selectedStoryboard.value.meta.aspectRatio || '9:16',
+              aspectRatio: selectedStoryboard.value.meta.aspectRatio || '16:9',
             },
           },
         })

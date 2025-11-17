@@ -98,6 +98,20 @@ export default {
           800: '#a3a3a3',
           900: '#8a8a8a',
         },
+        // Brand Cream - favicon background color
+        'brand-cream': {
+          DEFAULT: '#E8C8A7',
+          50: '#faf8f5',
+          100: '#f5efe6',
+          200: '#f0e6d7',
+          300: '#ebddc8',
+          400: '#E8C8A7',
+          500: '#E8C8A7',
+          600: '#d4b496',
+          700: '#c0a085',
+          800: '#ac8c74',
+          900: '#987863',
+        },
         // Success (Green) - for success states
         success: {
           DEFAULT: '#22c55e',
@@ -128,7 +142,7 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', ...defaultTheme.fontFamily.sans],
+        sans: ['Poppins', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', ...defaultTheme.fontFamily.sans],
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',

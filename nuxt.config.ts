@@ -25,7 +25,7 @@ export default defineNuxtConfig({
 
   fonts: {
     families: [
-      { name: 'Inter', provider: 'google', weights: [400, 500, 600, 700] },
+      { name: 'Poppins', provider: 'google', weights: [400, 500, 600, 700] },
     ],
   },
 
@@ -63,6 +63,16 @@ export default defineNuxtConfig({
       title: 'AdUbun - AI Video Generation',
       meta: [
         { name: 'description', content: 'Transform prompts into professional ad videos with AI' },
+      ],
+      link: [
+        // SVG favicon (modern browsers)
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        // PNG favicon (fallback)
+        { rel: 'icon', type: 'image/png', sizes: '96x96', href: '/favicon-96x96.png' },
+        // ICO favicon (older browsers)
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+        // Apple touch icon (iOS devices)
+        { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
       ],
     },
   },
