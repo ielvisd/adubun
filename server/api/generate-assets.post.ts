@@ -584,7 +584,30 @@ export default defineEventHandler(async (event) => {
           } as Asset
         }
 
-        console.log(`[Segment ${idx}] Video URL obtained:`, videoUrl)
+        console.log(`[Segment ${idx}] Video URL obtained from Replicate:`, videoUrl)
+        console.log(`[Segment ${idx}] Downloading and uploading to S3...`)
+        
+        // Download video from Replicate and upload to S3
+        let finalVideoUrl = videoUrl // Default to Replicate URL
+        try {
+          const videoResponse = await fetch(videoUrl)
+          if (!videoResponse.ok) {
+            throw new Error(`Failed to download video: ${videoResponse.statusText}`)
+          }
+          
+          const videoBuffer = Buffer.from(await videoResponse.arrayBuffer())
+          console.log(`[Segment ${idx}] Downloaded ${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB from Replicate`)
+          
+          // Upload to S3 in ai_videos folder
+          finalVideoUrl = await saveVideo(videoBuffer, `segment-${idx}-${nanoid()}.mp4`, 'ai_videos')
+          console.log(`[Segment ${idx}] Video uploaded to S3 (ai_videos/):`, finalVideoUrl)
+        } catch (s3Error: any) {
+          console.error(`[Segment ${idx}] Failed to upload video to S3:`, s3Error.message)
+          console.warn(`[Segment ${idx}] Falling back to Replicate URL`)
+          // Keep Replicate URL as fallback
+        }
+
+        console.log(`[Segment ${idx}] Final video URL:`, finalVideoUrl)
         console.log(`[Segment ${idx}] Prediction ID:`, predictionId)
 
         // Voice Over (OpenAI TTS)
@@ -633,8 +656,9 @@ export default defineEventHandler(async (event) => {
         // Store metadata including prediction ID and video URL for frontend access
         const metadata = {
           predictionId,
-          videoUrl,
-          replicateVideoUrl: videoUrl, // Direct Replicate URL
+          videoUrl: finalVideoUrl, // S3 URL or Replicate URL (fallback)
+          replicateVideoUrl: videoUrl, // Original Replicate URL
+          s3VideoUrl: finalVideoUrl !== videoUrl ? finalVideoUrl : undefined, // S3 URL if uploaded
           voiceUrl,
           segmentIndex: idx,
           segmentType: segment.type,
@@ -649,7 +673,7 @@ export default defineEventHandler(async (event) => {
 
         return {
           segmentId: idx,
-          videoUrl,
+          videoUrl: finalVideoUrl, // Use S3 URL or Replicate fallback
           voiceUrl,
           status: 'completed',
           metadata, // Include metadata for frontend access
