@@ -21,7 +21,7 @@
               to="/editor" 
               variant="ghost" 
               color="gray" 
-              class="text-black hover:text-gray-700 dark:text-white dark:hover:text-gray-300 text-sm sm:text-base font-medium hidden lg:inline-flex"
+              class="text-black hover:text-gray-700 dark:text-white dark:hover:text-gray-300 text-sm sm:text-base font-medium hidden sm:inline-flex"
             >
               Editor
             </UButton>
