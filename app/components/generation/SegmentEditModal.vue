@@ -491,6 +491,8 @@ const handleSave = async (event: any) => {
       aspectRatio?: string | null
       generateAudio?: boolean | null
       negativePrompt?: string | null
+      firstFrameImage?: string
+      lastFrameImage?: string
     } = {
       type: validated.type,
       description: validated.description,
@@ -507,6 +509,9 @@ const handleSave = async (event: any) => {
       ...(validated.aspectRatio ? { aspectRatio: validated.aspectRatio } : {}),
       ...(validated.generateAudio !== null && validated.generateAudio !== undefined ? { generateAudio: validated.generateAudio } : {}),
       ...(validated.negativePrompt ? { negativePrompt: validated.negativePrompt } : {}),
+      // Frame images
+      ...(form.firstFrameImage ? { firstFrameImage: form.firstFrameImage } : {}),
+      ...(form.lastFrameImage ? { lastFrameImage: form.lastFrameImage } : {}),
     }
     
     // Emit saved event with updated segment

@@ -3,7 +3,7 @@
     <template #header>
       <div class="flex items-center justify-between">
         <h3 class="text-lg font-semibold text-white">Media Bin</h3>
-        <span class="text-sm text-gray-400">{{ videos.length }}/10</span>
+        <span class="text-sm text-gray-400">{{ videos.length }} videos</span>
       </div>
     </template>
 
@@ -27,14 +27,13 @@
         />
         <UButton
           @click="fileInput?.click()"
-          :disabled="videos.length >= 10"
           class="w-full"
           color="primary"
         >
           <UIcon name="i-heroicons-plus" class="mr-2" />
           Upload Videos
         </UButton>
-        <p class="text-xs text-gray-400 mt-2">Up to 10 MP4 files • Drag & drop supported</p>
+        <p class="text-xs text-gray-400 mt-2">MP4 files • Drag & drop supported</p>
       </div>
 
       <!-- Drag Overlay -->
@@ -136,10 +135,6 @@ const handleDrop = (event: DragEvent) => {
   event.preventDefault()
   dragCounter.value = 0
   isDragOver.value = false
-
-  if (props.videos.length >= 10) {
-    return
-  }
 
   const files = Array.from(event.dataTransfer?.files || [])
   const videoFiles = files.filter(file => file.type.startsWith('video/'))

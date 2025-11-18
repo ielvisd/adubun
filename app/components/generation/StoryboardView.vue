@@ -54,12 +54,14 @@
               :loading="regeneratingSegments[idx]"
               :disabled="regeneratingSegments[idx] || !retrySegment"
               @click="handleRegenerate(idx)"
+              title="Regenerate with same frames"
             />
             <UButton
               icon="i-heroicons-pencil"
               size="sm"
               variant="ghost"
               @click="editSegment(idx)"
+              title="Edit segment details"
             />
           </div>
         </div>
@@ -123,6 +125,7 @@
         </div>
       </div>
     </div>
+
   </UCard>
 </template>
 

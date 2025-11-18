@@ -96,13 +96,23 @@
               <span class="font-semibold truncate">{{ clip.name || `Clip ${index + 1}` }}</span>
               <span class="text-xs opacity-75">{{ formatTime(getClipDuration(clip)) }}</span>
             </div>
-            <button
-              @click.stop="$emit('delete', clip.id)"
-              class="p-1.5 hover:bg-white/20 rounded-lg transition-colors pointer-events-auto opacity-0 group-hover:opacity-100"
-              title="Delete"
-            >
-              <UIcon name="i-heroicons-trash" class="w-4 h-4" />
-            </button>
+            <div class="flex items-center gap-1">
+              <button
+                v-if="getClipDuration(clip) < 5 && isClipSelected(clip.id)"
+                @click.stop="$emit('aleph-edit', clip)"
+                class="p-1.5 hover:bg-purple-600 bg-purple-700 rounded-lg transition-colors pointer-events-auto opacity-0 group-hover:opacity-100"
+                title="Edit with AI (Aleph)"
+              >
+                <UIcon name="i-heroicons-sparkles" class="w-4 h-4" />
+              </button>
+              <button
+                @click.stop="$emit('delete', clip.id)"
+                class="p-1.5 hover:bg-white/20 rounded-lg transition-colors pointer-events-auto opacity-0 group-hover:opacity-100"
+                title="Delete"
+              >
+                <UIcon name="i-heroicons-trash" class="w-4 h-4" />
+              </button>
+            </div>
           </div>
           <!-- Start/End Labels -->
           <div class="absolute inset-0 pointer-events-none text-xs font-medium text-white/80">
@@ -213,6 +223,7 @@ const emit = defineEmits<{
   'delete': [clipId: string]
   'seek': [time: number, options?: SeekOptions]
   'reorder': [clips: EditorClip[], options?: { finalize?: boolean }]
+  'aleph-edit': [clip: EditorClip]
 }>()
 
 const timelineContainer = ref<HTMLElement>()
@@ -221,10 +232,10 @@ const trimmingClipId = ref<string | null>(null)
 const draggingClipId = ref<string | null>(null)
 const snapPosition = ref<number | null>(null)
 const selectedClipId = ref<string | null>(null)
-const zoomLevel = ref(1) // 1x = 10px per second (normalized so old 50% becomes new 100%)
+const zoomLevel = ref(1) // 1x = 50px per second (normalized so old 200% becomes new 100%)
 
 const pixelsPerSecond = computed(() => {
-  return 10 * zoomLevel.value // Base: 10px per second (old 50% now 100%)
+  return 50 * zoomLevel.value // Base: 50px per second (old 200% now 100%)
 })
 
 const totalDuration = computed(() => {
