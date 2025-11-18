@@ -1,5 +1,16 @@
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 sm:py-12">
+    <!-- Loading Overlay - Shows immediately when navigating to storyboards -->
+    <div v-if="isNavigating" class="fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center">
+      <UCard class="bg-white dark:bg-gray-800 p-8 max-w-md mx-4">
+        <div class="flex flex-col items-center justify-center text-center">
+          <UIcon name="i-heroicons-arrow-path" class="w-16 h-16 text-secondary-500 animate-spin mb-4" />
+          <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-2">Preparing Storyboard</h2>
+          <p class="text-gray-600 dark:text-gray-400">Loading your selected story...</p>
+        </div>
+      </UCard>
+    </div>
+
     <UContainer class="max-w-6xl px-4 sm:px-6">
       <!-- Loading State -->
       <div v-if="loading" class="flex flex-col items-center justify-center py-24">
@@ -222,12 +233,10 @@
             color="secondary"
             variant="solid"
             :disabled="!selectedStoryId || isNavigating"
-            :loading="isNavigating"
             @click="proceedToStoryboards"
             class="bg-secondary-500 hover:bg-secondary-600 text-white font-semibold min-w-[200px] min-h-[44px]"
           >
-            <span v-if="!isNavigating">Continue with Selected Story</span>
-            <span v-else>Loading...</span>
+            Continue with Selected Story
           </UButton>
         </div>
       </div>
