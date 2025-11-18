@@ -30,7 +30,7 @@ const generateSingleFrameSchema = z.object({
       role: z.string(),
     })).optional(),
     meta: z.object({
-      aspectRatio: z.enum(['16:9', '9:16', '1:1']),
+      aspectRatio: z.enum(['16:9', '9:16']),
       mode: z.enum(['demo', 'production']).optional(),
       mood: z.string().optional(),
     }),
@@ -45,7 +45,7 @@ const generateSingleFrameSchema = z.object({
   }),
   segmentIndex: z.number(),
   frameType: z.enum(['first', 'last']),
-  aspectRatio: z.enum(['16:9', '9:16', '1:1']),
+  aspectRatio: z.enum(['16:9', '9:16']),
   resolution: z.enum(['720p', '1080p']),
 })
 
@@ -56,8 +56,6 @@ const getDimensions = (aspectRatio: string, resolution: string) => {
       return { width: is720p ? 720 : 1080, height: is720p ? 1280 : 1920 }
     case '16:9':
       return { width: is720p ? 1280 : 1920, height: is720p ? 720 : 1080 }
-    case '1:1':
-      return { width: is720p ? 720 : 1080, height: is720p ? 720 : 1080 }
     default:
       return { width: is720p ? 720 : 1080, height: is720p ? 1280 : 1920 }
   }

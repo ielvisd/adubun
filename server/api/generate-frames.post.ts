@@ -29,7 +29,7 @@ const generateFramesSchema = z.object({
       role: z.string(),
     })).optional(),
     meta: z.object({
-      aspectRatio: z.enum(['16:9', '9:16', '1:1']),
+      aspectRatio: z.enum(['16:9', '9:16']),
       mode: z.enum(['demo', 'production']).optional(),
       mood: z.string().optional(),
     }),
@@ -53,8 +53,6 @@ const getDimensions = (aspectRatio: string) => {
       return { width: 1080, height: 1920 }
     case '16:9':
       return { width: 1920, height: 1080 }
-    case '1:1':
-      return { width: 1080, height: 1080 }
     default:
       return { width: 1080, height: 1920 }
   }
@@ -597,12 +595,12 @@ export default defineEventHandler(async (event) => {
         'CTA last frame', 
         nanoPrompt, 
         ctaSegment.visualPrompt,
-        body2LastFrameResult.imageUrl,  // Previous frame for prompt context only
+        body2LastFrameResult.imageUrl,  // CTA first frame image (= Body2 last frame) for visual continuity
         story.callToAction,  // Story text for context
-        false,  // isTransition = false (scene progression, not transition)
+        false,  // isTransition = false (final scene)
         undefined,  // No transition text
         undefined,  // No transition visual
-        false  // DO NOT include previous frame in image inputs - forces variation
+        true  // ✅ INCLUDE CTA first frame in image inputs for proper pipeline: product images + CTA first frame → nano-banana → seedream
       )
       
       if (ctaLastFrameResult) {

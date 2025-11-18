@@ -7,7 +7,7 @@ import { saveAsset, deleteFile } from '../utils/storage'
 const generateStoriesSchema = z.object({
   prompt: z.string().min(1),
   productImages: z.array(z.union([z.instanceof(File), z.string()])).max(10).optional(),
-  aspectRatio: z.enum(['16:9', '9:16', '1:1']),
+  aspectRatio: z.enum(['16:9', '9:16']),
   mood: z.string().optional(),
   model: z.string().optional(),
   generateVoiceover: z.boolean().optional(),

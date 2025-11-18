@@ -697,8 +697,7 @@ const aspectRatioOptions = computed(() => {
   if (!model || !model.aspectRatioOptions) {
     return [
       { label: '16:9', value: '16:9' },
-      { label: '9:16', value: '9:16' },
-      { label: '1:1', value: '1:1' }
+      { label: '9:16', value: '9:16' }
     ]
   }
   return model.aspectRatioOptions.map(ar => ({ label: ar, value: ar }))
@@ -727,7 +726,7 @@ const handleAspectRatioChange = (newAspectRatio: string) => {
   if (!selectedStoryboard.value.meta) {
     selectedStoryboard.value.meta = {}
   }
-  selectedStoryboard.value.meta.aspectRatio = newAspectRatio as '16:9' | '9:16' | '1:1'
+  selectedStoryboard.value.meta.aspectRatio = newAspectRatio as '16:9' | '9:16'
   
   debouncedSave()
   
@@ -793,8 +792,6 @@ const getExpectedDimensions = (aspectRatio: string, resolution: string): { width
       return is720p ? { width: 1280, height: 720 } : { width: 1920, height: 1080 }
     case '9:16':
       return is720p ? { width: 720, height: 1280 } : { width: 1080, height: 1920 }
-    case '1:1':
-      return is720p ? { width: 720, height: 720 } : { width: 1080, height: 1080 }
     default:
       return is720p ? { width: 720, height: 1280 } : { width: 1080, height: 1920 }
   }
@@ -806,7 +803,6 @@ const calculateAspectRatio = (width: number, height: number): string => {
   // Check with tolerance
   if (Math.abs(ratio - 16/9) < 0.1) return '16:9'
   if (Math.abs(ratio - 9/16) < 0.1) return '9:16'
-  if (Math.abs(ratio - 1) < 0.1) return '1:1'
   return 'unknown'
 }
 

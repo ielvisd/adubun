@@ -9,7 +9,7 @@ export interface VideoModel {
   supportsCustomDuration: boolean
   defaultDuration?: number
   durationOptions?: number[] // Valid duration values
-  aspectRatioOptions: ('16:9' | '9:16' | '1:1')[]
+  aspectRatioOptions: ('16:9' | '9:16')[]
   requiredInputs: string[] // e.g., ['prompt', 'image']
   optionalInputs: string[] // e.g., ['first_frame_image', 'subject_reference']
 }
@@ -46,7 +46,7 @@ export interface Storyboard {
   characters?: Character[] // Character descriptions extracted from the story
   meta: {
     duration: number
-    aspectRatio: '16:9' | '9:16' | '1:1'
+    aspectRatio: '16:9' | '9:16'
     mood?: string // Video tone/mood from homepage (e.g., 'professional', 'playful', 'inspirational')
     mode?: 'demo' | 'production'
     model?: string // Video model ID (e.g., 'google/veo-3.1')
@@ -97,7 +97,7 @@ export interface ParsedPrompt {
   callToAction: string
   meta: {
     duration: number
-    aspectRatio: '16:9' | '9:16' | '1:1'
+    aspectRatio: '16:9' | '9:16'
     style: string
     mode?: 'demo' | 'production'
     model?: string // Video model ID
@@ -111,7 +111,7 @@ export interface Video {
   url: string
   duration: number
   resolution: string
-  aspectRatio: '16:9' | '9:16' | '1:1'
+  aspectRatio: '16:9' | '9:16'
   generationCost: number
   createdAt: number
   storyboardId: string

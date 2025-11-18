@@ -17,7 +17,7 @@ const generateStoryboardsSchema = z.object({
   }),
   prompt: z.string(),
   productImages: z.array(z.string()).optional(),
-  aspectRatio: z.enum(['16:9', '9:16', '1:1']),
+  aspectRatio: z.enum(['16:9', '9:16']),
   model: z.string().optional(),
   mood: z.string().optional(), // Video tone/mood from homepage
 })

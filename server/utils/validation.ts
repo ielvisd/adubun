@@ -4,7 +4,7 @@ export const parsePromptSchema = z.object({
   prompt: z.string().min(10).max(1000),
   model: z.string().optional(), // Video model ID
   duration: z.number().min(1).max(180).optional(), // Allow shorter durations for models like Veo 3.1 (4, 6, 8s) and Hailuo (3, 5, 10s)
-  aspectRatio: z.enum(['16:9', '9:16', '1:1']),
+  aspectRatio: z.enum(['16:9', '9:16']),
   style: z.string().min(1),
   mode: z.enum(['demo', 'production']).optional(),
   // Veo 3.1 fields
@@ -31,7 +31,7 @@ export const planStoryboardSchema = z.object({
     callToAction: z.string(),
     meta: z.object({
       duration: z.number(),
-      aspectRatio: z.enum(['16:9', '9:16', '1:1']),
+      aspectRatio: z.enum(['16:9', '9:16']),
       style: z.string(),
       mood: z.string().optional(), // Video tone/mood
       mode: z.enum(['demo', 'production']).optional(),
@@ -80,7 +80,7 @@ export const generateAssetsSchema = z.object({
     ),
     meta: z.object({
       duration: z.number(),
-      aspectRatio: z.enum(['16:9', '9:16', '1:1']),
+      aspectRatio: z.enum(['16:9', '9:16']),
       style: z.string().optional(), // Legacy field, use mood instead
       mood: z.string().optional(), // Video tone/mood
       mode: z.enum(['demo', 'production']).optional(),
@@ -119,7 +119,7 @@ export const composeVideoSchema = z.object({
     transition: z.enum(['fade', 'dissolve', 'wipe', 'none']),
     musicVolume: z.number().min(0).max(100),
     backgroundMusicUrl: z.string().url().optional(),
-    aspectRatio: z.enum(['16:9', '9:16', '1:1']).optional(),
+    aspectRatio: z.enum(['16:9', '9:16']).optional(),
   }),
 })
 

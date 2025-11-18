@@ -1527,5 +1527,49 @@
     "createdAt": 1763461158539,
     "storyboardId": "",
     "jobId": ""
+  },
+  {
+    "id": "yzyFw6l6HIR1vg0acaZOG",
+    "url": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/ai_videos/1763485257527--32sy2IePu9jvWbFbcoMH.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251118%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251118T170059Z&X-Amz-Expires=604800&X-Amz-Signature=03c03db4860e318ba103e22a2923c9ced6d6756a6e0f14a98463d3201cf43eb6&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "duration": 16,
+    "resolution": "1920x1080",
+    "aspectRatio": "16:9",
+    "generationCost": 0,
+    "createdAt": 1763485259017,
+    "storyboardId": "",
+    "jobId": ""
+  },
+  {
+    "id": "9JnagtLrR4q_fCbgZkQE4",
+    "url": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/ai_videos/1763485273082-_dM6aFIcIFlGIrFAX9801.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251118%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251118T170114Z&X-Amz-Expires=604800&X-Amz-Signature=16bb116fdd819cbd4039cd6ea08bc57af939674af807c4d969fc64b064364344&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "duration": 16,
+    "resolution": "1920x1080",
+    "aspectRatio": "16:9",
+    "generationCost": 0,
+    "createdAt": 1763485274520,
+    "storyboardId": "",
+    "jobId": ""
+  },
+  {
+    "id": "9QsI6HNUE5BE4BbvuqO_A",
+    "url": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/ai_videos/1763489394154-DyfjJj7bedcTane6-TSQk.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251118%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251118T180955Z&X-Amz-Expires=604800&X-Amz-Signature=eae0bd5e4197f83a8af9a8670a9527a22ec3ac6a9416af4a4ea74ac48a8d7107&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "duration": 16,
+    "resolution": "1920x1080",
+    "aspectRatio": "16:9",
+    "generationCost": 0,
+    "createdAt": 1763489395322,
+    "storyboardId": "",
+    "jobId": ""
+  },
+  {
+    "id": "Rpmr_jWf8iyCk_h_C4LSu",
+    "url": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/ai_videos/1763489416010-5BLXGB3hvRdZpRibEZZ05.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251118%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251118T181016Z&X-Amz-Expires=604800&X-Amz-Signature=892600a3ea03897aa97a3dd845e40f80506274ddaf2a9c52170be430bb443675&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "duration": 16,
+    "resolution": "1920x1080",
+    "aspectRatio": "16:9",
+    "generationCost": 0,
+    "createdAt": 1763489416815,
+    "storyboardId": "",
+    "jobId": ""
   }
 ]
