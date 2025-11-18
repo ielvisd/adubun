@@ -26,20 +26,20 @@
             <div class="flex-1"></div>
             <!-- Mode Display -->
             <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white py-3 px-5 rounded-lg shadow-sm">
-              <div class="flex items-center gap-4">
+            <div class="flex items-center gap-4">
                 <UBadge :color="storyboard.meta.mode === 'demo' ? 'yellow' : 'blue'" size="lg" variant="subtle" class="uppercase">
-                  {{ storyboard.meta.mode === 'demo' ? 'Demo Mode' : 'Production Mode' }}
+                {{ storyboard.meta.mode === 'demo' ? 'Demo Mode' : 'Production Mode' }}
                 </UBadge>
                 <div class="text-sm text-gray-600 dark:text-gray-400">
-                  <span v-if="storyboard.meta.mode === 'demo'">
+                <span v-if="storyboard.meta.mode === 'demo'">
                     Only the first scene will be generated
-                  </span>
-                  <span v-else>
-                    All scenes will be generated
-                  </span>
-                </div>
+                </span>
+                <span v-else>
+                  All scenes will be generated
+                </span>
               </div>
             </div>
+          </div>
           </div>
         </div>
 

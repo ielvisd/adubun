@@ -1,25 +1,25 @@
 <template>
   <div v-if="shouldShow" class="space-y-6 mt-8">
     <UCard class="bg-white dark:bg-gray-800 shadow-lg">
-      <template #header>
-        <div class="flex items-center justify-between">
+    <template #header>
+      <div class="flex items-center justify-between">
           <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Video Composition</h3>
-          <div class="flex gap-2">
-            <UButton
-              v-if="originalVideoUrl || smartVideoUrl"
-              icon="i-heroicons-arrow-path"
-              size="sm"
-              variant="ghost"
-              @click="recompose"
-              :disabled="composing"
-            >
-              Refresh
-            </UButton>
-          </div>
+        <div class="flex gap-2">
+          <UButton
+            v-if="originalVideoUrl || smartVideoUrl"
+            icon="i-heroicons-arrow-path"
+            size="sm"
+            variant="ghost"
+            @click="recompose"
+            :disabled="composing"
+          >
+            Refresh
+          </UButton>
         </div>
-      </template>
+      </div>
+    </template>
 
-      <div class="space-y-6">
+    <div class="space-y-6">
         <!-- Timeline Visualization -->
         <div v-if="props.clips.length > 0" class="space-y-4">
           <div class="relative h-24 bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden">
@@ -39,7 +39,7 @@
           </div>
         </div>
 
-        <!-- Loading State -->
+      <!-- Loading State -->
       <div v-if="composing" class="flex flex-col items-center justify-center py-12">
         <UIcon name="i-heroicons-arrow-path" class="w-12 h-12 text-primary-500 animate-spin mb-4" />
         <p class="text-gray-600 dark:text-gray-400">Composing both video versions...</p>
@@ -202,8 +202,8 @@
         <UIcon name="i-heroicons-video-camera" class="w-12 h-12 mb-4 opacity-50" />
         <p>No video segments available to preview</p>
       </div>
-      </div>
-    </UCard>
+    </div>
+  </UCard>
 
     <!-- Cost Tracking at Bottom -->
     <UCard class="bg-white dark:bg-gray-800 shadow-lg">
@@ -487,7 +487,7 @@ const sendToEditor = async () => {
     error.value = err.message || 'Failed to send video to editor. Please try again.'
   } finally {
     sendingToEditor.value = false
-  }
+    }
 }
 
 // No auto-compose - user must click button to generate

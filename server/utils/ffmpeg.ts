@@ -145,9 +145,9 @@ function buildFilterComplex(clips: Clip[], options: CompositionOptions, clipsWit
   })
 
   // No transitions - direct copy for all clips (zero effects)
-  clips.forEach((clip, idx) => {
-    filters.push(`[v${idx}]copy[v${idx}f]`)
-  })
+    clips.forEach((clip, idx) => {
+      filters.push(`[v${idx}]copy[v${idx}f]`)
+    })
 
   // Concatenate videos
   const videoInputs = clips.map((_, idx) => `[v${idx}f]`).join('')

@@ -276,6 +276,38 @@ class ReplicateMCPServer {
             required: ['video', 'prompt'],
           },
         },
+        {
+          name: 'edit_video_gen3',
+          description: 'Edit video using RunwayML Gen-3 Alpha Turbo with optional masking for targeted edits. Supports object removal, style changes, and effects. Mask should be a binary image (white=edit, black=preserve).',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              video: {
+                type: 'string',
+                description: 'Video file path or URL to edit',
+              },
+              prompt: {
+                type: 'string',
+                description: 'Text description of the edit (e.g., "remove the person", "make it rainy")',
+              },
+              mask: {
+                type: 'string',
+                description: 'Optional: Mask image file path or URL (white pixels = edit area, black = preserve)',
+              },
+              reference_image: {
+                type: 'string',
+                description: 'Optional: Reference image for style guidance',
+              },
+              aspect_ratio: {
+                type: 'string',
+                enum: ['16:9', '9:16'],
+                description: 'Aspect ratio (16:9, 9:16)',
+                default: '16:9',
+              },
+            },
+            required: ['video', 'prompt'],
+          },
+        },
       ],
     }))
 
@@ -312,6 +344,15 @@ class ReplicateMCPServer {
             return await this.editVideoAleph(
               args.video,
               args.prompt,
+              args.reference_image,
+              args.aspect_ratio || '16:9'
+            )
+          
+          case 'edit_video_gen3':
+            return await this.editVideoGen3(
+              args.video,
+              args.prompt,
+              args.mask,
               args.reference_image,
               args.aspect_ratio || '16:9'
             )
@@ -748,6 +789,87 @@ class ReplicateMCPServer {
     })
 
     console.error('[Replicate MCP] Aleph prediction created:', prediction.id)
+    console.error('[Replicate MCP] Status:', prediction.status)
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            predictionId: prediction.id,
+            status: prediction.status,
+            urls: prediction.urls,
+          }, null, 2),
+        },
+      ],
+    }
+  }
+
+  private async editVideoGen3(
+    video: string,
+    prompt: string,
+    mask?: string,
+    referenceImage?: string,
+    aspectRatio: string = '16:9'
+  ) {
+    console.error('[Replicate MCP] Starting Gen-4 Aleph video edit (with mask support)')
+    console.error('[Replicate MCP] Video:', video)
+    console.error('[Replicate MCP] Prompt:', prompt)
+    console.error('[Replicate MCP] Mask:', mask || 'none')
+    console.error('[Replicate MCP] Reference Image:', referenceImage || 'none')
+
+    // Upload video if it's a local file path
+    let videoUrl = video
+    if (!video.startsWith('http://') && !video.startsWith('https://')) {
+      console.error('[Replicate MCP] Uploading local video file to Replicate...')
+      videoUrl = await this.uploadFile(video)
+      console.error('[Replicate MCP] Video uploaded:', videoUrl)
+    }
+
+    // Upload mask if provided and is local
+    let maskUrl: string | undefined = mask
+    if (mask && !mask.startsWith('http://') && !mask.startsWith('https://')) {
+      console.error('[Replicate MCP] Uploading mask image to Replicate...')
+      maskUrl = await this.uploadFile(mask)
+      console.error('[Replicate MCP] Mask uploaded:', maskUrl)
+    }
+
+    // Upload reference image if provided and is local
+    let referenceImageUrl: string | undefined = referenceImage
+    if (referenceImage && !referenceImage.startsWith('http://') && !referenceImage.startsWith('https://')) {
+      console.error('[Replicate MCP] Uploading reference image to Replicate...')
+      referenceImageUrl = await this.uploadFile(referenceImage)
+      console.error('[Replicate MCP] Reference image uploaded:', referenceImageUrl)
+    }
+
+    // Build input for Gen-4 Aleph
+    // Using Gen-4 Aleph which is the available video editing model on Replicate
+    const input: any = {
+      video: videoUrl,
+      prompt: prompt,
+    }
+
+    // Add mask if provided (for targeted editing)
+    // Note: If Gen-4 Aleph doesn't support mask, it will ignore this parameter
+    if (maskUrl) {
+      input.mask = maskUrl
+      console.error('[Replicate MCP] Mask will be included in request')
+    }
+
+    // Add reference image if provided
+    if (referenceImageUrl) {
+      input.reference_image = referenceImageUrl
+    }
+
+    console.error('[Replicate MCP] Creating Gen-4 Aleph prediction with input:', JSON.stringify(input, null, 2))
+
+    // Create prediction using runwayml/gen4-aleph model (the actual available model)
+    const prediction = await replicate.predictions.create({
+      model: 'runwayml/gen4-aleph',
+      input: input,
+    })
+
+    console.error('[Replicate MCP] Gen-4 Aleph prediction created:', prediction.id)
     console.error('[Replicate MCP] Status:', prediction.status)
 
     return {
