@@ -84,30 +84,52 @@
             </p>
           </div>
           <div class="flex items-center gap-3 flex-wrap">
-            <UFormField label="Video Model" name="model" class="mb-0">
+            <!-- View Mode Toggle -->
+            <UFormField label="View Mode" name="viewMode" class="mb-0">
               <USelect
-                :model-value="currentModel"
-                :items="videoModelOptions"
-                @update:model-value="handleModelChange"
-                :disabled="loading || generatingFrames"
+                v-model="viewMode"
+                :items="[
+                  { label: '👤 User', value: 'user' },
+                  { label: '⚙️ Admin', value: 'admin' }
+                ]"
               />
             </UFormField>
-            <UFormField label="Aspect Ratio" name="aspectRatio" class="mb-0">
-              <USelect
-                :model-value="currentAspectRatio"
-                :items="aspectRatioOptions"
-                @update:model-value="handleAspectRatioChange"
-                :disabled="loading || generatingFrames"
-              />
-            </UFormField>
-            <UFormField label="Resolution" name="resolution" class="mb-0">
-              <USelect
-                :model-value="currentResolution"
-                :items="resolutionOptions"
-                @update:model-value="handleResolutionChange"
-                :disabled="loading || generatingFrames"
-              />
-            </UFormField>
+            
+            <!-- Only show in Admin mode -->
+            <template v-if="viewMode === 'admin'">
+              <UFormField label="Style" name="style" class="mb-0">
+                <USelect
+                  :model-value="currentStyle"
+                  :items="availableStyles.map(s => ({ label: s, value: s }))"
+                  @update:model-value="regenerateStoryboard"
+                  :disabled="loading"
+                />
+              </UFormField>
+              <UFormField label="Video Model" name="model" class="mb-0">
+                <USelect
+                  :model-value="currentModel"
+                  :items="videoModelOptions"
+                  @update:model-value="handleModelChange"
+                  :disabled="loading"
+                />
+              </UFormField>
+            </template>
+          </div>
+        </div>
+
+        <!-- Progress Indicator -->
+        <div class="mb-6 flex items-center justify-center">
+          <div class="flex items-center gap-2 text-sm">
+            <UBadge color="green" variant="solid" size="sm">✓</UBadge>
+            <span class="text-gray-600 dark:text-gray-400">Stories</span>
+            <UIcon name="i-heroicons-chevron-right" class="w-4 h-4 text-gray-400" />
+            
+            <UBadge color="blue" variant="solid" size="sm">2</UBadge>
+            <span class="font-semibold text-gray-900 dark:text-white">Review Storyboard</span>
+            <UIcon name="i-heroicons-chevron-right" class="w-4 h-4 text-gray-400" />
+            
+            <UBadge color="gray" variant="soft" size="sm">3</UBadge>
+            <span class="text-gray-400">Generate Video</span>
           </div>
         </div>
 
@@ -116,26 +138,51 @@
           <template #header>
             <h3 class="text-lg font-semibold">Generate Frame Images</h3>
           </template>
-          <div class="flex items-center justify-between">
-            <div class="flex-1">
-              <div class="font-medium">All Scenes</div>
-              <div class="text-sm text-gray-500 dark:text-gray-400">
-                <span v-if="allFramesReady">✓ All frames generated</span>
-                <span v-else-if="generatingFrames">Generating frames...</span>
-                <span v-else>Frames not generated</span>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="flex-1">
+                <div class="font-medium">All Scenes</div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">
+                  <span v-if="allFramesReady">✓ All frames generated</span>
+                  <span v-else-if="generatingFrames">Generating frames...</span>
+                  <span v-else>Frames not generated</span>
+                </div>
               </div>
+              <UButton
+                :loading="generatingFrames"
+                :disabled="generatingFrames"
+                @click="generateFrames"
+                color="primary"
+                size="sm"
+              >
+                <UIcon name="i-heroicons-photo" class="mr-2" />
+                <span v-if="allFramesReady">Regenerate All Frames</span>
+                <span v-else>Generate All Frames</span>
+              </UButton>
             </div>
-            <UButton
-              :loading="generatingFrames"
-              :disabled="generatingFrames"
-              @click="generateFrames"
-              color="primary"
-              size="sm"
-            >
-              <UIcon name="i-heroicons-photo" class="mr-2" />
-              <span v-if="allFramesReady">Regenerate All Frames</span>
-              <span v-else>Generate All Frames</span>
-            </UButton>
+            
+            <!-- Enhance All Frames Button (Admin Only) -->
+            <div v-if="viewMode === 'admin' && allFramesReady" class="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div class="flex-1">
+                <div class="font-medium">Enhance with Seedream-4</div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">
+                  <span v-if="allFramesEnhanced">✓ All frames enhanced</span>
+                  <span v-else-if="enhancingFrames">Enhancing frames...</span>
+                  <span v-else>Apply AI enhancement to improve quality</span>
+                </div>
+              </div>
+              <UButton
+                :loading="enhancingFrames"
+                :disabled="enhancingFrames || !allFramesReady"
+                @click="enhanceFrames"
+                color="blue"
+                size="sm"
+              >
+                <UIcon name="i-heroicons-sparkles" class="mr-2" />
+                <span v-if="allFramesEnhanced">Re-enhance All Frames</span>
+                <span v-else>Enhance All Frames</span>
+              </UButton>
+            </div>
           </div>
         </UCard>
 
@@ -184,8 +231,47 @@
           </template>
         </UAlert>
 
-        <!-- Segments Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Frame Enhancement Status -->
+        <UAlert
+          v-if="enhancingFrames"
+          color="blue"
+          variant="soft"
+          class="mb-6"
+        >
+          <template #title>
+            <div class="flex items-center gap-2">
+              <UIcon name="i-heroicons-sparkles" class="w-5 h-5 animate-pulse" />
+              Enhancing Frames with Seedream-4
+            </div>
+          </template>
+          <template #description>
+            Applying AI enhancement to improve lighting, color, and quality. This may take a few minutes...
+          </template>
+        </UAlert>
+
+        <UAlert
+          v-else-if="enhancementError"
+          color="red"
+          variant="soft"
+          class="mb-6"
+        >
+          <template #title>Frame Enhancement Failed</template>
+          <template #description>
+            {{ enhancementError }}
+          </template>
+          <template #actions>
+            <UButton
+              variant="ghost"
+              color="red"
+              size="sm"
+              @click="enhanceFrames"
+            >
+              Retry
+            </UButton>
+          </template>
+        </UAlert>
+
+        <div class="space-y-4">
           <UCard
             v-for="(segment, index) in selectedStoryboard.segments"
             :key="index"
@@ -195,11 +281,60 @@
             ]"
           >
             <template #header>
-              <div class="flex items-center justify-between gap-4">
-                <div class="flex-1">
+              <button 
+                v-if="viewMode === 'user'"
+                @click="toggleSegment(index)"
+                class="w-full flex items-center justify-between cursor-pointer"
+                type="button"
+              >
+                <div class="flex items-center gap-3">
+                  <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    {{ getSegmentLabel(segment.type) }}
+                  </h3>
+                  <span class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ segment.startTime }}s - {{ segment.endTime }}s
+                  </span>
+                  
+                  <!-- Status Badge -->
+                  <UBadge 
+                    v-if="getSegmentStatus(index) === 'ready'"
+                    color="green"
+                    variant="soft"
+                    size="xs"
+                  >
+                    ✓ Ready
+                  </UBadge>
+                  <UBadge 
+                    v-else-if="getSegmentStatus(index) === 'generating'"
+                    color="blue"
+                    variant="soft"
+                    size="xs"
+                  >
+                    ⏳ Generating...
+                  </UBadge>
+                  <UBadge
+                    v-else-if="isDemoMode && index > 0"
+                    color="yellow"
+                    variant="soft"
+                    size="xs"
+                  >
+                    Demo: Skipped
+                  </UBadge>
+                </div>
+                
+                <!-- Expand/Collapse Icon -->
+                <UIcon 
+                  :name="expandedSegments.includes(index) ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+                  class="w-5 h-5 text-gray-500"
+                />
+              </button>
+              
+              <!-- Admin Mode: Non-collapsible -->
+              <div v-else class="flex items-center justify-between">
+                <div>
                   <div class="flex items-center gap-2">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                      {{ segment.type === 'hook' ? 'Hook' : segment.type === 'cta' ? 'Call to Action' : `Body ${index === 1 ? '1' : '2'}` }}
+                      {{ getSegmentLabel(segment.type) }}
                     </h3>
                     <UBadge
                       v-if="isDemoMode && index > 0"
@@ -229,9 +364,16 @@
               </div>
             </template>
 
-            <div class="space-y-4">
-              <!-- Scene Description - More Vertical Space -->
-              <UFormField label="Scene Description" :name="`segment-${index}-description`">
+            <!-- Content (show/hide based on mode and expanded state) -->
+            <div 
+              v-show="viewMode === 'admin' || expandedSegments.includes(index)"
+              class="space-y-4"
+            >
+              <!-- Scene Description -->
+              <UFormField 
+                :label="viewMode === 'user' ? 'What happens?' : 'Scene Description'" 
+                :name="`segment-${index}-description`"
+              >
                 <UTextarea
                   v-model="segment.description"
                   :rows="4"
@@ -242,8 +384,12 @@
                 />
               </UFormField>
 
-              <!-- Visual Prompt - Much More Vertical Space -->
-              <UFormField label="Visual Prompt" :name="`segment-${index}-visual`">
+              <!-- Visual Prompt (Admin only) -->
+              <UFormField 
+                v-if="viewMode === 'admin'"
+                label="Visual Prompt" 
+                :name="`segment-${index}-visual`"
+              >
                 <UTextarea
                   v-model="segment.visualPrompt"
                   :rows="6"
@@ -254,116 +400,119 @@
                 />
               </UFormField>
 
-              <!-- Frame Images - Combined Display & Upload -->
-              <div class="grid grid-cols-2 gap-4">
-                <!-- First Frame Image -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    First Frame
-                  </label>
-                  <div
-                    class="relative border-2 border-dashed rounded-lg overflow-hidden transition-all"
-                    :class="[
-                      segment.firstFrameImage ? 'border-gray-300' : 'border-gray-300 bg-gray-50 dark:bg-gray-900',
-                      (generatingFrames || isFrameRegenerating(index, 'first')) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-primary-400'
-                    ]"
-                    @click="!generatingFrames && !isFrameRegenerating(index, 'first') && triggerImageUpload(index, 'firstFrameImage')"
-                    @dragover.prevent.stop="!generatingFrames && !isFrameRegenerating(index, 'first') && handleDragOver"
-                    @dragenter.prevent.stop="!generatingFrames && !isFrameRegenerating(index, 'first') && handleDragEnter"
-                    @dragleave.prevent.stop="!generatingFrames && !isFrameRegenerating(index, 'first') && handleDragLeave"
-                    @drop.prevent.stop="!generatingFrames && !isFrameRegenerating(index, 'first') && handleImageDrop(index, 'firstFrameImage', $event)"
-                  >
-                    <!-- Skeleton while generating -->
-                    <div v-if="generatingFrames && !segment.firstFrameImage" class="aspect-square flex items-center justify-center">
-                      <USkeleton class="w-full h-full" />
-                    </div>
-                    <!-- Actual image when available -->
-                    <div v-else-if="segment.firstFrameImage" class="aspect-square relative group bg-gray-200 dark:bg-gray-700">
-                      <img
-                        :key="`first-${index}-${segment.firstFrameImage}`"
-                        :src="resolveImageUrl(segment.firstFrameImage)"
-                        alt="First frame preview"
-                        class="absolute inset-0 w-full h-full object-cover z-0"
-                        loading="eager"
-                        crossorigin="anonymous"
-                        referrerpolicy="no-referrer"
-                        @error="handleImageError($event, index, 'first')"
-                        @load="async () => {
-                          console.log('[Storyboards] ✓ First frame image loaded for segment', index)
-                          console.log('[Storyboards] Image URL:', segment.firstFrameImage)
-                          console.log('[Storyboards] Resolved URL:', resolveImageUrl(segment.firstFrameImage))
-                          // Clear error state on successful load
-                          delete imageLoadError.value[`first-${index}`]
-                          // Check dimensions
-                          const dims = await checkImageDimensions(resolveImageUrl(segment.firstFrameImage) || '')
-                          if (dims) {
-                            frameImageDimensions.value.set(`${index}-first`, dims)
-                          }
-                        }"
+              <!-- USER MODE: Side-by-Side Frames -->
+              <div v-if="viewMode === 'user'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Opening Shot (First Frame) -->
+                <UFormField label="Opening Shot">
+                  <div v-if="segment.firstFrameImage" class="space-y-2">
+                    <div class="relative w-full">
+                      <NuxtImg
+                        :src="segment.firstFrameImage"
+                        alt="Opening shot"
+                        class="w-full h-auto rounded-lg border border-gray-200 dark:border-gray-700"
+                        loading="lazy"
                       />
-                      <!-- Fallback: Show if image fails to load -->
-                      <div v-if="imageLoadError[`first-${index}`]" class="absolute inset-0 flex flex-col items-center justify-center text-xs text-gray-500 p-2 text-center bg-gray-200 dark:bg-gray-700 z-10">
-                        <UIcon name="i-heroicons-exclamation-triangle" class="w-8 h-8 text-red-500 mb-2" />
-                        <p class="font-medium">Failed to load image</p>
-                        <p class="text-[10px] mt-1 break-all opacity-75">{{ segment.firstFrameImage?.substring(0, 50) }}...</p>
-                        <UButton size="xs" color="primary" class="mt-2" @click="retryImageLoad(index, 'first')">
-                          Retry
-                        </UButton>
-                      </div>
-                      <!-- Overlay on hover - only shows on hover -->
-                      <div class="absolute inset-0 bg-black opacity-0 group-hover:opacity-50 transition-opacity flex items-center justify-center pointer-events-none z-10">
-                        <div class="opacity-0 group-hover:opacity-100 transition-opacity text-white text-center">
-                          <UIcon name="i-heroicons-arrow-up-tray" class="w-6 h-6 mx-auto mb-1" />
-                          <p class="text-xs">Click to change</p>
-                        </div>
-                      </div>
-                      <!-- Model Source Badge -->
-                      <UBadge
-                        v-if="frameGenerationStatus.get(index)?.firstModelSource"
-                        :color="frameGenerationStatus.get(index)?.firstModelSource === 'seedream-4' ? 'blue' : 'yellow'"
-                        variant="solid"
-                        class="absolute top-2 right-2 z-20"
-                        size="xs"
-                      >
-                        {{ frameGenerationStatus.get(index)?.firstModelSource === 'seedream-4' ? 'SD4' : 'NB' }}
-                      </UBadge>
-                      <!-- Aspect Ratio/Resolution Warning -->
-                      <UBadge
-                        v-if="getFrameWarning(index, 'first')"
-                        color="red"
-                        variant="solid"
-                        class="absolute top-2 left-2 z-20 max-w-[calc(100%-4rem)]"
-                        size="xs"
-                      >
-                        {{ getFrameWarning(index, 'first') }}
-                      </UBadge>
-                      <!-- Regenerate Button -->
-                      <UButton
-                        v-if="segment.firstFrameImage"
-                        icon="i-heroicons-arrow-path"
-                        size="xs"
-                        color="primary"
-                        variant="solid"
-                        class="absolute bottom-2 right-2 z-20"
-                        :loading="regeneratingFrames.get(`${index}-first`)"
-                        @click.stop="regenerateSingleFrame(index, 'firstFrameImage')"
-                        :disabled="generatingFrames || regeneratingFrames.get(`${index}-first`)"
-                      >
-                        Regenerate
-                      </UButton>
                     </div>
-                    <!-- Empty state -->
-                    <div v-else class="aspect-square flex flex-col items-center justify-center p-4 text-center">
-                      <UIcon name="i-heroicons-photo" class="w-10 h-10 text-gray-400 mb-2" />
-                      <p class="text-xs text-gray-500 dark:text-gray-400">Click or drag to upload</p>
+                    <ImageUpload
+                      v-model="segment.firstFrameImage"
+                      @upload="(file) => handleFrameImageUpload(index, 'firstFrameImage', file)"
+                      button-text="Replace"
+                    />
+                  </div>
+                  <div v-else class="aspect-video bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center p-6">
+                    <UIcon name="i-heroicons-photo" class="w-12 h-12 text-gray-400 mb-2" />
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Frame will appear here</p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">~30 seconds</p>
+                  </div>
+                </UFormField>
+
+                <!-- Closing Shot (Last Frame) -->
+                <UFormField 
+                  v-if="segment.type !== 'cta'"
+                  label="Closing Shot"
+                >
+                  <div v-if="segment.lastFrameImage" class="space-y-2">
+                    <div class="relative w-full">
+                      <NuxtImg
+                        :src="segment.lastFrameImage"
+                        alt="Closing shot"
+                        class="w-full h-auto rounded-lg border border-gray-200 dark:border-gray-700"
+                        loading="lazy"
+                      />
                     </div>
-                    <!-- Hidden file input -->
-                    <input
-                      :ref="el => setFileInputRef(el, index, 'first')"
-                      type="file"
-                      accept="image/jpeg,image/jpg,image/png,image/webp"
-                      class="hidden"
-                      @change="handleImageFileChange(index, 'firstFrameImage', $event)"
+                    <ImageUpload
+                      v-model="segment.lastFrameImage"
+                      @upload="(file) => handleFrameImageUpload(index, 'lastFrameImage', file)"
+                      button-text="Replace"
+                    />
+                  </div>
+                  <div v-else class="aspect-video bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center p-6">
+                    <UIcon name="i-heroicons-photo" class="w-12 h-12 text-gray-400 mb-2" />
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Frame will appear here</p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">~30 seconds</p>
+                  </div>
+                </UFormField>
+
+                <!-- CTA: Only show first frame as "Final Frame" -->
+                <UFormField 
+                  v-else
+                  label="Final Frame"
+                >
+                  <div v-if="segment.lastFrameImage" class="space-y-2">
+                    <div class="relative w-full">
+                      <NuxtImg
+                        :src="segment.lastFrameImage"
+                        alt="Final frame"
+                        class="w-full h-auto rounded-lg border border-gray-200 dark:border-gray-700"
+                        loading="lazy"
+                      />
+                    </div>
+                    <ImageUpload
+                      v-model="segment.lastFrameImage"
+                      @upload="(file) => handleFrameImageUpload(index, 'lastFrameImage', file)"
+                      button-text="Replace"
+                    />
+                  </div>
+                  <div v-else class="aspect-video bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center p-6">
+                    <UIcon name="i-heroicons-photo" class="w-12 h-12 text-gray-400 mb-2" />
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Frame will appear here</p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">~30 seconds</p>
+                  </div>
+                </UFormField>
+              </div>
+
+              <!-- ADMIN MODE: Stacked Frames (existing layout) -->
+              <template v-else>
+              <!-- First Frame Image -->
+              <UFormField label="First Frame Image" :name="`segment-${index}-first-frame`">
+                <div v-if="segment.firstFrameImage || (generatingFrames && !segment.firstFrameImage)" class="space-y-2">
+                  <!-- Skeleton while generating -->
+                  <div v-if="generatingFrames && !segment.firstFrameImage" class="relative w-full max-w-md">
+                    <USkeleton class="w-full aspect-video rounded-lg" />
+                  </div>
+                  <!-- Actual image when available -->
+                  <div v-else-if="segment.firstFrameImage" class="relative w-full max-w-md">
+                    <NuxtImg
+                      :src="segment.firstFrameImage"
+                      alt="First frame preview"
+                      class="w-full h-auto rounded-lg border border-gray-200 dark:border-gray-700"
+                      loading="lazy"
+                    />
+                    <!-- Dev Mode: Model Source Indicator -->
+                    <UBadge
+                      v-if="frameGenerationStatus.get(index)?.firstModelSource"
+                      :color="frameGenerationStatus.get(index)?.firstModelSource === 'seedream-4' ? 'blue' : 'yellow'"
+                      variant="solid"
+                      class="absolute top-2 right-2"
+                      size="sm"
+                    >
+                      {{ frameGenerationStatus.get(index)?.firstModelSource === 'seedream-4' ? 'seedream-4' : 'nano-banana' }}
+                    </UBadge>
+                  </div>
+                  <div class="flex gap-2">
+                    <ImageUpload
+                      v-model="segment.firstFrameImage"
+                      @upload="(file) => handleFrameImageUpload(index, 'firstFrameImage', file)"
                     />
                   </div>
                   <!-- Frame Comparison -->
@@ -499,7 +648,27 @@
                     @close="showComparison.set(`${index}-last`, false)"
                   />
                 </div>
-              </div>
+                <div v-else-if="segment.type === 'cta'" class="space-y-2">
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                    Final frame image will be generated automatically
+                  </p>
+                  <ImageUpload
+                    v-model="segment.lastFrameImage"
+                    @upload="(file) => handleFrameImageUpload(index, 'lastFrameImage', file)"
+                  />
+                </div>
+                <div v-else class="space-y-2">
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                    Last frame image will be generated automatically
+                  </p>
+                  <ImageUpload
+                    v-model="segment.lastFrameImage"
+                    @upload="(file) => handleFrameImageUpload(index, 'lastFrameImage', file)"
+                  />
+                </div>
+              </UFormField>
+              </template>
+              <!-- End Admin Mode -->
             </div>
           </UCard>
         </div>
@@ -568,6 +737,9 @@ const selectedStory = ref<any>(null)
 const promptData = ref<any>(null)
 const generatingFrames = ref(false)
 const frameGenerationError = ref<string | null>(null)
+const enhancingFrames = ref(false)
+const enhancementError = ref<string | null>(null)
+const currentStyle = ref<string>('Cinematic')
 const composingVideo = ref(false)
 const regeneratingFrames = ref<Map<string, boolean>>(new Map())
 const frameImageDimensions = ref<Map<string, { width: number; height: number; aspectRatio: string }>>(new Map())
@@ -577,6 +749,52 @@ const fileInputRefs = ref<Record<string, HTMLInputElement>>({})
 
 // Image load error tracking
 const imageLoadError = ref<Record<string, boolean>>({})
+
+// View mode toggle: 'user' (simplified) or 'admin' (full control)
+const viewMode = ref<'user' | 'admin'>('user')
+
+// Expanded segments for accordion behavior
+const expandedSegments = ref<number[]>([])
+
+// Toggle segment expansion
+const toggleSegment = (index: number) => {
+  if (viewMode.value === 'user') {
+    // Accordion behavior: only one open at a time
+    expandedSegments.value = expandedSegments.value.includes(index) ? [] : [index]
+  } else {
+    // Admin: allow multiple open
+    const idx = expandedSegments.value.indexOf(index)
+    if (idx > -1) {
+      expandedSegments.value.splice(idx, 1)
+    } else {
+      expandedSegments.value.push(index)
+    }
+  }
+}
+
+// Get friendly segment label based on mode
+const getSegmentLabel = (type: string) => {
+  if (viewMode.value === 'admin') {
+    return type === 'hook' ? 'Hook' : 
+           type === 'cta' ? 'Call to Action' : 
+           type === 'body1' ? 'Body 1' : 'Body 2'
+  }
+  // User mode - friendlier labels
+  return type === 'hook' ? 'Intro' : 
+         type === 'cta' ? 'Final Message' : 
+         type === 'body1' ? 'Scene 1' : 'Scene 2'
+}
+
+// Get segment status for badges
+const getSegmentStatus = (index: number): 'ready' | 'generating' | 'pending' | 'error' => {
+  const segment = selectedStoryboard.value?.segments[index]
+  if (!segment) return 'pending'
+  
+  if (generatingFrames.value) return 'generating'
+  if (segment.firstFrameImage && (segment.type === 'cta' ? true : segment.lastFrameImage)) return 'ready'
+  if (frameGenerationError.value) return 'error'
+  return 'pending'
+}
 
 // Check if videos have been generated (exist in sessionStorage)
 const hasGeneratedVideos = computed(() => {
@@ -1457,7 +1675,10 @@ const generateFrames = async () => {
 
     const result = await Promise.race([apiCall, timeoutPromise]) as any
     
-    console.log('[Storyboards] Frame generation API response:', result)
+    console.log('[Storyboards] ========================================')
+    console.log('[Storyboards] Frame Generation API Response')
+    console.log('[Storyboards] ========================================')
+    console.log('[Storyboards] API response:', result)
 
     // Map frames to segments
     // Frames structure: [{ segmentIndex: 0, frameType: 'first', imageUrl: '...' }, ...]
@@ -1465,8 +1686,13 @@ const generateFrames = async () => {
     
     console.log('[Storyboards] Received frames:', frames.length, 'frames')
     
+    // Log each frame received
+    frames.forEach((frame: any, index: number) => {
+      console.log(`  Frame ${index + 1}: segmentIndex=${frame.segmentIndex}, frameType=${frame.frameType}, url=${frame.imageUrl?.substring(0, 50)}...`)
+    })
+    
     if (!frames || frames.length === 0) {
-      console.warn('[Storyboards] No frames returned from API')
+      console.warn('[Storyboards] ⚠️ No frames returned from API')
       frameGenerationError.value = 'No frames were generated. Please try again.'
       return
     }
@@ -1514,12 +1740,10 @@ const generateFrames = async () => {
       }
     })
     
-    console.log('[Storyboards] Frame map created:', Array.from(frameMap.entries()))
-    console.log('[Storyboards] Frame validation:')
-    console.log('  - Hook frames (index 0):', frameMap.get('0'))
-    console.log('  - Body1 frames (index 1):', frameMap.get('1'))
-    console.log('  - Body2 frames (index 2):', frameMap.get('2'))
-    console.log('  - CTA frames (index 3):', frameMap.get('3'))
+    console.log('[Storyboards] Frame map created:')
+    frameMap.forEach((value, key) => {
+      console.log(`  Segment ${key}: first=${!!value.first}, last=${!!value.last}`)
+    })
 
     // Map frames to segments according to PRD:
     // Hook: firstFrameImage = frames[0] (hook first), lastFrameImage = frames[1] (hook last)
@@ -1632,7 +1856,15 @@ const generateFrames = async () => {
       const body2LastNanoImageUrl = body2Frames?.lastNanoImageUrl
       const body2LastSeedreamImageUrl = body2Frames?.lastSeedreamImageUrl
       const ctaFrames = frameMap.get('3')
-      console.log('[Storyboards] CTA frames:', ctaFrames)
+      
+      console.log('[Storyboards] ========================================')
+      console.log('[Storyboards] Assigning CTA Frames')
+      console.log('[Storyboards] ========================================')
+      console.log('[Storyboards] CTA frames from map:', ctaFrames)
+      console.log('[Storyboards] CTA has first in map:', !!ctaFrames?.first)
+      console.log('[Storyboards] CTA has last in map:', !!ctaFrames?.last)
+      console.log('[Storyboards] Body2 last frame (for CTA first):', body2LastFrame?.substring(0, 60))
+      
       if (body2LastFrame) {
         selectedStoryboard.value.segments[3].firstFrameImage = body2LastFrame
         frameGenerationStatus.value.set(3, { 
@@ -1642,8 +1874,11 @@ const generateFrames = async () => {
           firstNanoImageUrl: body2LastNanoImageUrl,
           firstSeedreamImageUrl: body2LastSeedreamImageUrl
         })
-        console.log('[Storyboards] Assigned CTA first frame (from body2 last):', body2LastFrame)
+        console.log('[Storyboards] ✓ Assigned CTA first frame (from body2 last):', body2LastFrame.substring(0, 60))
+      } else {
+        console.error('[Storyboards] ✗ Could not assign CTA first frame - body2LastFrame is missing')
       }
+      
       if (ctaFrames?.last) {
         // CTA's last frame is the final frame of the video
         selectedStoryboard.value.segments[3].lastFrameImage = ctaFrames.last
@@ -1654,7 +1889,11 @@ const generateFrames = async () => {
           lastNanoImageUrl: ctaFrames.lastNanoImageUrl,
           lastSeedreamImageUrl: ctaFrames.lastSeedreamImageUrl
         })
-        console.log('[Storyboards] Assigned CTA last frame:', ctaFrames.last)
+        console.log('[Storyboards] ✓ Assigned CTA last frame:', ctaFrames.last.substring(0, 60))
+      } else {
+        console.error('[Storyboards] ✗✗✗ CTA last frame is MISSING from frameMap!')
+        console.error('[Storyboards] This is the root cause - API did not generate CTA last frame')
+        console.error('[Storyboards] frameMap.get("3"):', ctaFrames)
       }
       
       // Trigger reactivity to ensure UI updates
@@ -1727,6 +1966,129 @@ const generateFrames = async () => {
     console.log('[Storyboards] Frame generation state cleared')
   }
 }
+
+const enhanceFrames = async () => {
+  if (!selectedStoryboard.value || !selectedStory.value) {
+    return
+  }
+
+  // Prevent multiple simultaneous calls
+  if (enhancingFrames.value) {
+    console.warn('[Storyboards] Frame enhancement already in progress, ignoring duplicate call')
+    return
+  }
+
+  enhancingFrames.value = true
+  enhancementError.value = null
+
+  try {
+    console.log('[Storyboards] Starting frame enhancement with seedream-4...')
+    
+    const requestBody = {
+      storyboard: selectedStoryboard.value,
+    }
+
+    const result = await $fetch('/api/enhance-frames', {
+      method: 'POST',
+      body: requestBody,
+    })
+    
+    console.log('[Storyboards] Enhancement API response:', result)
+
+    if (!result.success) {
+      throw new Error(result.error || 'Enhancement failed')
+    }
+
+    const enhancedFrames = result.enhancedFrames || []
+    
+    console.log('[Storyboards] Received enhanced frames:', enhancedFrames.length)
+    
+    // Update segments with enhanced frames
+    enhancedFrames.forEach((frame: {
+      segmentIndex: number
+      frameType: 'first' | 'last'
+      imageUrl: string
+      modelSource: 'seedream-4' | 'nano-banana'
+      nanoImageUrl: string
+      seedreamImageUrl?: string
+      error?: string
+    }) => {
+      if (selectedStoryboard.value && selectedStoryboard.value.segments[frame.segmentIndex]) {
+        const segment = selectedStoryboard.value.segments[frame.segmentIndex]
+        
+        // Update the frame URL with seedream version
+        if (frame.frameType === 'first') {
+          segment.firstFrameImage = frame.imageUrl
+        } else {
+          segment.lastFrameImage = frame.imageUrl
+        }
+        
+        // Update frameGenerationStatus with seedream URLs
+        const status = frameGenerationStatus.value.get(frame.segmentIndex) || {}
+        if (frame.frameType === 'first') {
+          status.firstModelSource = frame.modelSource
+          status.firstSeedreamImageUrl = frame.seedreamImageUrl
+          status.firstNanoImageUrl = frame.nanoImageUrl
+        } else {
+          status.lastModelSource = frame.modelSource
+          status.lastSeedreamImageUrl = frame.seedreamImageUrl
+          status.lastNanoImageUrl = frame.nanoImageUrl
+        }
+        frameGenerationStatus.value.set(frame.segmentIndex, status)
+      }
+    })
+    
+    // Trigger reactivity
+    await nextTick()
+    triggerRef(selectedStoryboard)
+    
+    // Save state
+    saveStoryboardState()
+    
+    const summary = result.summary || { total: 0, enhanced: 0, failed: 0 }
+    
+    toast.add({
+      title: 'Frames Enhanced',
+      description: `Successfully enhanced ${summary.enhanced} of ${summary.total} frames${summary.failed > 0 ? ` (${summary.failed} failed)` : ''}`,
+      color: 'green',
+    })
+    console.log('[Storyboards] Frame enhancement completed successfully')
+  } catch (err: any) {
+    console.error('[Storyboards] Error enhancing frames:', err)
+    enhancementError.value = err.data?.message || err.message || 'Failed to enhance frames'
+    toast.add({
+      title: 'Frame Enhancement Error',
+      description: enhancementError.value,
+      color: 'red',
+    })
+  } finally {
+    enhancingFrames.value = false
+    console.log('[Storyboards] Frame enhancement spinner cleared')
+  }
+}
+
+const allFramesEnhanced = computed(() => {
+  if (!selectedStoryboard.value || !allFramesReady.value) {
+    return false
+  }
+  
+  // Check if all frames have been enhanced (modelSource is 'seedream-4')
+  const segments = selectedStoryboard.value.segments
+  
+  for (let i = 0; i < segments.length; i++) {
+    const status = frameGenerationStatus.value.get(i)
+    if (!status) return false
+    
+    // Check first frame
+    if (status.firstModelSource !== 'seedream-4') return false
+    
+    // Check last frame (except for CTA which may not have a separate last frame)
+    if (segments[i].type !== 'cta' && status.lastModelSource !== 'seedream-4') return false
+    if (segments[i].type === 'cta' && segments[i].lastFrameImage && status.lastModelSource !== 'seedream-4') return false
+  }
+  
+  return true
+})
 
 const allFramesReady = computed(() => {
   if (!selectedStoryboard.value) {

@@ -110,9 +110,31 @@
           <h2 class="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-bold mb-3 sm:mb-4 text-gray-900 dark:text-white">
             Create Your Video
           </h2>
-          <p class="text-lg sm:text-xl md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            Get started in seconds with our AI-powered video generator. Just describe your vision and watch it come to life.
+          <p class="text-lg sm:text-xl md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-6">
+            Just describe your product. We'll handle the rest.
           </p>
+          
+          <!-- Trust Indicators -->
+          <div class="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm">
+            <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+              <div class="w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <UIcon name="i-heroicons-check" class="w-3 h-3 text-green-600 dark:text-green-400" />
+              </div>
+              <span>No video editing needed</span>
+            </div>
+            <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+              <div class="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <UIcon name="i-heroicons-clock" class="w-3 h-3 text-blue-600 dark:text-blue-400" />
+              </div>
+              <span>Ready in ~3 minutes</span>
+            </div>
+            <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+              <div class="w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                <UIcon name="i-heroicons-sparkles" class="w-3 h-3 text-purple-600 dark:text-purple-400" />
+              </div>
+              <span>Professional quality</span>
+            </div>
+          </div>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 sm:p-8 md:p-10">
           <UiPromptInput :loading="isLoading" @submit="handleSubmit" />
