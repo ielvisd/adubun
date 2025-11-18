@@ -1,11 +1,11 @@
 <template>
   <div class="overflow-x-hidden">
     <!-- Hero Section - Modern Professional Design -->
-    <div class="relative overflow-hidden bg-gradient-to-br from-white via-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+    <div class="relative overflow-hidden bg-brand-cream dark:bg-gray-900">
       <!-- Decorative Background Elements -->
       <div class="absolute inset-0 overflow-hidden pointer-events-none">
-        <div class="absolute -top-40 -right-40 w-80 h-80 bg-brand-cream-200/30 dark:bg-brand-cream-300/10 rounded-full blur-3xl"></div>
-        <div class="absolute top-60 -left-40 w-96 h-96 bg-brand-cream-300/20 dark:bg-brand-cream-400/10 rounded-full blur-3xl"></div>
+        <div class="absolute -top-40 -right-40 w-80 h-80 bg-brand-blue-light/20 dark:bg-brand-blue-light/10 rounded-full blur-3xl"></div>
+        <div class="absolute top-60 -left-40 w-96 h-96 bg-brand-blue-dark/10 dark:bg-brand-blue-dark/10 rounded-full blur-3xl"></div>
       </div>
       
       <UContainer class="relative max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -13,22 +13,22 @@
           <!-- Left Side - Content -->
           <div class="space-y-5 sm:space-y-6 z-10">
             <!-- Badge -->
-            <div class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-primary-900/30 border border-gray-200 dark:border-primary-800 rounded-full text-sm font-medium text-gray-800 dark:text-primary-300">
-              <UIcon name="i-heroicons-sparkles" class="w-4 h-4" />
+            <div class="inline-flex items-center gap-2 px-4 py-2 bg-white/50 dark:bg-brand-blue-dark/30 border border-brand-blue-light/30 dark:border-brand-blue-dark rounded-full text-sm font-medium text-gray-900 dark:text-brand-blue-light">
+              <UIcon name="i-heroicons-sparkles" class="w-4 h-4 text-brand-blue-dark dark:text-brand-blue-light" />
               <span>AI-Powered Video Generation</span>
             </div>
             
             <!-- Main Headline -->
             <h1 class="text-4xl sm:text-5xl md:text-6xl lg:text-6xl font-bold leading-tight tracking-tight text-gray-900 dark:text-white">
               Transform
-              <span class="block text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-secondary-600 dark:from-primary-400 dark:to-secondary-400">
+              <span class="block text-[#4A70A9] dark:text-white">
                 Prompts
               </span>
               into Professional Ad Videos
             </h1>
             
             <!-- Subheadline -->
-            <p class="text-lg sm:text-xl md:text-xl text-gray-600 dark:text-gray-300 leading-relaxed max-w-2xl">
+            <p class="text-lg sm:text-xl md:text-xl text-gray-700 dark:text-gray-300 leading-relaxed max-w-2xl">
               Create stunning, professional ad content in minutes with our AI-powered video generation platform. No editing skills required.
             </p>
             
@@ -37,7 +37,7 @@
               <UButton
                 size="xl"
                 variant="solid"
-                class="bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900 font-semibold px-8 py-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 text-base sm:text-lg"
+                class="bg-brand-blue-dark hover:bg-brand-blue-light text-white dark:text-white font-semibold px-8 py-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 text-base sm:text-lg"
                 @click="scrollToPrompt"
               >
                 Get Started Free
@@ -46,7 +46,7 @@
               <UButton
                 size="xl"
                 variant="outline"
-                class="border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 font-semibold px-8 py-6 rounded-lg transition-all duration-300 text-base sm:text-lg"
+                class="border-2 border-brand-blue-dark text-brand-blue-dark dark:border-brand-blue-light dark:text-brand-blue-light hover:bg-white/50 dark:hover:bg-gray-800 font-semibold px-8 py-6 rounded-lg transition-all duration-300 text-base sm:text-lg"
                 @click="scrollToExamples"
               >
                 View Examples
@@ -54,17 +54,17 @@
             </div>
             
             <!-- Trust Indicators -->
-            <div class="flex flex-wrap items-center gap-6 pt-4 text-sm text-gray-500 dark:text-gray-400">
+            <div class="flex flex-wrap items-center gap-6 pt-4 text-sm text-gray-600 dark:text-gray-400">
               <div class="flex items-center gap-2">
-                <UIcon name="i-heroicons-check-circle" class="w-5 h-5 text-green-500" />
+                <UIcon name="i-heroicons-check-circle" class="w-5 h-5 text-brand-blue-dark dark:text-brand-blue-light" />
                 <span>No credit card required</span>
               </div>
               <div class="flex items-center gap-2">
-                <UIcon name="i-heroicons-clock" class="w-5 h-5 text-blue-500" />
+                <UIcon name="i-heroicons-clock" class="w-5 h-5 text-brand-blue-dark dark:text-brand-blue-light" />
                 <span>Fully Automated</span>
               </div>
               <div class="flex items-center gap-2">
-                <UIcon name="i-heroicons-shield-check" class="w-5 h-5 text-purple-500" />
+                <UIcon name="i-heroicons-shield-check" class="w-5 h-5 text-brand-blue-dark dark:text-brand-blue-light" />
                 <span>Professional quality</span>
               </div>
             </div>
@@ -74,26 +74,33 @@
           <div class="relative lg:block hidden">
             <div class="relative">
               <!-- Main Showcase Card -->
-              <div class="relative bg-brand-cream-200 dark:bg-brand-cream-300 rounded-2xl shadow-2xl p-5 border border-brand-cream-300 dark:border-brand-cream-400">
-                <div class="aspect-video bg-gradient-to-br from-brand-cream-300 to-brand-cream-400 dark:from-brand-cream-400 dark:to-brand-cream-500 rounded-lg flex items-center justify-center overflow-hidden p-6">
-                  <img src="/favicon.svg" alt="AdUbun" class="w-full h-full object-contain" />
+              <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-5 border border-brand-cream-300 dark:border-gray-700">
+                <div class="aspect-video bg-gradient-to-br from-brand-cream to-brand-cream-100 dark:from-gray-700 dark:to-gray-600 rounded-lg flex items-center justify-center overflow-hidden p-6">
+                  <video 
+                    src="/cameraguy.MP4" 
+                    autoplay 
+                    loop 
+                    muted 
+                    playsinline
+                    class="w-full h-full object-contain rounded-lg"
+                  />
                 </div>
                 <!-- Floating Stats Cards -->
-                <div class="absolute -bottom-3 -left-3 bg-brand-cream-200 dark:bg-brand-cream-300 rounded-xl shadow-lg p-3 border border-brand-cream-300 dark:border-brand-cream-400">
+                <div class="absolute -bottom-3 -left-3 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-3 border border-brand-cream-300 dark:border-gray-700">
                   <div class="flex items-center gap-2">
-                    <div class="w-9 h-9 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-                      <UIcon name="i-heroicons-check-circle" class="w-5 h-5 text-green-600 dark:text-green-400" />
+                    <div class="w-9 h-9 bg-brand-blue-light/20 dark:bg-brand-blue-dark/30 rounded-lg flex items-center justify-center">
+                      <UIcon name="i-heroicons-check-circle" class="w-5 h-5 text-brand-blue-dark dark:text-brand-blue-light" />
                     </div>
                     <div>
-                      <p class="text-xs text-gray-500 dark:text-gray-700">Status</p>
-                      <p class="text-sm font-semibold text-gray-900 dark:text-gray-900">Completed</p>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">Status</p>
+                      <p class="text-sm font-semibold text-gray-900 dark:text-white">Completed</p>
                     </div>
                   </div>
                 </div>
-                <div class="absolute -top-3 -right-3 bg-brand-cream-200 dark:bg-brand-cream-300 rounded-xl shadow-lg p-3 border border-brand-cream-300 dark:border-brand-cream-400">
+                <div class="absolute -top-3 -right-3 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-3 border border-brand-cream-300 dark:border-gray-700">
                   <div class="text-center">
-                    <p class="text-xl font-bold text-gray-900 dark:text-gray-900">AI-Powered</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-700">Technology</p>
+                    <p class="text-xl font-bold text-gray-900 dark:text-white">AI-Powered</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Technology</p>
                   </div>
                 </div>
               </div>
@@ -117,33 +124,33 @@
           <!-- Trust Indicators -->
           <div class="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm">
             <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-              <div class="w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                <UIcon name="i-heroicons-check" class="w-3 h-3 text-green-600 dark:text-green-400" />
+              <div class="w-5 h-5 rounded-full bg-brand-blue-light/20 dark:bg-brand-blue-dark/30 flex items-center justify-center">
+                <UIcon name="i-heroicons-check" class="w-3 h-3 text-brand-blue-dark dark:text-brand-blue-light" />
               </div>
               <span>No video editing needed</span>
             </div>
             <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-              <div class="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                <UIcon name="i-heroicons-clock" class="w-3 h-3 text-blue-600 dark:text-blue-400" />
+              <div class="w-5 h-5 rounded-full bg-brand-blue-light/20 dark:bg-brand-blue-dark/30 flex items-center justify-center">
+                <UIcon name="i-heroicons-clock" class="w-3 h-3 text-brand-blue-dark dark:text-brand-blue-light" />
               </div>
               <span>Ready in ~3 minutes</span>
             </div>
             <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-              <div class="w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                <UIcon name="i-heroicons-sparkles" class="w-3 h-3 text-purple-600 dark:text-purple-400" />
+              <div class="w-5 h-5 rounded-full bg-brand-blue-light/20 dark:bg-brand-blue-dark/30 flex items-center justify-center">
+                <UIcon name="i-heroicons-sparkles" class="w-3 h-3 text-brand-blue-dark dark:text-brand-blue-light" />
               </div>
               <span>Professional quality</span>
             </div>
           </div>
         </div>
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 sm:p-8 md:p-10">
+        <div class="bg-brand-cream/10 dark:bg-gray-800 rounded-2xl shadow-xl border border-brand-cream-300 dark:border-gray-700 p-6 sm:p-8 md:p-10">
           <UiPromptInput :loading="isLoading" @submit="handleSubmit" />
         </div>
       </UContainer>
     </div>
 
     <!-- Example Prompts Section - Modern Grid Design -->
-    <div id="examples-section" class="py-12 sm:py-16 md:py-20 bg-brand-cream-50 dark:bg-brand-cream-100/30">
+    <div id="examples-section" class="py-12 sm:py-16 md:py-20 bg-brand-cream-50 dark:bg-brand-cream-100/10">
       <UContainer class="max-w-7xl px-4 sm:px-6">
         <div class="text-center mb-8 sm:mb-12">
           <h2 class="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-bold mb-3 sm:mb-4 text-gray-900 dark:text-white">
@@ -166,7 +173,7 @@
           >
             <template #header>
               <div class="flex items-start gap-3">
-                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-brand-cream/30 dark:bg-gray-700 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
                   <span class="text-2xl sm:text-3xl">{{ example.icon }}</span>
                 </div>
                 <div class="flex-1 min-w-0">
@@ -188,7 +195,7 @@
               <UButton
                 size="sm"
                 variant="solid"
-                class="w-full bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900 font-semibold rounded-lg transition-all duration-300"
+                class="w-full bg-brand-blue-dark hover:bg-brand-blue-light dark:bg-brand-blue-light dark:hover:bg-brand-blue-dark text-white dark:text-gray-900 font-semibold rounded-lg transition-all duration-300"
               >
                 Use This Template
                 <UIcon name="i-heroicons-arrow-right" class="ml-2 w-4 h-4" />
@@ -200,7 +207,7 @@
     </div>
 
     <!-- Feature Cards Section - Modern Design -->
-    <div class="py-12 sm:py-16 md:py-20 bg-brand-cream-50 dark:bg-brand-cream-100/20" ref="featuresSection">
+    <div class="py-12 sm:py-16 md:py-20 bg-white dark:bg-gray-900" ref="featuresSection">
       <UContainer class="max-w-7xl px-4 sm:px-6">
         <div class="text-center mb-8 sm:mb-12">
           <h2 class="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-bold mb-3 sm:mb-4 text-gray-900 dark:text-white">
@@ -211,9 +218,9 @@
           </p>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6" ref="featuresGrid" v-auto-animate>
-          <UCard class="text-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] p-5 sm:p-6">
+          <UCard class="text-center bg-brand-cream-50 dark:bg-gray-800 border border-brand-cream-200 dark:border-gray-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] p-5 sm:p-6">
             <template #header>
-              <div class="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-yellow-100 to-yellow-200 dark:from-yellow-900/30 dark:to-yellow-800/30 flex items-center justify-center">
+              <div class="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-4 rounded-2xl bg-brand-blue-light/20 dark:bg-brand-blue-dark/30 flex items-center justify-center">
                 <span class="text-3xl sm:text-4xl">⚡</span>
               </div>
               <h3 class="font-bold text-lg sm:text-xl text-gray-900 dark:text-white mb-2">Fast Generation</h3>
@@ -223,9 +230,9 @@
             </p>
           </UCard>
 
-          <UCard class="text-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] p-5 sm:p-6">
+          <UCard class="text-center bg-brand-cream-50 dark:bg-gray-800 border border-brand-cream-200 dark:border-gray-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] p-5 sm:p-6">
             <template #header>
-              <div class="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900/30 dark:to-green-800/30 flex items-center justify-center">
+              <div class="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-4 rounded-2xl bg-brand-blue-light/20 dark:bg-brand-blue-dark/30 flex items-center justify-center">
                 <span class="text-3xl sm:text-4xl">💰</span>
               </div>
               <h3 class="font-bold text-lg sm:text-xl text-gray-900 dark:text-white mb-2">Cost Effective</h3>
@@ -235,9 +242,9 @@
             </p>
           </UCard>
 
-          <UCard class="text-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] p-5 sm:p-6">
+          <UCard class="text-center bg-brand-cream-50 dark:bg-gray-800 border border-brand-cream-200 dark:border-gray-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] p-5 sm:p-6">
             <template #header>
-              <div class="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 flex items-center justify-center">
+              <div class="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-4 rounded-2xl bg-brand-blue-light/20 dark:bg-brand-blue-dark/30 flex items-center justify-center">
                 <span class="text-3xl sm:text-4xl">🤖</span>
               </div>
               <h3 class="font-bold text-lg sm:text-xl text-gray-900 dark:text-white mb-2">AI-Powered</h3>
@@ -251,26 +258,26 @@
     </div>
 
     <!-- Stats Section - Modern Design -->
-    <div class="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-brand-cream-50 to-brand-cream-100 dark:from-brand-cream-100/30 dark:to-brand-cream-200/20" ref="statsSection">
+    <div class="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-brand-blue-dark via-brand-blue-dark to-brand-blue-dark/90 dark:from-gray-800 dark:to-gray-900" ref="statsSection">
       <UContainer class="max-w-7xl px-4 sm:px-6">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
-          <div class="text-center p-5 sm:p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
-            <div class="text-4xl sm:text-5xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-secondary-600 dark:from-primary-400 dark:to-secondary-400 mb-2 sm:mb-3" ref="stat1">
+          <div class="flex flex-col justify-center text-center p-5 sm:p-6 bg-white/10 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20">
+            <div class="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-2 sm:mb-3" ref="stat1">
               AI-Powered
             </div>
-            <div class="text-gray-600 dark:text-gray-400 text-sm sm:text-base font-medium">Fully Automated</div>
+            <div class="text-white/90 text-sm sm:text-base font-medium">Fully Automated</div>
           </div>
-          <div class="text-center p-5 sm:p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
-            <div class="text-4xl sm:text-5xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600 dark:from-green-400 dark:to-emerald-400 mb-2 sm:mb-3" ref="stat2">
+          <div class="flex flex-col justify-center text-center p-5 sm:p-6 bg-white/10 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20">
+            <div class="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-2 sm:mb-3" ref="stat2">
               $2/min
             </div>
-            <div class="text-gray-600 dark:text-gray-400 text-sm sm:text-base font-medium">Cost Per Minute</div>
+            <div class="text-white/90 text-sm sm:text-base font-medium">Cost Per Minute</div>
           </div>
-          <div class="text-center p-5 sm:p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
-            <div class="text-4xl sm:text-5xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 mb-2 sm:mb-3" ref="stat3">
+          <div class="flex flex-col justify-center text-center p-5 sm:p-6 bg-white/10 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20">
+            <div class="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-2 sm:mb-3" ref="stat3">
               100%
             </div>
-            <div class="text-gray-600 dark:text-gray-400 text-sm sm:text-base font-medium">AI Generated</div>
+            <div class="text-white/90 text-sm sm:text-base font-medium">AI Generated</div>
           </div>
         </div>
       </UContainer>
@@ -351,11 +358,6 @@ const examplePrompts = [
     icon: '🍔',
   },
 ]
-
-const getIconBgClass = (index: number) => {
-  // Mendo minimalist - all icons use gray background
-  return { backgroundColor: '#F5F5F5' }
-}
 
 const scrollToPrompt = () => {
   if (process.client && typeof document !== 'undefined') {

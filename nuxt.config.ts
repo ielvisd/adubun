@@ -1,6 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  compatibilityDate: '2025-11-13',
+  compatibilityDate: '2025-01-15',
   
   srcDir: 'app',
   
@@ -79,6 +79,13 @@ export default defineNuxtConfig({
 
   devtools: { enabled: true },
   typescript: { strict: true },
+  
+  router: {
+    options: {
+      // Ignore service worker requests to prevent router warnings
+      strict: false,
+    },
+  },
   
   image: {
     // Use IPX as the default provider for optimization

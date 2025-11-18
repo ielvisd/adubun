@@ -4,14 +4,6 @@ import { promises as fs } from 'fs'
 import { saveAsset } from './storage'
 import type { Clip } from './types'
 
-export interface Clip {
-  localPath: string
-  voicePath?: string
-  startTime: number
-  endTime: number
-  type: string
-}
-
 export interface CompositionOptions {
   transition: 'fade' | 'dissolve' | 'wipe' | 'none'
   musicVolume: number
@@ -768,3 +760,74 @@ export async function composeVideoWithSmartStitching(
   }
 }
 
+/**
+ * Extract the first frame of a video
+ */
+export async function extractFirstFrame(videoPath: string): Promise<string> {
+  return extractSingleFrame(videoPath, 0, 0)
+}
+
+/**
+ * Extract all frames from the end of a video within a lookback window
+ * @param videoPath - Path to the video file
+ * @param duration - Duration of the video in seconds
+ * @param lookbackSeconds - How many seconds from the end to extract frames from
+ * @returns Array of paths to extracted frames
+ */
+export async function extractAllFramesFromEnd(
+  videoPath: string,
+  duration: number,
+  lookbackSeconds: number
+): Promise<string[]> {
+  const fps = 30 // Assuming 30fps for now, could be dynamic
+  const frameCount = Math.ceil(lookbackSeconds * fps)
+  const startTime = Math.max(0, duration - lookbackSeconds)
+  
+  console.log(`[FFmpeg] Extracting ${frameCount} frames from last ${lookbackSeconds}s (start: ${startTime}s)`)
+  
+  const frames: string[] = []
+  
+  for (let i = 0; i < frameCount; i++) {
+    const timestamp = startTime + (i / fps)
+    // Avoid going past duration
+    if (timestamp >= duration) break
+    
+    try {
+      const framePath = await extractSingleFrame(videoPath, timestamp, i)
+      frames.push(framePath)
+    } catch (err) {
+      console.warn(`[FFmpeg] Failed to extract frame at ${timestamp}s:`, err)
+    }
+  }
+  
+  return frames
+}
+
+/**
+ * Trim video at a specific timestamp (keeping content before timestamp)
+ */
+export async function trimVideoAtTimestamp(
+  videoPath: string,
+  timestamp: number
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const tempOutputPath = path.join(
+      process.env.MCP_FILESYSTEM_ROOT || './data',
+      'assets',
+      `trimmed_${Date.now()}_${path.basename(videoPath)}`
+    )
+    
+    ffmpeg(videoPath)
+      .setDuration(timestamp)
+      .output(tempOutputPath)
+      .on('end', () => {
+        console.log(`[FFmpeg] Trimmed video at ${timestamp}s`)
+        resolve(tempOutputPath)
+      })
+      .on('error', (err) => {
+        console.error(`[FFmpeg] Error trimming video:`, err.message)
+        reject(err)
+      })
+      .run()
+  })
+}
