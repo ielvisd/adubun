@@ -211,7 +211,7 @@ export default defineEventHandler(async (event) => {
       if (previousFrameImage) {
         if (isTransition) {
           // For transitions between scenes: maintain strong continuity
-          previousFrameInstruction = `CRITICAL VISUAL CONTINUITY: Use the previous frame image as a visual reference to maintain continuity. Keep the same characters, same environment, same lighting style, and same overall composition. The scene should flow naturally from the previous frame. `
+        previousFrameInstruction = `CRITICAL VISUAL CONTINUITY: Use the previous frame image as a visual reference to maintain continuity. Keep the same characters, same environment, same lighting style, and same overall composition. The scene should flow naturally from the previous frame. `
         } else {
           // For progression within same scene: FORCE different angle/composition
           previousFrameInstruction = `CRITICAL SCENE PROGRESSION - MUST CREATE VARIATION: This frame MUST be visually DIFFERENT from the previous frame. While keeping the SAME characters and setting, you MUST change: 1) Camera angle (try close-up, wide shot, over-shoulder, or side angle), 2) Character pose and body language (different position, gesture, or facial expression), 3) Composition and framing (different placement in frame, different focal point). DO NOT replicate the previous frame's composition. Show a LATER moment in time with CLEAR visual progression. The previous frame is only for character/setting reference - DO NOT copy its composition, angle, or pose. `
@@ -305,101 +305,11 @@ export default defineEventHandler(async (event) => {
 
             console.log(`[Generate Frames] Nano-banana succeeded for ${frameName}: ${nanoImageUrl}`)
                 
-                // Step 2: Enhance with Seedream-4
-                const referenceMatchInstruction = referenceImages.length > 0 
-                  ? 'CRITICAL INSTRUCTIONS - READ CAREFULLY: Your ONLY job is to enhance lighting, color saturation, and image quality. DO NOT ALTER THE PRODUCT IN ANY WAY. The product must remain PIXEL-PERFECT identical to the reference images - same size, same shape, same colors, same design, same position. DO NOT change product dimensions, proportions, or placement, even slightly. DO NOT add new products. DO NOT modify existing products. Products that appear small in the frame must stay small - do not make them larger or more prominent. Preserve all text, labels, logos, and typography EXACTLY - no distortions, no alterations, no modifications. Keep all text perfectly readable and unchanged. CRITICAL: Keep human faces, facial features, body anatomy, body positions, hand positions, and poses EXACTLY as they appear in the input image - do not alter, modify, or change them in any way. Your enhancement should be LIMITED TO: improved lighting, better color saturation, enhanced clarity. Nothing else should change. The reference images show the EXACT product appearance - copy it with absolute precision. '
-                  : ''
-            
-            // Add character preservation instruction for seedream
-            const characterPreservationInstruction = characters.length > 0
-              ? `PRESERVE CHARACTER APPEARANCE: Maintain exact character appearance from input image - same gender, age, physical features (hair color/style, build), and clothing for each character. Do not alter character appearance in any way. The same characters from previous scenes must appear with identical appearance. `
-              : ''
-            
-            let seedreamPrompt = ''
-            if (isTransition && transitionText && transitionVisual && currentSceneText) {
-              seedreamPrompt = `${characterPreservationInstruction}${referenceMatchInstruction}Current scene: ${currentSceneText}, ${segmentVisualPrompt}. Transitioning to next scene: ${transitionText}, ${transitionVisual}, enhance product to match reference images exactly, maintain exact human faces and body positions from input image, ensure product colors and design match reference images precisely, professional product photography, preserve all human anatomy and facial features from source image, improve color saturation and product visibility to match reference images, limit scene to 3-4 people maximum, sharp faces, clear facial features, detailed faces, professional portrait quality, avoid large groups or crowds`
-            } else {
-              seedreamPrompt = `${characterPreservationInstruction}${referenceMatchInstruction}${segmentVisualPrompt}, enhance product to match reference images exactly, maintain exact human faces and body positions from input image, ensure product colors and design match reference images precisely, professional product photography, preserve all human anatomy and facial features from source image, improve color saturation and product visibility to match reference images, limit scene to 3-4 people maximum, sharp faces, clear facial features, detailed faces, professional portrait quality, avoid large groups or crowds, ${aspectRatio} aspect ratio`
-            }
-                
-                let finalImageUrl = nanoImageUrl
-                let modelSource: 'nano-banana' | 'seedream-4' = 'nano-banana'
-                let seedreamImageUrl: string | undefined = undefined
-                
-                try {
-              console.log(`[Generate Frames] Starting seedream-4 enhancement for ${frameName}...`)
-              
-                  const seedreamResult = await callReplicateMCP('generate_image', {
-                    model: 'bytedance/seedream-4',
-                    prompt: seedreamPrompt,
-                    image_input: [nanoImageUrl],
-                size: 'custom',
-                width: dimensions.width,
-                height: dimensions.height,
-                aspect_ratio: aspectRatio,
-                    enhance_prompt: true,
-                  })
-
-                  const seedreamPredictionId = seedreamResult.predictionId || seedreamResult.id
-              if (!seedreamPredictionId) {
-                console.error(`[Generate Frames] Seedream-4 generate_image did not return a predictionId for ${frameName}`)
-                throw new Error('Seedream-4 generate_image did not return a predictionId')
-              }
-
-              console.log(`[Generate Frames] Seedream-4 prediction ID: ${seedreamPredictionId}, starting polling for ${frameName}...`)
-              
-              // Poll for Seedream-4 result with timeout (3 minutes = 90 attempts * 2 seconds)
-                    let seedreamStatus = 'starting'
-                    let seedreamAttempts = 0
-              const maxAttempts = 90
-                    
-                    while (seedreamStatus !== 'succeeded' && seedreamStatus !== 'failed' && seedreamAttempts < maxAttempts) {
-                      await new Promise(resolve => setTimeout(resolve, 2000))
-                      const statusResult = await callReplicateMCP('check_prediction_status', { predictionId: seedreamPredictionId })
-                      seedreamStatus = statusResult.status || 'starting'
-                      seedreamAttempts++
-
-                if (seedreamAttempts % 10 === 0) {
-                  console.log(`[Generate Frames] Seedream-4 polling attempt ${seedreamAttempts}/${maxAttempts} for ${frameName}, status: ${seedreamStatus}`)
-                }
-
-                      if (seedreamStatus === 'succeeded') {
-                        const seedreamResultData = await callReplicateMCP('get_prediction_result', { predictionId: seedreamPredictionId })
-                  const seedreamResultUrl = seedreamResultData.videoUrl || seedreamResultData.output || seedreamResultData.url
-                  
-                        if (seedreamResultUrl) {
-                          seedreamImageUrl = seedreamResultUrl
-                          finalImageUrl = seedreamImageUrl
-                          modelSource = 'seedream-4'
-                    console.log(`[Generate Frames] Seedream-4 succeeded for ${frameName}: ${seedreamImageUrl}`)
-                  } else {
-                    console.error(`[Generate Frames] Seedream-4 result does not contain a valid URL for ${frameName}`)
-                    throw new Error('Seedream-4 result does not contain a valid URL')
-                        }
-                  break
-                      } else if (seedreamStatus === 'failed') {
-                  const errorMessage = statusResult.error || 'Unknown error'
-                  console.warn(`[Generate Frames] Seedream-4 failed for ${frameName} after ${seedreamAttempts} attempts. Error: ${errorMessage}`)
-                  break
-                      }
-                    }
-                    
-                    if (seedreamAttempts >= maxAttempts && seedreamStatus !== 'succeeded') {
-                console.warn(`[Generate Frames] Seedream-4 timed out for ${frameName} after ${maxAttempts} attempts, using nano-banana fallback`)
-                    }
-              
-              if (!seedreamImageUrl) {
-                console.warn(`[Generate Frames] Seedream-4 enhancement did not produce an image URL for ${frameName}, using nano-banana fallback`)
-                  }
-                } catch (seedreamError: any) {
-              console.error(`[Generate Frames] Seedream-4 error for ${frameName}:`, seedreamError)
-              console.log(`[Generate Frames] Using nano-banana fallback for ${frameName}`)
-                }
-                
-            // Enforce image resolution if using nano-banana fallback
-            if (modelSource === 'nano-banana') {
-              finalImageUrl = await enforceImageResolution(finalImageUrl, dimensions.width, dimensions.height)
-            }
+                // NOTE: Seedream-4 enhancement is now optional and handled via separate API endpoint
+                // This allows faster frame generation (nano-banana only) with optional enhancement
+                const finalImageUrl = await enforceImageResolution(nanoImageUrl, dimensions.width, dimensions.height)
+                const modelSource: 'nano-banana' | 'seedream-4' = 'nano-banana'
+                const seedreamImageUrl: string | undefined = undefined
             
             return {
               segmentIndex: 0, // Will be set by caller
@@ -605,12 +515,12 @@ export default defineEventHandler(async (event) => {
         'CTA last frame', 
         nanoPrompt, 
         ctaSegment.visualPrompt,
-        body2LastFrameResult.imageUrl,  // Previous frame for prompt context only
+        body2LastFrameResult.imageUrl,  // Previous frame for visual reference
         story.callToAction,  // Story text for context
         false,  // isTransition = false (scene progression, not transition)
         undefined,  // No transition text
         undefined,  // No transition visual
-        false  // DO NOT include previous frame in image inputs - forces variation
+        true  // Include previous frame to maintain character consistency across all frames
       )
       
       if (ctaLastFrameResult) {

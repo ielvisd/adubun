@@ -137,26 +137,51 @@
           <template #header>
             <h3 class="text-lg font-semibold">Generate Frame Images</h3>
           </template>
-          <div class="flex items-center justify-between">
-            <div class="flex-1">
-              <div class="font-medium">All Scenes</div>
-              <div class="text-sm text-gray-500 dark:text-gray-400">
-                <span v-if="allFramesReady">✓ All frames generated</span>
-                <span v-else-if="generatingFrames">Generating frames...</span>
-                <span v-else>Frames not generated</span>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="flex-1">
+                <div class="font-medium">All Scenes</div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">
+                  <span v-if="allFramesReady">✓ All frames generated</span>
+                  <span v-else-if="generatingFrames">Generating frames...</span>
+                  <span v-else>Frames not generated</span>
+                </div>
               </div>
+              <UButton
+                :loading="generatingFrames"
+                :disabled="generatingFrames"
+                @click="generateFrames"
+                color="primary"
+                size="sm"
+              >
+                <UIcon name="i-heroicons-photo" class="mr-2" />
+                <span v-if="allFramesReady">Regenerate All Frames</span>
+                <span v-else>Generate All Frames</span>
+              </UButton>
             </div>
-            <UButton
-              :loading="generatingFrames"
-              :disabled="generatingFrames"
-              @click="generateFrames"
-              color="primary"
-              size="sm"
-            >
-              <UIcon name="i-heroicons-photo" class="mr-2" />
-              <span v-if="allFramesReady">Regenerate All Frames</span>
-              <span v-else>Generate All Frames</span>
-            </UButton>
+            
+            <!-- Enhance All Frames Button (Admin Only) -->
+            <div v-if="viewMode === 'admin' && allFramesReady" class="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div class="flex-1">
+                <div class="font-medium">Enhance with Seedream-4</div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">
+                  <span v-if="allFramesEnhanced">✓ All frames enhanced</span>
+                  <span v-else-if="enhancingFrames">Enhancing frames...</span>
+                  <span v-else>Apply AI enhancement to improve quality</span>
+                </div>
+              </div>
+              <UButton
+                :loading="enhancingFrames"
+                :disabled="enhancingFrames || !allFramesReady"
+                @click="enhanceFrames"
+                color="blue"
+                size="sm"
+              >
+                <UIcon name="i-heroicons-sparkles" class="mr-2" />
+                <span v-if="allFramesEnhanced">Re-enhance All Frames</span>
+                <span v-else>Enhance All Frames</span>
+              </UButton>
+            </div>
           </div>
         </UCard>
 
@@ -194,6 +219,46 @@
               color="red"
               size="sm"
               @click="generateFrames"
+            >
+              Retry
+            </UButton>
+          </template>
+        </UAlert>
+
+        <!-- Frame Enhancement Status -->
+        <UAlert
+          v-if="enhancingFrames"
+          color="blue"
+          variant="soft"
+          class="mb-6"
+        >
+          <template #title>
+            <div class="flex items-center gap-2">
+              <UIcon name="i-heroicons-sparkles" class="w-5 h-5 animate-pulse" />
+              Enhancing Frames with Seedream-4
+            </div>
+          </template>
+          <template #description>
+            Applying AI enhancement to improve lighting, color, and quality. This may take a few minutes...
+          </template>
+        </UAlert>
+
+        <UAlert
+          v-else-if="enhancementError"
+          color="red"
+          variant="soft"
+          class="mb-6"
+        >
+          <template #title>Frame Enhancement Failed</template>
+          <template #description>
+            {{ enhancementError }}
+          </template>
+          <template #actions>
+            <UButton
+              variant="ghost"
+              color="red"
+              size="sm"
+              @click="enhanceFrames"
             >
               Retry
             </UButton>
@@ -584,6 +649,8 @@ const selectedStory = ref<any>(null)
 const promptData = ref<any>(null)
 const generatingFrames = ref(false)
 const frameGenerationError = ref<string | null>(null)
+const enhancingFrames = ref(false)
+const enhancementError = ref<string | null>(null)
 const currentStyle = ref<string>('Cinematic')
 const composingVideo = ref(false)
 
@@ -1274,6 +1341,129 @@ const generateFrames = async () => {
     console.log('[Storyboards] Frame generation spinner cleared')
   }
 }
+
+const enhanceFrames = async () => {
+  if (!selectedStoryboard.value || !selectedStory.value) {
+    return
+  }
+
+  // Prevent multiple simultaneous calls
+  if (enhancingFrames.value) {
+    console.warn('[Storyboards] Frame enhancement already in progress, ignoring duplicate call')
+    return
+  }
+
+  enhancingFrames.value = true
+  enhancementError.value = null
+
+  try {
+    console.log('[Storyboards] Starting frame enhancement with seedream-4...')
+    
+    const requestBody = {
+      storyboard: selectedStoryboard.value,
+    }
+
+    const result = await $fetch('/api/enhance-frames', {
+      method: 'POST',
+      body: requestBody,
+    })
+    
+    console.log('[Storyboards] Enhancement API response:', result)
+
+    if (!result.success) {
+      throw new Error(result.error || 'Enhancement failed')
+    }
+
+    const enhancedFrames = result.enhancedFrames || []
+    
+    console.log('[Storyboards] Received enhanced frames:', enhancedFrames.length)
+    
+    // Update segments with enhanced frames
+    enhancedFrames.forEach((frame: {
+      segmentIndex: number
+      frameType: 'first' | 'last'
+      imageUrl: string
+      modelSource: 'seedream-4' | 'nano-banana'
+      nanoImageUrl: string
+      seedreamImageUrl?: string
+      error?: string
+    }) => {
+      if (selectedStoryboard.value && selectedStoryboard.value.segments[frame.segmentIndex]) {
+        const segment = selectedStoryboard.value.segments[frame.segmentIndex]
+        
+        // Update the frame URL with seedream version
+        if (frame.frameType === 'first') {
+          segment.firstFrameImage = frame.imageUrl
+        } else {
+          segment.lastFrameImage = frame.imageUrl
+        }
+        
+        // Update frameGenerationStatus with seedream URLs
+        const status = frameGenerationStatus.value.get(frame.segmentIndex) || {}
+        if (frame.frameType === 'first') {
+          status.firstModelSource = frame.modelSource
+          status.firstSeedreamImageUrl = frame.seedreamImageUrl
+          status.firstNanoImageUrl = frame.nanoImageUrl
+        } else {
+          status.lastModelSource = frame.modelSource
+          status.lastSeedreamImageUrl = frame.seedreamImageUrl
+          status.lastNanoImageUrl = frame.nanoImageUrl
+        }
+        frameGenerationStatus.value.set(frame.segmentIndex, status)
+      }
+    })
+    
+    // Trigger reactivity
+    await nextTick()
+    triggerRef(selectedStoryboard)
+    
+    // Save state
+    saveStoryboardState()
+    
+    const summary = result.summary || { total: 0, enhanced: 0, failed: 0 }
+    
+    toast.add({
+      title: 'Frames Enhanced',
+      description: `Successfully enhanced ${summary.enhanced} of ${summary.total} frames${summary.failed > 0 ? ` (${summary.failed} failed)` : ''}`,
+      color: 'green',
+    })
+    console.log('[Storyboards] Frame enhancement completed successfully')
+  } catch (err: any) {
+    console.error('[Storyboards] Error enhancing frames:', err)
+    enhancementError.value = err.data?.message || err.message || 'Failed to enhance frames'
+    toast.add({
+      title: 'Frame Enhancement Error',
+      description: enhancementError.value,
+      color: 'red',
+    })
+  } finally {
+    enhancingFrames.value = false
+    console.log('[Storyboards] Frame enhancement spinner cleared')
+  }
+}
+
+const allFramesEnhanced = computed(() => {
+  if (!selectedStoryboard.value || !allFramesReady.value) {
+    return false
+  }
+  
+  // Check if all frames have been enhanced (modelSource is 'seedream-4')
+  const segments = selectedStoryboard.value.segments
+  
+  for (let i = 0; i < segments.length; i++) {
+    const status = frameGenerationStatus.value.get(i)
+    if (!status) return false
+    
+    // Check first frame
+    if (status.firstModelSource !== 'seedream-4') return false
+    
+    // Check last frame (except for CTA which may not have a separate last frame)
+    if (segments[i].type !== 'cta' && status.lastModelSource !== 'seedream-4') return false
+    if (segments[i].type === 'cta' && segments[i].lastFrameImage && status.lastModelSource !== 'seedream-4') return false
+  }
+  
+  return true
+})
 
 const allFramesReady = computed(() => {
   if (!selectedStoryboard.value) {
