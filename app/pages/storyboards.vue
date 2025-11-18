@@ -83,22 +83,52 @@
             </p>
           </div>
           <div class="flex items-center gap-3 flex-wrap">
-            <UFormField label="Style" name="style" class="mb-0">
+            <!-- View Mode Toggle -->
+            <UFormField label="View Mode" name="viewMode" class="mb-0">
               <USelect
-                :model-value="currentStyle"
-                :items="availableStyles.map(s => ({ label: s, value: s }))"
-                @update:model-value="regenerateStoryboard"
-                :disabled="loading"
+                v-model="viewMode"
+                :items="[
+                  { label: '👤 User', value: 'user' },
+                  { label: '⚙️ Admin', value: 'admin' }
+                ]"
               />
             </UFormField>
-            <UFormField label="Video Model" name="model" class="mb-0">
-              <USelect
-                :model-value="currentModel"
-                :items="videoModelOptions"
-                @update:model-value="handleModelChange"
-                :disabled="loading"
-              />
-            </UFormField>
+            
+            <!-- Only show in Admin mode -->
+            <template v-if="viewMode === 'admin'">
+              <UFormField label="Style" name="style" class="mb-0">
+                <USelect
+                  :model-value="currentStyle"
+                  :items="availableStyles.map(s => ({ label: s, value: s }))"
+                  @update:model-value="regenerateStoryboard"
+                  :disabled="loading"
+                />
+              </UFormField>
+              <UFormField label="Video Model" name="model" class="mb-0">
+                <USelect
+                  :model-value="currentModel"
+                  :items="videoModelOptions"
+                  @update:model-value="handleModelChange"
+                  :disabled="loading"
+                />
+              </UFormField>
+            </template>
+          </div>
+        </div>
+
+        <!-- Progress Indicator -->
+        <div class="mb-6 flex items-center justify-center">
+          <div class="flex items-center gap-2 text-sm">
+            <UBadge color="green" variant="solid" size="sm">✓</UBadge>
+            <span class="text-gray-600 dark:text-gray-400">Stories</span>
+            <UIcon name="i-heroicons-chevron-right" class="w-4 h-4 text-gray-400" />
+            
+            <UBadge color="blue" variant="solid" size="sm">2</UBadge>
+            <span class="font-semibold text-gray-900 dark:text-white">Review Storyboard</span>
+            <UIcon name="i-heroicons-chevron-right" class="w-4 h-4 text-gray-400" />
+            
+            <UBadge color="gray" variant="soft" size="sm">3</UBadge>
+            <span class="text-gray-400">Generate Video</span>
           </div>
         </div>
 
@@ -180,11 +210,60 @@
             ]"
           >
             <template #header>
-              <div class="flex items-center justify-between">
+              <button 
+                v-if="viewMode === 'user'"
+                @click="toggleSegment(index)"
+                class="w-full flex items-center justify-between cursor-pointer"
+                type="button"
+              >
+                <div class="flex items-center gap-3">
+                  <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    {{ getSegmentLabel(segment.type) }}
+                  </h3>
+                  <span class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ segment.startTime }}s - {{ segment.endTime }}s
+                  </span>
+                  
+                  <!-- Status Badge -->
+                  <UBadge 
+                    v-if="getSegmentStatus(index) === 'ready'"
+                    color="green"
+                    variant="soft"
+                    size="xs"
+                  >
+                    ✓ Ready
+                  </UBadge>
+                  <UBadge 
+                    v-else-if="getSegmentStatus(index) === 'generating'"
+                    color="blue"
+                    variant="soft"
+                    size="xs"
+                  >
+                    ⏳ Generating...
+                  </UBadge>
+                  <UBadge
+                    v-else-if="isDemoMode && index > 0"
+                    color="yellow"
+                    variant="soft"
+                    size="xs"
+                  >
+                    Demo: Skipped
+                  </UBadge>
+                </div>
+                
+                <!-- Expand/Collapse Icon -->
+                <UIcon 
+                  :name="expandedSegments.includes(index) ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+                  class="w-5 h-5 text-gray-500"
+                />
+              </button>
+              
+              <!-- Admin Mode: Non-collapsible -->
+              <div v-else class="flex items-center justify-between">
                 <div>
                   <div class="flex items-center gap-2">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                      {{ segment.type === 'hook' ? 'Hook' : segment.type === 'cta' ? 'Call to Action' : `Body ${index === 1 ? '1' : '2'}` }}
+                      {{ getSegmentLabel(segment.type) }}
                     </h3>
                     <UBadge
                       v-if="isDemoMode && index > 0"
@@ -202,8 +281,16 @@
               </div>
             </template>
 
-            <div class="space-y-4">
-              <UFormField label="Scene Description" :name="`segment-${index}-description`">
+            <!-- Content (show/hide based on mode and expanded state) -->
+            <div 
+              v-show="viewMode === 'admin' || expandedSegments.includes(index)"
+              class="space-y-4"
+            >
+              <!-- Scene Description -->
+              <UFormField 
+                :label="viewMode === 'user' ? 'What happens?' : 'Scene Description'" 
+                :name="`segment-${index}-description`"
+              >
                 <UTextarea
                   v-model="segment.description"
                   :rows="2"
@@ -213,7 +300,12 @@
                 />
               </UFormField>
 
-              <UFormField label="Visual Prompt" :name="`segment-${index}-visual`">
+              <!-- Visual Prompt (Admin only) -->
+              <UFormField 
+                v-if="viewMode === 'admin'"
+                label="Visual Prompt" 
+                :name="`segment-${index}-visual`"
+              >
                 <UTextarea
                   v-model="segment.visualPrompt"
                   :rows="3"
@@ -226,6 +318,89 @@
                 </template>
               </UFormField>
 
+              <!-- USER MODE: Side-by-Side Frames -->
+              <div v-if="viewMode === 'user'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Opening Shot (First Frame) -->
+                <UFormField label="Opening Shot">
+                  <div v-if="segment.firstFrameImage" class="space-y-2">
+                    <div class="relative w-full">
+                      <NuxtImg
+                        :src="segment.firstFrameImage"
+                        alt="Opening shot"
+                        class="w-full h-auto rounded-lg border border-gray-200 dark:border-gray-700"
+                        loading="lazy"
+                      />
+                    </div>
+                    <ImageUpload
+                      v-model="segment.firstFrameImage"
+                      @upload="(file) => handleFrameImageUpload(index, 'firstFrameImage', file)"
+                      button-text="Replace"
+                    />
+                  </div>
+                  <div v-else class="aspect-video bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center p-6">
+                    <UIcon name="i-heroicons-photo" class="w-12 h-12 text-gray-400 mb-2" />
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Frame will appear here</p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">~30 seconds</p>
+                  </div>
+                </UFormField>
+
+                <!-- Closing Shot (Last Frame) -->
+                <UFormField 
+                  v-if="segment.type !== 'cta'"
+                  label="Closing Shot"
+                >
+                  <div v-if="segment.lastFrameImage" class="space-y-2">
+                    <div class="relative w-full">
+                      <NuxtImg
+                        :src="segment.lastFrameImage"
+                        alt="Closing shot"
+                        class="w-full h-auto rounded-lg border border-gray-200 dark:border-gray-700"
+                        loading="lazy"
+                      />
+                    </div>
+                    <ImageUpload
+                      v-model="segment.lastFrameImage"
+                      @upload="(file) => handleFrameImageUpload(index, 'lastFrameImage', file)"
+                      button-text="Replace"
+                    />
+                  </div>
+                  <div v-else class="aspect-video bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center p-6">
+                    <UIcon name="i-heroicons-photo" class="w-12 h-12 text-gray-400 mb-2" />
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Frame will appear here</p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">~30 seconds</p>
+                  </div>
+                </UFormField>
+
+                <!-- CTA: Only show first frame as "Final Frame" -->
+                <UFormField 
+                  v-else
+                  label="Final Frame"
+                >
+                  <div v-if="segment.lastFrameImage" class="space-y-2">
+                    <div class="relative w-full">
+                      <NuxtImg
+                        :src="segment.lastFrameImage"
+                        alt="Final frame"
+                        class="w-full h-auto rounded-lg border border-gray-200 dark:border-gray-700"
+                        loading="lazy"
+                      />
+                    </div>
+                    <ImageUpload
+                      v-model="segment.lastFrameImage"
+                      @upload="(file) => handleFrameImageUpload(index, 'lastFrameImage', file)"
+                      button-text="Replace"
+                    />
+                  </div>
+                  <div v-else class="aspect-video bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center p-6">
+                    <UIcon name="i-heroicons-photo" class="w-12 h-12 text-gray-400 mb-2" />
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Frame will appear here</p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">~30 seconds</p>
+                  </div>
+                </UFormField>
+              </div>
+
+              <!-- ADMIN MODE: Stacked Frames (existing layout) -->
+              <template v-else>
               <!-- First Frame Image -->
               <UFormField label="First Frame Image" :name="`segment-${index}-first-frame`">
                 <div v-if="segment.firstFrameImage || (generatingFrames && !segment.firstFrameImage)" class="space-y-2">
@@ -344,6 +519,8 @@
                   />
                 </div>
               </UFormField>
+              </template>
+              <!-- End Admin Mode -->
             </div>
           </UCard>
         </div>
@@ -409,6 +586,52 @@ const generatingFrames = ref(false)
 const frameGenerationError = ref<string | null>(null)
 const currentStyle = ref<string>('Cinematic')
 const composingVideo = ref(false)
+
+// View mode toggle: 'user' (simplified) or 'admin' (full control)
+const viewMode = ref<'user' | 'admin'>('user')
+
+// Expanded segments for accordion behavior
+const expandedSegments = ref<number[]>([])
+
+// Toggle segment expansion
+const toggleSegment = (index: number) => {
+  if (viewMode.value === 'user') {
+    // Accordion behavior: only one open at a time
+    expandedSegments.value = expandedSegments.value.includes(index) ? [] : [index]
+  } else {
+    // Admin: allow multiple open
+    const idx = expandedSegments.value.indexOf(index)
+    if (idx > -1) {
+      expandedSegments.value.splice(idx, 1)
+    } else {
+      expandedSegments.value.push(index)
+    }
+  }
+}
+
+// Get friendly segment label based on mode
+const getSegmentLabel = (type: string) => {
+  if (viewMode.value === 'admin') {
+    return type === 'hook' ? 'Hook' : 
+           type === 'cta' ? 'Call to Action' : 
+           type === 'body1' ? 'Body 1' : 'Body 2'
+  }
+  // User mode - friendlier labels
+  return type === 'hook' ? 'Intro' : 
+         type === 'cta' ? 'Final Message' : 
+         type === 'body1' ? 'Scene 1' : 'Scene 2'
+}
+
+// Get segment status for badges
+const getSegmentStatus = (index: number): 'ready' | 'generating' | 'pending' | 'error' => {
+  const segment = selectedStoryboard.value?.segments[index]
+  if (!segment) return 'pending'
+  
+  if (generatingFrames.value) return 'generating'
+  if (segment.firstFrameImage && (segment.type === 'cta' ? true : segment.lastFrameImage)) return 'ready'
+  if (frameGenerationError.value) return 'error'
+  return 'pending'
+}
 
 // Check if videos have been generated (exist in sessionStorage)
 const hasGeneratedVideos = computed(() => {
@@ -801,7 +1024,10 @@ const generateFrames = async () => {
 
     const result = await Promise.race([apiCall, timeoutPromise]) as any
     
-    console.log('[Storyboards] Frame generation API response:', result)
+    console.log('[Storyboards] ========================================')
+    console.log('[Storyboards] Frame Generation API Response')
+    console.log('[Storyboards] ========================================')
+    console.log('[Storyboards] API response:', result)
 
     // Map frames to segments
     // Frames structure: [{ segmentIndex: 0, frameType: 'first', imageUrl: '...' }, ...]
@@ -809,8 +1035,13 @@ const generateFrames = async () => {
     
     console.log('[Storyboards] Received frames:', frames.length, 'frames')
     
+    // Log each frame received
+    frames.forEach((frame: any, index: number) => {
+      console.log(`  Frame ${index + 1}: segmentIndex=${frame.segmentIndex}, frameType=${frame.frameType}, url=${frame.imageUrl?.substring(0, 50)}...`)
+    })
+    
     if (!frames || frames.length === 0) {
-      console.warn('[Storyboards] No frames returned from API')
+      console.warn('[Storyboards] ⚠️ No frames returned from API')
       frameGenerationError.value = 'No frames were generated. Please try again.'
       return
     }
@@ -852,7 +1083,10 @@ const generateFrames = async () => {
       }
     })
     
-    console.log('[Storyboards] Frame map created:', Array.from(frameMap.entries()))
+    console.log('[Storyboards] Frame map created:')
+    frameMap.forEach((value, key) => {
+      console.log(`  Segment ${key}: first=${!!value.first}, last=${!!value.last}`)
+    })
 
     // Map frames to segments according to PRD:
     // Hook: firstFrameImage = frames[0] (hook first), lastFrameImage = frames[1] (hook last)
@@ -958,7 +1192,15 @@ const generateFrames = async () => {
       const body2LastNanoImageUrl = body2Frames?.lastNanoImageUrl
       const body2LastSeedreamImageUrl = body2Frames?.lastSeedreamImageUrl
       const ctaFrames = frameMap.get('3')
-      console.log('[Storyboards] CTA frames:', ctaFrames)
+      
+      console.log('[Storyboards] ========================================')
+      console.log('[Storyboards] Assigning CTA Frames')
+      console.log('[Storyboards] ========================================')
+      console.log('[Storyboards] CTA frames from map:', ctaFrames)
+      console.log('[Storyboards] CTA has first in map:', !!ctaFrames?.first)
+      console.log('[Storyboards] CTA has last in map:', !!ctaFrames?.last)
+      console.log('[Storyboards] Body2 last frame (for CTA first):', body2LastFrame?.substring(0, 60))
+      
       if (body2LastFrame) {
         selectedStoryboard.value.segments[3].firstFrameImage = body2LastFrame
         frameGenerationStatus.value.set(3, { 
@@ -968,8 +1210,11 @@ const generateFrames = async () => {
           firstNanoImageUrl: body2LastNanoImageUrl,
           firstSeedreamImageUrl: body2LastSeedreamImageUrl
         })
-        console.log('[Storyboards] Assigned CTA first frame (from body2 last):', body2LastFrame)
+        console.log('[Storyboards] ✓ Assigned CTA first frame (from body2 last):', body2LastFrame.substring(0, 60))
+      } else {
+        console.error('[Storyboards] ✗ Could not assign CTA first frame - body2LastFrame is missing')
       }
+      
       if (ctaFrames?.last) {
         // CTA's last frame is the final frame of the video
         selectedStoryboard.value.segments[3].lastFrameImage = ctaFrames.last
@@ -980,7 +1225,11 @@ const generateFrames = async () => {
           lastNanoImageUrl: ctaFrames.lastNanoImageUrl,
           lastSeedreamImageUrl: ctaFrames.lastSeedreamImageUrl
         })
-        console.log('[Storyboards] Assigned CTA last frame:', ctaFrames.last)
+        console.log('[Storyboards] ✓ Assigned CTA last frame:', ctaFrames.last.substring(0, 60))
+      } else {
+        console.error('[Storyboards] ✗✗✗ CTA last frame is MISSING from frameMap!')
+        console.error('[Storyboards] This is the root cause - API did not generate CTA last frame')
+        console.error('[Storyboards] frameMap.get("3"):', ctaFrames)
       }
       
       // Trigger reactivity to ensure UI updates
