@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs'
 import path from 'path'
-import { readFile } from '../../utils/storage'
+import { downloadFile } from '../../utils/storage'
 
 const VIDEOS_FILE = path.join(process.env.MCP_FILESYSTEM_ROOT || './data', 'videos.json')
 
@@ -31,8 +31,9 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Read video file
-  const videoBuffer = await readFile(video.url)
+  // Download video file (handles both local files and S3 URLs)
+  const videoPath = await downloadFile(video.url)
+  const videoBuffer = await fs.readFile(videoPath)
 
   // Set headers for download
   setHeader(event, 'Content-Type', 'video/mp4')

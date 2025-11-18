@@ -642,14 +642,86 @@ const loadClipsFromStorage = async () => {
   if (!process.client) return
 
   try {
-    // Clear any stale sessionStorage data from generate page to avoid CORS errors
-    // Editor is fully local - users must upload files directly
+    // Check for pending video from generate page
+    const pendingVideoData = sessionStorage.getItem('editorPendingVideo')
+    if (pendingVideoData) {
+      try {
+        const videoData = JSON.parse(pendingVideoData)
+        console.log('[Editor] Found pending video from generate page, loading...')
+        
+        // Convert base64 back to File
+        const base64Data = videoData.file.base64
+        const binaryString = atob(base64Data)
+        const bytes = new Uint8Array(binaryString.length)
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i)
+        }
+        const videoBlob = new Blob([bytes], { type: videoData.file.type })
+        const videoFile = new File(
+          [videoBlob],
+          videoData.file.name,
+          { type: videoData.file.type }
+        )
+        
+        // Create blob URL for the video
+        const videoUrl = URL.createObjectURL(videoFile)
+        
+        // Add to media bin
+        const videoId = `composed-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        const uploadedVideo: UploadedVideo = {
+          id: videoId,
+          url: videoUrl,
+          duration: videoData.duration,
+          name: videoData.name,
+          file: videoFile,
+        }
+        
+        uploadedVideos.value.push(uploadedVideo)
+        
+        // Add to timeline (one instance)
+        const clip: EditorClip = {
+          id: `clip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          videoId: videoId,
+          sourceUrl: videoUrl,
+          originalDuration: videoData.duration,
+          startOffset: 0,
+          endOffset: 0,
+          inTimelineStart: 0,
+          name: videoData.name,
+          file: videoFile,
+        }
+        
+        timelineClips.value.push(clip)
+        
+        toast.add({
+          title: 'Video loaded',
+          description: 'Composed video has been added to the editor',
+          color: 'success',
+        })
+        
+        // Clear the pending video data
+        sessionStorage.removeItem('editorPendingVideo')
+        console.log('[Editor] Pending video loaded and added to timeline')
+      } catch (error: any) {
+        console.error('[Editor] Error loading pending video:', error)
+        toast.add({
+          title: 'Load failed',
+          description: 'Failed to load video from generate page',
+          color: 'error',
+        })
+        sessionStorage.removeItem('editorPendingVideo')
+      }
+    }
+    
+    // Clear any other stale sessionStorage data
     sessionStorage.removeItem('editorComposedVideo')
     sessionStorage.removeItem('editorClips')
     
-    console.log('[Editor] Editor is fully local - upload videos to begin')
+    if (!pendingVideoData) {
+      console.log('[Editor] Editor is fully local - upload videos to begin')
+    }
   } catch (error: any) {
-    console.error('[Editor] Error clearing sessionStorage:', error)
+    console.error('[Editor] Error loading from sessionStorage:', error)
   }
 }
 

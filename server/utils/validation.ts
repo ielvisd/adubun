@@ -81,7 +81,7 @@ export const generateAssetsSchema = z.object({
     meta: z.object({
       duration: z.number(),
       aspectRatio: z.enum(['16:9', '9:16', '1:1']),
-      style: z.string(),
+      style: z.string().optional(), // Legacy field, use mood instead
       mood: z.string().optional(), // Video tone/mood
       mode: z.enum(['demo', 'production']).optional(),
       // Veo 3.1 fields

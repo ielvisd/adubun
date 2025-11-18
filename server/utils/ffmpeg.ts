@@ -144,20 +144,10 @@ function buildFilterComplex(clips: Clip[], options: CompositionOptions, clipsWit
     )
   })
 
-  // Add transitions
-  if (options.transition === 'fade') {
-    clips.forEach((clip, idx) => {
-      if (idx > 0) {
-        filters.push(`[v${idx}]fade=t=in:st=0:d=0.5[v${idx}f]`)
-      } else {
-        filters.push(`[v${idx}]copy[v${idx}f]`)
-      }
-    })
-  } else {
-    clips.forEach((clip, idx) => {
-      filters.push(`[v${idx}]copy[v${idx}f]`)
-    })
-  }
+  // No transitions - direct copy for all clips (zero effects)
+  clips.forEach((clip, idx) => {
+    filters.push(`[v${idx}]copy[v${idx}f]`)
+  })
 
   // Concatenate videos
   const videoInputs = clips.map((_, idx) => `[v${idx}f]`).join('')

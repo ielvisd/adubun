@@ -1,5 +1,5 @@
 <template>
-  <div class="py-12">
+  <div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
     <UContainer class="max-w-5xl">
       <!-- Loading state while planning storyboard -->
       <div v-if="planningStoryboard" class="flex flex-col items-center justify-center py-24">
@@ -9,97 +9,72 @@
       </div>
 
       <!-- Storyboard content -->
-      <template v-else>
+      <div v-else>
         <div v-if="storyboard" class="mb-6">
-          <!-- Prominent Mode Display - Mendo Style -->
-          <div class="bg-black dark:bg-gray-800 text-white py-4 px-6 mb-4">
-            <div class="flex items-center gap-4">
-              <div class="text-lg sm:text-xl font-bold uppercase tracking-wide">
-                {{ storyboard.meta.mode === 'demo' ? 'Demo Mode' : 'Production Mode' }}
-              </div>
-              <div class="text-sm sm:text-base text-gray-300">
-                <span v-if="storyboard.meta.mode === 'demo'">
-                  Only the first scene will be generated for faster testing
-                </span>
-                <span v-else>
-                  All scenes will be generated
-                </span>
+          <!-- Header with Back Button and Mode Display -->
+          <div class="flex items-center justify-between mb-4 flex-wrap gap-4">
+            <UButton
+              v-if="status === 'processing' || status === 'pending' || generationStarted"
+              variant="ghost"
+              color="gray"
+              @click="handleBackToStoryboard"
+              class="flex items-center gap-2"
+            >
+              <UIcon name="i-heroicons-arrow-left" />
+              Back to Storyboard
+            </UButton>
+            <div class="flex-1"></div>
+            <!-- Mode Display -->
+            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white py-3 px-5 rounded-lg shadow-sm">
+              <div class="flex items-center gap-4">
+                <UBadge :color="storyboard.meta.mode === 'demo' ? 'yellow' : 'blue'" size="lg" variant="subtle" class="uppercase">
+                  {{ storyboard.meta.mode === 'demo' ? 'Demo Mode' : 'Production Mode' }}
+                </UBadge>
+                <div class="text-sm text-gray-600 dark:text-gray-400">
+                  <span v-if="storyboard.meta.mode === 'demo'">
+                    Only the first scene will be generated
+                  </span>
+                  <span v-else>
+                    All scenes will be generated
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-          <div v-if="storyboard.meta.firstFrameImage || storyboard.meta.subjectReference" class="mt-4 text-sm text-gray-600 dark:text-gray-400">
-            <p v-if="storyboard.meta.firstFrameImage" class="mb-1">
-              <strong>Global First Frame:</strong> {{ storyboard.meta.firstFrameImage }}
-            </p>
-            <p v-if="storyboard.meta.subjectReference">
-              <strong>Global Subject Reference:</strong> {{ storyboard.meta.subjectReference }}
-            </p>
-          </div>
         </div>
 
-        <StoryboardView
-          v-if="storyboard"
-          :storyboard="storyboard"
-          :assets="completedAssets"
-          :retry-segment="handleRetrySegment"
-          @edit="handleSegmentEdited"
-          @prompt-selected="handlePromptSelected"
-          @regenerate="handleRegenerateEvent"
-        />
-
-        <AudioScriptView
-          v-if="storyboard"
-          :segments="storyboard.segments"
-          class="mt-6"
-        />
-
         <GenerationProgress
-          v-if="generationStarted"
+          v-if="storyboard"
           :segments="segments"
           :overall-progress="overallProgress"
           :status="status"
           :current-cost="currentCost"
           :estimated-total="estimatedTotal"
           :overall-error="overallError"
-        />
-
-        <CompositionTimeline
-          v-if="assetsReady"
-          :clips="clips"
-          :total-duration="totalDuration"
-          @compose="handleCompose"
+          :retry-segment="retrySegmentGen"
+          :storyboard="storyboard"
         />
 
         <VideoPreview
+          v-if="assetsReady"
           :clips="clips"
           :status="status"
+          :current-cost="currentCost"
+          :estimated-total="estimatedTotal"
           @version-selected="handleVersionSelected"
         />
-
-        <UButton
-          v-if="!generationStarted && storyboard"
-          size="xl"
-          color="secondary"
-          variant="solid"
-          class="w-full mt-8 bg-secondary-500 hover:bg-secondary-600 text-white font-semibold py-4 rounded-lg"
-          @click="startGeneration"
-        >
-          Start Generation
-        </UButton>
-      </template>
+      </div>
     </UContainer>
   </div>
 </template>
 
 <script setup lang="ts">
-import StoryboardView from '~/components/generation/StoryboardView.vue'
-import AudioScriptView from '~/components/generation/AudioScriptView.vue'
 import GenerationProgress from '~/components/ui/GenerationProgress.vue'
-import CompositionTimeline from '~/components/generation/CompositionTimeline.vue'
 import VideoPreview from '~/components/generation/VideoPreview.vue'
 import type { Segment, Storyboard } from '~/app/types/generation'
 
 const route = useRoute()
+const router = useRouter()
 // Get storyboard from sessionStorage (passed via navigateTo)
 const storyboard = ref<Storyboard | null>(null)
 const generationStarted = ref(false)
@@ -152,61 +127,6 @@ const pollStoryboardStatus = async (jobId: string, meta: any) => {
 
 // Mode is set on stories page and displayed prominently - no toggle needed here
 
-// Map completed segments to assets format for StoryboardView
-const completedAssets = computed(() => {
-  if (!segments.value || segments.value.length === 0) {
-    return []
-  }
-  
-  const completed = segments.value.filter((s: any) => s.status === 'completed')
-  
-  const assets = completed.map((s: any) => {
-    // Extract videoUrl from all possible locations
-    const videoUrl = s.videoUrl || 
-                    s.metadata?.videoUrl || 
-                    s.metadata?.replicateVideoUrl ||
-                    null
-    
-    // Extract voiceUrl from all possible locations
-    const voiceUrl = s.voiceUrl || 
-                    s.metadata?.voiceUrl ||
-                    null
-    
-    // Debug logging for videoUrl extraction
-    if (!videoUrl) {
-      console.warn(`[CompletedAssets] Segment ${s.segmentId} has no videoUrl:`, {
-        segmentId: s.segmentId,
-        hasTopLevelVideoUrl: !!s.videoUrl,
-        hasMetadataVideoUrl: !!s.metadata?.videoUrl,
-        hasMetadataReplicateVideoUrl: !!s.metadata?.replicateVideoUrl,
-        segmentType: s.type,
-        status: s.status,
-        metadataKeys: s.metadata ? Object.keys(s.metadata) : [],
-      })
-    } else {
-      console.log(`[CompletedAssets] Segment ${s.segmentId} videoUrl found:`, {
-        segmentId: s.segmentId,
-        segmentType: s.type,
-        videoUrlSource: s.videoUrl ? 'top-level' : 
-                       s.metadata?.videoUrl ? 'metadata.videoUrl' :
-                       s.metadata?.replicateVideoUrl ? 'metadata.replicateVideoUrl' :
-                       'unknown',
-        videoUrlPreview: videoUrl.substring(0, 50) + '...',
-      })
-    }
-    
-    return {
-      segmentId: s.segmentId,
-      videoUrl,
-      voiceUrl,
-      metadata: s.metadata,
-    }
-  })
-  
-  console.log(`[CompletedAssets] Mapped ${assets.length} completed segments to assets (${assets.filter(a => a.videoUrl).length} with videoUrl)`)
-  
-  return assets
-})
 
 // Helper function to save storyboard to sessionStorage
 const saveStoryboardToStorage = (sb: Storyboard | null) => {
@@ -416,21 +336,72 @@ onMounted(async () => {
     }
     
     // Auto-start generation if storyboard is loaded and no state was restored
-    if (storyboard.value && status.value === 'idle') {
-      // Small delay to ensure UI is ready
+    if (storyboard.value && status.value === 'idle' && !generationStarted.value) {
+      // Small delay to ensure UI is ready and segments are initialized
       await nextTick()
+      await new Promise(resolve => setTimeout(resolve, 500))
       console.log('[Generate] Auto-starting video generation...')
       startGeneration()
     }
   }
 })
 
-// Watch for storyboard changes and save to sessionStorage
+// Reload storyboard from sessionStorage when page becomes visible (user navigated back)
+onActivated(() => {
+  if (process.client) {
+    const persistedStoryboard = sessionStorage.getItem('generateStoryboard')
+    if (persistedStoryboard) {
+      try {
+        const updatedStoryboard = JSON.parse(persistedStoryboard)
+        // Only update if it's different (user modified on storyboard page)
+        if (updatedStoryboard.id === storyboard.value?.id && 
+            JSON.stringify(updatedStoryboard) !== JSON.stringify(storyboard.value)) {
+          console.log('[Generate] Storyboard updated from storyboard page, reloading...')
+          storyboard.value = updatedStoryboard
+        }
+      } catch (error) {
+        console.error('[Generate] Failed to reload storyboard:', error)
+      }
+    }
+  }
+})
+
+// Also check on visibility change (when tab becomes active)
+if (process.client) {
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && storyboard.value) {
+      const persistedStoryboard = sessionStorage.getItem('generateStoryboard')
+      if (persistedStoryboard) {
+        try {
+          const updatedStoryboard = JSON.parse(persistedStoryboard)
+          if (updatedStoryboard.id === storyboard.value?.id && 
+              JSON.stringify(updatedStoryboard) !== JSON.stringify(storyboard.value)) {
+            console.log('[Generate] Storyboard updated, reloading...')
+            storyboard.value = updatedStoryboard
+          }
+        } catch (error) {
+          console.error('[Generate] Failed to reload storyboard:', error)
+        }
+      }
+    }
+  })
+}
+
+// Initialize segments from storyboard when it loads
 watch(storyboard, (newStoryboard) => {
   if (newStoryboard) {
     saveStoryboardToStorage(newStoryboard)
+    // Initialize segments from storyboard so they show up immediately
+    if (segments.value.length === 0 && newStoryboard.segments) {
+      segments.value = newStoryboard.segments.map((seg: Segment, idx: number) => ({
+        ...seg,
+        status: 'pending',
+        segmentId: idx,
+      }))
+      console.log('[Generate] Initialized segments from storyboard:', segments.value.length)
+    }
   }
-}, { deep: true })
+}, { deep: true, immediate: true })
 
 // Watch for status changes (set up once, not inside startGeneration)
 const statusWatcher = watch(status, (newStatus) => {
@@ -577,13 +548,17 @@ const clips = computed(() => {
   return result
 })
 
-const totalDuration = computed(() => {
-  return Math.max(...clips.value.map((c: any) => c.endTime), 0)
-})
-
 const selectedCompositionVersion = ref<'original' | 'smart' | null>(null)
 const selectedCompositionVideoUrl = ref<string | null>(null)
 const selectedCompositionVideoId = ref<string | null>(null)
+
+const handleBackToStoryboard = () => {
+  // Save current storyboard to sessionStorage before navigating
+  if (storyboard.value) {
+    saveStoryboardToStorage(storyboard.value)
+  }
+  router.push('/storyboards')
+}
 
 const handleVersionSelected = (version: 'original' | 'smart', videoUrl: string, videoId: string) => {
   console.log('[Generate] Video version selected:', version, videoUrl, videoId)
@@ -607,148 +582,5 @@ const handleVersionSelected = (version: 'original' | 'smart', videoUrl: string, 
   })
 }
 
-const handleCompose = async (options: any) => {
-  const toast = useToast()
-  
-  console.log('[Generate] ===== handleCompose CALLED - Regenerating Videos =====')
-  console.log('[Generate] Current status:', status.value)
-  console.log('[Generate] Storyboard:', storyboard.value?.id)
-  
-  try {
-    if (!storyboard.value) {
-      toast.add({
-        title: 'No Storyboard',
-        description: 'Storyboard is not available. Please start a new generation.',
-        color: 'error',
-      })
-      return
-    }
-
-    // Reset generation state to clear existing videos
-    console.log('[Generate] Resetting generation state...')
-    reset()
-    generationStarted.value = false
-    assetsReady.value = false
-    
-    // Clear any existing clips from sessionStorage
-    if (process.client) {
-      sessionStorage.removeItem('editorClips')
-      sessionStorage.removeItem('editorComposedVideo')
-    }
-    
-    toast.add({
-      title: 'Regenerating Videos',
-      description: 'All videos will be regenerated. This may take a few minutes.',
-      color: 'blue',
-    })
-    
-    // Restart generation to replace all videos
-    console.log('[Generate] Starting new generation to replace all videos...')
-    await startGeneration()
-    
-    console.log('[Generate] Video regeneration started successfully')
-  } catch (error: any) {
-    console.error('[Generate] Error regenerating videos:', error.message)
-    console.error('[Generate] Error stack:', error.stack)
-    
-    toast.add({
-      title: 'Failed to regenerate videos',
-      description: error.message || 'An error occurred while regenerating videos. Please try again.',
-      color: 'error',
-    })
-  }
-}
-
-const handleSegmentEdited = async (index: number) => {
-  // Segment has been edited inline in StoryboardView
-  // We just need to save the updated storyboard to backend
-  if (!storyboard.value || !storyboard.value.segments[index]) {
-    toast.add({
-      title: 'Error',
-      description: 'Segment not found',
-      color: 'error',
-    })
-    return
-  }
-
-  try {
-    // Save to backend
-    const savedStoryboard = await $fetch(`/api/storyboard/${storyboard.value.id}`, {
-      method: 'PUT',
-      body: {
-        segments: storyboard.value.segments,
-      },
-    })
-
-    // Update local state
-    storyboard.value = savedStoryboard as Storyboard
-    
-    console.log('[Generate] Segment saved successfully')
-  } catch (error: any) {
-    console.error('[Generate] Failed to save segment:', error)
-    
-    toast.add({
-      title: 'Save Failed',
-      description: error.message || 'Failed to save segment. Please try again.',
-      color: 'error',
-    })
-  }
-}
-
-const handlePromptSelected = async (segmentIdx: number, promptIndex: number) => {
-  if (!storyboard.value || !storyboard.value.segments[segmentIdx]) {
-    return
-  }
-
-  // Update local state
-  storyboard.value.segments[segmentIdx].selectedPromptIndex = promptIndex
-
-  try {
-    // Update backend
-    await $fetch(`/api/storyboard/${storyboard.value.id}`, {
-      method: 'PUT',
-      body: {
-        segments: storyboard.value.segments,
-      },
-    })
-  } catch (error: any) {
-    // Revert on error
-    storyboard.value.segments[segmentIdx].selectedPromptIndex = undefined
-    
-    toast.add({
-      title: 'Failed to update prompt',
-      description: error.message || 'Could not update prompt selection. Please try again.',
-      color: 'error',
-    })
-  }
-}
-
-const handleRetrySegment = async (segmentId: number) => {
-  if (!retrySegmentGen) {
-    toast.add({
-      title: 'Error',
-      description: 'Regeneration function not available',
-      color: 'error',
-    })
-    return
-  }
-
-  try {
-    await retrySegmentGen(segmentId)
-    // Polling will automatically update the segments
-    if (pollGenProgress) {
-      pollGenProgress()
-    }
-  } catch (error: any) {
-    console.error('[Generate] Error retrying segment:', error)
-    throw error // Re-throw to let StoryboardView handle the error display
-  }
-}
-
-const handleRegenerateEvent = (segmentIdx: number) => {
-  console.log(`[Generate] Regeneration started for segment ${segmentIdx}`)
-  // The actual regeneration is handled by handleRetrySegment
-  // This event can be used for additional UI updates if needed
-}
 </script>
 

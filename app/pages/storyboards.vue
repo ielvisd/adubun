@@ -1884,7 +1884,7 @@ const handleEditComposedVideo = async () => {
           body: {
             clips: formattedClips,
             options: {
-              transition: 'fade',
+              transition: 'none',
               musicVolume: 70,
               aspectRatio: selectedStoryboard.value.meta.aspectRatio || '16:9',
             },

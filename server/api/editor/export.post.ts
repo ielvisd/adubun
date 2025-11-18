@@ -132,9 +132,9 @@ export default defineEventHandler(async (event) => {
       }
       console.log(`[Editor Export] Output resolution: ${outputWidth}x${outputHeight}`)
 
-      // Compose video
+      // Compose video (no transitions - zero effects)
       await composeVideo(localClips, {
-        transition: 'fade',
+        transition: 'none',
         musicVolume: volume,
         outputPath,
         outputWidth,
