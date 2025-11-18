@@ -92,30 +92,8 @@ const hasImages = computed(() => {
   return !!(props.nanoImageUrl || props.seedreamImageUrl)
 })
 
-const hasBothImages = computed(() => {
-  return !!(props.nanoImageUrl && props.seedreamImageUrl)
-})
-
-// Track if we should auto-show when both images first become available
-const shouldAutoShow = ref(true)
-
-// Watch for when both images become available to auto-show
-watch(hasBothImages, (newVal) => {
-  if (newVal && shouldAutoShow.value) {
-    // Auto-show when both images first become available
-    emit('show')
-    shouldAutoShow.value = false // Only auto-show once
-  }
-}, { immediate: true })
-
-// Auto-show when both images exist, otherwise use prop
+// Comparison is hidden by default, user must click "Show Comparison" to view
 const isComparisonVisible = computed(() => {
-  // If we have both images, auto-show by default (unless user has hidden it)
-  if (hasBothImages.value) {
-    // Use prop value if set, otherwise default to true for auto-show
-    return props.showComparison !== false
-  }
-  // If we don't have both images, use the prop value
   return props.showComparison || false
 })
 

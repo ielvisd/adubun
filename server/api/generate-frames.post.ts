@@ -209,7 +209,13 @@ export default defineEventHandler(async (event) => {
       // Add previous frame continuity instruction if we have a previous frame
       let previousFrameInstruction = ''
       if (previousFrameImage) {
-        previousFrameInstruction = `CRITICAL VISUAL CONTINUITY: Use the previous frame image as a visual reference to maintain continuity. Keep the same characters, same environment, same lighting style, and same overall composition. The scene should flow naturally from the previous frame. `
+        if (isTransition) {
+          // For transitions between scenes: maintain strong continuity
+          previousFrameInstruction = `CRITICAL VISUAL CONTINUITY: Use the previous frame image as a visual reference to maintain continuity. Keep the same characters, same environment, same lighting style, and same overall composition. The scene should flow naturally from the previous frame. `
+        } else {
+          // For progression within same scene: FORCE different angle/composition
+          previousFrameInstruction = `CRITICAL SCENE PROGRESSION - MUST CREATE VARIATION: This frame MUST be visually DIFFERENT from the previous frame. While keeping the SAME characters and setting, you MUST change: 1) Camera angle (try close-up, wide shot, over-shoulder, or side angle), 2) Character pose and body language (different position, gesture, or facial expression), 3) Composition and framing (different placement in frame, different focal point). DO NOT replicate the previous frame's composition. Show a LATER moment in time with CLEAR visual progression. The previous frame is only for character/setting reference - DO NOT copy its composition, angle, or pose. `
+        }
       }
       
       // Add product consistency and reference image instructions if we have reference images
@@ -230,7 +236,8 @@ export default defineEventHandler(async (event) => {
       currentSceneText?: string,
       isTransition: boolean = false,
       transitionText?: string,
-      transitionVisual?: string
+      transitionVisual?: string,
+      includePreviousFrameInInput: boolean = true  // NEW: Control whether to include previous frame in nano-banana image inputs
     ): Promise<{
       segmentIndex: number
       frameType: 'first' | 'last'
@@ -240,10 +247,13 @@ export default defineEventHandler(async (event) => {
       seedreamImageUrl?: string
     } | null> => {
       try {
-        console.log(`[Generate Frames] Generating ${frameName} with nano-banana...`)
+        console.log(`[Generate Frames] ========================================`)
+        console.log(`[Generate Frames] Starting generation: ${frameName}`)
+        console.log(`[Generate Frames] ========================================`)
         console.log(`[Generate Frames] Nano-banana prompt: ${nanoPrompt}`)
+        console.log(`[Generate Frames] Has previous frame: ${!!previousFrameImage}`)
         
-        // Build image input array: product images + previous frame (if available)
+        // Build image input array: product images + previous frame (if available and if includePreviousFrameInInput is true)
         const imageInputs: string[] = []
         
         // Add product images first
@@ -251,13 +261,15 @@ export default defineEventHandler(async (event) => {
           imageInputs.push(...referenceImages)
         }
         
-        // Add previous frame image for continuity (as per PRD specification)
-        if (previousFrameImage) {
+        // Add previous frame image for continuity only if includePreviousFrameInInput is true
+        if (previousFrameImage && includePreviousFrameInInput) {
           imageInputs.push(previousFrameImage)
-          console.log(`[Generate Frames] Including previous frame image for continuity: ${previousFrameImage}`)
+          console.log(`[Generate Frames] Including previous frame image in nano-banana inputs: ${previousFrameImage}`)
+        } else if (previousFrameImage && !includePreviousFrameInInput) {
+          console.log(`[Generate Frames] Previous frame mentioned in prompt but NOT included in image inputs (for more variation): ${previousFrameImage}`)
         }
         
-        console.log(`[Generate Frames] Total image inputs being sent: ${imageInputs.length} images (${referenceImages.length} product + ${previousFrameImage ? 1 : 0} previous frame)`)
+        console.log(`[Generate Frames] Total image inputs being sent: ${imageInputs.length} images (${referenceImages.length} product + ${(previousFrameImage && includePreviousFrameInInput) ? 1 : 0} previous frame)`)
         
         const nanoResult = await callReplicateMCP('generate_image', {
           model: 'google/nano-banana',
@@ -400,10 +412,13 @@ export default defineEventHandler(async (event) => {
           }
         }
         
-        console.error(`[Generate Frames] Nano-banana failed or timed out for ${frameName}`)
+        console.error(`[Generate Frames] ✗✗✗ Nano-banana failed or timed out for ${frameName}`)
+        console.error(`[Generate Frames] Final status: ${nanoStatus}, attempts: ${nanoAttempts}`)
         return null
       } catch (error: any) {
-        console.error(`[Generate Frames] Error generating ${frameName}:`, error)
+        console.error(`[Generate Frames] ✗✗✗ EXCEPTION generating ${frameName}:`, error)
+        console.error(`[Generate Frames] Error message: ${error.message}`)
+        console.error(`[Generate Frames] Error stack:`, error.stack)
         return null
       }
     }
@@ -560,37 +575,85 @@ export default defineEventHandler(async (event) => {
       }
                 }
                 
-    // Frame 5: CTA last frame (uses body2 last frame as input, which is CTA first frame)
+    // Frame 5: CTA last frame (uses CTA first frame = body2 last frame as input per spec)
     let ctaLastFrameResult: any = null
     if (ctaSegment && body2LastFrameResult) {
       console.log('\n[Generate Frames] === FRAME 5: CTA Last Frame ===')
       console.log('[Generate Frames] Note: CTA first frame = Body2 last frame (same image)')
+      console.log('[Generate Frames] CTA segment:', {
+        type: ctaSegment.type,
+        description: ctaSegment.description,
+        visualPrompt: ctaSegment.visualPrompt,
+      })
+      console.log('[Generate Frames] CTA first frame URL (body2 last):', body2LastFrameResult.imageUrl)
+      console.log('[Generate Frames] CTA story text:', story.callToAction)
+      
+      // Per spec: Use CTA first frame (= body2 last frame) as input
       const nanoPrompt = buildNanoPrompt(
         story.callToAction, 
         ctaSegment.visualPrompt,
-        false,
+        false,  // Not a transition (CTA is the final scene)
         undefined,
         undefined,
-        body2LastFrameResult.imageUrl  // Use body2 last frame (= CTA first frame) as input
+        body2LastFrameResult.imageUrl  // Use CTA first frame as input per spec
       )
+      
+      console.log('[Generate Frames] CTA nano prompt:', nanoPrompt)
+      console.log('[Generate Frames] Starting CTA last frame generation...')
+      
       ctaLastFrameResult = await generateSingleFrame(
         'CTA last frame', 
         nanoPrompt, 
         ctaSegment.visualPrompt,
-        body2LastFrameResult.imageUrl  // Previous frame image (CTA first = Body2 last)
+        body2LastFrameResult.imageUrl,  // Previous frame for prompt context only
+        story.callToAction,  // Story text for context
+        false,  // isTransition = false (scene progression, not transition)
+        undefined,  // No transition text
+        undefined,  // No transition visual
+        false  // DO NOT include previous frame in image inputs - forces variation
       )
       
       if (ctaLastFrameResult) {
         ctaLastFrameResult.segmentIndex = 3
         ctaLastFrameResult.frameType = 'last'
         frames.push(ctaLastFrameResult)
-        console.log(`[Generate Frames] ✓ CTA last frame generated (${ctaLastFrameResult.modelSource}): ${ctaLastFrameResult.imageUrl}`)
+        console.log(`[Generate Frames] ✓ CTA last frame generated successfully!`)
+        console.log(`[Generate Frames]   - Model source: ${ctaLastFrameResult.modelSource}`)
+        console.log(`[Generate Frames]   - Image URL: ${ctaLastFrameResult.imageUrl}`)
+        console.log(`[Generate Frames]   - Segment index: ${ctaLastFrameResult.segmentIndex}`)
+        console.log(`[Generate Frames]   - Frame type: ${ctaLastFrameResult.frameType}`)
       } else {
-        console.error('[Generate Frames] ✗ CTA last frame generation failed')
+        console.error('[Generate Frames] ✗✗✗ CTA last frame generation FAILED - result is null')
+        console.error('[Generate Frames] This means generateSingleFrame returned null')
+      }
+    } else {
+      console.error('[Generate Frames] ✗✗✗ Skipping CTA last frame generation')
+      console.error('[Generate Frames] ctaSegment exists:', !!ctaSegment)
+      console.error('[Generate Frames] body2LastFrameResult exists:', !!body2LastFrameResult)
+      if (!ctaSegment) {
+        console.error('[Generate Frames] CTA segment not found in storyboard')
+      }
+      if (!body2LastFrameResult) {
+        console.error('[Generate Frames] Body2 last frame generation failed - cannot generate CTA frame')
       }
     }
 
     console.log(`\n[Generate Frames] Sequential generation completed. Generated ${frames.length} frame(s)`)
+    console.log('[Generate Frames] Final frames array:')
+    frames.forEach((frame, index) => {
+      console.log(`  Frame ${index + 1}: segmentIndex=${frame.segmentIndex}, frameType=${frame.frameType}, url=${frame.imageUrl.substring(0, 50)}...`)
+    })
+    
+    // Verify we have the expected frames in production mode
+    if (generationMode === 'production' && frames.length !== 5) {
+      console.warn(`[Generate Frames] ⚠️ WARNING: Expected 5 frames in production mode, but got ${frames.length}`)
+      console.warn('[Generate Frames] Expected frames:')
+      console.warn('  1. Hook first (segmentIndex=0, frameType=first)')
+      console.warn('  2. Hook last (segmentIndex=0, frameType=last)')
+      console.warn('  3. Body1 last (segmentIndex=1, frameType=last)')
+      console.warn('  4. Body2 last (segmentIndex=2, frameType=last)')
+      console.warn('  5. CTA last (segmentIndex=3, frameType=last)')
+    }
 
     // Track cost (estimate: ~$0.05 per frame with both models)
     await trackCost('generate-frames', 0.05 * frames.length, {
@@ -601,6 +664,7 @@ export default defineEventHandler(async (event) => {
     return {
       frames,
       storyboardId: storyboard.id,
+      mode: generationMode,
     }
   } catch (error: any) {
     console.error('[Generate Frames] Error:', error)
