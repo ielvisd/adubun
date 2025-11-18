@@ -4,7 +4,7 @@ import { trackCost } from '../utils/cost-tracker'
 
 const generatePreviewSchema = z.object({
   hookText: z.string().min(1),
-  aspectRatio: z.enum(['16:9', '9:16', '1:1']).optional(),
+  aspectRatio: z.enum(['16:9', '9:16']).optional(),
 })
 
 export default defineEventHandler(async (event) => {

@@ -134,13 +134,16 @@ export const useGeneration = () => {
     })
   }
 
-  const retrySegment = async (segmentId: number) => {
+  const retrySegment = async (segmentId: number, storyboard?: any) => {
     if (!jobId.value) return
 
     try {
       await $fetch(`/api/retry-segment/${segmentId}`, {
         method: 'POST',
-        body: { jobId: jobId.value },
+        body: { 
+          jobId: jobId.value,
+          storyboard: storyboard, // Pass latest storyboard data if provided
+        },
       })
 
       // Restart polling

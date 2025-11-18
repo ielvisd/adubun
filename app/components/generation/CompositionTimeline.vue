@@ -23,14 +23,7 @@
       </div>
 
       <!-- Composition Options -->
-      <div class="grid grid-cols-2 gap-4">
-        <UFormField label="Transition Style" name="transition">
-          <USelect
-            v-model="composition.transition"
-            :items="['fade', 'dissolve', 'wipe', 'none']"
-          />
-        </UFormField>
-
+      <div class="grid grid-cols-1 gap-4">
         <UFormField label="Music Volume" name="musicVolume">
           <USlider
             v-model="composition.musicVolume"
@@ -70,7 +63,7 @@ const emit = defineEmits<{
 }>()
 
 const composition = reactive({
-  transition: 'fade' as 'fade' | 'dissolve' | 'wipe' | 'none',
+  transition: 'none' as 'none',
   musicVolume: 70,
 })
 

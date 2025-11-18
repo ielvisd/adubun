@@ -29,7 +29,7 @@ const generateFramesSchema = z.object({
       role: z.string(),
     })).optional(),
     meta: z.object({
-      aspectRatio: z.enum(['16:9', '9:16', '1:1']),
+      aspectRatio: z.enum(['16:9', '9:16']),
       mode: z.enum(['demo', 'production']).optional(),
       mood: z.string().optional(),
     }),
@@ -53,8 +53,6 @@ const getDimensions = (aspectRatio: string) => {
       return { width: 1080, height: 1920 }
     case '16:9':
       return { width: 1920, height: 1080 }
-    case '1:1':
-      return { width: 1080, height: 1080 }
     default:
       return { width: 1080, height: 1920 }
   }
@@ -517,7 +515,7 @@ export default defineEventHandler(async (event) => {
         ctaSegment.visualPrompt,
         body2LastFrameResult.imageUrl,  // Previous frame for visual reference
         story.callToAction,  // Story text for context
-        false,  // isTransition = false (scene progression, not transition)
+        false,  // isTransition = false (final scene)
         undefined,  // No transition text
         undefined,  // No transition visual
         true  // Include previous frame to maintain character consistency across all frames

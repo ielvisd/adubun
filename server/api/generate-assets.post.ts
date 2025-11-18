@@ -1,7 +1,7 @@
 import { generateAssetsSchema } from '../utils/validation'
 import { callReplicateMCP, callOpenAIMCP } from '../utils/mcp-client'
 import { trackCost } from '../utils/cost-tracker'
-import { downloadFile, saveAsset, readFile, cleanupTempFiles } from '../utils/storage'
+import { downloadFile, saveAsset, readFile, cleanupTempFiles, saveVideo } from '../utils/storage'
 import { uploadFileToReplicate } from '../utils/replicate-upload'
 import { extractFramesFromVideo } from '../utils/ffmpeg'
 import { sanitizeVideoPrompt } from '../utils/prompt-sanitizer'

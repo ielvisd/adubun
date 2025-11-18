@@ -1,12 +1,10 @@
-import { readMultipartFormData, getRequestURL } from 'h3'
-import { downloadFile, saveVideo, cleanupTempFiles, saveAsset } from '../../utils/storage'
+import { readMultipartFormData } from 'h3'
+import { cleanupTempFiles, saveAsset } from '../../utils/storage'
 import { composeVideo } from '../../utils/ffmpeg'
 import { nanoid } from 'nanoid'
 import path from 'path'
 import { promises as fs } from 'fs'
-import type { Video } from '../../../app/types/generation'
-
-const VIDEOS_FILE = path.join(process.env.MCP_FILESYSTEM_ROOT || './data', 'videos.json')
+import ffmpeg from 'fluent-ffmpeg'
 
 interface EditorClipPayload {
   videoUrl?: string
@@ -18,22 +16,9 @@ interface EditorClipPayload {
   muted?: boolean
 }
 
-async function saveVideoMetadata(video: Video) {
-  let videos: Video[] = []
-  try {
-    const content = await fs.readFile(VIDEOS_FILE, 'utf-8')
-    videos = JSON.parse(content)
-  } catch {
-    // File doesn't exist
-  }
-
-  videos.push(video)
-  await fs.mkdir(path.dirname(VIDEOS_FILE), { recursive: true })
-  await fs.writeFile(VIDEOS_FILE, JSON.stringify(videos, null, 2))
-}
-
 export default defineEventHandler(async (event) => {
   try {
+    console.log('[Editor Export] Starting export...')
     const formData = await readMultipartFormData(event)
     if (!formData) {
       throw createError({
@@ -41,6 +26,8 @@ export default defineEventHandler(async (event) => {
         message: 'No data provided',
       })
     }
+
+    console.log('[Editor Export] Form data fields:', formData.map(f => ({ name: f.name, hasData: !!f.data, filename: f.filename })))
 
     // Parse clips
     const clipsField = formData.find(f => f.name === 'clips')
@@ -52,12 +39,19 @@ export default defineEventHandler(async (event) => {
     }
 
     const clips: EditorClipPayload[] = JSON.parse(clipsField.data.toString())
+    console.log('[Editor Export] Parsed clips:', clips)
+    
     if (!Array.isArray(clips) || clips.length === 0) {
       throw createError({
         statusCode: 400,
         message: 'Invalid clips data',
       })
     }
+
+    // Get aspect ratio
+    const aspectRatioField = formData.find(f => f.name === 'aspectRatio')
+    const aspectRatio = aspectRatioField?.data?.toString() || '16:9'
+    console.log('[Editor Export] Aspect ratio:', aspectRatio)
 
     // Get audio file if provided
     const audioField = formData.find(f => f.name === 'audio')
@@ -79,13 +73,16 @@ export default defineEventHandler(async (event) => {
           fileFieldMap.set(field.name, field)
         }
       }
-      
-      const requestUrl = getRequestURL(event)
 
-      // Download and process clips
+      // Process clips (all must be uploaded files - editor is fully local)
       const localClips = await Promise.all(
         clips.map(async (clip, idx) => {
-          console.log(`[Editor Export] Processing clip ${idx}:`, clip.videoUrl)
+          console.log(`[Editor Export] Processing clip ${idx}:`, { 
+            hasFileField: !!clip.fileField, 
+            videoUrl: clip.videoUrl,
+            trimStart: clip.trimStart,
+            trimEnd: clip.trimEnd
+          })
           
           let videoPath: string
           
@@ -94,15 +91,15 @@ export default defineEventHandler(async (event) => {
             if (!fileField || !fileField.data) {
               throw new Error(`Missing video data for ${clip.fileField}`)
             }
+            console.log(`[Editor Export] Using uploaded file for clip ${idx}`)
             const extension = getFileExtension(fileField.filename) || 'mp4'
             videoPath = await saveAsset(Buffer.from(fileField.data), extension)
-          } else if (clip.videoUrl) {
-            const resolvedUrl = resolveVideoUrl(requestUrl.origin, clip.videoUrl)
-            videoPath = await downloadFile(resolvedUrl)
           } else {
-            throw new Error(`Clip ${idx} missing video source`)
+            // Editor is fully local - all clips must have file data
+            throw new Error(`Clip ${idx} missing file data. Editor requires all videos to be uploaded as files.`)
           }
           
+          console.log(`[Editor Export] Clip ${idx} saved to: ${videoPath}`)
           tempPaths.push(videoPath)
 
           // Trim video to get exact segment
@@ -123,11 +120,25 @@ export default defineEventHandler(async (event) => {
         })
       )
 
-      // Compose video
+      // Calculate output dimensions based on aspect ratio
+      let outputWidth: number
+      let outputHeight: number
+      if (aspectRatio === '16:9') {
+        outputWidth = 1920
+        outputHeight = 1080
+      } else {
+        outputWidth = 1080
+        outputHeight = 1920
+      }
+      console.log(`[Editor Export] Output resolution: ${outputWidth}x${outputHeight}`)
+
+      // Compose video (no transitions - zero effects)
       await composeVideo(localClips, {
-        transition: 'fade',
+        transition: 'none',
         musicVolume: volume,
         outputPath,
+        outputWidth,
+        outputHeight,
       })
 
       // Add background music if provided
@@ -135,42 +146,31 @@ export default defineEventHandler(async (event) => {
         await addBackgroundMusic(outputPath, audioField.data, volume)
       }
 
-      // Read composed video
+      console.log('[Editor Export] Video composed successfully:', outputPath)
+
+      // Read the composed video into memory
       const videoBuffer = await fs.readFile(outputPath)
-      const videoId = nanoid()
-      const finalPath = await saveVideo(videoBuffer, `${videoId}.mp4`)
-
-      // Calculate duration
-      const duration = clips.reduce((sum, clip) => sum + (clip.trimEnd - clip.trimStart), 0)
-
-      // Save metadata
-      const video: Video = {
-        id: videoId,
-        url: finalPath,
-        duration,
-        resolution: '1920x1080',
-        aspectRatio: '16:9',
-        generationCost: 0,
-        createdAt: Date.now(),
-        storyboardId: '',
-        jobId: '',
-      }
-      await saveVideoMetadata(video)
-
-      // Cleanup
+      
+      // Cleanup all temp files immediately (no server storage)
       await cleanupTempFiles(tempPaths)
       await fs.unlink(outputPath).catch(() => {})
 
-      return {
-        videoUrl: `/api/watch/${videoId}`,
-        videoId,
-      }
+      console.log('[Editor Export] Video ready for download, no server storage used')
+
+      // Return video as binary data for immediate download
+      // Set headers for download
+      setHeader(event, 'Content-Type', 'video/mp4')
+      setHeader(event, 'Content-Disposition', `attachment; filename="adubun-export-${Date.now()}.mp4"`)
+      setHeader(event, 'Content-Length', videoBuffer.length.toString())
+      
+      return videoBuffer
     } catch (error: any) {
       await cleanupTempFiles(tempPaths)
       throw error
     }
   } catch (error: any) {
     console.error('[Editor Export] Error:', error)
+    console.error('[Editor Export] Error stack:', error.stack)
     throw createError({
       statusCode: error.statusCode || 500,
       message: error.message || 'Failed to export video',
@@ -186,32 +186,41 @@ async function trimVideo(videoPath: string, startTime: number, endTime: number):
   )
 
   return new Promise((resolve, reject) => {
-    const ffmpeg = require('fluent-ffmpeg')
+    console.log(`[Trim] Trimming video from ${startTime}s to ${endTime}s (duration: ${endTime - startTime}s)`)
+    
     ffmpeg(videoPath)
+      .inputOptions([
+        '-accurate_seek',  // Enable accurate seeking to prevent black frames
+      ])
       .seekInput(startTime)
       .duration(endTime - startTime)
       .outputOptions([
         '-c:v libx264',
         '-c:a aac',
         '-preset fast',
+        '-crf 18', // High quality to prevent artifacts
+        '-g 30', // GOP size - keyframe every 30 frames (1s at 30fps)
+        '-keyint_min 30', // Minimum GOP size
+        '-sc_threshold 0', // Disable scene change detection for consistent GOPs
+        '-force_key_frames expr:gte(t,0)', // Force keyframe at start (t=0) to ensure first frame is valid
+        '-movflags +faststart', // Enable fast start for web playback
+        '-avoid_negative_ts make_zero', // Ensure timestamps start at 0
+        '-fflags +genpts', // Generate presentation timestamps for smooth playback
       ])
       .output(outputPath)
-      .on('end', () => resolve(outputPath))
-      .on('error', reject)
+      .on('start', (cmd) => {
+        console.log('[Trim] FFmpeg command:', cmd)
+      })
+      .on('end', () => {
+        console.log('[Trim] Trimming complete:', outputPath)
+        resolve(outputPath)
+      })
+      .on('error', (err) => {
+        console.error('[Trim] Error:', err)
+        reject(err)
+      })
       .run()
   })
-}
-
-function resolveVideoUrl(origin: string, videoUrl: string): string {
-  if (!videoUrl) {
-    throw new Error('Video URL is empty')
-  }
-  
-  if (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) {
-    return videoUrl
-  }
-  
-  return new URL(videoUrl, origin).toString()
 }
 
 function getFileExtension(filename?: string | null): string {
@@ -241,7 +250,6 @@ async function addBackgroundMusic(
   )
 
   return new Promise((resolve, reject) => {
-    const ffmpeg = require('fluent-ffmpeg')
     const volumePercent = volume / 100
 
     ffmpeg(videoPath)

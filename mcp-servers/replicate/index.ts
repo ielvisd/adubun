@@ -248,6 +248,34 @@ class ReplicateMCPServer {
             required: ['prompt'],
           },
         },
+        {
+          name: 'edit_video_aleph',
+          description: 'Edit video using RunwayML Aleph (Gen-4 Aleph) for in-context video editing - add/remove objects, change style, lighting, camera angles, etc.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              video: {
+                type: 'string',
+                description: 'URL or file path to input video to edit',
+              },
+              prompt: {
+                type: 'string',
+                description: 'Text description of desired edits (e.g., "add rain", "change to sunset lighting", "remove background objects")',
+              },
+              reference_image: {
+                type: 'string',
+                description: 'Optional reference image URL or file path for style or content guidance',
+              },
+              aspect_ratio: {
+                type: 'string',
+                enum: ['16:9', '9:16'],
+                description: 'Aspect ratio of output video. Must match input video aspect ratio.',
+                default: '16:9',
+              },
+            },
+            required: ['video', 'prompt'],
+          },
+        },
       ],
     }))
 
@@ -279,6 +307,14 @@ class ReplicateMCPServer {
           
           case 'get_prediction_result':
             return await this.getPredictionResult(args.predictionId)
+          
+          case 'edit_video_aleph':
+            return await this.editVideoAleph(
+              args.video,
+              args.prompt,
+              args.reference_image,
+              args.aspect_ratio || '16:9'
+            )
           
           case 'generate_image':
             return await this.generateImage(
@@ -659,6 +695,70 @@ class ReplicateMCPServer {
             createdAt: prediction.created_at,
             completedAt: prediction.completed_at,
           }),
+        },
+      ],
+    }
+  }
+
+  private async editVideoAleph(
+    video: string,
+    prompt: string,
+    referenceImage?: string,
+    aspectRatio: string = '16:9'
+  ) {
+    console.error('[Replicate MCP] Starting Aleph video edit')
+    console.error('[Replicate MCP] Video:', video)
+    console.error('[Replicate MCP] Prompt:', prompt)
+    console.error('[Replicate MCP] Reference Image:', referenceImage || 'none')
+    console.error('[Replicate MCP] Aspect Ratio:', aspectRatio)
+
+    // Upload video if it's a local file path
+    let videoUrl = video
+    if (!video.startsWith('http://') && !video.startsWith('https://')) {
+      console.error('[Replicate MCP] Uploading local video file to Replicate...')
+      videoUrl = await this.uploadFile(video)
+      console.error('[Replicate MCP] Video uploaded:', videoUrl)
+    }
+
+    // Upload reference image if provided and is local
+    let referenceImageUrl: string | undefined = referenceImage
+    if (referenceImage && !referenceImage.startsWith('http://') && !referenceImage.startsWith('https://')) {
+      console.error('[Replicate MCP] Uploading reference image to Replicate...')
+      referenceImageUrl = await this.uploadFile(referenceImage)
+      console.error('[Replicate MCP] Reference image uploaded:', referenceImageUrl)
+    }
+
+    // Build input for Aleph
+    const input: any = {
+      video: videoUrl,
+      prompt: prompt,
+    }
+
+    // Add reference image if provided
+    if (referenceImageUrl) {
+      input.reference_image = referenceImageUrl
+    }
+
+    console.error('[Replicate MCP] Creating Aleph prediction with input:', JSON.stringify(input, null, 2))
+
+    // Create prediction using runwayml/gen4-aleph model
+    const prediction = await replicate.predictions.create({
+      model: 'runwayml/gen4-aleph',
+      input: input,
+    })
+
+    console.error('[Replicate MCP] Aleph prediction created:', prediction.id)
+    console.error('[Replicate MCP] Status:', prediction.status)
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            predictionId: prediction.id,
+            status: prediction.status,
+            urls: prediction.urls,
+          }, null, 2),
         },
       ],
     }

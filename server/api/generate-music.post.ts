@@ -9,7 +9,7 @@ const generateMusicSchema = z.object({
     })),
     meta: z.object({
       style: z.string(),
-      aspectRatio: z.enum(['16:9', '9:16', '1:1']),
+      aspectRatio: z.enum(['16:9', '9:16']),
     }),
   }),
   duration: z.number().default(16),

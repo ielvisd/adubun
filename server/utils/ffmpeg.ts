@@ -21,14 +21,38 @@ export interface CompositionOptions {
   outputHeight?: number
 }
 
+// Helper function to check if a video has an audio stream
+async function hasAudioStream(videoPath: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    ffmpeg.ffprobe(videoPath, (err, metadata) => {
+      if (err) {
+        console.log(`[FFmpeg] Could not probe ${videoPath}, assuming no audio`)
+        resolve(false)
+        return
+      }
+      const hasAudio = metadata.streams.some(s => s.codec_type === 'audio')
+      resolve(hasAudio)
+    })
+  })
+}
+
 export async function composeVideo(
   clips: Clip[],
   options: CompositionOptions
 ): Promise<string> {
+  // Detect which clips have audio streams before processing
+  console.log('[FFmpeg] Detecting audio streams in clips...')
+  const audioCheckPromises = clips.map((clip, idx) => 
+    hasAudioStream(clip.localPath).then(hasAudio => ({ idx, hasAudio }))
+  )
+  const audioChecks = await Promise.all(audioCheckPromises)
+  const clipsWithAudio = audioChecks.filter(c => c.hasAudio).map(c => c.idx)
+  
   return new Promise((resolve, reject) => {
     console.log('[FFmpeg] Starting video composition')
     console.log('[FFmpeg] Clips count:', clips.length)
-    console.log('[FFmpeg] Clips with audio:', clips.filter(c => c.voicePath).length)
+    console.log('[FFmpeg] Clips with voiceover:', clips.filter(c => c.voicePath).length)
+    console.log('[FFmpeg] Clips with embedded audio:', clipsWithAudio)
     console.log('[FFmpeg] Background music:', options.backgroundMusicPath || 'none')
     console.log('[FFmpeg] Options:', JSON.stringify(options, null, 2))
     
@@ -50,7 +74,7 @@ export async function composeVideo(
     }
 
     // Build filter complex
-    const filterComplex = buildFilterComplex(clips, options)
+    const filterComplex = buildFilterComplex(clips, options, clipsWithAudio)
     console.log('[FFmpeg] Filter complex:', filterComplex)
     command.complexFilter(filterComplex)
 
@@ -62,10 +86,18 @@ export async function composeVideo(
       .outputOptions([
         '-c:v libx264',
         '-preset fast',
-        '-crf 23',
+        '-crf 18', // Higher quality to prevent artifacts
+        '-profile:v high', // High profile for better quality
+        '-level 4.1', // Compatibility level
+        '-pix_fmt yuv420p', // Ensure consistent pixel format
+        '-g 30', // GOP size - keyframe every 1 second at 30fps
+        '-keyint_min 30', // Minimum GOP size
+        '-sc_threshold 0', // Disable scene change detection
+        '-force_key_frames expr:gte(t,n_forced*1)', // Force keyframe every 1 second
         '-c:a aac',
         '-b:a 192k',
-        '-movflags +faststart',
+        '-ar 48000', // Audio sample rate
+        '-movflags +faststart', // Enable fast start for web playback
         '-map [outv]',
         '-map [outa]',
       ])
@@ -90,7 +122,7 @@ export async function composeVideo(
   })
 }
 
-function buildFilterComplex(clips: Clip[], options: CompositionOptions): string[] {
+function buildFilterComplex(clips: Clip[], options: CompositionOptions, clipsWithAudio: number[]): string[] {
   const filters: string[] = []
   
   // Calculate total video duration from clips
@@ -106,25 +138,16 @@ function buildFilterComplex(clips: Clip[], options: CompositionOptions): string[
     const duration = clip.endTime - clip.startTime
     // For trim filter, we need source video timestamps (0-based for each file)
     // Not timeline positions. So we trim from 0 to the duration we want.
+    // Add format filter to ensure consistent pixel format and prevent black frames
     filters.push(
-      `[${idx}:v]trim=duration=${duration},setpts=PTS-STARTPTS,scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=decrease,pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30[v${idx}]`
+      `[${idx}:v]trim=duration=${duration},setpts=PTS-STARTPTS,format=yuv420p,scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=decrease,pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30[v${idx}]`
     )
   })
 
-  // Add transitions
-  if (options.transition === 'fade') {
-    clips.forEach((clip, idx) => {
-      if (idx > 0) {
-        filters.push(`[v${idx}]fade=t=in:st=0:d=0.5[v${idx}f]`)
-      } else {
-        filters.push(`[v${idx}]copy[v${idx}f]`)
-      }
-    })
-  } else {
-    clips.forEach((clip, idx) => {
-      filters.push(`[v${idx}]copy[v${idx}f]`)
-    })
-  }
+  // No transitions - direct copy for all clips (zero effects)
+  clips.forEach((clip, idx) => {
+    filters.push(`[v${idx}]copy[v${idx}f]`)
+  })
 
   // Concatenate videos
   const videoInputs = clips.map((_, idx) => `[v${idx}f]`).join('')
@@ -148,11 +171,13 @@ function buildFilterComplex(clips: Clip[], options: CompositionOptions): string[
       filters.push(`[${audioInputIndex}:a]atrim=duration=${duration},asetpts=PTS-STARTPTS,volume=${volume}[vo${idx}]`)
       audioInputs.push(`[vo${idx}]`)
       audioInputIndex++
-    } else {
-      // Extract audio from embedded video stream
+    } else if (clipsWithAudio.includes(idx)) {
+      // Extract audio from embedded video stream (only if video has audio)
       console.log(`[FFmpeg] Using embedded audio from video ${idx}`)
       filters.push(`[${idx}:a]atrim=duration=${duration},asetpts=PTS-STARTPTS,volume=1.0[vo${idx}]`)
       audioInputs.push(`[vo${idx}]`)
+    } else {
+      console.log(`[FFmpeg] Clip ${idx} has no audio track, skipping`)
     }
   })
 

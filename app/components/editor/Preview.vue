@@ -3,9 +3,13 @@
     <video
       ref="videoPlayer"
       :src="currentClip?.sourceUrl"
+      preload="auto"
       class="w-full h-full object-contain"
       @timeupdate="handleTimeUpdate"
       @loadedmetadata="handleLoadedMetadata"
+      @loadeddata="handleLoadedData"
+      @canplaythrough="handleCanPlayThrough"
+      @waiting="handleWaiting"
       @click="handleVideoClick"
       @play="handlePlay"
       @pause="handlePause"
@@ -69,6 +73,9 @@ const videoPlayer = ref<HTMLVideoElement>()
 const animationFrameId = ref<number | null>(null)
 const lastEmittedTime = ref(0)
 const isTransitioningClip = ref(false)
+const isVideoReady = ref(false)
+const isBuffering = ref(false)
+const playPromise = ref<Promise<void> | null>(null)
 
 const totalDuration = computed(() => {
   return props.clips.reduce((sum, clip) => {
@@ -155,7 +162,28 @@ const handleTimeUpdate = () => {
 }
 
 const handleLoadedMetadata = () => {
+  console.log('[Preview] Video metadata loaded')
   updateVideoTime()
+}
+
+const handleLoadedData = () => {
+  console.log('[Preview] Video data loaded')
+  isVideoReady.value = true
+  isBuffering.value = false
+}
+
+const handleCanPlayThrough = () => {
+  console.log('[Preview] Video can play through')
+  isVideoReady.value = true
+  isBuffering.value = false
+}
+
+const handleWaiting = () => {
+  // Only log buffering if we're actually playing
+  if (props.isPlaying) {
+    console.log('[Preview] Video is buffering')
+    isBuffering.value = true
+  }
 }
 
 const updateVideoTime = () => {
@@ -177,24 +205,43 @@ const updateVideoTime = () => {
   }
 }
 
-const handleVideoClick = () => {
-  if (videoPlayer.value) {
-    if (videoPlayer.value.paused) {
-      videoPlayer.value.play()
-      emit('play')
-    } else {
-      videoPlayer.value.pause()
-      emit('pause')
+const handleVideoClick = async () => {
+  if (!videoPlayer.value) return
+  
+  if (videoPlayer.value.paused) {
+    // Wait for any pending play promise before starting new one
+    if (playPromise.value) {
+      await playPromise.value.catch(() => {})
     }
+    playPromise.value = videoPlayer.value.play()
+    await playPromise.value.catch(() => {})
+    playPromise.value = null
+    emit('play')
+  } else {
+    // Wait for any pending play promise before pausing
+    if (playPromise.value) {
+      await playPromise.value.catch(() => {})
+      playPromise.value = null
+    }
+    videoPlayer.value.pause()
+    emit('pause')
   }
 }
 
-const handlePlayClick = () => {
-  if (videoPlayer.value) {
-    videoPlayer.value.play()
-    emit('play')
-    startSyncLoop()
+const handlePlayClick = async () => {
+  if (!videoPlayer.value) return
+  
+  // Wait for any pending play promise
+  if (playPromise.value) {
+    await playPromise.value.catch(() => {})
   }
+  
+  playPromise.value = videoPlayer.value.play()
+  await playPromise.value.catch(() => {})
+  playPromise.value = null
+  
+  emit('play')
+  startSyncLoop()
 }
 
 const handlePlay = () => {
@@ -224,41 +271,108 @@ watch(() => props.currentTime, () => {
   }
 })
 
-watch(() => props.isPlaying, (playing) => {
-  if (videoPlayer.value) {
-    if (playing) {
-      updateVideoTime()
-      videoPlayer.value.play().then(() => {
-        startSyncLoop()
-      }).catch(() => {})
-    } else {
-      videoPlayer.value.pause()
-      cancelAnimation()
+watch(() => props.isPlaying, async (playing) => {
+  if (!videoPlayer.value) return
+  
+  if (playing) {
+    updateVideoTime()
+    
+    // Wait for any pending play promise
+    if (playPromise.value) {
+      await playPromise.value.catch(() => {})
     }
+    
+    playPromise.value = videoPlayer.value.play()
+    await playPromise.value.then(() => {
+      startSyncLoop()
+    }).catch((err) => {
+      console.error('[Preview] Play error in watch:', err)
+    })
+    playPromise.value = null
+  } else {
+    // Wait for any pending play promise before pausing
+    if (playPromise.value) {
+      await playPromise.value.catch(() => {})
+      playPromise.value = null
+    }
+    videoPlayer.value.pause()
+    cancelAnimation()
   }
 })
 
-watch(() => currentClip.value, (newClip, oldClip) => {
+watch(() => currentClip.value, async (newClip, oldClip) => {
   if (!newClip || !videoPlayer.value) return
   
   const sourceChanged = newClip.sourceUrl !== oldClip?.sourceUrl
   if (sourceChanged) {
+    console.log('[Preview] Source changed, loading new video:', newClip.name)
+    
+    // Cancel any ongoing animations and play promises
+    cancelAnimation()
+    if (playPromise.value) {
+      await playPromise.value.catch(() => {})
+      playPromise.value = null
+    }
+    
+    isVideoReady.value = false
+    isBuffering.value = true
+    
     videoPlayer.value.src = newClip.sourceUrl
     videoPlayer.value.load()
+    
+    // Wait for video to be ready before attempting playback
+    const waitForReady = new Promise<void>((resolve) => {
+      const checkReady = () => {
+        if (videoPlayer.value && videoPlayer.value.readyState >= 3) { // HAVE_FUTURE_DATA
+          console.log('[Preview] Video ready for playback')
+          resolve()
+        } else {
+          setTimeout(checkReady, 50)
+        }
+      }
+      checkReady()
+    })
+    
+    await waitForReady
+    isVideoReady.value = true
+    isBuffering.value = false
+    
+    updateVideoTime()
     if (props.isPlaying) {
-      videoPlayer.value.play().then(() => {
+      // Small delay to ensure smooth transition
+      await new Promise(resolve => setTimeout(resolve, 50))
+      
+      // Use play promise tracking
+      if (playPromise.value) {
+        await playPromise.value.catch(() => {})
+      }
+      
+      playPromise.value = videoPlayer.value?.play()
+      await playPromise.value?.then(() => {
         startSyncLoop()
         isTransitioningClip.value = false
-      }).catch(() => {})
+      }).catch((err) => {
+        console.error('[Preview] Play error:', err)
+        isTransitioningClip.value = false
+      })
+      playPromise.value = null
     } else {
       isTransitioningClip.value = false
     }
   } else if (newClip.id !== oldClip?.id) {
+    console.log('[Preview] Same source, different clip (trim/split)')
     updateVideoTime()
     if (props.isPlaying) {
-      videoPlayer.value.play().then(() => {
+      // Use play promise tracking
+      if (playPromise.value) {
+        await playPromise.value.catch(() => {})
+      }
+      
+      playPromise.value = videoPlayer.value.play()
+      await playPromise.value?.then(() => {
         startSyncLoop()
       }).catch(() => {})
+      playPromise.value = null
     }
     isTransitioningClip.value = false
   }

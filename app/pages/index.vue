@@ -328,7 +328,7 @@ const examplePrompts = [
     description: 'Create a clean, minimal 30s ad demonstrating a new smartphone with smooth transitions and modern tech aesthetics',
     prompt: 'Create a clean, minimal 30s ad demonstrating a new smartphone with smooth transitions and modern tech aesthetics',
     duration: 30,
-    aspectRatio: '1:1',
+    aspectRatio: '16:9',
     style: 'Minimal',
     icon: '📱',
   },
@@ -382,7 +382,7 @@ const useExample = (example: typeof examplePrompts[0]) => {
       handleSubmit({
         prompt: example.prompt,
         productImages: [],
-        aspectRatio: example.aspectRatio as '16:9' | '9:16' | '1:1',
+        aspectRatio: example.aspectRatio as '16:9' | '9:16',
         model: 'google/veo-3.1', // Default model
         generateVoiceover: false,
       })
@@ -453,6 +453,7 @@ const handleSubmit = async (formData: any) => {
         productImages: uploadedImageUrls,
         aspectRatio: formData.aspectRatio,
         model: formData.model,
+        mood: formData.mood,
         generateVoiceover: formData.generateVoiceover || false,
       }))
     }

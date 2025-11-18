@@ -1,7 +1,7 @@
 import { getJob, saveJob } from '../generate-assets.post'
 import { callReplicateMCP, callOpenAIMCP } from '../../utils/mcp-client'
 import { trackCost } from '../../utils/cost-tracker'
-import { saveAsset, readStoryboard } from '../../utils/storage'
+import { saveAsset, readStoryboard, saveStoryboard } from '../../utils/storage'
 import { uploadFileToReplicate } from '../../utils/replicate-upload'
 import { sanitizeVideoPrompt } from '../../utils/prompt-sanitizer'
 import path from 'path'
@@ -69,7 +69,7 @@ async function prepareImageInput(filePath: string | undefined | null): Promise<s
 
 export default defineEventHandler(async (event) => {
   const segmentId = parseInt(getRouterParam(event, 'id') || '0')
-  const { jobId } = await readBody(event)
+  const { jobId, storyboard: providedStoryboard } = await readBody(event)
 
   if (!jobId) {
     throw createError({
@@ -86,8 +86,15 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Get storyboard to find segment details
-  const storyboard = await readStoryboard(job.storyboardId)
+  // Get storyboard: use provided one (latest from client) or read from backend
+  let storyboard = providedStoryboard
+  if (!storyboard) {
+    storyboard = await readStoryboard(job.storyboardId)
+  } else {
+    // If storyboard is provided, ensure it's saved to backend for consistency
+    await saveStoryboard(storyboard)
+  }
+  
   const segment = storyboard.segments[segmentId]
 
   if (!segment) {

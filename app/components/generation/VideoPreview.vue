@@ -1,25 +1,45 @@
 <template>
-  <UCard v-if="shouldShow" class="mt-8">
-    <template #header>
-      <div class="flex items-center justify-between">
-        <h3 class="text-xl font-semibold">Video Composition Comparison</h3>
-        <div class="flex gap-2">
-          <UButton
-            v-if="originalVideoUrl || smartVideoUrl"
-            icon="i-heroicons-arrow-path"
-            size="sm"
-            variant="ghost"
-            @click="recompose"
-            :disabled="composing"
-          >
-            Refresh
-          </UButton>
+  <div v-if="shouldShow" class="space-y-6 mt-8">
+    <UCard class="bg-white dark:bg-gray-800 shadow-lg">
+      <template #header>
+        <div class="flex items-center justify-between">
+          <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Video Composition</h3>
+          <div class="flex gap-2">
+            <UButton
+              v-if="originalVideoUrl || smartVideoUrl"
+              icon="i-heroicons-arrow-path"
+              size="sm"
+              variant="ghost"
+              @click="recompose"
+              :disabled="composing"
+            >
+              Refresh
+            </UButton>
+          </div>
         </div>
-      </div>
-    </template>
+      </template>
 
-    <div class="space-y-6">
-      <!-- Loading State -->
+      <div class="space-y-6">
+        <!-- Timeline Visualization -->
+        <div v-if="props.clips.length > 0" class="space-y-4">
+          <div class="relative h-24 bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden">
+            <div
+              v-for="(clip, idx) in props.clips"
+              :key="idx"
+              :style="{
+                left: `${(clip.startTime / totalDuration) * 100}%`,
+                width: `${((clip.endTime - clip.startTime) / totalDuration) * 100}%`,
+              }"
+              class="absolute top-0 h-full bg-primary-600 dark:bg-primary-500 border-r-2 border-white dark:border-gray-800"
+            >
+              <div class="p-2 text-xs text-white truncate font-medium">
+                {{ clip.type }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading State -->
       <div v-if="composing" class="flex flex-col items-center justify-center py-12">
         <UIcon name="i-heroicons-arrow-path" class="w-12 h-12 text-primary-500 animate-spin mb-4" />
         <p class="text-gray-600 dark:text-gray-400">Composing both video versions...</p>
@@ -138,21 +158,70 @@
         </div>
 
         <!-- Info about selection -->
-        <div v-if="selectedVersion" class="text-center text-sm text-gray-600 dark:text-gray-400">
-          <p>
+        <div v-if="selectedVersion" class="text-center space-y-4">
+          <p class="text-sm text-gray-600 dark:text-gray-400">
             <strong>{{ selectedVersion === 'original' ? 'Original' : 'Smart Stitched' }}</strong> version selected.
             This will be used for editing and export.
           </p>
+          <UButton
+            color="primary"
+            variant="solid"
+            size="lg"
+            :loading="sendingToEditor"
+            @click="sendToEditor"
+            class="bg-primary-500 hover:bg-primary-600 text-white font-semibold"
+          >
+            <UIcon name="i-heroicons-pencil-square" class="mr-2" />
+            Open in Video Editor
+          </UButton>
         </div>
       </div>
 
+      <!-- Generate Button State -->
+      <div v-else-if="props.clips.length > 0 && !originalVideoUrl && !smartVideoUrl" class="flex flex-col items-center justify-center py-12">
+        <UIcon name="i-heroicons-film" class="w-16 h-16 text-primary-500 mb-4" />
+        <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Ready to Compose Videos</h4>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-6 text-center max-w-md">
+          Generate both original and smart-stitched versions of your composed video for comparison.
+        </p>
+        <UButton
+          size="xl"
+          color="primary"
+          variant="solid"
+          :loading="composing"
+          @click="composeVideos"
+          class="bg-primary-500 hover:bg-primary-600 text-white font-semibold"
+        >
+          <UIcon name="i-heroicons-film" class="mr-2" />
+          Generate Video Composition
+        </UButton>
+      </div>
+
       <!-- Empty State -->
-      <div v-else class="flex flex-col items-center justify-center py-12 text-gray-500">
+      <div v-else class="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
         <UIcon name="i-heroicons-video-camera" class="w-12 h-12 mb-4 opacity-50" />
         <p>No video segments available to preview</p>
       </div>
-    </div>
-  </UCard>
+      </div>
+    </UCard>
+
+    <!-- Cost Tracking at Bottom -->
+    <UCard class="bg-white dark:bg-gray-800 shadow-lg">
+      <template #header>
+        <h4 class="text-xl font-semibold text-gray-900 dark:text-white">Cost Tracking</h4>
+      </template>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Current Cost</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">${{ currentCost.toFixed(3) }}</p>
+        </div>
+        <div>
+          <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Estimated Total</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">${{ estimatedTotal.toFixed(3) }}</p>
+        </div>
+      </div>
+    </UCard>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -176,6 +245,8 @@ const props = defineProps<{
     type: string
   }>
   status: 'idle' | 'processing' | 'completed' | 'failed'
+  currentCost?: number
+  estimatedTotal?: number
 }>()
 
 const emit = defineEmits<{
@@ -194,10 +265,19 @@ const originalVideoDuration = ref(0)
 const smartVideoDuration = ref(0)
 const stitchAdjustments = ref<StitchAdjustment[]>([])
 const selectedVersion = ref<'original' | 'smart' | null>(null)
+const sendingToEditor = ref(false)
 
 const shouldShow = computed(() => {
   return props.status === 'completed' && props.clips.length > 0
 })
+
+const totalDuration = computed(() => {
+  if (props.clips.length === 0) return 0
+  return Math.max(...props.clips.map((c) => c.endTime), 0)
+})
+
+const currentCost = computed(() => props.currentCost || 0)
+const estimatedTotal = computed(() => props.estimatedTotal || 0)
 
 const formatDuration = (seconds: number): string => {
   if (!isFinite(seconds) || isNaN(seconds) || seconds === 0) return '0:00'
@@ -258,7 +338,7 @@ const composeVideos = async () => {
     })
 
     const composeOptions = {
-      transition: 'fade',
+      transition: 'none',
       musicVolume: 70,
       aspectRatio: '16:9', // Default aspect ratio, could be made configurable
     }
@@ -314,35 +394,102 @@ const recompose = () => {
   composeVideos()
 }
 
-// Auto-compose when clips become available and status is completed
-watch(
-  () => [props.clips.length, props.status],
-  ([clipsLength, status]) => {
-    if (status === 'completed' && clipsLength > 0 && !originalVideoUrl.value && !composing.value) {
-      composeVideos()
-    }
-  },
-  { immediate: true }
-)
+// Send selected video to editor
+const sendToEditor = async () => {
+  if (!selectedVersion.value) {
+    error.value = 'Please select a video version first'
+    return
+  }
 
-// Re-compose when clips change (e.g., after regeneration)
-watch(
-  () => props.clips,
-  (newClips, oldClips) => {
-    if (
-      props.status === 'completed' &&
-      newClips.length > 0 &&
-      JSON.stringify(newClips) !== JSON.stringify(oldClips)
-    ) {
-      // Only recompose if the clips actually changed
-      if (oldClips && oldClips.length > 0) {
-        recompose()
-      } else if (!originalVideoUrl.value) {
-        composeVideos()
+  const videoUrl = selectedVersion.value === 'original' ? originalVideoUrl.value : smartVideoUrl.value
+  const videoId = selectedVersion.value === 'original' ? originalVideoId.value : smartVideoId.value
+  if (!videoUrl || !videoId) {
+    error.value = 'Video URL or ID not available'
+    return
+  }
+
+  sendingToEditor.value = true
+  error.value = null
+
+  try {
+    // Use videoId to download via server endpoint (avoids CORS issues)
+    console.log('[VideoPreview] Downloading video for editor via videoId:', videoId)
+    
+    // Use $fetch with responseType: 'blob' to get the video file directly
+    let videoBlob: Blob
+    try {
+      const blob = await $fetch<Blob>(`/api/download/${videoId}`, {
+        responseType: 'blob',
+      })
+      videoBlob = blob
+      console.log('[VideoPreview] Video downloaded via download endpoint, size:', videoBlob.size)
+    } catch (downloadError: any) {
+      console.warn('[VideoPreview] Download endpoint failed, trying watch endpoint:', downloadError)
+      // Fallback to watch endpoint
+      try {
+        const blob = await $fetch<Blob>(videoUrl, {
+          responseType: 'blob',
+        })
+        videoBlob = blob
+        console.log('[VideoPreview] Video downloaded via watch endpoint, size:', videoBlob.size)
+      } catch (watchError: any) {
+        throw new Error(`Failed to download video: ${watchError.message || 'Unknown error'}`)
       }
     }
-  },
-  { deep: true }
-)
+    
+    // Get video duration from blob
+    const videoDuration = await new Promise<number>((resolve, reject) => {
+      const video = document.createElement('video')
+      video.preload = 'metadata'
+      video.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(video.src)
+        resolve(video.duration)
+      }
+      video.onerror = () => reject(new Error('Failed to load video metadata'))
+      video.src = URL.createObjectURL(videoBlob)
+    })
+
+    // Convert blob to base64 for storage
+    const base64Data = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const base64String = reader.result as string
+        // Remove data URL prefix (data:video/mp4;base64,)
+        const base64 = base64String.split(',')[1]
+        resolve(base64)
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(videoBlob)
+    })
+
+    // Create video data for editor
+    const videoData = {
+      file: {
+        name: `composed-video-${selectedVersion.value}-${Date.now()}.mp4`,
+        type: 'video/mp4',
+        size: videoBlob.size,
+        base64: base64Data,
+      },
+      duration: videoDuration,
+      name: `Composed Video (${selectedVersion.value === 'original' ? 'Original' : 'Smart Stitched'})`,
+    }
+
+    // Store in sessionStorage for editor to pick up
+    if (process.client) {
+      sessionStorage.setItem('editorPendingVideo', JSON.stringify(videoData))
+      console.log('[VideoPreview] Video data stored for editor')
+    }
+
+    // Navigate to editor
+    await navigateTo('/editor')
+  } catch (err: any) {
+    console.error('[VideoPreview] Error sending video to editor:', err)
+    error.value = err.message || 'Failed to send video to editor. Please try again.'
+  } finally {
+    sendingToEditor.value = false
+  }
+}
+
+// No auto-compose - user must click button to generate
 </script>
 

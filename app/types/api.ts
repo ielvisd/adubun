@@ -3,7 +3,7 @@ import type { ParsedPrompt, Storyboard, GenerationJob, Video, CostSummary } from
 export interface ParsePromptRequest {
   prompt: string
   duration: number
-  aspectRatio: '16:9' | '9:16' | '1:1'
+  aspectRatio: '16:9' | '9:16'
   style: string
 }
 

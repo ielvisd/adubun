@@ -4,6 +4,10 @@
       <div class="mb-6">
         <h1 class="text-3xl font-bold text-white">Video Editor Studio</h1>
         <p class="text-gray-400 mt-2">Professional video editing with trim and split</p>
+        <p class="text-xs text-gray-500 mt-1">
+          <UIcon name="i-heroicons-lock-closed" class="inline" /> 
+          Fully local editing - videos never leave your device (except for AI editing)
+        </p>
       </div>
 
       <div class="grid grid-cols-12 gap-6">
@@ -44,19 +48,34 @@
               @delete="handleDelete"
               @seek="handleSeek"
               @reorder="handleReorder"
+              @aleph-edit="handleAlephEdit"
             />
           </div>
 
           <!-- Controls -->
           <div class="flex justify-between items-center">
-            <UButton
-              variant="outline"
-              @click="handleSplitAtPlayhead"
-              :disabled="!canSplitAtCurrentTime"
-            >
-              <UIcon name="i-heroicons-scissors" class="mr-2" />
-              Split (S)
-            </UButton>
+            <div class="flex gap-3 items-center">
+              <UButton
+                variant="outline"
+                @click="handleSplitAtPlayhead"
+                :disabled="!canSplitAtCurrentTime"
+              >
+                <UIcon name="i-heroicons-scissors" class="mr-2" />
+                Split (S)
+              </UButton>
+
+              <UFormField label="Aspect Ratio" class="mb-0">
+                <USelect
+                  v-model="aspectRatio"
+                  :options="[
+                    { label: '16:9 (Landscape)', value: '16:9' },
+                    { label: '9:16 (Portrait)', value: '9:16' }
+                  ]"
+                  option-attribute="label"
+                  value-attribute="value"
+                />
+              </UFormField>
+            </div>
 
             <UButton
               color="primary"
@@ -71,6 +90,14 @@
         </div>
       </div>
     </UContainer>
+
+    <!-- Aleph Edit Modal -->
+    <AlephEditModal
+      v-model:open="alephModalOpen"
+      :clip="alephEditingClip"
+      :is-processing="isAlephProcessing"
+      @submit="handleAlephSubmit"
+    />
   </div>
 </template>
 
@@ -78,6 +105,7 @@
 import EditorMediaBin from '~/components/editor/MediaBin.vue'
 import EditorPreview from '~/components/editor/Preview.vue'
 import EditorTimeline from '~/components/editor/Timeline.vue'
+import AlephEditModal from '~/components/editor/AlephEditModal.vue'
 
 interface EditorClip {
   id: string
@@ -107,6 +135,12 @@ const currentTime = ref(0)
 const isPlaying = ref(false)
 const isExporting = ref(false)
 const timelineRef = ref<InstanceType<typeof EditorTimeline>>()
+const aspectRatio = ref<'16:9' | '9:16'>('16:9')
+
+// Aleph editing state
+const alephModalOpen = ref(false)
+const alephEditingClip = ref<EditorClip | null>(null)
+const isAlephProcessing = ref(false)
 
 const totalDuration = computed(() => {
   return timelineClips.value.reduce((sum, clip) => {
@@ -382,12 +416,161 @@ const handleReorder = (clips: EditorClip[], options?: { finalize?: boolean }) =>
   }
 }
 
+// Aleph editing handlers
+const handleAlephEdit = (clip: EditorClip) => {
+  const duration = clip.originalDuration - clip.startOffset - clip.endOffset
+  
+  if (duration >= 5) {
+    toast.add({
+      title: 'Clip too long',
+      description: 'Aleph editing is only available for clips under 5 seconds',
+      color: 'warning',
+    })
+    return
+  }
+  
+  alephEditingClip.value = clip
+  alephModalOpen.value = true
+}
+
+const handleAlephSubmit = async (data: { 
+  clip: EditorClip
+  prompt: string
+  referenceImageFile?: File
+}) => {
+  isAlephProcessing.value = true
+  
+  try {
+    // Step 1: Create a trimmed video file from the clip
+    const formData = new FormData()
+    
+    if (data.clip.file) {
+      formData.append('videoFile', data.clip.file)
+    } else {
+      formData.append('videoUrl', data.clip.sourceUrl)
+    }
+    
+    formData.append('startOffset', data.clip.startOffset.toString())
+    formData.append('endOffset', data.clip.endOffset.toString())
+    formData.append('originalDuration', data.clip.originalDuration.toString())
+    formData.append('prompt', data.prompt)
+    
+    if (data.referenceImageFile) {
+      formData.append('referenceImageFile', data.referenceImageFile)
+    }
+    
+    // Step 2: Send to Aleph editing endpoint (returns video binary directly)
+    const response = await fetch('/api/editor/aleph-edit', {
+      method: 'POST',
+      body: formData,
+    })
+    
+    if (!response.ok) {
+      throw new Error('Aleph editing failed')
+    }
+    
+    // Step 3: Get video binary and metadata from response headers
+    const videoBlob = await response.blob()
+    const editedDuration = parseFloat(response.headers.get('X-Video-Duration') || '0')
+    const clipId = response.headers.get('X-Clip-Id') || `aleph-${Date.now()}`
+    
+    // Step 4: Create local File object and blob URL (fully local, no S3)
+    const videoFile = new File([videoBlob], `${data.clip.name} (AI Edited).mp4`, { type: 'video/mp4' })
+    const localVideoUrl = URL.createObjectURL(videoBlob)
+    
+    // Step 5: Add to media bin with local blob URL and file reference
+    const newVideo: UploadedVideo = {
+      id: clipId,
+      url: localVideoUrl,
+      duration: editedDuration,
+      name: `${data.clip.name} (AI Edited)`,
+      file: videoFile, // Keep file reference for export
+    }
+    uploadedVideos.value.push(newVideo)
+    
+    // Step 6: Replace the clip in timeline
+    const clipIndex = timelineClips.value.findIndex(c => c.id === data.clip.id)
+    if (clipIndex !== -1) {
+      // Clean up old blob URL ONLY if no other clips are using it
+      const oldClip = timelineClips.value[clipIndex]
+      if (oldClip.sourceUrl.startsWith('blob:')) {
+        const isUsedByOtherClips = timelineClips.value.some(
+          (c, idx) => idx !== clipIndex && c.sourceUrl === oldClip.sourceUrl
+        )
+        if (!isUsedByOtherClips) {
+          URL.revokeObjectURL(oldClip.sourceUrl)
+        }
+      }
+      
+      // Pause playback before replacing to prevent flickering
+      const wasPlaying = isPlaying.value
+      if (wasPlaying) {
+        isPlaying.value = false
+      }
+      
+      // Save current time
+      const savedTime = currentTime.value
+      
+      // Create new clip with Aleph-edited video (fully local)
+      const newClip: EditorClip = {
+        id: clipId,
+        videoId: clipId,
+        sourceUrl: localVideoUrl, // Local blob URL
+        originalDuration: editedDuration,
+        startOffset: 0, // Reset offsets since it's a new video
+        endOffset: 0,
+        inTimelineStart: data.clip.inTimelineStart, // Preserve timeline position
+        name: `${data.clip.name} (AI Edited)`,
+        file: videoFile, // Local file reference for export
+      }
+      
+      // Replace the clip
+      timelineClips.value[clipIndex] = newClip
+      
+      // Recalculate timeline to account for any duration differences
+      // RunwayML may return slightly different duration (e.g., 2.0s → 2.1s)
+      recalculateTimeline()
+      
+      // Wait for DOM update
+      await nextTick()
+      
+      // Restore time position
+      currentTime.value = savedTime
+      
+      // Don't auto-resume playback - let user manually play
+      // This prevents flickering and gives them control
+    }
+    
+    toast.add({
+      title: 'Video edited successfully!',
+      description: 'Your AI-edited clip has been added to the timeline and media bin',
+      color: 'success',
+      timeout: 5000,
+    })
+    
+    alephModalOpen.value = false
+  } catch (error: any) {
+    console.error('[Editor] Aleph edit failed:', error)
+    toast.add({
+      title: 'Edit failed',
+      description: error.data?.message || error.message || 'Failed to edit video with AI',
+      color: 'error',
+      timeout: 5000,
+    })
+  } finally {
+    isAlephProcessing.value = false
+  }
+}
+
 const handleExport = async () => {
   if (timelineClips.value.length === 0) return
 
   isExporting.value = true
 
   try {
+    // Note: Export uses server-side FFmpeg for video composition
+    // Videos are temporarily uploaded, processed, and immediately deleted
+    // No server storage - video is returned directly for download
     const formData = new FormData()
     
     const clipsData = timelineClips.value.map((clip, index) => {
@@ -413,39 +596,36 @@ const handleExport = async () => {
     })
     
     formData.append('clips', JSON.stringify(clipsData))
+    formData.append('aspectRatio', aspectRatio.value)
 
-    const response = await $fetch<{ videoUrl: string; videoId: string }>('/api/editor/export', {
+    // Fetch returns the video file directly
+    const response = await fetch('/api/editor/export', {
       method: 'POST',
       body: formData,
     })
 
+    if (!response.ok) {
+      throw new Error('Export failed')
+    }
+
+    // Get the blob from response
+    const blob = await response.blob()
+    
+    // Create download link
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `adubun-export-${Date.now()}.mp4`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
     toast.add({
       title: 'Export successful',
-      description: 'Downloading your composed video',
+      description: 'Your video has been downloaded',
       color: 'success',
     })
-
-    try {
-      const downloadResponse = await fetch(response.videoUrl)
-      if (!downloadResponse.ok) {
-        throw new Error('Failed to download video')
-      }
-      const blob = await downloadResponse.blob()
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `adubun-editor-${response.videoId}.mp4`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-    } catch (error: any) {
-      toast.add({
-        title: 'Download failed',
-        description: error.message || 'Unable to download video file',
-        color: 'error',
-      })
-    }
   } catch (error: any) {
     toast.add({
       title: 'Export failed',
@@ -462,127 +642,86 @@ const loadClipsFromStorage = async () => {
   if (!process.client) return
 
   try {
-    // Check for composed video first (prioritize if both exist)
-    const composedVideoData = sessionStorage.getItem('editorComposedVideo')
-    if (composedVideoData) {
-      const videoData = JSON.parse(composedVideoData)
-      console.log('[Editor] Loading composed video from sessionStorage:', videoData)
-      
-      // Get duration from video URL
+    // Check for pending video from generate page
+    const pendingVideoData = sessionStorage.getItem('editorPendingVideo')
+    if (pendingVideoData) {
       try {
-        const duration = await getVideoDurationFromUrl(videoData.videoUrl)
+        const videoData = JSON.parse(pendingVideoData)
+        console.log('[Editor] Found pending video from generate page, loading...')
         
-        const videoId = `composed-${Date.now()}`
+        // Convert base64 back to File
+        const base64Data = videoData.file.base64
+        const binaryString = atob(base64Data)
+        const bytes = new Uint8Array(binaryString.length)
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i)
+        }
+        const videoBlob = new Blob([bytes], { type: videoData.file.type })
+        const videoFile = new File(
+          [videoBlob],
+          videoData.file.name,
+          { type: videoData.file.type }
+        )
+        
+        // Create blob URL for the video
+        const videoUrl = URL.createObjectURL(videoFile)
+        
+        // Add to media bin
+        const videoId = `composed-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
         const uploadedVideo: UploadedVideo = {
           id: videoId,
-          url: videoData.videoUrl,
-          duration,
-          name: videoData.name || 'Composed Video',
+          url: videoUrl,
+          duration: videoData.duration,
+          name: videoData.name,
+          file: videoFile,
         }
         
         uploadedVideos.value.push(uploadedVideo)
         
-        // Automatically add to timeline
+        // Add to timeline (one instance)
         const clip: EditorClip = {
           id: `clip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          videoId,
-          sourceUrl: videoData.videoUrl,
-          originalDuration: duration,
+          videoId: videoId,
+          sourceUrl: videoUrl,
+          originalDuration: videoData.duration,
           startOffset: 0,
           endOffset: 0,
           inTimelineStart: 0,
-          name: uploadedVideo.name,
+          name: videoData.name,
+          file: videoFile,
         }
         
         timelineClips.value.push(clip)
         
         toast.add({
           title: 'Video loaded',
-          description: 'Composed video loaded into editor',
+          description: 'Composed video has been added to the editor',
           color: 'success',
         })
         
-        // Clear sessionStorage after loading
-        sessionStorage.removeItem('editorComposedVideo')
-        return
+        // Clear the pending video data
+        sessionStorage.removeItem('editorPendingVideo')
+        console.log('[Editor] Pending video loaded and added to timeline')
       } catch (error: any) {
-        console.error('[Editor] Failed to load composed video duration:', error)
+        console.error('[Editor] Error loading pending video:', error)
         toast.add({
           title: 'Load failed',
-          description: 'Failed to load composed video metadata',
+          description: 'Failed to load video from generate page',
           color: 'error',
         })
+        sessionStorage.removeItem('editorPendingVideo')
       }
     }
     
-    // Check for separate clips
-    const clipsData = sessionStorage.getItem('editorClips')
-    if (clipsData) {
-      const clips = JSON.parse(clipsData)
-      console.log('[Editor] Loading clips from sessionStorage:', clips)
-      
-      // Load each clip
-      for (let i = 0; i < clips.length; i++) {
-        const clipData = clips[i]
-        
-        try {
-          // Use provided duration or fetch from URL
-          let duration = clipData.duration
-          if (!duration || duration <= 0) {
-            duration = await getVideoDurationFromUrl(clipData.videoUrl)
-          }
-          
-          const videoId = `clip-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 9)}`
-          const uploadedVideo: UploadedVideo = {
-            id: videoId,
-            url: clipData.videoUrl,
-            duration,
-            name: clipData.name || `${clipData.type} Scene`,
-          }
-          
-          uploadedVideos.value.push(uploadedVideo)
-          
-          // Automatically add to timeline in sequence
-          const lastEnd = timelineClips.value.length > 0
-            ? timelineClips.value[timelineClips.value.length - 1].inTimelineStart + 
-              getClipDuration(timelineClips.value[timelineClips.value.length - 1])
-            : 0
-          
-          const clip: EditorClip = {
-            id: `clip-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 9)}`,
-            videoId,
-            sourceUrl: clipData.videoUrl,
-            originalDuration: duration,
-            startOffset: 0,
-            endOffset: 0,
-            inTimelineStart: lastEnd,
-            name: uploadedVideo.name,
-          }
-          
-          timelineClips.value.push(clip)
-        } catch (error: any) {
-          console.error(`[Editor] Failed to load clip ${i}:`, error)
-          toast.add({
-            title: 'Load failed',
-            description: `Failed to load ${clipData.name || 'clip'}: ${error.message}`,
-            color: 'error',
-          })
-        }
-      }
-      
-      if (clips.length > 0) {
-        toast.add({
-          title: 'Clips loaded',
-          description: `${clips.length} clip(s) loaded into editor`,
-          color: 'success',
-        })
-      }
-      
-      // Clear sessionStorage after loading
-      sessionStorage.removeItem('editorClips')
+    // Clear any other stale sessionStorage data
+    sessionStorage.removeItem('editorComposedVideo')
+    sessionStorage.removeItem('editorClips')
+    
+    if (!pendingVideoData) {
+      console.log('[Editor] Editor is fully local - upload videos to begin')
     }
   } catch (error: any) {
-    console.error('[Editor] Error loading clips from sessionStorage:', error)
+    console.error('[Editor] Error loading from sessionStorage:', error)
   }
 }
 
@@ -592,13 +731,18 @@ onMounted(async () => {
   await loadClipsFromStorage()
   
   const handleKeyPress = (e: KeyboardEvent) => {
+    // Don't capture shortcuts when modal is open or user is typing
+    const isTyping = document.activeElement?.tagName === 'INPUT' || 
+                     document.activeElement?.tagName === 'TEXTAREA'
+    const isModalOpen = alephModalOpen.value
+    
     if (e.key === 's' || e.key === 'S') {
-      if (!e.ctrlKey && !e.metaKey) {
+      if (!e.ctrlKey && !e.metaKey && !isTyping && !isModalOpen) {
         e.preventDefault()
         handleSplitAtPlayhead()
       }
     } else if (e.key === ' ') {
-      if (document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+      if (!isTyping && !isModalOpen) {
         e.preventDefault()
         handlePlayPause()
       }
