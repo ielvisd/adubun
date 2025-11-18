@@ -310,17 +310,9 @@ export default defineEventHandler(async (event) => {
                   ? 'CRITICAL INSTRUCTIONS - READ CAREFULLY: Your ONLY job is to enhance lighting, color saturation, and image quality. DO NOT ALTER THE PRODUCT IN ANY WAY. The product must remain PIXEL-PERFECT identical to the reference images - same size, same shape, same colors, same design, same position. DO NOT change product dimensions, proportions, or placement, even slightly. DO NOT add new products. DO NOT modify existing products. Products that appear small in the frame must stay small - do not make them larger or more prominent. Preserve all text, labels, logos, and typography EXACTLY - no distortions, no alterations, no modifications. Keep all text perfectly readable and unchanged. CRITICAL: Keep human faces, facial features, body anatomy, body positions, hand positions, and poses EXACTLY as they appear in the input image - do not alter, modify, or change them in any way. Your enhancement should be LIMITED TO: improved lighting, better color saturation, enhanced clarity. Nothing else should change. The reference images show the EXACT product appearance - copy it with absolute precision. '
                   : ''
             
-            // Add character preservation instruction for seedream
-            const characterPreservationInstruction = characters.length > 0
-              ? `PRESERVE CHARACTER APPEARANCE: Maintain exact character appearance from input image - same gender, age, physical features (hair color/style, build), and clothing for each character. Do not alter character appearance in any way. The same characters from previous scenes must appear with identical appearance. `
-              : ''
-            
-            let seedreamPrompt = ''
-            if (isTransition && transitionText && transitionVisual && currentSceneText) {
-              seedreamPrompt = `${characterPreservationInstruction}${referenceMatchInstruction}Current scene: ${currentSceneText}, ${segmentVisualPrompt}. Transitioning to next scene: ${transitionText}, ${transitionVisual}, enhance product to match reference images exactly, maintain exact human faces and body positions from input image, ensure product colors and design match reference images precisely, professional product photography, preserve all human anatomy and facial features from source image, improve color saturation and product visibility to match reference images, limit scene to 3-4 people maximum, sharp faces, clear facial features, detailed faces, professional portrait quality, avoid large groups or crowds`
-            } else {
-              seedreamPrompt = `${characterPreservationInstruction}${referenceMatchInstruction}${segmentVisualPrompt}, enhance product to match reference images exactly, maintain exact human faces and body positions from input image, ensure product colors and design match reference images precisely, professional product photography, preserve all human anatomy and facial features from source image, improve color saturation and product visibility to match reference images, limit scene to 3-4 people maximum, sharp faces, clear facial features, detailed faces, professional portrait quality, avoid large groups or crowds, ${aspectRatio} aspect ratio`
-            }
+            // Seedream should ONLY enhance colors, lighting, and quality - NOT reinterpret the scene
+            // Keep the prompt minimal to prevent scene reinterpretation
+            const seedreamPrompt = `${referenceMatchInstruction}Enhance image quality: improve lighting, color saturation, and clarity. Preserve everything else EXACTLY as shown in the input image - same composition, same poses, same actions, same people, same products, same scene. Do not change what people are doing, do not change camera angles, do not change the scene content. Only enhance visual quality: better colors, better lighting, sharper details. Professional product photography quality.`
                 
                 let finalImageUrl = nanoImageUrl
                 let modelSource: 'nano-banana' | 'seedream-4' = 'nano-banana'

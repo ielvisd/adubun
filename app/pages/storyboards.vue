@@ -33,8 +33,8 @@
 
       <!-- Storyboard Editing -->
       <div v-else-if="selectedStoryboard" class="space-y-6">
-        <!-- Prominent Mode Display - Mendo Style -->
-        <div class="bg-black dark:bg-gray-800 text-white py-4 px-6 mb-6">
+        <!-- Prominent Mode Display -->
+        <div class="bg-black dark:bg-gray-800 text-white py-4 px-6 rounded-lg">
           <div class="flex items-center justify-between flex-wrap gap-4">
             <div class="flex items-center gap-4">
               <div class="text-lg sm:text-xl font-bold uppercase tracking-wide">
@@ -56,7 +56,7 @@
                 variant="solid"
                 @click="handleEditComposedVideo"
                 :loading="composingVideo"
-                class="bg-secondary-500 hover:bg-secondary-600 text-white font-semibold min-h-[44px]"
+                class="bg-secondary-500 hover:bg-secondary-600 text-white font-semibold"
               >
                 <UIcon name="i-heroicons-pencil-square" class="mr-2" />
                 Edit Composed Video
@@ -65,7 +65,7 @@
                 variant="ghost"
                 color="gray"
                 @click="$router.push('/stories')"
-                class="text-white hover:bg-gray-700 min-h-[44px]"
+                class="text-white hover:bg-gray-700"
               >
                 Back to Stories
               </UButton>
@@ -73,30 +73,39 @@
           </div>
         </div>
         
+        <!-- Header with Controls -->
         <div class="flex items-center justify-between mb-6 flex-wrap gap-4">
           <div>
             <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
               Edit Storyboard
             </h1>
             <p class="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
-              Edit the scenes for your storyboard. You can modify descriptions, visual prompts, and change the style.
+              Edit the scenes for your storyboard. You can modify descriptions, visual prompts, and frame images.
             </p>
           </div>
           <div class="flex items-center gap-3 flex-wrap">
-            <UFormField label="Style" name="style" class="mb-0">
-              <USelect
-                :model-value="currentStyle"
-                :items="availableStyles.map(s => ({ label: s, value: s }))"
-                @update:model-value="regenerateStoryboard"
-                :disabled="loading"
-              />
-            </UFormField>
             <UFormField label="Video Model" name="model" class="mb-0">
               <USelect
                 :model-value="currentModel"
                 :items="videoModelOptions"
                 @update:model-value="handleModelChange"
-                :disabled="loading"
+                :disabled="loading || generatingFrames"
+              />
+            </UFormField>
+            <UFormField label="Aspect Ratio" name="aspectRatio" class="mb-0">
+              <USelect
+                :model-value="currentAspectRatio"
+                :items="aspectRatioOptions"
+                @update:model-value="handleAspectRatioChange"
+                :disabled="loading || generatingFrames"
+              />
+            </UFormField>
+            <UFormField label="Resolution" name="resolution" class="mb-0">
+              <USelect
+                :model-value="currentResolution"
+                :items="resolutionOptions"
+                @update:model-value="handleResolutionChange"
+                :disabled="loading || generatingFrames"
               />
             </UFormField>
           </div>
@@ -144,7 +153,12 @@
             </div>
           </template>
           <template #description>
-            Creating first and last frame images for each scene. This may take a minute...
+            <div class="space-y-2">
+              <p>Creating first and last frame images for each scene. This may take a minute...</p>
+              <div class="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                ⚠️ All inputs are disabled during generation to prevent conflicts.
+              </div>
+            </div>
           </template>
         </UAlert>
 
@@ -170,7 +184,8 @@
           </template>
         </UAlert>
 
-        <div class="space-y-4">
+        <!-- Segments Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <UCard
             v-for="(segment, index) in selectedStoryboard.segments"
             :key="index"
@@ -180,8 +195,8 @@
             ]"
           >
             <template #header>
-              <div class="flex items-center justify-between">
-                <div>
+              <div class="flex items-center justify-between gap-4">
+                <div class="flex-1">
                   <div class="flex items-center gap-2">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                       {{ segment.type === 'hook' ? 'Hook' : segment.type === 'cta' ? 'Call to Action' : `Body ${index === 1 ? '1' : '2'}` }}
@@ -199,155 +214,297 @@
                     {{ segment.startTime }}s - {{ segment.endTime }}s
                   </p>
                 </div>
+                <div class="flex items-center gap-2">
+                  <UFormField label="Duration" :name="`segment-${index}-duration`" class="mb-0">
+                    <USelect
+                      :model-value="getSegmentDuration(segment)"
+                      :items="durationOptions"
+                      @update:model-value="(value: number) => handleDurationChange(index, value)"
+                      :disabled="loading || generatingFrames || isFrameRegenerating(index)"
+                      size="sm"
+                      class="w-24"
+                    />
+                  </UFormField>
+                </div>
               </div>
             </template>
 
             <div class="space-y-4">
+              <!-- Scene Description - More Vertical Space -->
               <UFormField label="Scene Description" :name="`segment-${index}-description`">
                 <UTextarea
                   v-model="segment.description"
-                  :rows="2"
+                  :rows="4"
                   placeholder="Describe what happens in this scene"
                   class="w-full"
+                  :disabled="generatingFrames || isFrameRegenerating(index)"
                   @input="debouncedSave"
                 />
               </UFormField>
 
+              <!-- Visual Prompt - Much More Vertical Space -->
               <UFormField label="Visual Prompt" :name="`segment-${index}-visual`">
                 <UTextarea
                   v-model="segment.visualPrompt"
-                  :rows="3"
-                  placeholder="Describe the visual style and composition for this scene"
+                  :rows="6"
+                  placeholder="Describe the visual style and composition"
                   class="w-full"
+                  :disabled="generatingFrames || isFrameRegenerating(index)"
                   @input="debouncedSave"
                 />
-                <template #description>
-                  This prompt will be used to generate the frame image for this scene
-                </template>
               </UFormField>
 
-              <!-- First Frame Image -->
-              <UFormField label="First Frame Image" :name="`segment-${index}-first-frame`">
-                <div v-if="segment.firstFrameImage || (generatingFrames && !segment.firstFrameImage)" class="space-y-2">
-                  <!-- Skeleton while generating -->
-                  <div v-if="generatingFrames && !segment.firstFrameImage" class="relative w-full max-w-md">
-                    <USkeleton class="w-full aspect-video rounded-lg" />
-                  </div>
-                  <!-- Actual image when available -->
-                  <div v-else-if="segment.firstFrameImage" class="relative w-full max-w-md">
-                    <NuxtImg
-                      :src="segment.firstFrameImage"
-                      alt="First frame preview"
-                      class="w-full h-auto rounded-lg border border-gray-200 dark:border-gray-700"
-                      loading="lazy"
-                    />
-                    <!-- Dev Mode: Model Source Indicator -->
-                    <UBadge
-                      v-if="frameGenerationStatus.get(index)?.firstModelSource"
-                      :color="frameGenerationStatus.get(index)?.firstModelSource === 'seedream-4' ? 'blue' : 'yellow'"
-                      variant="solid"
-                      class="absolute top-2 right-2"
-                      size="sm"
-                    >
-                      {{ frameGenerationStatus.get(index)?.firstModelSource === 'seedream-4' ? 'seedream-4' : 'nano-banana' }}
-                    </UBadge>
-                  </div>
-                  <div class="flex gap-2">
-                    <ImageUpload
-                      v-model="segment.firstFrameImage"
-                      @upload="(file) => handleFrameImageUpload(index, 'firstFrameImage', file)"
+              <!-- Frame Images - Combined Display & Upload -->
+              <div class="grid grid-cols-2 gap-4">
+                <!-- First Frame Image -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    First Frame
+                  </label>
+                  <div
+                    class="relative border-2 border-dashed rounded-lg overflow-hidden transition-all"
+                    :class="[
+                      segment.firstFrameImage ? 'border-gray-300' : 'border-gray-300 bg-gray-50 dark:bg-gray-900',
+                      (generatingFrames || isFrameRegenerating(index, 'first')) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-primary-400'
+                    ]"
+                    @click="!generatingFrames && !isFrameRegenerating(index, 'first') && triggerImageUpload(index, 'firstFrameImage')"
+                    @dragover.prevent.stop="!generatingFrames && !isFrameRegenerating(index, 'first') && handleDragOver"
+                    @dragenter.prevent.stop="!generatingFrames && !isFrameRegenerating(index, 'first') && handleDragEnter"
+                    @dragleave.prevent.stop="!generatingFrames && !isFrameRegenerating(index, 'first') && handleDragLeave"
+                    @drop.prevent.stop="!generatingFrames && !isFrameRegenerating(index, 'first') && handleImageDrop(index, 'firstFrameImage', $event)"
+                  >
+                    <!-- Skeleton while generating -->
+                    <div v-if="generatingFrames && !segment.firstFrameImage" class="aspect-square flex items-center justify-center">
+                      <USkeleton class="w-full h-full" />
+                    </div>
+                    <!-- Actual image when available -->
+                    <div v-else-if="segment.firstFrameImage" class="aspect-square relative group bg-gray-200 dark:bg-gray-700">
+                      <img
+                        :key="`first-${index}-${segment.firstFrameImage}`"
+                        :src="resolveImageUrl(segment.firstFrameImage)"
+                        alt="First frame preview"
+                        class="absolute inset-0 w-full h-full object-cover z-0"
+                        loading="eager"
+                        crossorigin="anonymous"
+                        referrerpolicy="no-referrer"
+                        @error="handleImageError($event, index, 'first')"
+                        @load="async () => {
+                          console.log('[Storyboards] ✓ First frame image loaded for segment', index)
+                          console.log('[Storyboards] Image URL:', segment.firstFrameImage)
+                          console.log('[Storyboards] Resolved URL:', resolveImageUrl(segment.firstFrameImage))
+                          // Clear error state on successful load
+                          delete imageLoadError.value[`first-${index}`]
+                          // Check dimensions
+                          const dims = await checkImageDimensions(resolveImageUrl(segment.firstFrameImage) || '')
+                          if (dims) {
+                            frameImageDimensions.value.set(`${index}-first`, dims)
+                          }
+                        }"
+                      />
+                      <!-- Fallback: Show if image fails to load -->
+                      <div v-if="imageLoadError[`first-${index}`]" class="absolute inset-0 flex flex-col items-center justify-center text-xs text-gray-500 p-2 text-center bg-gray-200 dark:bg-gray-700 z-10">
+                        <UIcon name="i-heroicons-exclamation-triangle" class="w-8 h-8 text-red-500 mb-2" />
+                        <p class="font-medium">Failed to load image</p>
+                        <p class="text-[10px] mt-1 break-all opacity-75">{{ segment.firstFrameImage?.substring(0, 50) }}...</p>
+                        <UButton size="xs" color="primary" class="mt-2" @click="retryImageLoad(index, 'first')">
+                          Retry
+                        </UButton>
+                      </div>
+                      <!-- Overlay on hover - only shows on hover -->
+                      <div class="absolute inset-0 bg-black opacity-0 group-hover:opacity-50 transition-opacity flex items-center justify-center pointer-events-none z-10">
+                        <div class="opacity-0 group-hover:opacity-100 transition-opacity text-white text-center">
+                          <UIcon name="i-heroicons-arrow-up-tray" class="w-6 h-6 mx-auto mb-1" />
+                          <p class="text-xs">Click to change</p>
+                        </div>
+                      </div>
+                      <!-- Model Source Badge -->
+                      <UBadge
+                        v-if="frameGenerationStatus.get(index)?.firstModelSource"
+                        :color="frameGenerationStatus.get(index)?.firstModelSource === 'seedream-4' ? 'blue' : 'yellow'"
+                        variant="solid"
+                        class="absolute top-2 right-2 z-20"
+                        size="xs"
+                      >
+                        {{ frameGenerationStatus.get(index)?.firstModelSource === 'seedream-4' ? 'SD4' : 'NB' }}
+                      </UBadge>
+                      <!-- Aspect Ratio/Resolution Warning -->
+                      <UBadge
+                        v-if="getFrameWarning(index, 'first')"
+                        color="red"
+                        variant="solid"
+                        class="absolute top-2 left-2 z-20 max-w-[calc(100%-4rem)]"
+                        size="xs"
+                      >
+                        {{ getFrameWarning(index, 'first') }}
+                      </UBadge>
+                      <!-- Regenerate Button -->
+                      <UButton
+                        v-if="segment.firstFrameImage"
+                        icon="i-heroicons-arrow-path"
+                        size="xs"
+                        color="primary"
+                        variant="solid"
+                        class="absolute bottom-2 right-2 z-20"
+                        :loading="regeneratingFrames.get(`${index}-first`)"
+                        @click.stop="regenerateSingleFrame(index, 'firstFrameImage')"
+                        :disabled="generatingFrames || regeneratingFrames.get(`${index}-first`)"
+                      >
+                        Regenerate
+                      </UButton>
+                    </div>
+                    <!-- Empty state -->
+                    <div v-else class="aspect-square flex flex-col items-center justify-center p-4 text-center">
+                      <UIcon name="i-heroicons-photo" class="w-10 h-10 text-gray-400 mb-2" />
+                      <p class="text-xs text-gray-500 dark:text-gray-400">Click or drag to upload</p>
+                    </div>
+                    <!-- Hidden file input -->
+                    <input
+                      :ref="el => setFileInputRef(el, index, 'first')"
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      class="hidden"
+                      @change="handleImageFileChange(index, 'firstFrameImage', $event)"
                     />
                   </div>
                   <!-- Frame Comparison -->
                   <FrameComparison
+                    v-if="frameGenerationStatus.get(index)?.firstNanoImageUrl || frameGenerationStatus.get(index)?.firstSeedreamImageUrl"
                     :nano-image-url="frameGenerationStatus.get(index)?.firstNanoImageUrl"
                     :seedream-image-url="frameGenerationStatus.get(index)?.firstSeedreamImageUrl"
                     :show-comparison="showComparison.get(`${index}-first`) || false"
-                    :frame-label="`${segment.type === 'hook' ? 'Hook' : segment.type === 'body1' ? 'Body 1' : segment.type === 'body2' ? 'Body 2' : 'CTA'} First Frame`"
+                    :frame-label="`${segment.type === 'hook' ? 'Hook' : segment.type === 'body' ? (index === 1 ? 'Body 1' : 'Body 2') : 'CTA'} First Frame`"
                     @show="showComparison.set(`${index}-first`, true)"
                     @close="showComparison.set(`${index}-first`, false)"
                   />
                 </div>
-                <div v-else class="space-y-2">
-                  <p class="text-sm text-gray-500 dark:text-gray-400">
-                    Frame image will be generated automatically
-                  </p>
-                  <ImageUpload
-                    v-model="segment.firstFrameImage"
-                    @upload="(file) => handleFrameImageUpload(index, 'firstFrameImage', file)"
-                  />
-                </div>
-              </UFormField>
 
-              <!-- Last Frame Image (not for CTA, or show as final frame) -->
-              <UFormField 
-                v-if="segment.type !== 'cta' || segment.lastFrameImage"
-                :label="segment.type === 'cta' ? 'Final Frame Image' : 'Last Frame Image'" 
-                :name="`segment-${index}-last-frame`"
-              >
-                <div v-if="segment.lastFrameImage || (generatingFrames && !segment.lastFrameImage)" class="space-y-2">
-                  <!-- Skeleton while generating -->
-                  <div v-if="generatingFrames && !segment.lastFrameImage" class="relative w-full max-w-md">
-                    <USkeleton class="w-full aspect-video rounded-lg" />
-                  </div>
-                  <!-- Actual image when available -->
-                  <div v-else-if="segment.lastFrameImage" class="relative w-full max-w-md">
-                    <NuxtImg
-                      :src="segment.lastFrameImage"
-                      alt="Last frame preview"
-                      class="w-full h-auto rounded-lg border border-gray-200 dark:border-gray-700"
-                      loading="lazy"
-                    />
-                    <!-- Dev Mode: Model Source Indicator -->
-                    <UBadge
-                      v-if="frameGenerationStatus.get(index)?.lastModelSource"
-                      :color="frameGenerationStatus.get(index)?.lastModelSource === 'seedream-4' ? 'blue' : 'yellow'"
-                      variant="solid"
-                      class="absolute top-2 right-2"
-                      size="sm"
-                    >
-                      {{ frameGenerationStatus.get(index)?.lastModelSource === 'seedream-4' ? 'seedream-4' : 'nano-banana' }}
-                    </UBadge>
-                  </div>
-                  <div class="flex gap-2">
-                    <ImageUpload
-                      v-model="segment.lastFrameImage"
-                      @upload="(file) => handleFrameImageUpload(index, 'lastFrameImage', file)"
+                <!-- Last Frame Image -->
+                <div v-if="segment.type !== 'cta' || segment.lastFrameImage">
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {{ segment.type === 'cta' ? 'Final Frame' : 'Last Frame' }}
+                  </label>
+                  <div
+                    class="relative border-2 border-dashed rounded-lg overflow-hidden transition-all"
+                    :class="[
+                      segment.lastFrameImage ? 'border-gray-300' : 'border-gray-300 bg-gray-50 dark:bg-gray-900',
+                      (generatingFrames || isFrameRegenerating(index, 'last')) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-primary-400'
+                    ]"
+                    @click="!generatingFrames && !isFrameRegenerating(index, 'last') && triggerImageUpload(index, 'lastFrameImage')"
+                    @dragover.prevent.stop="!generatingFrames && !isFrameRegenerating(index, 'last') && handleDragOver"
+                    @dragenter.prevent.stop="!generatingFrames && !isFrameRegenerating(index, 'last') && handleDragEnter"
+                    @dragleave.prevent.stop="!generatingFrames && !isFrameRegenerating(index, 'last') && handleDragLeave"
+                    @drop.prevent.stop="!generatingFrames && !isFrameRegenerating(index, 'last') && handleImageDrop(index, 'lastFrameImage', $event)"
+                  >
+                    <!-- Skeleton while generating -->
+                    <div v-if="generatingFrames && !segment.lastFrameImage" class="aspect-square flex items-center justify-center">
+                      <USkeleton class="w-full h-full" />
+                    </div>
+                    <!-- Actual image when available -->
+                    <div v-else-if="segment.lastFrameImage" class="aspect-square relative group bg-gray-200 dark:bg-gray-700">
+                      <img
+                        :key="`last-${index}-${segment.lastFrameImage}`"
+                        :src="resolveImageUrl(segment.lastFrameImage)"
+                        alt="Last frame preview"
+                        class="absolute inset-0 w-full h-full object-cover z-0"
+                        loading="eager"
+                        crossorigin="anonymous"
+                        referrerpolicy="no-referrer"
+                        @error="handleImageError($event, index, 'last')"
+                        @load="async () => {
+                          console.log('[Storyboards] ✓ Last frame image loaded for segment', index)
+                          console.log('[Storyboards] Image URL:', segment.lastFrameImage)
+                          console.log('[Storyboards] Resolved URL:', resolveImageUrl(segment.lastFrameImage))
+                          // Clear error state on successful load
+                          delete imageLoadError.value[`last-${index}`]
+                          // Check dimensions
+                          const dims = await checkImageDimensions(resolveImageUrl(segment.lastFrameImage) || '')
+                          if (dims) {
+                            frameImageDimensions.value.set(`${index}-last`, dims)
+                          }
+                        }"
+                      />
+                      <!-- Fallback: Show if image fails to load -->
+                      <div v-if="imageLoadError[`last-${index}`]" class="absolute inset-0 flex flex-col items-center justify-center text-xs text-gray-500 p-2 text-center bg-gray-200 dark:bg-gray-700 z-10">
+                        <UIcon name="i-heroicons-exclamation-triangle" class="w-8 h-8 text-red-500 mb-2" />
+                        <p class="font-medium">Failed to load image</p>
+                        <p class="text-[10px] mt-1 break-all opacity-75">{{ segment.lastFrameImage?.substring(0, 50) }}...</p>
+                        <UButton size="xs" color="primary" class="mt-2" @click="retryImageLoad(index, 'last')">
+                          Retry
+                        </UButton>
+                      </div>
+                      <!-- Overlay on hover - only shows on hover -->
+                      <div class="absolute inset-0 bg-black opacity-0 group-hover:opacity-50 transition-opacity flex items-center justify-center pointer-events-none z-10">
+                        <div class="opacity-0 group-hover:opacity-100 transition-opacity text-white text-center">
+                          <UIcon name="i-heroicons-arrow-up-tray" class="w-6 h-6 mx-auto mb-1" />
+                          <p class="text-xs">Click to change</p>
+                        </div>
+                      </div>
+                      <!-- Model Source Badge -->
+                      <UBadge
+                        v-if="frameGenerationStatus.get(index)?.lastModelSource"
+                        :color="frameGenerationStatus.get(index)?.lastModelSource === 'seedream-4' ? 'blue' : 'yellow'"
+                        variant="solid"
+                        class="absolute top-2 right-2 z-20"
+                        size="xs"
+                      >
+                        {{ frameGenerationStatus.get(index)?.lastModelSource === 'seedream-4' ? 'SD4' : 'NB' }}
+                      </UBadge>
+                      <!-- Aspect Ratio/Resolution Warning -->
+                      <UBadge
+                        v-if="getFrameWarning(index, 'last')"
+                        color="red"
+                        variant="solid"
+                        class="absolute top-2 left-2 z-20 max-w-[calc(100%-4rem)]"
+                        size="xs"
+                      >
+                        {{ getFrameWarning(index, 'last') }}
+                      </UBadge>
+                      <!-- Regenerate Button -->
+                      <UButton
+                        v-if="segment.lastFrameImage"
+                        icon="i-heroicons-arrow-path"
+                        size="xs"
+                        color="primary"
+                        variant="solid"
+                        class="absolute bottom-2 right-2 z-20"
+                        :loading="regeneratingFrames.get(`${index}-last`)"
+                        @click.stop="regenerateSingleFrame(index, 'lastFrameImage')"
+                        :disabled="generatingFrames || regeneratingFrames.get(`${index}-last`)"
+                      >
+                        Regenerate
+                      </UButton>
+                    </div>
+                    <!-- Empty state -->
+                    <div v-else class="aspect-square flex flex-col items-center justify-center p-4 text-center">
+                      <UIcon name="i-heroicons-photo" class="w-10 h-10 text-gray-400 mb-2" />
+                      <p class="text-xs text-gray-500 dark:text-gray-400">Click or drag to upload</p>
+                    </div>
+                    <!-- Hidden file input -->
+                    <input
+                      :ref="el => setFileInputRef(el, index, 'last')"
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      class="hidden"
+                      @change="handleImageFileChange(index, 'lastFrameImage', $event)"
                     />
                   </div>
                   <!-- Frame Comparison -->
                   <FrameComparison
+                    v-if="frameGenerationStatus.get(index)?.lastNanoImageUrl || frameGenerationStatus.get(index)?.lastSeedreamImageUrl"
                     :nano-image-url="frameGenerationStatus.get(index)?.lastNanoImageUrl"
                     :seedream-image-url="frameGenerationStatus.get(index)?.lastSeedreamImageUrl"
                     :show-comparison="showComparison.get(`${index}-last`) || false"
-                    :frame-label="`${segment.type === 'hook' ? 'Hook' : segment.type === 'body1' ? 'Body 1' : segment.type === 'body2' ? 'Body 2' : 'CTA'} Last Frame`"
+                    :frame-label="`${segment.type === 'hook' ? 'Hook' : segment.type === 'body' ? (index === 1 ? 'Body 1' : 'Body 2') : 'CTA'} Last Frame`"
                     @show="showComparison.set(`${index}-last`, true)"
                     @close="showComparison.set(`${index}-last`, false)"
                   />
                 </div>
-                <div v-else-if="segment.type === 'cta'" class="space-y-2">
-                  <p class="text-sm text-gray-500 dark:text-gray-400">
-                    Final frame image will be generated automatically
-                  </p>
-                  <ImageUpload
-                    v-model="segment.lastFrameImage"
-                    @upload="(file) => handleFrameImageUpload(index, 'lastFrameImage', file)"
-                  />
-                </div>
-                <div v-else class="space-y-2">
-                  <p class="text-sm text-gray-500 dark:text-gray-400">
-                    Last frame image will be generated automatically
-                  </p>
-                  <ImageUpload
-                    v-model="segment.lastFrameImage"
-                    @upload="(file) => handleFrameImageUpload(index, 'lastFrameImage', file)"
-                  />
-                </div>
-              </UFormField>
+              </div>
             </div>
           </UCard>
         </div>
 
+        <!-- Action Buttons -->
         <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center pt-6 border-t border-gray-200 dark:border-gray-700">
           <UButton
             variant="ghost"
@@ -371,11 +528,15 @@
           <UButton
             color="secondary"
             variant="solid"
-            :disabled="!allFramesReady"
+            :disabled="!allFramesReady || generatingFrames"
             @click="proceedToGeneration"
             class="bg-secondary-500 hover:bg-secondary-600 text-white font-semibold min-w-[200px] min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span v-if="allFramesReady">Continue to Generation</span>
+            <span v-if="allFramesReady && !generatingFrames">Continue to Generation</span>
+            <span v-else-if="generatingFrames" class="flex items-center gap-2">
+              <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 animate-spin" />
+              Generating Frames...
+            </span>
             <span v-else class="flex items-center gap-2">
               <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 animate-spin" />
               Waiting for Frames...
@@ -389,9 +550,9 @@
 
 <script setup lang="ts">
 import type { Storyboard, Segment } from '~/types/generation'
-import ImageUpload from '~/components/ui/ImageUpload.vue'
 import FrameComparison from '~/components/generation/FrameComparison.vue'
 import { nextTick, triggerRef } from 'vue'
+import { getModelById } from '~/config/video-models'
 
 definePageMeta({
   middleware: 'auth',
@@ -407,8 +568,15 @@ const selectedStory = ref<any>(null)
 const promptData = ref<any>(null)
 const generatingFrames = ref(false)
 const frameGenerationError = ref<string | null>(null)
-const currentStyle = ref<string>('Cinematic')
 const composingVideo = ref(false)
+const regeneratingFrames = ref<Map<string, boolean>>(new Map())
+const frameImageDimensions = ref<Map<string, { width: number; height: number; aspectRatio: string }>>(new Map())
+
+// File input refs
+const fileInputRefs = ref<Record<string, HTMLInputElement>>({})
+
+// Image load error tracking
+const imageLoadError = ref<Record<string, boolean>>({})
 
 // Check if videos have been generated (exist in sessionStorage)
 const hasGeneratedVideos = computed(() => {
@@ -486,6 +654,7 @@ const loadStoryboardState = (storyboardId: string): any | null => {
   }
   return null
 }
+
 const frameGenerationStatus = ref<Map<number, { 
   first?: boolean; 
   last?: boolean; 
@@ -497,7 +666,6 @@ const frameGenerationStatus = ref<Map<number, {
   lastSeedreamImageUrl?: string;
 }>>(new Map())
 const showComparison = ref<Map<string, boolean>>(new Map())
-const availableStyles = ['Cinematic', 'Dynamic', 'Elegant', 'Minimal', 'Energetic']
 
 // Video model options
 const videoModelOptions = [
@@ -509,53 +677,564 @@ const currentModel = computed(() => {
   return selectedStoryboard.value?.meta?.model || 'google/veo-3.1'
 })
 
+// Get current video model config
+const currentVideoModel = computed(() => {
+  return getModelById(currentModel.value) || getModelById('google/veo-3.1')
+})
+
+// Duration options for current model
+const durationOptions = computed(() => {
+  const model = currentVideoModel.value
+  if (!model || !model.durationOptions) {
+    return [4, 6, 8].map(d => ({ label: `${d}s`, value: d }))
+  }
+  return model.durationOptions.map(d => ({ label: `${d}s`, value: d }))
+})
+
+// Aspect ratio options
+const aspectRatioOptions = computed(() => {
+  const model = currentVideoModel.value
+  if (!model || !model.aspectRatioOptions) {
+    return [
+      { label: '16:9', value: '16:9' },
+      { label: '9:16', value: '9:16' },
+      { label: '1:1', value: '1:1' }
+    ]
+  }
+  return model.aspectRatioOptions.map(ar => ({ label: ar, value: ar }))
+})
+
+// Resolution options
+const resolutionOptions = [
+  { label: '720p', value: '720p' },
+  { label: '1080p', value: '1080p' }
+]
+
+// Current aspect ratio and resolution
+const currentAspectRatio = computed(() => {
+  return selectedStoryboard.value?.meta?.aspectRatio || '16:9'
+})
+
+const currentResolution = computed(() => {
+  return selectedStoryboard.value?.meta?.resolution || '1080p'
+})
+
+// Handle aspect ratio change
+const handleAspectRatioChange = (newAspectRatio: string) => {
+  if (!selectedStoryboard.value) return
+  if (newAspectRatio === currentAspectRatio.value) return
+  
+  if (!selectedStoryboard.value.meta) {
+    selectedStoryboard.value.meta = {}
+  }
+  selectedStoryboard.value.meta.aspectRatio = newAspectRatio as '16:9' | '9:16' | '1:1'
+  
+  debouncedSave()
+  
+  // Recheck all frame dimensions
+  nextTick(() => {
+    checkAllFrameDimensions()
+  })
+  
+  toast.add({
+    title: 'Aspect Ratio Updated',
+    description: `Aspect ratio changed to ${newAspectRatio}. Existing frames may need regeneration.`,
+    color: 'blue',
+    timeout: 3000,
+  })
+}
+
+// Handle resolution change
+const handleResolutionChange = (newResolution: string) => {
+  if (!selectedStoryboard.value) return
+  if (newResolution === currentResolution.value) return
+  
+  if (!selectedStoryboard.value.meta) {
+    selectedStoryboard.value.meta = {}
+  }
+  selectedStoryboard.value.meta.resolution = newResolution as '720p' | '1080p'
+  
+  debouncedSave()
+  
+  // Recheck all frame dimensions
+  nextTick(() => {
+    checkAllFrameDimensions()
+  })
+  
+  toast.add({
+    title: 'Resolution Updated',
+    description: `Resolution changed to ${newResolution}. Existing frames may need regeneration.`,
+    color: 'blue',
+    timeout: 3000,
+  })
+}
+
+// Get segment duration from startTime and endTime
+const getSegmentDuration = (segment: Segment): number => {
+  return segment.endTime - segment.startTime
+}
+
+// Check if a specific frame is being regenerated
+const isFrameRegenerating = (segmentIndex: number, frameType?: 'first' | 'last'): boolean => {
+  if (frameType) {
+    return regeneratingFrames.value.get(`${segmentIndex}-${frameType}`) === true
+  }
+  // If no frameType specified, check if either first or last is regenerating
+  return regeneratingFrames.value.get(`${segmentIndex}-first`) === true || 
+         regeneratingFrames.value.get(`${segmentIndex}-last`) === true
+}
+
+// Get expected dimensions based on aspect ratio and resolution
+const getExpectedDimensions = (aspectRatio: string, resolution: string): { width: number; height: number } => {
+  const is720p = resolution === '720p'
+  
+  switch (aspectRatio) {
+    case '16:9':
+      return is720p ? { width: 1280, height: 720 } : { width: 1920, height: 1080 }
+    case '9:16':
+      return is720p ? { width: 720, height: 1280 } : { width: 1080, height: 1920 }
+    case '1:1':
+      return is720p ? { width: 720, height: 720 } : { width: 1080, height: 1080 }
+    default:
+      return is720p ? { width: 720, height: 1280 } : { width: 1080, height: 1920 }
+  }
+}
+
+// Calculate aspect ratio from dimensions
+const calculateAspectRatio = (width: number, height: number): string => {
+  const ratio = width / height
+  // Check with tolerance
+  if (Math.abs(ratio - 16/9) < 0.1) return '16:9'
+  if (Math.abs(ratio - 9/16) < 0.1) return '9:16'
+  if (Math.abs(ratio - 1) < 0.1) return '1:1'
+  return 'unknown'
+}
+
+// Check image dimensions (client-side)
+const checkImageDimensions = async (imageUrl: string): Promise<{ width: number; height: number; aspectRatio: string } | null> => {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      const aspectRatio = calculateAspectRatio(img.width, img.height)
+      resolve({ width: img.width, height: img.height, aspectRatio })
+    }
+    img.onerror = () => {
+      resolve(null)
+    }
+    img.src = imageUrl
+  })
+}
+
+// Check all frame dimensions
+const checkAllFrameDimensions = async () => {
+  if (!selectedStoryboard.value) return
+  
+  const expectedDimensions = getExpectedDimensions(currentAspectRatio.value, currentResolution.value)
+  const expectedAspectRatio = currentAspectRatio.value
+  
+  for (let i = 0; i < selectedStoryboard.value.segments.length; i++) {
+    const segment = selectedStoryboard.value.segments[i]
+    
+    // Check first frame
+    if (segment.firstFrameImage) {
+      const dims = await checkImageDimensions(resolveImageUrl(segment.firstFrameImage) || '')
+      if (dims) {
+        frameImageDimensions.value.set(`${i}-first`, dims)
+      }
+    }
+    
+    // Check last frame
+    if (segment.lastFrameImage) {
+      const dims = await checkImageDimensions(resolveImageUrl(segment.lastFrameImage) || '')
+      if (dims) {
+        frameImageDimensions.value.set(`${i}-last`, dims)
+      }
+    }
+  }
+}
+
+// Get frame warning message
+const getFrameWarning = (segmentIndex: number, frameType: 'first' | 'last'): string | null => {
+  if (!selectedStoryboard.value) return null
+  
+  const segment = selectedStoryboard.value.segments[segmentIndex]
+  const imageUrl = frameType === 'first' ? segment.firstFrameImage : segment.lastFrameImage
+  if (!imageUrl) return null
+  
+  const dims = frameImageDimensions.value.get(`${segmentIndex}-${frameType}`)
+  if (!dims) return null
+  
+  const expectedDimensions = getExpectedDimensions(currentAspectRatio.value, currentResolution.value)
+  const expectedAspectRatio = currentAspectRatio.value
+  
+  const warnings: string[] = []
+  
+  // Check aspect ratio
+  if (dims.aspectRatio !== expectedAspectRatio && dims.aspectRatio !== 'unknown') {
+    warnings.push('Frame image aspect ratio does not match output video aspect ratio')
+  }
+  
+  // Check resolution (with tolerance)
+  const widthMatch = Math.abs(dims.width - expectedDimensions.width) <= 10
+  const heightMatch = Math.abs(dims.height - expectedDimensions.height) <= 10
+  if (!widthMatch || !heightMatch) {
+    warnings.push('Frame image resolution does not match output video resolution')
+  }
+  
+  return warnings.length > 0 ? warnings.join('. ') : null
+}
+
+// Regenerate single frame
+const regenerateSingleFrame = async (segmentIndex: number, field: 'firstFrameImage' | 'lastFrameImage') => {
+  if (!selectedStoryboard.value || !selectedStory.value) return
+  
+  const key = `${segmentIndex}-${field === 'firstFrameImage' ? 'first' : 'last'}`
+  regeneratingFrames.value.set(key, true)
+  
+  try {
+    const segment = selectedStoryboard.value.segments[segmentIndex]
+    const frameType = field === 'firstFrameImage' ? 'first' : 'last'
+    
+    // Prepare the request similar to generateFrames but for a single frame
+    const response = await $fetch<{ frames: Array<{ segmentIndex: number; frameType: 'first' | 'last'; imageUrl: string }> }>('/api/generate-single-frame', {
+      method: 'POST',
+      body: {
+        storyboard: selectedStoryboard.value,
+        story: selectedStory.value,
+        productImages: promptData.value?.productImages || [],
+        segmentIndex,
+        frameType,
+        aspectRatio: currentAspectRatio.value,
+        resolution: currentResolution.value,
+      },
+    })
+    
+    if (response.frames && response.frames.length > 0) {
+      const frame = response.frames[0]
+      
+      // Update the segment
+      const updatedSegments = [...selectedStoryboard.value.segments]
+      updatedSegments[segmentIndex] = {
+        ...updatedSegments[segmentIndex],
+        [field]: frame.imageUrl
+      }
+      selectedStoryboard.value.segments = updatedSegments
+      
+      // Auto-sync linked frames
+      if (field === 'lastFrameImage') {
+        // Hook last → Body1 first
+        if (segmentIndex === 0 && updatedSegments[1]) {
+          updatedSegments[1] = {
+            ...updatedSegments[1],
+            firstFrameImage: frame.imageUrl
+          }
+        }
+        // Body1 last → Body2 first
+        else if (segmentIndex === 1 && updatedSegments[2]) {
+          updatedSegments[2] = {
+            ...updatedSegments[2],
+            firstFrameImage: frame.imageUrl
+          }
+        }
+        // Body2 last → CTA first
+        else if (segmentIndex === 2 && updatedSegments[3]) {
+          updatedSegments[3] = {
+            ...updatedSegments[3],
+            firstFrameImage: frame.imageUrl
+          }
+        }
+        selectedStoryboard.value.segments = updatedSegments
+      }
+      
+      // Check dimensions
+      await nextTick()
+      const dims = await checkImageDimensions(resolveImageUrl(frame.imageUrl) || '')
+      if (dims) {
+        frameImageDimensions.value.set(key, dims)
+      }
+      
+      debouncedSave()
+      
+      toast.add({
+        title: 'Frame Regenerated',
+        description: `${frameType === 'first' ? 'First' : 'Last'} frame has been regenerated successfully.`,
+        color: 'green',
+      })
+    }
+  } catch (error: any) {
+    console.error('[Storyboards] Error regenerating frame:', error)
+    toast.add({
+      title: 'Regeneration Failed',
+      description: error.data?.message || error.message || 'Failed to regenerate frame',
+      color: 'red',
+    })
+  } finally {
+    regeneratingFrames.value.set(key, false)
+  }
+}
+
+// Handle duration change for a segment
+const handleDurationChange = (segmentIndex: number, newDuration: number) => {
+  if (!selectedStoryboard.value) return
+  
+  const segment = selectedStoryboard.value.segments[segmentIndex]
+  if (!segment) return
+  
+  const oldDuration = segment.endTime - segment.startTime
+  if (oldDuration === newDuration) return
+  
+  // Calculate new endTime
+  const newEndTime = segment.startTime + newDuration
+  
+  // Update this segment
+  const updatedSegments = [...selectedStoryboard.value.segments]
+  updatedSegments[segmentIndex] = {
+    ...updatedSegments[segmentIndex],
+    endTime: newEndTime
+  }
+  
+  // Recalculate subsequent segments
+  let currentStartTime = newEndTime
+  for (let i = segmentIndex + 1; i < updatedSegments.length; i++) {
+    const nextSegment = updatedSegments[i]
+    const nextDuration = nextSegment.endTime - nextSegment.startTime
+    updatedSegments[i] = {
+      ...nextSegment,
+      startTime: currentStartTime,
+      endTime: currentStartTime + nextDuration
+    }
+    currentStartTime = currentStartTime + nextDuration
+  }
+  
+  // Update storyboard
+  selectedStoryboard.value.segments = updatedSegments
+  
+  // Save to localStorage
+  debouncedSave()
+  
+  toast.add({
+    title: 'Duration Updated',
+    description: `Scene duration changed to ${newDuration}s. Subsequent scenes adjusted.`,
+    color: 'blue',
+    timeout: 2000,
+  })
+}
+
 // Demo/Production mode
 const isDemoMode = computed(() => {
   return selectedStoryboard.value?.meta.mode === 'demo'
 })
 
-const toggleMode = async (newMode: 'demo' | 'production') => {
-  if (!selectedStoryboard.value) return
-  
-  const oldMode = selectedStoryboard.value.meta.mode || 'production'
-  if (newMode === oldMode) return
-  
-  // Update mode in storyboard meta
-  if (!selectedStoryboard.value.meta) {
-    selectedStoryboard.value.meta = {}
+// Image upload handlers
+const setFileInputRef = (el: any, index: number, type: 'first' | 'last') => {
+  if (el) {
+    fileInputRefs.value[`${index}-${type}`] = el
   }
-  selectedStoryboard.value.meta.mode = newMode
+}
+
+const triggerImageUpload = (index: number, field: 'firstFrameImage' | 'lastFrameImage') => {
+  const type = field === 'firstFrameImage' ? 'first' : 'last'
+  const input = fileInputRefs.value[`${index}-${type}`]
+  if (input) {
+    input.click()
+  }
+}
+
+const handleImageFileChange = async (index: number, field: 'firstFrameImage' | 'lastFrameImage', event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) {
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    const validExtensions = ['jpg', 'jpeg', 'png', 'webp']
+    const fileExtension = file.name.split('.').pop()?.toLowerCase()
+    
+    if (!validTypes.includes(file.type) && !validExtensions.includes(fileExtension || '')) {
+      toast.add({
+        title: 'Invalid File Type',
+        description: 'Please upload a JPEG, PNG, or WebP image',
+        color: 'red',
+      })
+      input.value = ''
+      return
+    }
+    
+    console.log('[Storyboards] Selected image file:', {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      extension: fileExtension,
+      segment: index,
+      field: field
+    })
+    
+    await handleFrameImageUpload(index, field, file)
+  }
+  // Reset input
+  input.value = ''
+}
+
+// Drag and drop handlers
+const isDragging = ref(false)
+
+const handleDragOver = (event: DragEvent) => {
+  event.preventDefault()
+  event.stopPropagation()
+  isDragging.value = true
+}
+
+const handleDragEnter = (event: DragEvent) => {
+  event.preventDefault()
+  event.stopPropagation()
+  isDragging.value = true
+}
+
+const handleDragLeave = (event: DragEvent) => {
+  event.preventDefault()
+  event.stopPropagation()
+  isDragging.value = false
+}
+
+const handleImageDrop = async (index: number, field: 'firstFrameImage' | 'lastFrameImage', event: DragEvent) => {
+  event.preventDefault()
+  event.stopPropagation()
+  isDragging.value = false
   
-  // Persist to sessionStorage
-  if (process.client) {
-    const storedStoryboard = sessionStorage.getItem('selectedStoryboard')
-    if (storedStoryboard) {
-      const parsed = JSON.parse(storedStoryboard)
-      parsed.meta = parsed.meta || {}
-      parsed.meta.mode = newMode
-      sessionStorage.setItem('selectedStoryboard', JSON.stringify(parsed))
+  const file = event.dataTransfer?.files?.[0]
+  if (file) {
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    const validExtensions = ['jpg', 'jpeg', 'png', 'webp']
+    const fileExtension = file.name.split('.').pop()?.toLowerCase()
+    const isValidType = validTypes.includes(file.type) || validExtensions.includes(fileExtension || '')
+    
+    if (!isValidType) {
+      console.warn('[Storyboards] Dropped file is not a valid image type:', {
+        type: file.type,
+        name: file.name,
+        extension: fileExtension
+      })
+      toast.add({
+        title: 'Invalid File Type',
+        description: 'Please drop a JPEG, PNG, or WebP image',
+        color: 'red',
+      })
+      return
+    }
+    
+    console.log('[Storyboards] Dropped image file:', {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      extension: fileExtension,
+      segment: index,
+      field: field
+    })
+    
+    await handleFrameImageUpload(index, field, file)
+  } else {
+    console.warn('[Storyboards] No file in drop event')
+    toast.add({
+      title: 'No File',
+      description: 'Please drop an image file',
+      color: 'yellow',
+    })
+  }
+}
+
+// Helper to resolve image URL - ensures images are always visible
+const resolveImageUrl = (url: string | undefined | null): string | undefined => {
+  if (!url) {
+    return undefined
+  }
+  
+  // If it's already a full URL (http/https), return as-is (S3 presigned URLs, etc.)
+  // This is the most common case for uploaded images
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+  
+  // If it's already an API path, return as-is
+  if (url.startsWith('/api/assets/')) {
+    return url
+  }
+  
+  // If it's just a filename, resolve through assets API
+  if (!url.includes('/') && !url.includes('\\')) {
+    return `/api/assets/${url}`
+  }
+  
+  // For relative paths or local paths, try to extract filename and use assets API
+  const filename = url.split('/').pop() || url.split('\\').pop()
+  if (filename && filename.includes('.')) {
+    // Only resolve if it looks like a filename with extension
+    return `/api/assets/${filename}`
+  }
+  
+  // Return original URL as fallback
+  return url
+}
+
+const handleImageError = (event: Event, index: number, type: 'first' | 'last') => {
+  const img = event.target as HTMLImageElement
+  const segment = selectedStoryboard.value?.segments[index]
+  const originalUrl = type === 'first' ? segment?.firstFrameImage : segment?.lastFrameImage
+  const errorKey = `${type}-${index}`
+  
+  // Mark this image as having an error
+  imageLoadError.value[errorKey] = true
+  
+  console.error(`[Storyboards] Failed to load ${type} frame image for segment ${index}`)
+  console.error(`[Storyboards] Image element src:`, img.src)
+  console.error(`[Storyboards] Original segment URL:`, originalUrl)
+  console.error(`[Storyboards] Resolved URL:`, resolveImageUrl(originalUrl || ''))
+  
+  // Try to resolve through assets API if it's a local path
+  if (originalUrl) {
+    const resolved = resolveImageUrl(originalUrl)
+    if (resolved && resolved !== img.src) {
+      console.log(`[Storyboards] Retrying with resolved URL:`, resolved)
+      img.src = resolved
+    } else {
+      // If it's an S3 URL, try direct access
+      if (originalUrl.startsWith('https://') && originalUrl.includes('amazonaws.com')) {
+        console.log(`[Storyboards] S3 URL detected, checking if accessible...`)
+        console.log(`[Storyboards] Full S3 URL:`, originalUrl)
+        // Test if URL is accessible
+        fetch(originalUrl, { method: 'HEAD', mode: 'no-cors' })
+          .then(() => console.log('[Storyboards] S3 URL is accessible (no-cors check)'))
+          .catch(() => console.error('[Storyboards] S3 URL might not be accessible'))
+      }
     }
   }
   
-  // If switching to demo mode and frames are already generated, we need to regenerate
-  // If switching to production mode, we need to generate remaining frames
-  if (newMode === 'demo') {
-    // Clear frame status for body1, body2, CTA
-    frameGenerationStatus.value.delete(1)
-    frameGenerationStatus.value.delete(2)
-    frameGenerationStatus.value.delete(3)
-  } else {
-    // Production mode: frames are now generated manually per segment
-    // No automatic generation
-  }
-  
+  // Show error to user
   toast.add({
-    title: `Switched to ${newMode === 'demo' ? 'Demo' : 'Production'} Mode`,
-    description: newMode === 'demo' 
-      ? 'Only first scene will be generated for faster testing'
-      : 'All scenes will be generated',
-    color: 'blue',
+    title: 'Image Load Failed',
+    description: `Failed to load ${type} frame image. Check console for details.`,
+    color: 'red',
+    timeout: 5000,
   })
+}
+
+const retryImageLoad = (index: number, type: 'first' | 'last') => {
+  const errorKey = `${type}-${index}`
+  delete imageLoadError.value[errorKey]
+  
+  // Force re-render by updating the key
+  const segment = selectedStoryboard.value?.segments[index]
+  if (segment) {
+    const url = type === 'first' ? segment.firstFrameImage : segment.lastFrameImage
+    if (url) {
+      // Trigger reactivity update
+      if (selectedStoryboard.value) {
+        const updatedSegments = [...selectedStoryboard.value.segments]
+        updatedSegments[index] = { ...segment }
+        selectedStoryboard.value.segments = updatedSegments
+      }
+    }
+  }
 }
 
 onMounted(async () => {
@@ -603,9 +1282,15 @@ onMounted(async () => {
       const mode = storedMode === 'demo' ? 'demo' : 'production'
       
       // Pass mode to generateStoryboards so it's set correctly before frame generation
-      await generateStoryboards(undefined, mode)
-      
-    } catch (err: any) {
+        await generateStoryboards(undefined, mode)
+        
+        // Check all frame dimensions after storyboard loads
+        await nextTick()
+        setTimeout(() => {
+          checkAllFrameDimensions()
+        }, 2000) // Wait for images to load
+        
+      } catch (err: any) {
       error.value = err.message || 'Failed to load story data'
       loading.value = false
     }
@@ -623,14 +1308,14 @@ onBeforeUnmount(() => {
   }
 })
 
-const generateStoryboards = async (style?: string, mode?: 'demo' | 'production') => {
+const generateStoryboards = async (mode?: 'demo' | 'production') => {
   loading.value = true
   error.value = null
-  if (style) {
-    currentStyle.value = style
-  }
 
   try {
+    // Get mood from promptData (Video Tone from homepage)
+    const mood = promptData.value?.mood || 'professional'
+    
     const result = await $fetch('/api/generate-storyboards', {
       method: 'POST',
       body: {
@@ -639,13 +1324,12 @@ const generateStoryboards = async (style?: string, mode?: 'demo' | 'production')
         productImages: promptData.value.productImages || [],
         aspectRatio: promptData.value.aspectRatio,
         model: promptData.value.model,
-        style: currentStyle.value,
+        mood: mood, // Use mood instead of style
       },
     })
 
     selectedStoryboard.value = result.storyboard || result
     if (selectedStoryboard.value) {
-      currentStyle.value = selectedStoryboard.value.meta.style || 'Cinematic'
       // Set mode from parameter, or default to production
       if (!selectedStoryboard.value.meta) {
         selectedStoryboard.value.meta = {}
@@ -707,30 +1391,6 @@ const generateStoryboards = async (style?: string, mode?: 'demo' | 'production')
   }
 }
 
-const regenerateStoryboard = async (newStyle: string) => {
-  if (newStyle === currentStyle.value) return
-  
-  // Preserve user edits if possible
-  const editedSegments = selectedStoryboard.value?.segments.map(seg => ({
-    description: seg.description,
-    visualPrompt: seg.visualPrompt,
-  })) || []
-  
-  await generateStoryboards(newStyle)
-  
-  // Try to preserve edits after regeneration
-  if (selectedStoryboard.value && editedSegments.length > 0) {
-    selectedStoryboard.value.segments.forEach((seg, idx) => {
-      if (editedSegments[idx]) {
-        // Only preserve if user made significant changes
-        if (editedSegments[idx].description !== seg.description || 
-            editedSegments[idx].visualPrompt !== seg.visualPrompt) {
-          // Keep user's edits
-        }
-      }
-    })
-  }
-}
 
 const handleModelChange = async (newModel: string) => {
   if (!selectedStoryboard.value) return
@@ -834,6 +1494,12 @@ const generateFrames = async () => {
       nanoImageUrl?: string;
       seedreamImageUrl?: string;
     }) => {
+      // Validate segmentIndex is valid (0-3)
+      if (frame.segmentIndex < 0 || frame.segmentIndex > 3) {
+        console.error(`[Storyboards] Invalid segmentIndex ${frame.segmentIndex} for frame ${frame.frameType}. Expected 0-3.`)
+        return
+      }
+      
       const key = String(frame.segmentIndex)
       if (!frameMap.has(key)) {
         frameMap.set(key, {})
@@ -853,6 +1519,11 @@ const generateFrames = async () => {
     })
     
     console.log('[Storyboards] Frame map created:', Array.from(frameMap.entries()))
+    console.log('[Storyboards] Frame validation:')
+    console.log('  - Hook frames (index 0):', frameMap.get('0'))
+    console.log('  - Body1 frames (index 1):', frameMap.get('1'))
+    console.log('  - Body2 frames (index 2):', frameMap.get('2'))
+    console.log('  - CTA frames (index 3):', frameMap.get('3'))
 
     // Map frames to segments according to PRD:
     // Hook: firstFrameImage = frames[0] (hook first), lastFrameImage = frames[1] (hook last)
@@ -862,6 +1533,13 @@ const generateFrames = async () => {
     
     if (selectedStoryboard.value && selectedStoryboard.value.segments.length >= 4) {
       console.log('[Storyboards] Assigning frames to segments...')
+      
+      // First, clear any existing frame assignments to prevent stale data
+      selectedStoryboard.value.segments.forEach((seg, idx) => {
+        console.log(`[Storyboards] Clearing existing frames for segment ${idx} (${seg.type})`)
+        // Don't clear - we want to preserve manually uploaded frames
+        // But log what we're about to assign
+      })
       
       // Hook segment (index 0)
       const hookFrames = frameMap.get('0')
@@ -989,12 +1667,40 @@ const generateFrames = async () => {
       console.log('[Storyboards] Frame assignments completed, reactivity triggered')
       
       // Log final state for debugging
-      console.log('[Storyboards] Final segment states:', selectedStoryboard.value.segments.map((seg, idx) => ({
+      const finalStates = selectedStoryboard.value.segments.map((seg, idx) => ({
         index: idx,
         type: seg.type,
         firstFrameImage: seg.firstFrameImage,
         lastFrameImage: seg.lastFrameImage,
-      })))
+      }))
+      console.log('[Storyboards] Final segment states:', finalStates)
+      
+      // Validate frame assignments - ensure no segment has CTA frames unless it's the CTA segment
+      const ctaLastFrame = finalStates[3]?.lastFrameImage
+      const validationErrors: string[] = []
+      finalStates.forEach((state, idx) => {
+        if (idx !== 3 && state.lastFrameImage === ctaLastFrame && ctaLastFrame) {
+          validationErrors.push(`Segment ${idx} (${state.type}) has CTA last frame assigned`)
+        }
+        // Check that Hook has its own first frame (not shared)
+        if (idx === 0 && !state.firstFrameImage) {
+          validationErrors.push(`Hook segment missing first frame`)
+        }
+        // Check that each segment has appropriate frames
+        if (idx < 3 && !state.lastFrameImage) {
+          validationErrors.push(`Segment ${idx} (${state.type}) missing last frame`)
+        }
+        if (idx === 3 && !state.lastFrameImage) {
+          validationErrors.push(`CTA segment missing last frame`)
+        }
+      })
+      
+      if (validationErrors.length > 0) {
+        console.error('[Storyboards] Frame assignment validation errors:', validationErrors)
+        frameGenerationError.value = `Frame assignment errors detected: ${validationErrors.join('; ')}`
+      } else {
+        console.log('[Storyboards] ✓ Frame assignment validation passed')
+      }
     }
 
     const frameCount = frames.length
@@ -1020,9 +1726,9 @@ const generateFrames = async () => {
       color: 'red',
     })
   } finally {
-    // Always clear the spinner, even on error or timeout
+    // Always set generatingFrames to false when done
     generatingFrames.value = false
-    console.log('[Storyboards] Frame generation spinner cleared')
+    console.log('[Storyboards] Frame generation state cleared')
   }
 }
 
@@ -1235,9 +1941,17 @@ const handleFrameImageUpload = async (segmentIndex: number, field: 'firstFrameIm
   const segment = selectedStoryboard.value.segments[segmentIndex]
   if (!segment) return
 
+  let imageUrl: string | undefined = undefined
+
   // If it's a File, we need to upload it first
   if (file instanceof File) {
     try {
+      console.log('[Storyboards] Starting upload for file:', {
+        name: file.name,
+        type: file.type,
+        size: file.size
+      })
+      
       const formData = new FormData()
       formData.append('image', file)
       
@@ -1246,8 +1960,47 @@ const handleFrameImageUpload = async (segmentIndex: number, field: 'firstFrameIm
         body: formData,
       })
 
+      console.log('[Storyboards] Upload result:', uploadResult)
+
       if (uploadResult.urls && uploadResult.urls.length > 0) {
-        segment[field] = uploadResult.urls[0]
+        imageUrl = uploadResult.urls[0]
+        console.log('[Storyboards] ✓ Image uploaded successfully')
+        console.log('[Storyboards] Uploaded URL:', imageUrl)
+        console.log('[Storyboards] URL type:', imageUrl.startsWith('http') ? 'Full URL (S3)' : 'Relative path')
+        console.log('[Storyboards] URL length:', imageUrl.length)
+        console.log('[Storyboards] URL preview (first 100 chars):', imageUrl.substring(0, 100))
+        
+        // Force Vue reactivity by creating a new segment object
+        if (selectedStoryboard.value) {
+          const updatedSegments = [...selectedStoryboard.value.segments]
+          updatedSegments[segmentIndex] = {
+            ...updatedSegments[segmentIndex],
+            [field]: imageUrl
+          }
+          selectedStoryboard.value.segments = updatedSegments
+          
+          // Also update the local segment reference
+          segment[field] = imageUrl
+        }
+        
+        // Force reactivity update
+        await nextTick()
+        
+        // Verify the URL was set
+        console.log('[Storyboards] Segment after setting URL:', {
+          field: field,
+          value: segment[field],
+          storyboardValue: selectedStoryboard.value?.segments[segmentIndex]?.[field],
+          matches: segment[field] === imageUrl
+        })
+        
+        // Check dimensions after upload
+        await nextTick()
+        const dims = await checkImageDimensions(resolveImageUrl(imageUrl) || '')
+        if (dims) {
+          frameImageDimensions.value.set(`${segmentIndex}-${field === 'firstFrameImage' ? 'first' : 'last'}`, dims)
+        }
+        
         // Update frame generation status
         const status = frameGenerationStatus.value.get(segmentIndex) || {}
         if (field === 'firstFrameImage') {
@@ -1256,26 +2009,37 @@ const handleFrameImageUpload = async (segmentIndex: number, field: 'firstFrameIm
           status.last = true
         }
         frameGenerationStatus.value.set(segmentIndex, status)
+        
+        // Save to localStorage
+        debouncedSave()
+        
         toast.add({
           title: 'Image Uploaded',
           description: 'Frame image has been uploaded successfully',
           color: 'green',
         })
-        // Save state after image upload
-        debouncedSave()
       } else {
+        console.error('[Storyboards] Upload failed: No URLs in response', uploadResult)
         throw new Error('Upload failed: No URL returned')
       }
     } catch (err: any) {
+      console.error('[Storyboards] Upload error:', err)
+      console.error('[Storyboards] Error details:', {
+        message: err.message,
+        statusCode: err.statusCode,
+        data: err.data
+      })
       toast.add({
         title: 'Upload Failed',
         description: err.data?.message || err.message || 'Failed to upload image',
         color: 'red',
       })
+      return
     }
   } else if (typeof file === 'string') {
     // It's already a URL
-    segment[field] = file
+    imageUrl = file
+    segment[field] = imageUrl
     // Update frame generation status
     const status = frameGenerationStatus.value.get(segmentIndex) || {}
     if (field === 'firstFrameImage') {
@@ -1284,10 +2048,9 @@ const handleFrameImageUpload = async (segmentIndex: number, field: 'firstFrameIm
       status.last = true
     }
     frameGenerationStatus.value.set(segmentIndex, status)
-    // Save state after image change
-    debouncedSave()
   } else {
     // Clear the image
+    imageUrl = undefined
     segment[field] = undefined
     // Update frame generation status
     const status = frameGenerationStatus.value.get(segmentIndex) || {}
@@ -1297,10 +2060,37 @@ const handleFrameImageUpload = async (segmentIndex: number, field: 'firstFrameIm
       status.last = false
     }
     frameGenerationStatus.value.set(segmentIndex, status)
-    // Save state after image removal
-    debouncedSave()
   }
+
+  // Auto-sync frame images based on continuity rules
+  if (imageUrl && field === 'lastFrameImage') {
+    // Hook's last frame → Body1's first frame
+    if (segmentIndex === 0 && selectedStoryboard.value.segments[1]) {
+      selectedStoryboard.value.segments[1].firstFrameImage = imageUrl
+      const body1Status = frameGenerationStatus.value.get(1) || {}
+      body1Status.first = true
+      frameGenerationStatus.value.set(1, body1Status)
+      console.log('[Storyboards] Synced Hook last frame to Body1 first frame')
+    }
+    // Body1's last frame → Body2's first frame
+    else if (segmentIndex === 1 && selectedStoryboard.value.segments[2]) {
+      selectedStoryboard.value.segments[2].firstFrameImage = imageUrl
+      const body2Status = frameGenerationStatus.value.get(2) || {}
+      body2Status.first = true
+      frameGenerationStatus.value.set(2, body2Status)
+      console.log('[Storyboards] Synced Body1 last frame to Body2 first frame')
+    }
+    // Body2's last frame → CTA's first frame
+    else if (segmentIndex === 2 && selectedStoryboard.value.segments[3]) {
+      selectedStoryboard.value.segments[3].firstFrameImage = imageUrl
+      const ctaStatus = frameGenerationStatus.value.get(3) || {}
+      ctaStatus.first = true
+      frameGenerationStatus.value.set(3, ctaStatus)
+      console.log('[Storyboards] Synced Body2 last frame to CTA first frame')
+    }
+  }
+
+  // Save state after image change
+  debouncedSave()
 }
 </script>
-
-

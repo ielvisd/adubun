@@ -42,7 +42,7 @@
           :storyboard="storyboard"
           :assets="completedAssets"
           :retry-segment="handleRetrySegment"
-          @edit="handleEditSegment"
+          @edit="handleSegmentEdited"
           @prompt-selected="handlePromptSelected"
           @regenerate="handleRegenerateEvent"
         />
@@ -88,15 +88,6 @@
         </UButton>
       </template>
     </UContainer>
-
-    <SegmentEditModal
-      v-model="editModalOpen"
-      :segment="selectedSegment"
-      :segment-index="selectedSegmentIndex"
-      :total-duration="storyboard?.meta?.duration || 30"
-      :all-segments="storyboard?.segments || []"
-      @saved="handleSegmentSaved"
-    />
   </div>
 </template>
 
@@ -106,7 +97,6 @@ import AudioScriptView from '~/components/generation/AudioScriptView.vue'
 import GenerationProgress from '~/components/ui/GenerationProgress.vue'
 import CompositionTimeline from '~/components/generation/CompositionTimeline.vue'
 import VideoPreview from '~/components/generation/VideoPreview.vue'
-import SegmentEditModal from '~/components/generation/SegmentEditModal.vue'
 import type { Segment, Storyboard } from '~/app/types/generation'
 
 const route = useRoute()
@@ -115,11 +105,6 @@ const storyboard = ref<Storyboard | null>(null)
 const generationStarted = ref(false)
 const assetsReady = ref(false)
 const planningStoryboard = ref(false)
-
-// Edit modal state
-const editModalOpen = ref(false)
-const selectedSegment = ref<Segment | null>(null)
-const selectedSegmentIndex = ref<number | null>(null)
 
 const { segments, overallProgress, status, overallError, jobId, startGeneration: startGen, pollProgress: pollGenProgress, reset, retrySegment: retrySegmentGen } = useGeneration()
 const { currentCost, estimatedTotal, startPolling } = useCostTracking()
@@ -674,7 +659,9 @@ const handleCompose = async (options: any) => {
   }
 }
 
-const handleEditSegment = (index: number) => {
+const handleSegmentEdited = async (index: number) => {
+  // Segment has been edited inline in StoryboardView
+  // We just need to save the updated storyboard to backend
   if (!storyboard.value || !storyboard.value.segments[index]) {
     toast.add({
       title: 'Error',
@@ -684,9 +671,28 @@ const handleEditSegment = (index: number) => {
     return
   }
 
-  selectedSegment.value = { ...storyboard.value.segments[index] }
-  selectedSegmentIndex.value = index
-  editModalOpen.value = true
+  try {
+    // Save to backend
+    const savedStoryboard = await $fetch(`/api/storyboard/${storyboard.value.id}`, {
+      method: 'PUT',
+      body: {
+        segments: storyboard.value.segments,
+      },
+    })
+
+    // Update local state
+    storyboard.value = savedStoryboard as Storyboard
+    
+    console.log('[Generate] Segment saved successfully')
+  } catch (error: any) {
+    console.error('[Generate] Failed to save segment:', error)
+    
+    toast.add({
+      title: 'Save Failed',
+      description: error.message || 'Failed to save segment. Please try again.',
+      color: 'error',
+    })
+  }
 }
 
 const handlePromptSelected = async (segmentIdx: number, promptIndex: number) => {
@@ -743,144 +749,6 @@ const handleRegenerateEvent = (segmentIdx: number) => {
   console.log(`[Generate] Regeneration started for segment ${segmentIdx}`)
   // The actual regeneration is handled by handleRetrySegment
   // This event can be used for additional UI updates if needed
-}
-
-const handleSegmentSaved = async (updatedSegment: Segment, index: number) => {
-  console.log('[Handle Segment Saved] Called with:', { index, segment: updatedSegment })
-  
-  if (!storyboard.value || index < 0) {
-    console.error('[Handle Segment Saved] Invalid storyboard or index:', { storyboard: storyboard.value, index })
-    return
-  }
-
-  const toast = useToast()
-
-  try {
-    // Handle file uploads if needed
-    let segmentToSave = { ...updatedSegment }
-    
-    // Helper function to upload a file
-    const uploadFile = async (file: File): Promise<string | null> => {
-      const formData = new FormData()
-      formData.append('file', file)
-      const uploadResult = await $fetch('/api/upload-brand-assets', {
-        method: 'POST',
-        body: formData,
-      })
-      if (uploadResult.files && uploadResult.files.length > 0) {
-        return uploadResult.files[0]
-      }
-      return null
-    }
-    
-    // Upload firstFrameImage if it's a File
-    if (updatedSegment.firstFrameImage instanceof File) {
-      console.log('[Handle Segment Saved] Uploading firstFrameImage...')
-      const uploadedPath = await uploadFile(updatedSegment.firstFrameImage)
-      if (uploadedPath) {
-        segmentToSave.firstFrameImage = uploadedPath
-      }
-    }
-    
-    // Upload subjectReference if it's a File
-    if (updatedSegment.subjectReference instanceof File) {
-      console.log('[Handle Segment Saved] Uploading subjectReference...')
-      const uploadedPath = await uploadFile(updatedSegment.subjectReference)
-      if (uploadedPath) {
-        segmentToSave.subjectReference = uploadedPath
-      }
-    }
-    
-    // Upload image (Veo parameter) if it's a File
-    if ((updatedSegment as any).image instanceof File) {
-      console.log('[Handle Segment Saved] Uploading image (Veo parameter)...')
-      const uploadedPath = await uploadFile((updatedSegment as any).image)
-      if (uploadedPath) {
-        (segmentToSave as any).image = uploadedPath
-      }
-    }
-    
-    // Upload lastFrame if it's a File
-    if ((updatedSegment as any).lastFrame instanceof File) {
-      console.log('[Handle Segment Saved] Uploading lastFrame...')
-      const uploadedPath = await uploadFile((updatedSegment as any).lastFrame)
-      if (uploadedPath) {
-        (segmentToSave as any).lastFrame = uploadedPath
-      }
-    }
-    
-    // Upload referenceImages if any are Files
-    const referenceImages = (updatedSegment as any).referenceImages
-    if (referenceImages && Array.isArray(referenceImages)) {
-      console.log('[Handle Segment Saved] Uploading referenceImages...')
-      const imagePromises = referenceImages.map(async (img: File | string | null) => {
-        if (img instanceof File) {
-          return await uploadFile(img)
-        }
-        return img
-      })
-      const uploadedImages = await Promise.all(imagePromises)
-      const filteredImages = uploadedImages.filter((img: any) => img !== null)
-      Object.assign(segmentToSave, { referenceImages: filteredImages })
-    }
-
-    console.log('[Handle Segment Saved] Segment to save:', segmentToSave)
-
-    // Update local state optimistically
-    const updatedSegments = [...storyboard.value.segments]
-    updatedSegments[index] = segmentToSave as Segment
-
-    console.log('[Handle Segment Saved] Updated segments:', updatedSegments)
-
-    // Update storyboard with new segments
-    const updatedStoryboard = {
-      ...storyboard.value,
-      segments: updatedSegments,
-      updatedAt: Date.now(),
-    }
-
-    console.log('[Handle Segment Saved] Saving to backend...', {
-      storyboardId: storyboard.value.id,
-      segmentsCount: updatedSegments.length,
-    })
-
-    // Save to backend
-    const savedStoryboard = await $fetch(`/api/storyboard/${storyboard.value.id}`, {
-      method: 'PUT',
-      body: {
-        segments: updatedSegments,
-      },
-    })
-
-    console.log('[Handle Segment Saved] Backend save successful:', savedStoryboard)
-
-    // Update local state
-    storyboard.value = savedStoryboard as Storyboard
-    // Storyboard watcher will automatically save to sessionStorage
-
-    toast.add({
-      title: 'Success',
-      description: 'Segment updated successfully',
-      color: 'success',
-    })
-  } catch (error: any) {
-    console.error('[Handle Segment Saved] Failed to save segment:', error)
-    console.error('[Handle Segment Saved] Error details:', {
-      message: error.message,
-      statusCode: error.statusCode,
-      data: error.data,
-      stack: error.stack,
-    })
-    
-    toast.add({
-      title: 'Save Failed',
-      description: error.message || 'Failed to save segment. Please try again.',
-      color: 'error',
-    })
-
-    // Revert optimistic update by reloading from sessionStorage or refetching
-    // For now, we'll just show the error - the user can try again
-  }
 }
 </script>
 

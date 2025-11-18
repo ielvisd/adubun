@@ -431,6 +431,7 @@ const handleSubmit = async (formData: any) => {
         productImages: uploadedImageUrls,
         aspectRatio: formData.aspectRatio,
         model: formData.model,
+        mood: formData.mood,
         generateVoiceover: formData.generateVoiceover || false,
       }))
     }

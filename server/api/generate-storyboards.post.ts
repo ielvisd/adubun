@@ -19,23 +19,24 @@ const generateStoryboardsSchema = z.object({
   productImages: z.array(z.string()).optional(),
   aspectRatio: z.enum(['16:9', '9:16', '1:1']),
   model: z.string().optional(),
-  style: z.string().optional(), // Optional style parameter
+  mood: z.string().optional(), // Video tone/mood from homepage
 })
 
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
-    const { story, prompt, productImages = [], aspectRatio, model, style } = generateStoryboardsSchema.parse(body)
+    const { story, prompt, productImages = [], aspectRatio, model, mood } = generateStoryboardsSchema.parse(body)
 
     // Track cost
     await trackCost('generate-storyboards', 0.002, { storyId: story.id })
 
     // Generate 1 storyboard using OpenAI directly
     // Use chat completion to generate a single storyboard
-    const selectedStyle = style || 'Cinematic'
+    // Use mood (Video Tone) from homepage, default to 'professional' if not provided
+    const selectedMood = mood || 'professional'
     const systemPrompt = `You are an expert at creating emotionally captivating video storyboards for ad content.
 
-Generate a single storyboard for a 16-second ad with ${selectedStyle} visual style. The storyboard must have 4 scenes:
+Generate a single storyboard for a 16-second ad with ${selectedMood} tone and visual style. The storyboard must have 4 scenes:
 1. Hook (0-4s): Opening scene that grabs attention and creates emotional connection
 2. Body 1 (4-8s): First key message or benefit with emotional impact
 3. Body 2 (8-12s): Second key message or benefit with emotional impact
@@ -51,7 +52,7 @@ Generate a single storyboard for a 16-second ad with ${selectedStyle} visual sty
 - Reference characters consistently: "the same character from the hook scene" or "the identical [age] [gender] person"
 
 The storyboard should:
-- Have a ${selectedStyle} visual style
+- Have a ${selectedMood} tone and visual style
 - Include detailed visual prompts for each scene that create emotional captivation
 - Use emotional visual storytelling: include facial expressions, body language, and visual mood that connects with viewers
 - Limit scenes to 3-4 people maximum per scene (prefer 1-3 people for better face quality)
@@ -62,9 +63,9 @@ The storyboard should:
 
 Return ONLY valid JSON with this structure:
 {
-  "storyboard": {
-    "id": "storyboard-1",
-    "style": "${selectedStyle}",
+    "storyboard": {
+      "id": "storyboard-1",
+      "mood": "${selectedMood}",
     "segments": [
       {
         "type": "hook",
@@ -98,7 +99,7 @@ Return ONLY valid JSON with this structure:
   }
 }`
 
-    const userPrompt = `Create an emotionally captivating ${selectedStyle} style storyboard based on this story:
+    const userPrompt = `Create an emotionally captivating ${selectedMood} tone storyboard based on this story:
 
 Story Description: ${story.description}
 Hook: ${story.hook}
@@ -115,7 +116,7 @@ ${productImages.length > 0 ? `Product images are available for reference.` : ''}
 - In body and CTA segments: Reference characters as "the same [age] [gender] person with [features]" to maintain consistency
 - Do NOT change character gender, age, or physical appearance between scenes
 
-The storyboard should have a ${selectedStyle} visual style and approach while staying true to the story content. Focus on creating emotionally compelling visuals that evoke emotions through facial expressions, body language, and visual mood. Limit all scenes to 3-4 people maximum and ensure clear, sharp faces through close-ups and medium shots.`
+The storyboard should have a ${selectedMood} tone and visual style while staying true to the story content. Focus on creating emotionally compelling visuals that evoke emotions through facial expressions, body language, and visual mood. Limit all scenes to 3-4 people maximum and ensure clear, sharp faces through close-ups and medium shots.`
 
     // Use OpenAI chat completion via MCP
     const storyboardsData = await callOpenAIMCP('chat_completion', {
@@ -209,7 +210,7 @@ The storyboard should have a ${selectedStyle} visual style and approach while st
       meta: {
         duration: 16,
         aspectRatio,
-        style: sbData.style || selectedStyle,
+        mood: sbData.mood || selectedMood,
         model: model || 'google/veo-3-fast',
       },
       createdAt: Date.now(),

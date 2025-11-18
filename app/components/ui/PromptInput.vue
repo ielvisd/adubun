@@ -115,7 +115,7 @@ import type { VideoModel } from '~/types/generation'
 const schema = z.object({
   prompt: z.string().min(10, 'Please provide at least 10 characters describing your ad').max(1000, 'Description must be less than 1000 characters'),
   productImages: z.array(z.union([z.instanceof(File), z.string()])).max(10).optional(),
-  aspectRatio: z.enum(['16:9', '9:16', '1:1']),
+  aspectRatio: z.enum(['16:9', '9:16']),
   mood: z.string().min(1, 'Please select a video tone'),
   model: z.string().min(1, 'Please select a video generation model'),
   generateVoiceover: z.boolean().optional(),
@@ -125,7 +125,7 @@ const schema = z.object({
 const getInitialFormState = () => ({
   prompt: '',
   productImages: [] as (File | string)[],
-  aspectRatio: '16:9' as '16:9' | '9:16' | '1:1', // Default to 16:9
+  aspectRatio: '16:9' as '16:9' | '9:16', // Default to 16:9
   mood: 'professional', // Default to professional
   model: DEFAULT_MODEL_ID,
   generateVoiceover: false, // Off by default
@@ -152,11 +152,10 @@ const selectedModel = computed<VideoModel | undefined>(() => {
   return getModelById(form.model)
 })
 
-// Aspect ratio options
+// Aspect ratio options (only 16:9 and 9:16 for homepage)
 const aspectRatioOptions = [
   { label: '16:9 (Landscape)', value: '16:9' },
   { label: '9:16 (Vertical)', value: '9:16' },
-  { label: '1:1 (Square)', value: '1:1' },
 ]
 
 // Mood/tone options

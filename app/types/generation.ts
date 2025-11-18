@@ -47,11 +47,12 @@ export interface Storyboard {
   meta: {
     duration: number
     aspectRatio: '16:9' | '9:16' | '1:1'
-    style: string
+    mood?: string // Video tone/mood from homepage (e.g., 'professional', 'playful', 'inspirational')
     mode?: 'demo' | 'production'
     model?: string // Video model ID (e.g., 'google/veo-3.1')
     firstFrameImage?: string // Global default first frame image path/URL
     subjectReference?: string // Global default subject reference image path/URL
+    resolution?: '720p' | '1080p' // Output resolution
   }
   createdAt: number
   updatedAt?: number
