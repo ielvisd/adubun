@@ -50,10 +50,16 @@ export default defineEventHandler(async (event) => {
         break
       case 'product':
         adTypeInstruction = `PRODUCT AD STRATEGY:
-- CRITICAL: The product MUST be the main focus in 100% of frames
-- Use macro shots, close-ups, and slow pans to show details
-- Minimal or blurred backgrounds (bokeh) to keep attention on the product
-- Highlight craftsmanship, texture, and quality`
+- CRITICAL: The product MUST be the ONLY subject in ALL frames
+- ABSOLUTELY NO HUMANS: No people, no hands, no human body parts in any frame
+- Pure product focus: The product is the sole star of every shot
+- Use macro shots, extreme close-ups, and slow pans to show intricate details
+- Showcase product from multiple angles: front, back, side, top, 360° rotation
+- Minimal or blurred backgrounds (bokeh, clean studio backdrop) to keep 100% attention on product
+- Highlight craftsmanship, texture, materials, finish, and quality
+- Camera movements: Slow dolly, smooth pan, gentle rotation around product
+- Lighting: Studio-quality lighting that showcases product features and materials
+- Focus on what makes the product premium: stitching, grain, polish, construction`
         break
       case 'unboxing':
         adTypeInstruction = `UNBOXING AD STRATEGY:
@@ -95,7 +101,7 @@ export default defineEventHandler(async (event) => {
     
 ${adTypeInstruction}
 
-Generate a single storyboard for a 16-second ad with ${selectedMood} tone and visual style. The storyboard must have 4 scenes:
+Generate a single storyboard for a 16-second ad. The storyboard must have 4 scenes:
 1. Hook (0-4s): Opening scene that grabs attention and creates emotional connection
 2. Body 1 (4-8s): First key message or benefit with emotional impact
 3. Body 2 (8-12s): Second key message or benefit with emotional impact
@@ -111,7 +117,6 @@ Generate a single storyboard for a 16-second ad with ${selectedMood} tone and vi
 - Reference characters consistently: "the same character from the hook scene" or "the identical [age] [gender] person"
 
 The storyboard should:
-- Have a ${selectedMood} tone and visual style
 - Follow the specific strategy for ${selectedAdType} ads
 - Include detailed visual prompts for each scene that create emotional captivation
 - Use emotional visual storytelling: include facial expressions, body language, and visual mood that connects with viewers
@@ -125,7 +130,6 @@ Return ONLY valid JSON with this structure:
 {
     "storyboard": {
       "id": "storyboard-1",
-      "mood": "${selectedMood}",
     "segments": [
       {
         "type": "hook",
@@ -159,7 +163,7 @@ Return ONLY valid JSON with this structure:
   }
 }`
 
-    const userPrompt = `Create an emotionally captivating ${selectedMood} tone storyboard based on this story:
+    const userPrompt = `Create an emotionally captivating storyboard based on this story:
 
 Story Description: ${story.description}
 Hook: ${story.hook}
@@ -177,7 +181,7 @@ ${productImages.length > 0 ? `Product images are available for reference.` : ''}
 - In body and CTA segments: Reference characters as "the same [age] [gender] person with [features]" to maintain consistency
 - Do NOT change character gender, age, or physical appearance between scenes
 
-The storyboard should have a ${selectedMood} tone and visual style while staying true to the story content. Focus on creating emotionally compelling visuals that evoke emotions through facial expressions, body language, and visual mood. Limit all scenes to 3-4 people maximum and ensure clear, sharp faces through close-ups and medium shots.`
+Stay true to the story content. Focus on creating emotionally compelling visuals that evoke emotions through facial expressions, body language, and visual mood. Limit all scenes to 3-4 people maximum and ensure clear, sharp faces through close-ups and medium shots.`
 
     // Use OpenAI chat completion via MCP
     const storyboardsData = await callOpenAIMCP('chat_completion', {
@@ -271,7 +275,6 @@ The storyboard should have a ${selectedMood} tone and visual style while staying
       meta: {
         duration: 16,
         aspectRatio,
-        mood: sbData.mood || selectedMood,
         model: model || 'google/veo-3-fast',
         adType: selectedAdType,
       },

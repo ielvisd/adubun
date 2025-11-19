@@ -310,6 +310,10 @@ class OpenAIMCPServer {
                 type: 'string',
                 description: 'The emotional tone/mood for the story (e.g., professional, playful, dramatic)',
               },
+              adType: {
+                type: 'string',
+                description: 'Type of ad (lifestyle, product, unboxing, testimonial, tutorial, brand_story)',
+              },
             },
             required: ['prompt', 'imageUrls'],
           },
@@ -365,7 +369,8 @@ class OpenAIMCPServer {
               (args?.duration as number) || 24,
               (args?.clipCount as number) || 4,
               (args?.clipDuration as number) || 6,
-              args?.mood as string | undefined
+              args?.mood as string | undefined,
+              args?.adType as string | undefined
             )
           
           default:
@@ -1574,18 +1579,93 @@ PRIMARY TASK: Select the frame where any product (can, bottle, package, label, e
     duration: number = 24,
     clipCount: number = 4,
     clipDuration: number = 6,
-    mood?: string
+    mood?: string,
+    adType?: string
   ) {
     try {
       if (!process.env.OPENAI_API_KEY) {
         throw new Error('OPENAI_API_KEY environment variable is not set')
       }
 
+      // Build ad-type-specific narrative guidance
+      let adTypeGuidance = ''
+      if (adType) {
+        switch (adType) {
+          case 'lifestyle':
+            adTypeGuidance = `
+AD TYPE: LIFESTYLE AD NARRATIVE
+- Story should focus on people using the product in real-life situations
+- Emphasize social benefits, relationships, and everyday experiences
+- Show how the product fits into and enhances the user's lifestyle
+- Focus on emotional benefits and aspirational living
+- Hook: Relatable everyday situation or desire
+- Body: Product enhancing real-life moments
+- CTA: How product transforms lifestyle`
+            break
+          case 'product':
+            adTypeGuidance = `
+AD TYPE: PRODUCT-FOCUSED AD NARRATIVE
+- Story should center entirely on the product itself
+- CRITICAL: NO HUMANS allowed in this ad type - pure product focus only
+- Emphasize product features, craftsmanship, materials, and quality
+- The product is the only subject - no people, no hands, no human interaction
+- Focus on what makes the product special, unique, and desirable
+- Hook: Product reveal or standout feature showcase
+- Body: Showcase key features, details, textures, and craftsmanship
+- CTA: Product benefits, quality, and call to purchase
+- Visual focus: Close-ups, macro shots, 360° views, material details`
+            break
+          case 'unboxing':
+            adTypeGuidance = `
+AD TYPE: UNBOXING AD NARRATIVE
+- Story MUST follow a reveal structure: anticipation → opening → reveal → satisfaction
+- Hook: Show sealed packaging, build anticipation
+- Body 1: Opening the package, hands interacting with box
+- Body 2: Reveal the product inside, first look reaction
+- CTA: Product displayed with all accessories, satisfaction moment
+- Focus on the tactile, sensory experience of unboxing`
+            break
+          case 'testimonial':
+            adTypeGuidance = `
+AD TYPE: TESTIMONIAL AD NARRATIVE
+- Story should be from the user's authentic point of view
+- Emphasize real problems solved and genuine experiences
+- Structure: Problem → Discovery → Solution → Recommendation
+- Hook: User shares their problem/need
+- Body: How they found and tried the product
+- CTA: Their recommendation and transformation
+- Tone should feel personal, authentic, and trustworthy`
+            break
+          case 'tutorial':
+            adTypeGuidance = `
+AD TYPE: TUTORIAL/HOW-TO AD NARRATIVE
+- Story MUST follow an instructional structure: problem → step 1 → step 2 → result
+- Hook: Present the problem or challenge clearly
+- Body 1: First step of using the product (specific action)
+- Body 2: Second step or continuation (specific action)
+- CTA: Show the final result/benefit achieved
+- Focus on clarity, actionable steps, and practical value
+- Each scene should teach something specific`
+            break
+          case 'brand_story':
+            adTypeGuidance = `
+AD TYPE: BRAND STORY AD NARRATIVE
+- Story should focus on brand values, mission, and origin
+- Emphasize the "why" behind the brand, not just what it sells
+- Create an emotional connection to the brand's purpose
+- Hook: Brand's origin story or core value
+- Body: How brand lives its mission
+- CTA: Invite viewers to be part of the brand's journey
+- Cinematic, aspirational, and value-driven narrative`
+            break
+        }
+      }
+
       const systemPrompt = `You are an expert at creating emotionally captivating ad stories for short-form video content. Your goal is to create narratives that deeply resonate with viewers through emotional storytelling techniques.
 
 Generate exactly 1 cohesive story option for a ${duration}-second ad. The story will be broken down into 4 scenes: Hook, Body 1, Body 2, and CTA.
 
-${mood ? `IMPORTANT: The story must have a ${mood} tone throughout all scenes. Every element (visuals, pacing, emotion) should reflect this ${mood} mood.` : ''}
+${adTypeGuidance ? `${adTypeGuidance}\n` : ''}
 
 The story must:
 - Be a cohesive, complete narrative that flows from Hook → Body 1 → Body 2 → CTA
@@ -1595,9 +1675,8 @@ The story must:
 - Include relatable moments that viewers can connect with on a personal level
 - Be related to the initial prompt
 - Be suitable for a ${duration}-second ad format
-- Have a consistent ${mood || 'appropriate'} tone across all scenes
 - Include a full paragraph description that captures the entire story arc and emotional journey
-- Include a single emoji that best represents the story's theme, mood, and content
+- Include a single emoji that best represents the story's theme and content
 
 EMOTIONAL STORYTELLING REQUIREMENTS:
 - Hook: Create an emotional opening that immediately captures attention and establishes an emotional connection (curiosity, surprise, relatability, aspiration)
@@ -1627,7 +1706,7 @@ Return ONLY valid JSON with this exact structure:
 
       const userPrompt = `Create 1 emotionally captivating ad story based on this prompt: "${prompt}"
 
-${mood ? `The story MUST have a ${mood} tone and mood. All scenes should reflect this emotional style.` : ''}
+${adType ? `CRITICAL: This is a ${adType.replace('_', ' ')} ad. The story MUST follow the ${adType.replace('_', ' ')} narrative structure and requirements outlined above.` : ''}
 
 ${imageUrls.length > 0 ? `Reference images are available to inform the visual style and product details.` : ''}
 
