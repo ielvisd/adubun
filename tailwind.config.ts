@@ -14,103 +14,65 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Primary brand color (Black) - Mendo-inspired minimalist
+        // Brand Palette
         primary: {
-          DEFAULT: '#000000',
-          50: '#f5f5f5',
-          100: '#e5e5e5',
-          200: '#d4d4d4',
-          300: '#a3a3a3',
-          400: '#737373',
-          500: '#000000',
-          600: '#000000',
-          700: '#000000',
-          800: '#000000',
-          900: '#000000',
+          DEFAULT: '#4A70A9', // Dark Blue
+          50: '#f4f7fb',
+          100: '#e8eff6',
+          200: '#c5d8eb',
+          300: '#a3c0e0',
+          400: '#8fabd4', // Light Blue reference
+          500: '#4A70A9', // Dark Blue DEFAULT
+          600: '#385a8a',
+          700: '#2e486e',
+          800: '#263b59',
+          900: '#233248',
         },
-        // Secondary brand color (Black for CTAs) - Mendo style
         secondary: {
-          DEFAULT: '#000000',
-          50: '#f5f5f5',
-          100: '#e5e5e5',
-          200: '#d4d4d4',
-          300: '#a3a3a3',
-          400: '#737373',
-          500: '#000000',
-          600: '#000000',
-          700: '#000000',
-          800: '#000000',
-          900: '#000000',
+          DEFAULT: '#8FABD4', // Light Blue
+          50: '#f4f8fc',
+          100: '#e8f1f8',
+          200: '#c5dced',
+          300: '#a2c7e2',
+          400: '#8FABD4', // Light Blue DEFAULT
+          500: '#6a8fb8',
+          600: '#4f739c',
+          700: '#405d80',
+          800: '#364d68',
+          900: '#2e4056',
         },
-        // Accent brand color (Black) - Mendo minimalist
         accent: {
-          DEFAULT: '#000000',
-          50: '#f5f5f5',
-          100: '#e5e5e5',
-          200: '#d4d4d4',
-          300: '#a3a3a3',
-          400: '#737373',
-          500: '#000000',
-          600: '#000000',
-          700: '#000000',
-          800: '#000000',
-          900: '#000000',
+          DEFAULT: '#E8C8A7', // Cream
+          50: '#fcfaf7',
+          100: '#f9f4ee',
+          200: '#f3e5d5',
+          300: '#edd6bd',
+          400: '#E8C8A7', // Cream DEFAULT
+          500: '#deae82',
+          600: '#d4955d',
+          700: '#c97d3d',
+          800: '#a86630',
+          900: '#885328',
         },
-        // Light Blue - for hero right section (Mendo style)
-        'light-blue': {
-          DEFAULT: '#E8F0F5',
-          50: '#f0f7fa',
-          100: '#E8F0F5',
-          200: '#d0e0eb',
-          300: '#b8d0e1',
-          400: '#a0c0d7',
-          500: '#E8F0F5',
-          600: '#88b0cd',
-          700: '#70a0c3',
-          800: '#5890b9',
-          900: '#4080af',
-        },
-        // Bright Green - for footer (Mendo style)
-        'mendo-green': {
-          DEFAULT: '#00FF88',
-          50: '#e6fff5',
-          100: '#ccffeb',
-          200: '#99ffd7',
-          300: '#66ffc3',
-          400: '#33ffaf',
-          500: '#00FF88',
-          600: '#00cc6d',
-          700: '#009952',
-          800: '#006638',
-          900: '#00331d',
-        },
-        // Light Grey - for backgrounds
-        'light-grey': {
-          DEFAULT: '#F5F5F5',
-          50: '#fafafa',
-          100: '#f5f5f5',
-          200: '#f0f0f0',
-          300: '#EEEEEE',
-          400: '#e0e0e0',
-          500: '#F5F5F5',
-          600: '#d5d5d5',
-          700: '#bcbcbc',
-          800: '#a3a3a3',
-          900: '#8a8a8a',
-        },
-        // Brand Cream - favicon background color
+        // Brand specific colors
         'brand-cream': {
           DEFAULT: '#E8C8A7',
-          50: '#faf8f5',
-          100: '#f5efe6',
-          200: '#f0e6d7',
-          300: '#ebddc8',
+          50: '#fcfaf7',
+          100: '#f9f4ee',
+          200: '#f3e5d5',
+          300: '#edd6bd',
           400: '#E8C8A7',
-          500: '#E8C8A7',
-          600: '#d4b496',
-          700: '#c0a085',
-          800: '#ac8c74',
-          900: '#987863',
+          500: '#deae82',
+          600: '#d4955d',
+          700: '#c97d3d',
+          800: '#a86630',
+          900: '#885328',
+        },
+        'brand-blue-light': {
+          DEFAULT: '#8FABD4',
+        },
+        'brand-blue-dark': {
+          DEFAULT: '#4A70A9',
         },
         // Success (Green) - for success states
         success: {

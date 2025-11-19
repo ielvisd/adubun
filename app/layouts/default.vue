@@ -37,7 +37,7 @@
             <UButton 
               to="/generate" 
               variant="solid"
-              class="bg-black hover:bg-gray-900 text-white font-semibold text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-2.5 rounded-none"
+              class="bg-brand-blue-dark hover:bg-brand-blue-light text-white font-semibold text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-2.5 rounded-none transition-colors duration-300"
             >
               <span class="hidden sm:inline">Get Started</span>
               <span class="sm:hidden">Start</span>
@@ -51,44 +51,44 @@
       <slot />
     </main>
 
-    <!-- Footer - Mendo Style Bright Green -->
-    <footer class="w-full bg-mendo-green text-gray-800 py-8 sm:py-10 md:py-12">
+    <!-- Footer - Professional Dark Blue -->
+    <footer class="w-full bg-brand-blue-dark text-white py-8 sm:py-10 md:py-12">
       <UContainer class="max-w-7xl px-4 sm:px-6">
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mb-6 sm:mb-8">
           <div>
-            <h3 class="font-semibold mb-3 sm:mb-4 text-base sm:text-lg text-black">Platform</h3>
-            <ul class="space-y-2 text-gray-700 text-sm sm:text-base">
-              <li><NuxtLink to="/" class="hover:text-black transition-colors">Home</NuxtLink></li>
-              <li><NuxtLink to="/generate" class="hover:text-black transition-colors">Generate</NuxtLink></li>
-              <li><NuxtLink to="/history" class="hover:text-black transition-colors">History</NuxtLink></li>
+            <h3 class="font-semibold mb-3 sm:mb-4 text-base sm:text-lg text-white">Platform</h3>
+            <ul class="space-y-2 text-gray-200 text-sm sm:text-base">
+              <li><NuxtLink to="/" class="hover:text-white transition-colors">Home</NuxtLink></li>
+              <li><NuxtLink to="/generate" class="hover:text-white transition-colors">Generate</NuxtLink></li>
+              <li><NuxtLink to="/history" class="hover:text-white transition-colors">History</NuxtLink></li>
             </ul>
           </div>
           <div>
-            <h3 class="font-semibold mb-3 sm:mb-4 text-base sm:text-lg text-black">Resources</h3>
-            <ul class="space-y-2 text-gray-700 text-sm sm:text-base">
-              <li><a href="#" class="hover:text-black transition-colors">Documentation</a></li>
-              <li><a href="#" class="hover:text-black transition-colors">API Reference</a></li>
-              <li><a href="#" class="hover:text-black transition-colors">Support</a></li>
+            <h3 class="font-semibold mb-3 sm:mb-4 text-base sm:text-lg text-white">Resources</h3>
+            <ul class="space-y-2 text-gray-200 text-sm sm:text-base">
+              <li><a href="#" class="hover:text-white transition-colors">Documentation</a></li>
+              <li><a href="#" class="hover:text-white transition-colors">API Reference</a></li>
+              <li><a href="#" class="hover:text-white transition-colors">Support</a></li>
             </ul>
           </div>
           <div>
-            <h3 class="font-semibold mb-3 sm:mb-4 text-base sm:text-lg text-black">Company</h3>
-            <ul class="space-y-2 text-gray-700 text-sm sm:text-base">
-              <li><a href="#" class="hover:text-black transition-colors">About</a></li>
-              <li><a href="#" class="hover:text-black transition-colors">Contact</a></li>
-              <li><a href="#" class="hover:text-black transition-colors">Privacy</a></li>
+            <h3 class="font-semibold mb-3 sm:mb-4 text-base sm:text-lg text-white">Company</h3>
+            <ul class="space-y-2 text-gray-200 text-sm sm:text-base">
+              <li><a href="#" class="hover:text-white transition-colors">About</a></li>
+              <li><a href="#" class="hover:text-white transition-colors">Contact</a></li>
+              <li><a href="#" class="hover:text-white transition-colors">Privacy</a></li>
             </ul>
           </div>
           <div>
-            <h3 class="font-semibold mb-3 sm:mb-4 text-base sm:text-lg text-black">Connect</h3>
-            <div class="flex gap-4 text-gray-700 text-sm sm:text-base">
-              <a href="#" class="hover:text-black transition-colors">Twitter</a>
-              <a href="#" class="hover:text-black transition-colors">LinkedIn</a>
-              <a href="#" class="hover:text-black transition-colors">GitHub</a>
+            <h3 class="font-semibold mb-3 sm:mb-4 text-base sm:text-lg text-white">Connect</h3>
+            <div class="flex gap-4 text-gray-200 text-sm sm:text-base">
+              <a href="#" class="hover:text-white transition-colors">Twitter</a>
+              <a href="#" class="hover:text-white transition-colors">LinkedIn</a>
+              <a href="#" class="hover:text-white transition-colors">GitHub</a>
             </div>
           </div>
         </div>
-        <div class="border-t border-gray-300 pt-6 sm:pt-8 text-center text-gray-700 text-xs sm:text-sm">
+        <div class="border-t border-brand-blue-light/30 pt-6 sm:pt-8 text-center text-gray-300 text-xs sm:text-sm">
           <p>© AdUbun 2025, all rights reserved</p>
         </div>
       </UContainer>
