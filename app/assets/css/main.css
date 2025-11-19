@@ -6,73 +6,34 @@ body {
   font-family: 'Poppins', sans-serif;
 }
 
-/* Tailwind v4 Theme Configuration - Mendo-Inspired Minimalist Colors */
+/* Tailwind v4 Theme Configuration */
 @theme {
   --color-mendo-black: #000000;
   --color-mendo-white: #FFFFFF;
   --color-mendo-light-blue: #E8F0F5;
-  --color-mendo-green: #00FF88;
   --color-mendo-light-grey: #F5F5F5;
   --color-mendo-cream: #E8C8A7;
-  --color-mendo-success: #22c55e;
-  --color-mendo-error: #dc2626;
 }
 
-/* Mendo-Inspired Brand Colors - CSS Variables */
+/* CSS Variables */
 :root {
-  /* Primary Colors */
   --mendo-black: #000000;
   --mendo-white: #FFFFFF;
   --mendo-light-blue: #E8F0F5;
-  --mendo-green: #00FF88;
   --mendo-light-grey: #F5F5F5;
   --mendo-cream: #E8C8A7;
-  
-  /* Semantic Colors */
-  --mendo-primary: #000000;
-  --mendo-secondary: #000000;
-  --mendo-accent: #000000;
-  --mendo-background: #FFFFFF;
-  
-  /* System Colors */
-  --mendo-success: #22c55e;
-  --mendo-warning: #F59E0B;
-  --mendo-error: #dc2626;
 }
 
-/* Custom Utilities - Letsignit Style */
+/* Custom Utilities */
 .video-container {
-  @apply relative aspect-video bg-black rounded-xl overflow-hidden shadow-lg;
+  @apply relative aspect-video bg-mendo-black rounded-xl overflow-hidden shadow-lg;
 }
 
 .generation-card {
-  @apply bg-white rounded-2xl shadow-md p-8 border border-gray-100;
+  @apply bg-mendo-white rounded-2xl shadow-md p-8 border border-mendo-light-grey;
 }
 
-/* Mendo-Inspired Background Utilities */
-.bg-mendo-hero {
-  @apply bg-white text-black;
-}
-
-.bg-mendo-section-blue {
-  background-color: var(--mendo-light-blue);
-}
-
-.bg-mendo-section-grey {
-  background-color: var(--mendo-light-grey);
-}
-
-.bg-mendo-footer {
-  background-color: var(--mendo-green);
-}
-
-/* Card Styles */
-.adubun-card {
-  @apply bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-lg transition-shadow duration-300;
-}
-
-/* Button Styles - Mendo Minimalist */
+/* Button Styles */
 .mendo-cta {
-  @apply bg-black hover:bg-gray-900 text-white font-semibold px-6 py-3 rounded-lg transition-colors duration-200;
+  @apply bg-mendo-black hover:opacity-90 text-mendo-white font-semibold px-6 py-3 rounded-lg transition-all duration-200;
 }
-
