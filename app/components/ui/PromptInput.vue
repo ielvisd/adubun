@@ -67,6 +67,24 @@
             </template>
           </UFormField>
 
+          <!-- 3.5. Person Reference Upload (for Lifestyle/Testimonial/Tutorial ads) -->
+          <UFormField 
+            v-if="form.adType === 'lifestyle' || form.adType === 'testimonial' || form.adType === 'tutorial'"
+            label="Person Reference (Optional)" 
+            name="personReference"
+          >
+            <MultiImageUpload 
+              v-model="form.personReference" 
+              :max-images="1" 
+              @upload="handlePersonReferenceUpload($event)" 
+            />
+            <template #description>
+              <span class="text-gray-600 dark:text-gray-400">
+                Upload a clear photo of the person you want to feature. They'll appear consistently across all scenes.
+              </span>
+            </template>
+          </UFormField>
+
           <!-- 4. Quick Format Picker (Visual) -->
           <UFormField 
             label="Where will you share this?" 
@@ -145,6 +163,22 @@
             />
             <template #description>
               <span class="text-gray-600 dark:text-gray-400">Upload 3-10 photos from different angles</span>
+            </template>
+          </UFormField>
+
+          <!-- 3.5. Person Reference (Advanced Mode) -->
+          <UFormField 
+            v-if="form.adType === 'lifestyle' || form.adType === 'testimonial' || form.adType === 'tutorial'"
+            label="Person Reference (Optional)" 
+            name="personReference"
+          >
+            <MultiImageUpload 
+              v-model="form.personReference" 
+              :max-images="1" 
+              @upload="handlePersonReferenceUpload($event)" 
+            />
+            <template #description>
+              <span class="text-gray-600 dark:text-gray-400">Upload a photo of the person to feature in your ad</span>
             </template>
           </UFormField>
 
@@ -269,6 +303,7 @@ const schema = z.object({
   adType: z.string().min(1, 'Please select an ad type'),
   prompt: z.string().min(10, 'Please provide at least 10 characters describing your ad').max(1000, 'Description must be less than 1000 characters'),
   productImages: z.array(z.union([z.instanceof(File), z.string()])).max(10).optional(),
+  personReference: z.array(z.union([z.instanceof(File), z.string()])).max(1).optional(),
   aspectRatio: z.enum(['16:9', '9:16']),
   mood: z.string().min(1, 'Please select a video tone'),
   model: z.string().min(1, 'Please select a video generation model'),
@@ -280,6 +315,7 @@ const getInitialFormState = () => ({
   adType: 'lifestyle',
   prompt: '',
   productImages: [] as (File | string)[],
+  personReference: [] as (File | string)[],
   aspectRatio: '16:9' as '16:9' | '9:16' | '1:1',
   mood: 'professional',
   model: DEFAULT_MODEL_ID,
@@ -299,6 +335,7 @@ onMounted(() => {
 const adTypeOptions = [
   { label: 'Lifestyle Ad', value: 'lifestyle', icon: '🌟', placeholder: 'Describe your product in real-life situations, focusing on benefits and usage...', description: 'Shows the product in real-life situations' },
   { label: 'Product Ad', value: 'product', icon: '📦', placeholder: 'Describe your product\'s key features, focusing on close-ups and details...', description: 'Super focused on the product in all frames' },
+  { label: 'Luxury Ad', value: 'luxury', icon: '💎', placeholder: 'Describe your product in an epic, cinematic way with dramatic natural elements (waterfalls, smoke, water, wood)...', description: 'Cinematic product storytelling with nature' },
   { label: 'Unboxing Ad', value: 'unboxing', icon: '🎁', placeholder: 'Describe the unboxing experience, from package to reveal...', description: 'Shows the product unboxing experience' },
   { label: 'Testimonial Ad', value: 'testimonial', icon: '💬', placeholder: 'Paste a customer review or describe the user experience you want to highlight...', description: 'Real customers sharing experiences' },
   { label: 'Tutorial Ad', value: 'tutorial', icon: '📚', placeholder: 'List the steps to use your product (e.g., Step 1: ..., Step 2: ...)', description: 'Step-by-step guide on how to use' },
@@ -399,6 +436,10 @@ const handleModelChange = (modelId: string) => {
 
 const handleProductImageUpload = (files: (File | string | null)[]) => {
   form.productImages = files.filter(f => f !== null) as (File | string)[]
+}
+
+const handlePersonReferenceUpload = (files: (File | string | null)[]) => {
+  form.personReference = files.filter(f => f !== null) as (File | string)[]
 }
 
 const handleSubmit = async (event: any) => {

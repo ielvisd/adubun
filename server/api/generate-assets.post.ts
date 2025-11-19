@@ -328,7 +328,7 @@ export default defineEventHandler(async (event) => {
         const moodInstruction = mood ? ` ${mood.charAt(0).toUpperCase() + mood.slice(1)} tone and mood.` : ''
         
         // Add hold-final-frame instruction, face quality, and people count limits
-        const videoPrompt = `${sanitizedPrompt}${moodInstruction} The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene. CRITICAL: Any product name, brand name, or text displayed in the video must be spelled correctly and match exactly as mentioned in the prompt. Ensure all text, labels, and product names are accurate and legible. FACE QUALITY: Limit scene to 3-4 people maximum. Use close-ups and medium shots to ensure sharp faces, clear facial features, detailed faces, professional portrait quality. Avoid large groups, crowds, or more than 4 people.`
+        const videoPrompt = `${sanitizedPrompt}${moodInstruction} The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene. TYPOGRAPHY & TEXT: If displaying any text, brand names, or product names: Use clean, elegant, modern typeface (sans-serif like Helvetica, Futura, Gotham for contemporary brands OR serif like Didot, Bodoni for luxury brands). High contrast for maximum legibility: crisp white text on dark background OR bold black text on light background. Large, bold, professional font size with generous spacing. Centered or elegantly positioned with balanced composition. Spell exactly as mentioned in prompt with perfect accuracy. Professional kerning, leading, and letter spacing. Sharp, crisp edges - no blurry or distorted text. Minimize decorative or script fonts unless specifically luxury brand requirement. Text should be perfectly readable at any resolution with cinema-quality typography. FACE QUALITY: Limit scene to 3-4 people maximum. Use close-ups and medium shots to ensure sharp faces, clear facial features, detailed faces, professional portrait quality. Avoid large groups, crowds, or more than 4 people.`
         
         const videoParams: any = {
           model,
@@ -348,6 +348,13 @@ export default defineEventHandler(async (event) => {
           if (lastFrameImage) {
             videoParams.last_frame = await prepareImageInput(lastFrameImage)
             console.log(`[Segment ${idx}] Using last frame image: ${lastFrameImage}`)
+          }
+          
+          // Add subject reference (person reference) if available
+          const subjectReference = (segment as any).subjectReference || storyboard.meta.subjectReference
+          if (subjectReference) {
+            videoParams.subject_reference = await prepareImageInput(subjectReference)
+            console.log(`[Segment ${idx}] Using subject reference (person): ${subjectReference}`)
           }
           
           // Build negative prompt - add children-related terms if detected in frames, and default face quality terms
@@ -552,7 +559,7 @@ export default defineEventHandler(async (event) => {
           const sanitizedVideoPrompt = sanitizeVideoPrompt(videoPrompt)
           
           // Modify prompt to add professional product showcase context and product name accuracy
-          const modifiedPrompt = `${sanitizedVideoPrompt}, professional product showcase, safe for all audiences, appropriate content. CRITICAL: Any product name, brand name, or text displayed in the video must be spelled correctly and match exactly as mentioned in the prompt. Ensure all text, labels, and product names are accurate and legible.`
+          const modifiedPrompt = `${sanitizedVideoPrompt}, professional product showcase, safe for all audiences, appropriate content. TYPOGRAPHY & TEXT: If displaying any text, brand names, or product names: Use clean, elegant, modern typeface (sans-serif like Helvetica, Futura, Gotham for contemporary brands OR serif like Didot, Bodoni for luxury brands). High contrast for maximum legibility: crisp white text on dark background OR bold black text on light background. Large, bold, professional font size with generous spacing. Centered or elegantly positioned with balanced composition. Spell exactly as mentioned in prompt with perfect accuracy. Professional kerning, leading, and letter spacing. Sharp, crisp edges - no blurry or distorted text. Text should be perfectly readable at any resolution with cinema-quality typography.`
           currentVideoParams = {
             ...videoParams,
             prompt: modifiedPrompt,

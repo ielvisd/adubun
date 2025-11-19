@@ -461,11 +461,34 @@ const handleSubmit = async (formData: any) => {
       }
     }
 
+    // Upload person reference if it's a File
+    let uploadedPersonReferenceUrl: string | undefined
+    
+    if (formData.personReference && Array.isArray(formData.personReference) && formData.personReference.length > 0) {
+      const personFile = formData.personReference[0]
+      
+      if (personFile instanceof File) {
+        // Upload person reference to S3
+        const formDataToSend = new FormData()
+        formDataToSend.append('images', personFile)
+        
+        const uploadResult = await $fetch<{ urls: string[]; count: number }>('/api/upload-images-s3', {
+          method: 'POST',
+          body: formDataToSend,
+        })
+        
+        uploadedPersonReferenceUrl = uploadResult.urls[0]
+      } else if (typeof personFile === 'string') {
+        uploadedPersonReferenceUrl = personFile
+      }
+    }
+
     // Store form data in sessionStorage with uploaded URLs
     if (process.client) {
       sessionStorage.setItem('promptData', JSON.stringify({
         prompt: formData.prompt,
         productImages: uploadedImageUrls,
+        personReference: uploadedPersonReferenceUrl,
         aspectRatio: formData.aspectRatio,
         model: formData.model,
         mood: formData.mood,

@@ -93,6 +93,28 @@ export default defineEventHandler(async (event) => {
 - Use wide shots, slow motion, and dramatic lighting
 - Connect the brand's mission to the viewer's identity`
         break
+      case 'luxury':
+        adTypeInstruction = `LUXURY/CINEMATIC AD STRATEGY:
+- CRITICAL: NO HUMANS in any frame - pure product and nature cinematography
+- Epic, cinematic camera work: aerial shots, diving cameras, sweeping crane movements
+- Product as the sole protagonist in a grand natural narrative
+- Dramatic natural environments: waterfalls, mountains, oceans, forests, dramatic weather
+- Atmospheric effects: mist, smoke in water, light rays, water splashes, slow motion
+- Product integration with raw materials: wood grains, water droplets, stone textures, botanical elements
+- Camera movements:
+  * Aerial establishing shots (bird's eye view diving down)
+  * Underwater cinematography (product submerged, bubbles, light refraction)
+  * Slow dolly pushes into product details
+  * Sweeping crane shots around product
+  * Smooth transitions between elements and product
+- Lighting: Dramatic, moody, often with single light source, high contrast, natural light (sun rays, golden hour)
+- Color palette: Monochromatic or limited (blues, blacks, deep greens, golds, earth tones)
+- Visual storytelling structure: Nature → Essence → Ingredients → Product
+- Emphasize: Scale, grandeur, premium quality, natural power, transformation
+- Slow motion sequences to emphasize beauty and drama (water drops, smoke trails, falling petals)
+- Each shot should feel like high-end luxury commercial cinematography (Dior, Chanel, Rolex level)
+- Product reveal should be dramatic and hero-shot worthy`
+        break
       default:
         adTypeInstruction = `Create a professional, high-quality ad that showcases the product effectively.`
     }
@@ -277,6 +299,33 @@ Stay true to the story content. Focus on creating emotionally compelling visuals
         aspectRatio,
         model: model || 'google/veo-3-fast',
         adType: selectedAdType,
+      },
+      promptJourney: {
+        userInput: {
+          prompt,
+          adType: selectedAdType,
+          mood: selectedMood,
+          aspectRatio,
+          model: model || 'google/veo-3-fast',
+          productImages: [],
+          subjectReference: undefined,
+        },
+        storyGeneration: story ? {
+          systemPrompt: 'Story generation handled by MCP server',
+          userPrompt: prompt,
+          output: {
+            hook: story.hook,
+            bodyOne: story.bodyOne,
+            bodyTwo: story.bodyTwo,
+            callToAction: story.callToAction,
+            description: story.description,
+          },
+        } : undefined,
+        storyboardGeneration: {
+          systemPrompt,
+          userPrompt,
+          output: segments,
+        },
       },
       createdAt: Date.now(),
     }

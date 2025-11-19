@@ -63,6 +63,12 @@
           :estimated-total="estimatedTotal"
           @version-selected="handleVersionSelected"
         />
+
+        <!-- Prompt Journey Viewer -->
+        <PromptJourneyViewer
+          v-if="storyboard && assetsReady"
+          :storyboard="storyboard"
+        />
       </div>
     </UContainer>
   </div>
@@ -71,6 +77,7 @@
 <script setup lang="ts">
 import GenerationProgress from '~/components/ui/GenerationProgress.vue'
 import VideoPreview from '~/components/generation/VideoPreview.vue'
+import PromptJourneyViewer from '~/components/prompt-journey/PromptJourneyViewer.vue'
 import type { Segment, Storyboard } from '~/app/types/generation'
 
 const route = useRoute()
