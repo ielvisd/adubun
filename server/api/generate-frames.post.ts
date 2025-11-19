@@ -36,6 +36,7 @@ const generateFramesSchema = z.object({
     }),
   }),
   productImages: z.array(z.string()).optional(),
+  subjectReference: z.string().optional(),
   story: z.object({
     description: z.string(),
     hook: z.string(),
@@ -115,7 +116,13 @@ export default defineEventHandler(async (event) => {
       console.log(`[Generate Frames] Raw body received - first 3 productImages:`, body.productImages.slice(0, 3))
     }
     
-    const { storyboard, productImages = [], story, mode } = generateFramesSchema.parse(body)
+    const { storyboard, productImages = [], subjectReference, story, mode } = generateFramesSchema.parse(body)
+    
+    // Set subjectReference on storyboard meta if provided and not already set
+    if (subjectReference && !storyboard.meta.subjectReference) {
+      storyboard.meta.subjectReference = subjectReference
+      console.log(`[Generate Frames] Set subjectReference on storyboard.meta: ${subjectReference}`)
+    }
     
     console.log(`[Generate Frames] After parsing - productImages type:`, typeof productImages)
     console.log(`[Generate Frames] After parsing - productImages is array:`, Array.isArray(productImages))
@@ -123,6 +130,7 @@ export default defineEventHandler(async (event) => {
     if (productImages.length > 0) {
       console.log(`[Generate Frames] After parsing - first 3 productImages:`, productImages.slice(0, 3))
     }
+    console.log(`[Generate Frames] subjectReference:`, subjectReference || 'none')
     
     // Determine mode: use explicit mode param, then storyboard meta, then default to production
     const generationMode = mode || storyboard.meta.mode || 'production'

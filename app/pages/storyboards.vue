@@ -1684,11 +1684,13 @@ const generateFrames = async () => {
     const requestBody = {
       storyboard: selectedStoryboard.value,
       productImages: promptData.value.productImages || [],
+      subjectReference: promptData.value.subjectReference, // Add person reference for nano-banana
       story: selectedStory.value,
       mode: selectedStoryboard.value.meta.mode || 'production',
     }
     console.log('[Storyboards] Request body productImages:', requestBody.productImages)
     console.log('[Storyboards] Request body productImages count:', requestBody.productImages.length)
+    console.log('[Storyboards] Request body subjectReference:', requestBody.subjectReference)
 
     const apiCall = $fetch('/api/generate-frames', {
       method: 'POST',
