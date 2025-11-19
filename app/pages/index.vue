@@ -1,82 +1,28 @@
 <template>
-  <div class="overflow-x-hidden">
-    <!-- Hero Section - Modern Professional Design -->
-    <div class="relative overflow-hidden bg-gradient-to-br from-brand-cream/40 via-brand-cream/20 to-brand-blue-light/20 dark:from-brand-blue-dark dark:via-brand-blue-dark/95 dark:to-brand-blue-dark">
-      <!-- Decorative Background Elements -->
-      <div class="absolute inset-0 overflow-hidden pointer-events-none">
-        <div class="absolute -top-40 -right-40 w-80 h-80 bg-brand-blue-light/30 dark:bg-brand-blue-light/20 rounded-full blur-3xl"></div>
-        <div class="absolute top-60 -left-40 w-96 h-96 bg-brand-cream/40 dark:bg-brand-cream/10 rounded-full blur-3xl"></div>
-      </div>
-      
+  <div class="overflow-x-hidden bg-mendo-white dark:bg-mendo-black text-mendo-black dark:text-mendo-white">
+    <!-- Hero Section - Split Layout -->
+    <div class="relative overflow-hidden bg-mendo-white dark:bg-mendo-black transition-colors duration-300">
       <UContainer class="relative max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div class="flex flex-col gap-6 sm:gap-8 lg:gap-12 py-8 sm:py-12 md:py-14 lg:py-16">
-          <!-- Hero Section: Text and Video side by side on desktop -->
-          <div class="flex flex-col lg:grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-center min-h-[70vh]">
-            <!-- Left Side - Content -->
-            <div class="flex flex-col space-y-4 sm:space-y-5 lg:space-y-6 z-10 order-1 lg:order-1">
-              <!-- Main Headline -->
-              <h1 class="text-4xl sm:text-5xl md:text-6xl lg:text-6xl font-bold leading-tight tracking-tight text-brand-blue-dark dark:text-brand-cream">
-                Transform
-                <span class="block text-brand-blue-light dark:text-brand-cream">
-                  Prompts
-                </span>
-                into Professional Ad Videos
-              </h1>
-              
-              <!-- Subheadline -->
-              <p class="text-lg sm:text-xl md:text-xl text-brand-blue-dark/90 dark:text-secondary leading-relaxed max-w-2xl">
-                Create stunning, professional ad content in minutes with our AI-powered video generation platform. No editing skills required.
-              </p>
-            </div>
+        <div class="flex flex-col lg:grid lg:grid-cols-2 gap-8 lg:gap-16 py-12 md:py-20 items-start lg:items-center min-h-[80vh]">
+          <!-- Left Side - Content -->
+          <div class="flex flex-col space-y-6 z-10 order-1 w-full">
+            <!-- Main Headline -->
+            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight tracking-tight text-mendo-black dark:text-mendo-white">
+              <span class="block">Transform Prompts</span>
+              <span class="block">into Professional Ads</span>
+            </h1>
             
-            <!-- Video - Between text and buttons on mobile, right side next to text on desktop -->
-            <div class="relative order-2 lg:order-2 w-full lg:w-auto">
-              <div class="relative">
-              <!-- Main Showcase Card -->
-              <div class="relative bg-brand-cream dark:bg-brand-cream rounded-xl sm:rounded-2xl shadow-xl sm:shadow-2xl p-3 sm:p-4 lg:p-5 border border-brand-cream-300 dark:border-brand-cream-300">
-                <div class="aspect-video bg-brand-cream dark:bg-brand-cream rounded-xl sm:rounded-2xl overflow-hidden">
-                  <video 
-                    autoplay 
-                    loop 
-                    muted 
-                    playsinline
-                    class="w-full h-full object-contain"
-                  >
-                    <source src="/cameraguy.webm" type="video/webm">
-                    <source src="/cameraguy.MP4" type="video/mp4">
-                  </video>
-                </div>
-                <!-- Floating Stats Cards -->
-                <div class="absolute -bottom-2 -left-2 sm:-bottom-3 sm:-left-3 bg-white/90 dark:bg-white/90 backdrop-blur-sm rounded-lg sm:rounded-xl shadow-lg p-2 sm:p-3 border border-brand-cream-300 dark:border-brand-cream-300">
-                  <div class="flex items-center gap-1.5 sm:gap-2">
-                    <div class="w-7 h-7 sm:w-9 sm:h-9 bg-brand-blue-light/20 dark:bg-brand-blue-dark/30 rounded-lg flex items-center justify-center">
-                      <UIcon name="i-heroicons-check-circle" class="w-4 h-4 sm:w-5 sm:h-5 text-brand-blue-dark dark:text-brand-blue-light" />
-                    </div>
-                    <div>
-                      <p class="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500">Status</p>
-                      <p class="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-900">Completed</p>
-                    </div>
-                  </div>
-                </div>
-                <div class="absolute -top-2 -right-2 sm:-top-3 sm:-right-3 bg-white/90 dark:bg-white/90 backdrop-blur-sm rounded-lg sm:rounded-xl shadow-lg p-2 sm:p-3 border border-brand-cream-300 dark:border-brand-cream-300">
-                  <div class="text-center">
-                    <p class="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-gray-900">AI-Powered</p>
-                    <p class="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500">Technology</p>
-                  </div>
-                </div>
-              </div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- CTA Buttons and Trust Indicators - After video on mobile, below hero section on desktop -->
-          <div class="flex flex-col space-y-4 sm:space-y-5 lg:space-y-6 z-10 order-3 lg:order-3">
+            <!-- Subheadline -->
+            <p class="text-xl sm:text-2xl text-gray-600 dark:text-gray-300 leading-relaxed max-w-lg">
+              Create stunning, high-converting video content in minutes with our AI-powered platform. No editing skills required.
+            </p>
+            
             <!-- CTA Buttons -->
-            <div class="flex flex-col sm:flex-row gap-4 pt-2">
+            <div class="flex flex-col sm:flex-row gap-4 pt-4">
               <UButton
                 size="xl"
                 variant="solid"
-                class="bg-brand-blue-dark hover:bg-brand-blue-light text-white dark:bg-brand-blue-dark dark:hover:bg-brand-blue-light dark:text-[#FFDA9B] font-semibold px-8 py-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 text-base sm:text-lg"
+                class="bg-mendo-black text-mendo-white hover:bg-gray-800 dark:bg-mendo-cream dark:text-mendo-black dark:hover:bg-[#d9b592] font-semibold px-8 py-4 rounded-lg transition-all duration-300 text-lg"
                 @click="scrollToPrompt"
               >
                 Get Started Free
@@ -85,7 +31,7 @@
               <UButton
                 size="xl"
                 variant="outline"
-                class="border-2 border-brand-blue-dark text-brand-blue-dark dark:border-[#8FABD4] dark:text-[#8FABD4] hover:bg-brand-blue-light/10 dark:hover:bg-brand-blue-dark/20 font-semibold px-8 py-6 rounded-lg transition-all duration-300 text-base sm:text-lg"
+                class="border-2 border-mendo-black text-mendo-black hover:bg-gray-50 dark:border-gray-500 dark:text-gray-300 dark:hover:bg-white/5 font-semibold px-8 py-4 rounded-lg transition-all duration-300 text-lg"
                 @click="scrollToExamples"
               >
                 View Examples
@@ -93,18 +39,41 @@
             </div>
             
             <!-- Trust Indicators -->
-            <div class="flex flex-wrap items-center gap-6 pt-4 text-sm text-gray-600 dark:text-[#8FABD4]">
+            <div class="flex flex-wrap items-center gap-6 pt-4 text-sm font-medium text-gray-500 dark:text-gray-400">
               <div class="flex items-center gap-2">
-                <UIcon name="i-heroicons-check-circle" class="w-5 h-5 text-brand-blue-dark dark:text-[#FFDA9B]" />
+                <UIcon name="i-heroicons-check-circle" class="w-5 h-5 text-mendo-black dark:text-mendo-white" />
                 <span>No credit card required</span>
               </div>
               <div class="flex items-center gap-2">
-                <UIcon name="i-heroicons-clock" class="w-5 h-5 text-brand-blue-dark dark:text-[#FFDA9B]" />
-                <span>Fully Automated</span>
+                <UIcon name="i-heroicons-sparkles" class="w-5 h-5 text-mendo-black dark:text-mendo-white" />
+                <span>AI-Powered Magic</span>
               </div>
-              <div class="flex items-center gap-2">
-                <UIcon name="i-heroicons-shield-check" class="w-5 h-5 text-brand-blue-dark dark:text-[#FFDA9B]" />
-                <span>Professional quality</span>
+            </div>
+          </div>
+          
+          <!-- Right Side - Showcase Card -->
+          <div class="relative order-2 w-full">
+            <div class="bg-mendo-cream dark:bg-mendo-cream rounded-3xl p-3 sm:p-4 lg:p-6 shadow-2xl transform rotate-1 hover:rotate-0 transition-transform duration-500">
+              <div class="aspect-video bg-mendo-black rounded-2xl overflow-hidden relative border-4 border-mendo-black">
+                <video 
+                  autoplay 
+                  loop 
+                  muted 
+                  playsinline
+                  class="w-full h-full object-cover"
+                >
+                  <source src="/cameraguy.webm" type="video/webm">
+                  <source src="/cameraguy.MP4" type="video/mp4">
+                </video>
+              </div>
+              
+              <!-- Floating Badge -->
+              <div class="absolute bottom-4 right-4 bg-white text-mendo-black px-4 py-2 rounded-2xl shadow-lg flex items-center gap-2 border-2 border-mendo-black">
+                <div class="flex items-center gap-1">
+                  <div class="w-6 h-6 rounded-full bg-mendo-light-blue border border-mendo-black flex items-center justify-center text-[10px] font-bold">AI</div>
+                  <span class="text-xs">⚡</span>
+                </div>
+                <span class="text-xs font-semibold whitespace-nowrap">Generated in Seconds</span>
               </div>
             </div>
           </div>
@@ -112,174 +81,92 @@
       </UContainer>
     </div>
 
-    <!-- Quick Start Section - Modern Card Design -->
-    <div id="prompt-section" class="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-brand-blue-light/10 via-white to-brand-cream/20 dark:from-brand-blue-dark dark:via-brand-blue-dark/95 dark:to-brand-blue-dark">
+    <!-- Create Section -->
+    <div id="prompt-section" class="py-20 bg-mendo-light-blue dark:bg-black border-y border-gray-100 dark:border-gray-800">
       <UContainer class="max-w-4xl px-4 sm:px-6">
-        <div class="text-center mb-8 sm:mb-12">
-          <h2 class="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-bold mb-3 sm:mb-4 text-brand-blue-dark dark:text-[#FFDA9B]">
+        <div class="text-center mb-12">
+          <h2 class="text-4xl md:text-5xl font-bold mb-6 text-mendo-black dark:text-mendo-white">
             Create Your Video
           </h2>
-          <p class="text-lg sm:text-xl md:text-xl text-gray-700 dark:text-[#8FABD4] max-w-2xl mx-auto mb-6">
+          <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
             Just describe your product. We'll handle the rest.
           </p>
-          
-          <!-- Trust Indicators -->
-          <div class="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm">
-            <div class="flex items-center gap-2 text-brand-blue-dark/80 dark:text-[#8FABD4]">
-              <div class="w-5 h-5 rounded-full bg-brand-blue-light/30 dark:bg-[#FFDA9B]/20 flex items-center justify-center">
-                <UIcon name="i-heroicons-check" class="w-3 h-3 text-brand-blue-dark dark:text-[#FFDA9B]" />
-              </div>
-              <span>No video editing needed</span>
-            </div>
-            <div class="flex items-center gap-2 text-brand-blue-dark/80 dark:text-[#8FABD4]">
-              <div class="w-5 h-5 rounded-full bg-brand-blue-light/30 dark:bg-[#FFDA9B]/20 flex items-center justify-center">
-                <UIcon name="i-heroicons-clock" class="w-3 h-3 text-brand-blue-dark dark:text-[#FFDA9B]" />
-              </div>
-              <span>Ready in ~3 minutes</span>
-            </div>
-            <div class="flex items-center gap-2 text-brand-blue-dark/80 dark:text-[#8FABD4]">
-              <div class="w-5 h-5 rounded-full bg-brand-blue-light/30 dark:bg-[#FFDA9B]/20 flex items-center justify-center">
-                <UIcon name="i-heroicons-sparkles" class="w-3 h-3 text-brand-blue-dark dark:text-[#FFDA9B]" />
-              </div>
-              <span>Professional quality</span>
-            </div>
-          </div>
         </div>
-        <div class="bg-[#FFDA9B] dark:bg-brand-blue-dark/80 rounded-2xl shadow-xl border-2 border-brand-blue-dark/20 dark:border-[#FFDA9B]/30 p-6 sm:p-8 md:p-10">
+        
+        <div class="bg-white dark:bg-gray-900 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 p-8 sm:p-10">
           <UiPromptInput :loading="isLoading" @submit="handleSubmit" />
         </div>
       </UContainer>
     </div>
 
-    <!-- Example Prompts Section - Modern Grid Design -->
-    <div id="examples-section" class="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-white via-brand-cream/30 to-brand-blue-light/10 dark:from-brand-blue-dark/50 dark:via-brand-blue-dark dark:to-brand-blue-dark/90">
+    <!-- Examples Section -->
+    <div id="examples-section" class="py-20 bg-mendo-white dark:bg-black">
       <UContainer class="max-w-7xl px-4 sm:px-6">
-        <div class="text-center mb-8 sm:mb-12">
-          <h2 class="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-bold mb-3 sm:mb-4 text-brand-blue-dark dark:text-[#FFDA9B]">
+        <div class="text-center mb-16">
+          <h2 class="text-4xl md:text-5xl font-bold mb-6 text-mendo-black dark:text-mendo-white">
             Try These Examples
           </h2>
-          <p class="text-lg sm:text-xl md:text-xl text-gray-700 dark:text-[#8FABD4] max-w-2xl mx-auto">
-            Get inspired with these ready-to-use templates. Click any example to get started instantly.
+          <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+            Get inspired with these ready-to-use templates.
           </p>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6" ref="examplesGrid" v-auto-animate>
-          <UCard
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" ref="examplesGrid" v-auto-animate>
+          <div
             v-for="(example, index) in examplePrompts"
             :key="index"
-            class="cursor-pointer bg-white dark:bg-brand-blue-dark/60 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 border-2 border-brand-blue-light/30 dark:border-[#FFDA9B]/20 rounded-xl overflow-hidden group"
+            class="cursor-pointer group bg-mendo-light-grey dark:bg-gray-900 rounded-2xl p-6 hover:bg-white dark:hover:bg-gray-800 hover:shadow-xl transition-all duration-300 border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
             @click="useExample(example)"
-            role="button"
-            tabindex="0"
-            @keydown.enter="useExample(example)"
-            @keydown.space.prevent="useExample(example)"
           >
-            <template #header>
-              <div class="flex items-start gap-3">
-                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-brand-blue-light/20 dark:bg-[#FFDA9B]/20 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
-                  <span class="text-2xl sm:text-3xl">{{ example.icon }}</span>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <h3 class="font-bold text-base sm:text-lg text-brand-blue-dark dark:text-[#FFDA9B] mb-1">{{ example.title }}</h3>
-                  <div class="flex items-center gap-2 text-xs sm:text-sm text-brand-blue-dark/70 dark:text-[#8FABD4]">
-                    <span>{{ example.duration }}s</span>
-                    <span>•</span>
-                    <span>{{ example.aspectRatio }}</span>
-                    <span>•</span>
-                    <span>{{ example.style }}</span>
-                  </div>
-                </div>
+            <div class="flex items-start justify-between mb-4">
+              <div class="w-12 h-12 rounded-xl bg-mendo-white dark:bg-black flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform">
+                {{ example.icon }}
               </div>
-            </template>
-            <p class="text-gray-700 dark:text-[#8FABD4] mb-4 leading-relaxed text-sm sm:text-base">
+              <UIcon name="i-heroicons-arrow-up-right" class="w-5 h-5 text-gray-400 group-hover:text-mendo-black dark:group-hover:text-mendo-white transition-colors" />
+            </div>
+            
+            <h3 class="font-bold text-xl text-mendo-black dark:text-mendo-white mb-2">{{ example.title }}</h3>
+            <p class="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-3">
               {{ example.description }}
             </p>
-            <div class="pt-4 border-t border-brand-blue-light/30 dark:border-[#FFDA9B]/20">
-              <UButton
-                size="sm"
-                variant="solid"
-                class="w-full bg-brand-blue-dark hover:bg-brand-blue-light text-white dark:bg-brand-blue-dark dark:hover:bg-brand-blue-light dark:text-[#FFDA9B] font-semibold rounded-lg transition-all duration-300"
-              >
-                Use This Template
-                <UIcon name="i-heroicons-arrow-right" class="ml-2 w-4 h-4" />
-              </UButton>
+            
+            <div class="flex items-center gap-3 text-xs font-medium text-gray-500 dark:text-gray-500">
+              <span class="bg-white dark:bg-black px-2 py-1 rounded">{{ example.duration }}s</span>
+              <span class="bg-white dark:bg-black px-2 py-1 rounded">{{ example.aspectRatio }}</span>
+              <span class="bg-white dark:bg-black px-2 py-1 rounded">{{ example.style }}</span>
             </div>
-          </UCard>
+          </div>
         </div>
       </UContainer>
     </div>
 
-    <!-- Feature Cards Section - Modern Design -->
-    <div class="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-brand-cream/40 via-white to-brand-blue-light/10 dark:from-brand-blue-dark dark:via-brand-blue-dark/95 dark:to-brand-blue-dark" ref="featuresSection">
+    <!-- Features Section -->
+    <div class="py-20 bg-mendo-white dark:bg-mendo-black text-mendo-black dark:text-mendo-white transition-colors duration-300">
       <UContainer class="max-w-7xl px-4 sm:px-6">
-        <div class="text-center mb-8 sm:mb-12">
-          <h2 class="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-bold mb-3 sm:mb-4 text-brand-blue-dark dark:text-[#FFDA9B]">
+        <div class="text-center mb-16">
+          <h2 class="text-4xl md:text-5xl font-bold mb-6 text-mendo-black dark:text-mendo-white">
             Why Choose AdUbun?
           </h2>
-          <p class="text-lg sm:text-xl md:text-xl text-gray-700 dark:text-[#8FABD4] max-w-2xl mx-auto">
-            Everything you need to create professional videos at scale, powered by cutting-edge AI
+          <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+            Everything you need to create professional videos at scale.
           </p>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6" ref="featuresGrid" v-auto-animate>
-          <UCard class="text-center bg-white dark:bg-brand-blue-dark/60 border-2 border-brand-blue-light/30 dark:border-[#FFDA9B]/20 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] p-5 sm:p-6">
-            <template #header>
-              <div class="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-4 rounded-2xl bg-brand-blue-light/30 dark:bg-[#FFDA9B]/20 flex items-center justify-center">
-                <span class="text-3xl sm:text-4xl">⚡</span>
-              </div>
-              <h3 class="font-bold text-lg sm:text-xl text-brand-blue-dark dark:text-[#FFDA9B] mb-2">Fast Generation</h3>
-            </template>
-            <p class="text-gray-700 dark:text-[#8FABD4] leading-relaxed text-sm sm:text-base">
-              Generate professional ad videos with fully automated AI-powered pipeline
-            </p>
-          </UCard>
-
-          <UCard class="text-center bg-white dark:bg-brand-blue-dark/60 border-2 border-brand-blue-light/30 dark:border-[#FFDA9B]/20 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] p-5 sm:p-6">
-            <template #header>
-              <div class="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-4 rounded-2xl bg-brand-blue-light/30 dark:bg-[#FFDA9B]/20 flex items-center justify-center">
-                <span class="text-3xl sm:text-4xl">💰</span>
-              </div>
-              <h3 class="font-bold text-lg sm:text-xl text-brand-blue-dark dark:text-[#FFDA9B] mb-2">Cost Effective</h3>
-            </template>
-            <p class="text-gray-700 dark:text-[#8FABD4] leading-relaxed text-sm sm:text-base">
-              Less than $2 per minute of video content. No hidden fees, transparent pricing
-            </p>
-          </UCard>
-
-          <UCard class="text-center bg-white dark:bg-brand-blue-dark/60 border-2 border-brand-blue-light/30 dark:border-[#FFDA9B]/20 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] p-5 sm:p-6">
-            <template #header>
-              <div class="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-4 rounded-2xl bg-brand-blue-light/30 dark:bg-[#FFDA9B]/20 flex items-center justify-center">
-                <span class="text-3xl sm:text-4xl">🤖</span>
-              </div>
-              <h3 class="font-bold text-lg sm:text-xl text-brand-blue-dark dark:text-[#FFDA9B] mb-2">AI-Powered</h3>
-            </template>
-            <p class="text-gray-700 dark:text-[#8FABD4] leading-relaxed text-sm sm:text-base">
-              Leveraging cutting-edge AI models including GPT-4, Replicate, and ElevenLabs
-            </p>
-          </UCard>
-        </div>
-      </UContainer>
-    </div>
-
-    <!-- Stats Section - Modern Design -->
-    <div class="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-brand-blue-dark via-brand-blue-dark to-brand-blue-dark/90 dark:from-brand-blue-dark dark:via-brand-blue-dark dark:to-brand-blue-dark/90" ref="statsSection">
-      <UContainer class="max-w-7xl px-4 sm:px-6">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
-          <div class="flex flex-col justify-center text-center p-5 sm:p-6 bg-white/10 dark:bg-[#FFDA9B]/10 backdrop-blur-sm rounded-2xl shadow-lg border-2 border-white/20 dark:border-[#FFDA9B]/20">
-            <div class="text-4xl sm:text-5xl md:text-6xl font-bold text-white dark:text-[#FFDA9B] mb-2 sm:mb-3" ref="stat1">
-              AI-Powered
-            </div>
-            <div class="text-white/90 dark:text-[#8FABD4] text-sm sm:text-base font-medium">Fully Automated</div>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-8">
+          <div class="bg-mendo-light-grey dark:bg-white/5 rounded-2xl p-8 border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+            <div class="text-4xl mb-4">⚡</div>
+            <h3 class="text-xl font-bold mb-2 text-mendo-black dark:text-mendo-cream">Fast Generation</h3>
+            <p class="text-gray-600 dark:text-gray-400">Generate professional ad videos with fully automated AI-powered pipeline.</p>
           </div>
-          <div class="flex flex-col justify-center text-center p-5 sm:p-6 bg-white/10 dark:bg-[#FFDA9B]/10 backdrop-blur-sm rounded-2xl shadow-lg border-2 border-white/20 dark:border-[#FFDA9B]/20">
-            <div class="text-4xl sm:text-5xl md:text-6xl font-bold text-white dark:text-[#FFDA9B] mb-2 sm:mb-3" ref="stat2">
-              $2/min
-            </div>
-            <div class="text-white/90 dark:text-[#8FABD4] text-sm sm:text-base font-medium">Cost Per Minute</div>
+          <div class="bg-mendo-light-grey dark:bg-white/5 rounded-2xl p-8 border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+            <div class="text-4xl mb-4">💰</div>
+            <h3 class="text-xl font-bold mb-2 text-mendo-black dark:text-mendo-cream">Cost Effective</h3>
+            <p class="text-gray-600 dark:text-gray-400">Less than $2 per minute of video content. No hidden fees.</p>
           </div>
-          <div class="flex flex-col justify-center text-center p-5 sm:p-6 bg-white/10 dark:bg-[#FFDA9B]/10 backdrop-blur-sm rounded-2xl shadow-lg border-2 border-white/20 dark:border-[#FFDA9B]/20">
-            <div class="text-4xl sm:text-5xl md:text-6xl font-bold text-white dark:text-[#FFDA9B] mb-2 sm:mb-3" ref="stat3">
-              100%
-            </div>
-            <div class="text-white/90 dark:text-[#8FABD4] text-sm sm:text-base font-medium">AI Generated</div>
+          <div class="bg-mendo-light-grey dark:bg-white/5 rounded-2xl p-8 border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+            <div class="text-4xl mb-4">🤖</div>
+            <h3 class="text-xl font-bold mb-2 text-mendo-black dark:text-mendo-cream">AI-Powered</h3>
+            <p class="text-gray-600 dark:text-gray-400">Leveraging cutting-edge AI models including GPT-4, Replicate, and ElevenLabs.</p>
           </div>
         </div>
       </UContainer>
