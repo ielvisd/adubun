@@ -55,6 +55,51 @@ export interface Storyboard {
     subjectReference?: string // Global default subject reference image path/URL
     resolution?: '720p' | '1080p' // Output resolution
   }
+  promptJourney?: {
+    userInput: {
+      prompt: string
+      adType?: string
+      mood?: string
+      aspectRatio: string
+      model?: string
+      productImages?: string[]
+      subjectReference?: string
+    }
+    storyGeneration?: {
+      systemPrompt: string
+      userPrompt: string
+      output: {
+        hook: string
+        bodyOne: string
+        bodyTwo: string
+        callToAction: string
+        description: string
+      }
+    }
+    storyboardGeneration?: {
+      systemPrompt: string
+      userPrompt: string
+      output: Segment[]
+    }
+    frameGeneration?: {
+      frames: Array<{
+        label: string
+        type: string
+        prompt: string
+        imageUrl?: string
+      }>
+    }
+    videoGeneration?: {
+      segments: Array<{
+        type: string
+        prompt: string
+        duration?: number
+        firstFrame?: string
+        lastFrame?: string
+        subjectReference?: string
+      }>
+    }
+  }
   createdAt: number
   updatedAt?: number
 }

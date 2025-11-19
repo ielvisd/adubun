@@ -300,6 +300,33 @@ Stay true to the story content. Focus on creating emotionally compelling visuals
         model: model || 'google/veo-3-fast',
         adType: selectedAdType,
       },
+      promptJourney: {
+        userInput: {
+          prompt,
+          adType: selectedAdType,
+          mood: selectedMood,
+          aspectRatio,
+          model: model || 'google/veo-3-fast',
+          productImages: [],
+          subjectReference: undefined,
+        },
+        storyGeneration: story ? {
+          systemPrompt: 'Story generation handled by MCP server',
+          userPrompt: prompt,
+          output: {
+            hook: story.hook,
+            bodyOne: story.bodyOne,
+            bodyTwo: story.bodyTwo,
+            callToAction: story.callToAction,
+            description: story.description,
+          },
+        } : undefined,
+        storyboardGeneration: {
+          systemPrompt,
+          userPrompt,
+          output: segments,
+        },
+      },
       createdAt: Date.now(),
     }
 
