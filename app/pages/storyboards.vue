@@ -753,6 +753,9 @@ const imageLoadError = ref<Record<string, boolean>>({})
 // View mode toggle: 'user' (simplified) or 'admin' (full control)
 const viewMode = ref<'user' | 'admin'>('user')
 
+// Available styles for storyboard regeneration (legacy - not currently used for regeneration)
+const availableStyles = ref<string[]>(['Cinematic', 'Professional', 'Playful', 'Dramatic', 'Minimalist'])
+
 // Expanded segments for accordion behavior
 const expandedSegments = ref<number[]>([])
 
@@ -1623,6 +1626,25 @@ const handleModelChange = async (newModel: string) => {
   toast.add({
     title: 'Model Updated',
     description: `Video generation will use ${newModel === 'google/veo-3.1' ? 'Veo 3.1' : 'Veo 3 Fast'}`,
+    color: 'blue',
+  })
+}
+
+const regenerateStoryboard = async (newStyle: string) => {
+  if (!selectedStoryboard.value) return
+  
+  if (newStyle === currentStyle.value) return
+  
+  // Update current style
+  currentStyle.value = newStyle
+  
+  // Note: Style-based storyboard regeneration is not currently implemented
+  // This function is kept for UI compatibility
+  // In the future, this could trigger a regenerate with different style parameters
+  
+  toast.add({
+    title: 'Style Selection',
+    description: `Style changed to ${newStyle}. Regeneration not yet implemented.`,
     color: 'blue',
   })
 }
