@@ -1033,6 +1033,30 @@ AD TYPE: BRAND STORY
 - Connect the brand values to the viewer's identity
 `
           break
+        case 'luxury':
+          adTypeInstruction = `
+AD TYPE: LUXURY/CINEMATIC AD STRATEGY
+- CRITICAL: NO HUMANS in any frame - pure product and nature cinematography
+- Epic, cinematic camera work: aerial shots, diving cameras, sweeping crane movements
+- Product as the sole protagonist in a grand natural narrative
+- Dramatic natural environments: waterfalls, mountains, oceans, forests, dramatic weather
+- Atmospheric effects: mist, smoke in water, light rays, water splashes, slow motion
+- Product integration with raw materials: wood grains, water droplets, stone textures, botanical elements
+- Camera movements:
+  * Aerial establishing shots (bird's eye view diving down)
+  * Underwater cinematography (product submerged, bubbles, light refraction)
+  * Slow dolly pushes into product details
+  * Sweeping crane shots around product
+  * Smooth transitions between elements and product
+- Lighting: Dramatic, moody, often with single light source, high contrast, natural light (sun rays, golden hour)
+- Color palette: Monochromatic or limited (blues, blacks, deep greens, golds, earth tones)
+- Visual storytelling structure: Nature → Essence → Ingredients → Product
+- Emphasize: Scale, grandeur, premium quality, natural power, transformation
+- Slow motion sequences to emphasize beauty and drama (water drops, smoke trails, falling petals)
+- Each shot should feel like high-end luxury commercial cinematography (Dior, Chanel, Rolex level)
+- Product reveal should be dramatic and hero-shot worthy
+`
+          break
       }
     }
 
@@ -1657,6 +1681,22 @@ AD TYPE: BRAND STORY AD NARRATIVE
 - Body: How brand lives its mission
 - CTA: Invite viewers to be part of the brand's journey
 - Cinematic, aspirational, and value-driven narrative`
+            break
+          case 'luxury':
+            adTypeGuidance = `
+AD TYPE: LUXURY/CINEMATIC AD NARRATIVE
+- Epic, cinematic storytelling connecting product to nature and elements
+- CRITICAL: NO HUMANS in this narrative - product is the sole protagonist in a grand, dramatic story
+- Story structure: Epic environment → Product integration → Ingredient reveal → Product hero shot
+- Hook: Establish epic natural environment (waterfalls, mountains, oceans, dramatic landscapes)
+- Body 1: Product integrated with natural elements (water, mist, smoke, atmospheric effects)
+- Body 2: Show raw materials/ingredients that inspired the product (wood, botanicals, minerals)
+- CTA: Product reveal as the hero, brand name overlay, powerful tagline
+- Tone: Aspirational, powerful, premium, awe-inspiring
+- Focus on transformation, purity, and natural power
+- The product embodies the essence of natural elements
+- Visual narrative: Nature → Essence → Ingredients → Product
+- No people, no hands - pure product and nature cinematography`
             break
         }
       }

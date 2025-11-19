@@ -299,6 +299,7 @@ onMounted(() => {
 const adTypeOptions = [
   { label: 'Lifestyle Ad', value: 'lifestyle', icon: '🌟', placeholder: 'Describe your product in real-life situations, focusing on benefits and usage...', description: 'Shows the product in real-life situations' },
   { label: 'Product Ad', value: 'product', icon: '📦', placeholder: 'Describe your product\'s key features, focusing on close-ups and details...', description: 'Super focused on the product in all frames' },
+  { label: 'Luxury Ad', value: 'luxury', icon: '💎', placeholder: 'Describe your product in an epic, cinematic way with dramatic natural elements (waterfalls, smoke, water, wood)...', description: 'Cinematic product storytelling with nature' },
   { label: 'Unboxing Ad', value: 'unboxing', icon: '🎁', placeholder: 'Describe the unboxing experience, from package to reveal...', description: 'Shows the product unboxing experience' },
   { label: 'Testimonial Ad', value: 'testimonial', icon: '💬', placeholder: 'Paste a customer review or describe the user experience you want to highlight...', description: 'Real customers sharing experiences' },
   { label: 'Tutorial Ad', value: 'tutorial', icon: '📚', placeholder: 'List the steps to use your product (e.g., Step 1: ..., Step 2: ...)', description: 'Step-by-step guide on how to use' },
