@@ -45,6 +45,14 @@ data/videos/
 *.3gp
 *.ogv
 
+# Exception: Allow video files in public folder
+!public/**/*.mp4
+!public/**/*.MP4
+!public/**/*.mov
+!public/**/*.MOV
+!public/**/*.webm
+!public/**/*.WEBM
+
 # Playwright MCP screenshots
 .playwright-mcp/
 
