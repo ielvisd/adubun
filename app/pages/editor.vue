@@ -211,7 +211,13 @@ const getVideoDurationFromUrl = (url: string): Promise<number> => {
 
 const handleVideoUpload = async (files: File[]) => {
   for (const file of files) {
-    if (!file.type.startsWith('video/')) {
+    // Check MIME type first, then fallback to file extension
+    // (videos from FFmpeg/AI services may not have proper MIME types)
+    const hasValidMimeType = file.type.startsWith('video/')
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    const hasValidExtension = ext && ['mp4', 'webm', 'mov', 'avi', 'mkv', 'flv'].includes(ext)
+    
+    if (!hasValidMimeType && !hasValidExtension) {
       toast.add({
         title: 'Invalid file',
         description: `${file.name} is not a video file`,

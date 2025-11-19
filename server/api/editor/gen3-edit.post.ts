@@ -88,8 +88,33 @@ export default defineEventHandler(async (event) => {
     
     await new Promise<void>((resolve, reject) => {
       ffmpeg(localVideoPath)
-        .setStartTime(startOffset)
+        // Use input seeking for frame-accurate cuts
+        .inputOptions([
+          '-ss', startOffset.toString(),
+          '-accurate_seek'  // Frame-accurate seeking to prevent black frames
+        ])
         .setDuration(clipDuration)
+        // Black frame prevention: force keyframes, consistent pixel format, proper encoding
+        .outputOptions([
+          // Video encoding
+          '-c:v libx264',
+          '-preset fast',
+          '-crf 18',                    // High quality to prevent artifacts
+          '-pix_fmt yuv420p',           // Consistent pixel format (critical for browser playback)
+          '-g 30',                      // GOP size - keyframe every 30 frames (1s at 30fps)
+          '-keyint_min 30',             // Minimum GOP size
+          '-sc_threshold 0',            // Disable scene change detection to maintain keyframe interval
+          '-force_key_frames expr:gte(t,0)', // Force keyframe at start (t=0) to prevent black frames
+          
+          // Audio encoding (preserve audio from source)
+          '-c:a aac',                   // AAC audio codec
+          '-b:a 192k',                  // Audio bitrate
+          '-ar 48000',                  // Audio sample rate
+          
+          // Optimization
+          '-movflags +faststart',       // Enable fast start for web playback
+          '-avoid_negative_ts make_zero' // Fix potential timestamp issues
+        ])
         .output(trimmedPath)
         .on('end', () => {
           console.log('[AI Edit] Trimming complete')
@@ -103,6 +128,43 @@ export default defineEventHandler(async (event) => {
     })
     
     console.log(`[AI Edit] Trimmed video to ${clipDuration}s: ${trimmedPath}`)
+    
+    // Extract audio from trimmed video (to stitch back later)
+    const audioPath = path.join(
+      path.dirname(trimmedPath),
+      `audio-${nanoid()}.aac`
+    )
+    
+    console.log('[AI Edit] Extracting audio from trimmed video...')
+    let hasAudio = false
+    
+    try {
+      await new Promise<void>((resolve, reject) => {
+        ffmpeg(trimmedPath)
+          .outputOptions([
+            '-vn',              // No video
+            '-acodec', 'aac',   // AAC audio codec
+            '-b:a', '192k',     // Audio bitrate
+            '-ar', '48000'      // Audio sample rate
+          ])
+          .output(audioPath)
+          .on('end', () => {
+            console.log('[AI Edit] Audio extracted successfully')
+            hasAudio = true
+            resolve()
+          })
+          .on('error', (err) => {
+            // If extraction fails, video likely has no audio - continue without it
+            console.log('[AI Edit] No audio track found in source video')
+            hasAudio = false
+            resolve() // Don't reject - continue without audio
+          })
+          .run()
+      })
+    } catch (err) {
+      console.log('[AI Edit] Could not extract audio, continuing without it')
+      hasAudio = false
+    }
 
     // Upload to Replicate
     console.log('[AI Edit] Uploading to Replicate...')
@@ -242,6 +304,52 @@ export default defineEventHandler(async (event) => {
       })
     })
     
+    // Stitch audio back into RunwayML output
+    let finalVideoPath = editedLocalPath
+    
+    if (hasAudio) {
+      console.log('[AI Edit] Stitching audio back into edited video...')
+      
+      const videoWithAudioPath = path.join(
+        path.dirname(editedLocalPath),
+        `final-${nanoid()}.mp4`
+      )
+      
+      try {
+        await new Promise<void>((resolve, reject) => {
+          ffmpeg(editedLocalPath)
+            .input(audioPath)
+            .outputOptions([
+              '-c:v copy',           // Copy video stream (no re-encoding)
+              '-c:a aac',            // Re-encode audio to AAC
+              '-b:a 192k',           // Audio bitrate
+              '-map 0:v:0',          // Map video from first input
+              '-map 1:a:0',          // Map audio from second input
+              '-shortest',           // Match shortest stream duration
+              '-movflags +faststart' // Fast start for web
+            ])
+            .output(videoWithAudioPath)
+            .on('end', () => {
+              console.log('[AI Edit] Audio stitched successfully')
+              finalVideoPath = videoWithAudioPath
+              resolve()
+            })
+            .on('error', (err) => {
+              console.error('[AI Edit] Audio stitching error:', err)
+              console.log('[AI Edit] Continuing with video-only output')
+              resolve() // Don't fail the whole operation
+            })
+            .run()
+        })
+        
+        // Clean up audio file
+        await fs.unlink(audioPath).catch(() => {})
+      } catch (err) {
+        console.error('[AI Edit] Failed to stitch audio:', err)
+        console.log('[AI Edit] Returning video without audio')
+      }
+    }
+    
     // Track cost (Gen-4 Aleph)
     await trackCost({
       operation: 'aleph-video-edit',
@@ -261,9 +369,14 @@ export default defineEventHandler(async (event) => {
     await fs.unlink(localVideoPath).catch(() => {})
     await fs.unlink(trimmedPath).catch(() => {})
     
-    // Return video
-    const videoBuffer = await fs.readFile(editedLocalPath)
-    await fs.unlink(editedLocalPath).catch(() => {})
+    // Return video (with audio)
+    const videoBuffer = await fs.readFile(finalVideoPath)
+    await fs.unlink(finalVideoPath).catch(() => {})
+    
+    // Clean up intermediate files if audio stitching created them
+    if (finalVideoPath !== editedLocalPath) {
+      await fs.unlink(editedLocalPath).catch(() => {})
+    }
 
     setHeader(event, 'Content-Type', 'video/mp4')
     setHeader(event, 'X-Video-Duration', editedDuration.toString())
