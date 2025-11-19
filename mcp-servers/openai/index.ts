@@ -194,6 +194,14 @@ class OpenAIMCPServer {
                 items: { type: 'string' },
                 description: 'Optional array of reference image URLs/paths (firstFrameImage, subjectReference, image, referenceImages)',
               },
+              adType: {
+                type: 'string',
+                description: 'Type of ad (lifestyle, product, unboxing, testimonial, tutorial, brand_story)',
+              },
+              context: {
+                type: 'object',
+                description: 'Additional context for generation',
+              },
             },
             required: ['parsed', 'duration', 'style'],
           },
@@ -302,6 +310,10 @@ class OpenAIMCPServer {
                 type: 'string',
                 description: 'The emotional tone/mood for the story (e.g., professional, playful, dramatic)',
               },
+              adType: {
+                type: 'string',
+                description: 'Type of ad (lifestyle, product, unboxing, testimonial, tutorial, brand_story)',
+              },
             },
             required: ['prompt', 'imageUrls'],
           },
@@ -316,41 +328,49 @@ class OpenAIMCPServer {
         switch (name) {
           case 'chat_completion':
             return await this.chatCompletion(
-              args.model || 'gpt-4o',
-              args.messages,
-              args.response_format
+              (args?.model as string) || 'gpt-4o',
+              args?.messages as any,
+              args?.response_format as any
             )
           
           case 'parse_prompt':
-            return await this.parsePrompt(args.prompt)
+            return await this.parsePrompt(args?.prompt as string)
           
           case 'plan_storyboard':
-            return await this.planStoryboard(args.parsed, args.duration, args.style, args.referenceImages || [])
+            return await this.planStoryboard(
+              args?.parsed, 
+              args?.duration as number, 
+              args?.style as string, 
+              (args?.referenceImages as string[]) || [], 
+              args?.adType as string | undefined, 
+              args?.context
+            )
           
           case 'check_storyboard_status':
-            return await this.checkStoryboardStatus(args.jobId)
+            return await this.checkStoryboardStatus(args?.jobId as string)
           
           case 'text_to_speech':
             return await this.textToSpeech(
-              args.text,
-              args.voice || 'alloy',
-              args.model || 'tts-1'
+              args?.text as string,
+              (args?.voice as string) || 'alloy',
+              (args?.model as string) || 'tts-1'
             )
           
           case 'analyze_frames':
-            return await this.analyzeFrames(args.frameUrls)
+            return await this.analyzeFrames(args?.frameUrls as string[])
           
           case 'analyze_reference_images':
-            return await this.analyzeReferenceImages(args.imageUrls)
+            return await this.analyzeReferenceImages(args?.imageUrls as string[])
           
           case 'generate_ad_stories':
             return await this.generateAdStories(
-              args.prompt,
-              args.imageUrls || [],
-              args.duration || 24,
-              args.clipCount || 4,
-              args.clipDuration || 6,
-              args.mood
+              args?.prompt as string,
+              (args?.imageUrls as string[]) || [],
+              (args?.duration as number) || 24,
+              (args?.clipCount as number) || 4,
+              (args?.clipDuration as number) || 6,
+              args?.mood as string | undefined,
+              args?.adType as string | undefined
             )
           
           default:
@@ -398,6 +418,14 @@ class OpenAIMCPServer {
     }
 
     const systemPrompt = `You are an expert at extracting structured ad video requirements from user prompts. 
+    
+    AD TYPES (for classification):
+    - Lifestyle: Product in real-life use
+    - Product: Direct product focus, macro shots
+    - Unboxing: Packaging, opening, reveal experience
+    - Testimonial: User review, authentic, face-to-camera
+    - Tutorial: Step-by-step guide, instructional
+    - Brand Story: Narrative, values, cinematic
 
 You must return a valid JSON object with exactly these fields:
 - product: string (the product or service being advertised)
@@ -406,6 +434,7 @@ You must return a valid JSON object with exactly these fields:
 - keyMessages: array of strings (main messages to convey, at least 2-3 items)
 - visualStyle: string (the visual aesthetic or style)
 - callToAction: string (what action should viewers take)
+- adType: string (inferred ad type if not explicitly stated, one of: lifestyle, product, unboxing, testimonial, tutorial, brand_story)
 
 Return ONLY valid JSON, no other text. Example format:
 {
@@ -414,7 +443,8 @@ Return ONLY valid JSON, no other text. Example format:
   "mood": "Elegant and sophisticated",
   "keyMessages": ["Premium craftsmanship", "Timeless design", "Status symbol"],
   "visualStyle": "Cinematic with gold accents",
-  "callToAction": "Visit our website to explore the collection"
+  "callToAction": "Visit our website to explore the collection",
+  "adType": "product"
 }`
 
     try {
@@ -822,7 +852,7 @@ Be extremely specific about product placement. For example:
     }
   }
 
-  private async planStoryboard(parsed: any, duration: number, style: string, referenceImages: string[] = []) {
+  private async planStoryboard(parsed: any, duration: number, style: string, referenceImages: string[] = [], adType?: string, context?: any) {
     // Generate job ID and return immediately
     const jobId = nanoid()
     
@@ -838,7 +868,7 @@ Be extremely specific about product placement. For example:
     })
     
     // Start async processing (don't await)
-    this.processStoryboardAsync(jobId, parsed, duration, style, referenceImages).catch((error) => {
+    this.processStoryboardAsync(jobId, parsed, duration, style, referenceImages, adType, context).catch((error) => {
       console.error(`[OpenAI MCP] Storyboard job ${jobId} failed:`, error)
       const failedJob: StoryboardJob = {
         status: 'failed',
@@ -865,7 +895,7 @@ Be extremely specific about product placement. For example:
     }
   }
 
-  private async processStoryboardAsync(jobId: string, parsed: any, duration: number, style: string, referenceImages: string[] = []) {
+  private async processStoryboardAsync(jobId: string, parsed: any, duration: number, style: string, referenceImages: string[] = [], adType?: string, context?: any) {
     // Update job status to processing (both in memory and on disk)
     const processingJob: StoryboardJob = {
       status: 'processing',
@@ -938,6 +968,74 @@ Be extremely specific about product placement. For example:
     // Extract sceneDescription if available
     const sceneDescription = imageAnalysis?.sceneDescription || ''
     
+    // Build ad-type specific instructions
+    let adTypeInstruction = ''
+    if (adType) {
+      switch (adType) {
+        case 'lifestyle':
+          adTypeInstruction = `
+AD TYPE: LIFESTYLE AD
+- Focus on the product being used in real-life situations
+- Emphasize social context, environment, and benefits
+- Show human interaction and emotional connection with the product
+- Visuals should feel authentic and aspirational
+`
+          break
+        case 'product':
+          adTypeInstruction = `
+AD TYPE: PRODUCT FOCUS AD
+- CRITICAL: The product must be the main focus in 100% of frames
+- Use macro shots, close-ups, and slow pans to show details
+- Minimal distractions in the background (bokeh, clean studio, or simple setting)
+- Highlight craftsmanship, materials, and design features
+- Lighting should be studio-quality to showcase the product best
+`
+          break
+        case 'unboxing':
+          adTypeInstruction = `
+AD TYPE: UNBOXING EXPERIENCE
+- Scene Structure:
+  1. Hook: Sealed box/packaging on a surface or being held
+  2. Body 1: Hands opening the box/packaging (anticipation)
+  3. Body 2: The reveal/first look of the product inside
+  4. CTA: The product fully removed and displayed with accessories
+- Focus on the tactile experience and packaging details
+`
+          break
+        case 'testimonial':
+          adTypeInstruction = `
+AD TYPE: TESTIMONIAL / USER REVIEW
+- Visual style: "Selfie-style" or authentic interview camera angles
+- Focus on facial expressions and genuine emotion
+- Show the person holding or using the product while talking
+- Alternating between "talking head" shots and B-roll of product usage
+- The vibe should be trustworthy and personal
+`
+          break
+        case 'tutorial':
+          adTypeInstruction = `
+AD TYPE: TUTORIAL / HOW-TO
+- Scene Structure:
+  1. Hook: The problem or "before" state
+  2. Body 1: Step 1 of usage (clear action)
+  3. Body 2: Step 2/3 of usage (clear action)
+  4. CTA: The result or "after" state
+- Visuals must be instructional and clear
+- Focus on hands performing actions with the product
+`
+          break
+        case 'brand_story':
+          adTypeInstruction = `
+AD TYPE: BRAND STORY
+- Cinematic, narrative-driven approach
+- Focus on values, origin, and atmosphere rather than direct selling
+- Use wider shots, atmospheric lighting, and emotional storytelling
+- Connect the brand values to the viewer's identity
+`
+          break
+      }
+    }
+
     // Build the system prompt with reference image requirements at the top if available
     const referenceImageSection = sceneDescription ? `\n\n═══════════════════════════════════════════════════════════════
 🚨 CRITICAL REFERENCE IMAGE REQUIREMENT - READ THIS FIRST 🚨
@@ -963,9 +1061,15 @@ Then continue with natural action/movement from that starting point.
 DO NOT create a different scene. The reference image is the STARTING POINT, not inspiration.
 ═══════════════════════════════════════════════════════════════\n\n` : ''
     
-    const systemPrompt = `${referenceImageSection}Create a video storyboard with 3-5 segments. 
+    // Use context.systemPrompt if available (passed from generate-storyboards), otherwise build it
+    let systemPrompt = context?.systemPrompt
+    
+    if (!systemPrompt) {
+      systemPrompt = `${referenceImageSection}Create a video storyboard with 3-5 segments. 
+    
+    ${adTypeInstruction}
 
-🚨 REQUIRED SEGMENT STRUCTURE:
+    🚨 REQUIRED SEGMENT STRUCTURE:
 You MUST create at least 3 segments with the following structure:
 - 1 hook segment (required) - Establishes the scene, character, or action
 - 1-3 body segments (at least 1 required) - Continues the story from the hook
@@ -1105,6 +1209,7 @@ FACE QUALITY AND PEOPLE COUNT REQUIREMENTS:
 Return JSON with a "segments" array. Each segment must include:
 - visualPrompt (string): The primary/default visual prompt${imageEnhancements ? ' (enhanced with reference image details)' : ''} that creates narrative flow
 - visualPromptAlternatives (array of strings): 3-5 alternative visual prompts for user selection${imageEnhancements ? ' (each enhanced with reference image details)' : ''} that maintain story continuity`
+    }
 
     // Build user message with sceneDescription emphasis if available
     const userMessage = sceneDescription 
@@ -1474,18 +1579,93 @@ PRIMARY TASK: Select the frame where any product (can, bottle, package, label, e
     duration: number = 24,
     clipCount: number = 4,
     clipDuration: number = 6,
-    mood?: string
+    mood?: string,
+    adType?: string
   ) {
     try {
       if (!process.env.OPENAI_API_KEY) {
         throw new Error('OPENAI_API_KEY environment variable is not set')
       }
 
+      // Build ad-type-specific narrative guidance
+      let adTypeGuidance = ''
+      if (adType) {
+        switch (adType) {
+          case 'lifestyle':
+            adTypeGuidance = `
+AD TYPE: LIFESTYLE AD NARRATIVE
+- Story should focus on people using the product in real-life situations
+- Emphasize social benefits, relationships, and everyday experiences
+- Show how the product fits into and enhances the user's lifestyle
+- Focus on emotional benefits and aspirational living
+- Hook: Relatable everyday situation or desire
+- Body: Product enhancing real-life moments
+- CTA: How product transforms lifestyle`
+            break
+          case 'product':
+            adTypeGuidance = `
+AD TYPE: PRODUCT-FOCUSED AD NARRATIVE
+- Story should center entirely on the product itself
+- CRITICAL: NO HUMANS allowed in this ad type - pure product focus only
+- Emphasize product features, craftsmanship, materials, and quality
+- The product is the only subject - no people, no hands, no human interaction
+- Focus on what makes the product special, unique, and desirable
+- Hook: Product reveal or standout feature showcase
+- Body: Showcase key features, details, textures, and craftsmanship
+- CTA: Product benefits, quality, and call to purchase
+- Visual focus: Close-ups, macro shots, 360° views, material details`
+            break
+          case 'unboxing':
+            adTypeGuidance = `
+AD TYPE: UNBOXING AD NARRATIVE
+- Story MUST follow a reveal structure: anticipation → opening → reveal → satisfaction
+- Hook: Show sealed packaging, build anticipation
+- Body 1: Opening the package, hands interacting with box
+- Body 2: Reveal the product inside, first look reaction
+- CTA: Product displayed with all accessories, satisfaction moment
+- Focus on the tactile, sensory experience of unboxing`
+            break
+          case 'testimonial':
+            adTypeGuidance = `
+AD TYPE: TESTIMONIAL AD NARRATIVE
+- Story should be from the user's authentic point of view
+- Emphasize real problems solved and genuine experiences
+- Structure: Problem → Discovery → Solution → Recommendation
+- Hook: User shares their problem/need
+- Body: How they found and tried the product
+- CTA: Their recommendation and transformation
+- Tone should feel personal, authentic, and trustworthy`
+            break
+          case 'tutorial':
+            adTypeGuidance = `
+AD TYPE: TUTORIAL/HOW-TO AD NARRATIVE
+- Story MUST follow an instructional structure: problem → step 1 → step 2 → result
+- Hook: Present the problem or challenge clearly
+- Body 1: First step of using the product (specific action)
+- Body 2: Second step or continuation (specific action)
+- CTA: Show the final result/benefit achieved
+- Focus on clarity, actionable steps, and practical value
+- Each scene should teach something specific`
+            break
+          case 'brand_story':
+            adTypeGuidance = `
+AD TYPE: BRAND STORY AD NARRATIVE
+- Story should focus on brand values, mission, and origin
+- Emphasize the "why" behind the brand, not just what it sells
+- Create an emotional connection to the brand's purpose
+- Hook: Brand's origin story or core value
+- Body: How brand lives its mission
+- CTA: Invite viewers to be part of the brand's journey
+- Cinematic, aspirational, and value-driven narrative`
+            break
+        }
+      }
+
       const systemPrompt = `You are an expert at creating emotionally captivating ad stories for short-form video content. Your goal is to create narratives that deeply resonate with viewers through emotional storytelling techniques.
 
 Generate exactly 1 cohesive story option for a ${duration}-second ad. The story will be broken down into 4 scenes: Hook, Body 1, Body 2, and CTA.
 
-${mood ? `IMPORTANT: The story must have a ${mood} tone throughout all scenes. Every element (visuals, pacing, emotion) should reflect this ${mood} mood.` : ''}
+${adTypeGuidance ? `${adTypeGuidance}\n` : ''}
 
 The story must:
 - Be a cohesive, complete narrative that flows from Hook → Body 1 → Body 2 → CTA
@@ -1495,9 +1675,8 @@ The story must:
 - Include relatable moments that viewers can connect with on a personal level
 - Be related to the initial prompt
 - Be suitable for a ${duration}-second ad format
-- Have a consistent ${mood || 'appropriate'} tone across all scenes
 - Include a full paragraph description that captures the entire story arc and emotional journey
-- Include a single emoji that best represents the story's theme, mood, and content
+- Include a single emoji that best represents the story's theme and content
 
 EMOTIONAL STORYTELLING REQUIREMENTS:
 - Hook: Create an emotional opening that immediately captures attention and establishes an emotional connection (curiosity, surprise, relatability, aspiration)
@@ -1527,7 +1706,7 @@ Return ONLY valid JSON with this exact structure:
 
       const userPrompt = `Create 1 emotionally captivating ad story based on this prompt: "${prompt}"
 
-${mood ? `The story MUST have a ${mood} tone and mood. All scenes should reflect this emotional style.` : ''}
+${adType ? `CRITICAL: This is a ${adType.replace('_', ' ')} ad. The story MUST follow the ${adType.replace('_', ' ')} narrative structure and requirements outlined above.` : ''}
 
 ${imageUrls.length > 0 ? `Reference images are available to inform the visual style and product details.` : ''}
 
@@ -1636,4 +1815,3 @@ server.run().catch((error) => {
     process.exit(1)
   }
 })
-

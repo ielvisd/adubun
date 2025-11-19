@@ -9,6 +9,7 @@ const generateStoriesSchema = z.object({
   productImages: z.array(z.union([z.instanceof(File), z.string()])).max(10).optional(),
   aspectRatio: z.enum(['16:9', '9:16']),
   mood: z.string().optional(),
+  adType: z.string().optional(),
   model: z.string().optional(),
   generateVoiceover: z.boolean().optional(),
 })
@@ -70,6 +71,10 @@ export default defineEventHandler(async (event) => {
           body.prompt = item.data.toString()
         } else if (item.name === 'aspectRatio') {
           body.aspectRatio = item.data.toString()
+        } else if (item.name === 'mood') {
+          body.mood = item.data.toString()
+        } else if (item.name === 'adType') {
+          body.adType = item.data.toString()
         } else if (item.name === 'model') {
           body.model = item.data.toString()
         } else if (item.name === 'generateVoiceover') {
@@ -92,7 +97,7 @@ export default defineEventHandler(async (event) => {
       body = await readBody(event)
     }
 
-    const { prompt, productImages = [], aspectRatio, mood, model, generateVoiceover } = generateStoriesSchema.parse(body)
+    const { prompt, productImages = [], aspectRatio, mood, adType, model, generateVoiceover } = generateStoriesSchema.parse(body)
 
     // Convert product images to URLs (they should already be URLs if from formData, or File objects)
     const imageUrls: string[] = []
@@ -126,6 +131,7 @@ export default defineEventHandler(async (event) => {
         clipCount: 4, // Hook, Body1, Body2, CTA
         clipDuration: 4, // ~4 seconds per scene for 16s total
         mood, // Pass mood to story generation
+        adType, // Pass ad type to story generation
       }),
       3, // max 3 retries
       2000 // start with 2 second delay
@@ -260,6 +266,7 @@ export default defineEventHandler(async (event) => {
         productImages: imageUrls,
         aspectRatio,
         mood,
+        adType,
         model: model || 'google/veo-3-fast',
         generateVoiceover: generateVoiceover || false,
       },

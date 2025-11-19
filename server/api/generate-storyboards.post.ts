@@ -20,12 +20,13 @@ const generateStoryboardsSchema = z.object({
   aspectRatio: z.enum(['16:9', '9:16']),
   model: z.string().optional(),
   mood: z.string().optional(), // Video tone/mood from homepage
+  adType: z.string().optional(), // Ad Type from homepage
 })
 
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
-    const { story, prompt, productImages = [], aspectRatio, model, mood } = generateStoryboardsSchema.parse(body)
+    const { story, prompt, productImages = [], aspectRatio, model, mood, adType } = generateStoryboardsSchema.parse(body)
 
     // Track cost
     await trackCost('generate-storyboards', 0.002, { storyId: story.id })
@@ -34,9 +35,73 @@ export default defineEventHandler(async (event) => {
     // Use chat completion to generate a single storyboard
     // Use mood (Video Tone) from homepage, default to 'professional' if not provided
     const selectedMood = mood || 'professional'
-    const systemPrompt = `You are an expert at creating emotionally captivating video storyboards for ad content.
+    const selectedAdType = adType || 'lifestyle'
+    
+    // Construct system prompt with Ad Type logic
+    let adTypeInstruction = ''
+    
+    switch (selectedAdType) {
+      case 'lifestyle':
+        adTypeInstruction = `LIFESTYLE AD STRATEGY:
+- Focus on the product being used in real-life situations
+- Emphasize human interaction, social context, and environmental details
+- Show the benefits and emotional payoff of using the product
+- Use natural lighting and authentic settings`
+        break
+      case 'product':
+        adTypeInstruction = `PRODUCT AD STRATEGY:
+- CRITICAL: The product MUST be the ONLY subject in ALL frames
+- ABSOLUTELY NO HUMANS: No people, no hands, no human body parts in any frame
+- Pure product focus: The product is the sole star of every shot
+- Use macro shots, extreme close-ups, and slow pans to show intricate details
+- Showcase product from multiple angles: front, back, side, top, 360° rotation
+- Minimal or blurred backgrounds (bokeh, clean studio backdrop) to keep 100% attention on product
+- Highlight craftsmanship, texture, materials, finish, and quality
+- Camera movements: Slow dolly, smooth pan, gentle rotation around product
+- Lighting: Studio-quality lighting that showcases product features and materials
+- Focus on what makes the product premium: stitching, grain, polish, construction`
+        break
+      case 'unboxing':
+        adTypeInstruction = `UNBOXING AD STRATEGY:
+- Structure the narrative as a reveal process:
+  1. Hook: Sealed box/packaging (anticipation)
+  2. Body 1: Hands opening the package (action)
+  3. Body 2: Reveal of the product inside (satisfaction)
+  4. CTA: Product fully displayed with accessories (completeness)
+- Focus on the tactile experience and packaging quality`
+        break
+      case 'testimonial':
+        adTypeInstruction = `TESTIMONIAL AD STRATEGY:
+- Visual style should feel authentic and user-generated (UGC)
+- Use "selfie-style" angles or intimate interview setups
+- Focus on facial expressions of satisfaction and trust
+- Show the user interacting with the product naturally`
+        break
+      case 'tutorial':
+        adTypeInstruction = `TUTORIAL AD STRATEGY:
+- Structure as a clear step-by-step guide:
+  1. Hook: The problem or the "before" state
+  2. Body 1: Step 1 of using the product (clear action)
+  3. Body 2: Step 2/Result of using the product
+  4. CTA: The final result/benefit achieved
+- Visuals must be instructional and clear (no distracting elements)`
+        break
+      case 'brand_story':
+        adTypeInstruction = `BRAND STORY AD STRATEGY:
+- Cinematic, narrative-driven approach
+- Focus on values, origin, and atmosphere over direct product selling
+- Use wide shots, slow motion, and dramatic lighting
+- Connect the brand's mission to the viewer's identity`
+        break
+      default:
+        adTypeInstruction = `Create a professional, high-quality ad that showcases the product effectively.`
+    }
 
-Generate a single storyboard for a 16-second ad with ${selectedMood} tone and visual style. The storyboard must have 4 scenes:
+    const systemPrompt = `You are an expert at creating emotionally captivating video storyboards for ad content.
+    
+${adTypeInstruction}
+
+Generate a single storyboard for a 16-second ad. The storyboard must have 4 scenes:
 1. Hook (0-4s): Opening scene that grabs attention and creates emotional connection
 2. Body 1 (4-8s): First key message or benefit with emotional impact
 3. Body 2 (8-12s): Second key message or benefit with emotional impact
@@ -52,7 +117,7 @@ Generate a single storyboard for a 16-second ad with ${selectedMood} tone and vi
 - Reference characters consistently: "the same character from the hook scene" or "the identical [age] [gender] person"
 
 The storyboard should:
-- Have a ${selectedMood} tone and visual style
+- Follow the specific strategy for ${selectedAdType} ads
 - Include detailed visual prompts for each scene that create emotional captivation
 - Use emotional visual storytelling: include facial expressions, body language, and visual mood that connects with viewers
 - Limit scenes to 3-4 people maximum per scene (prefer 1-3 people for better face quality)
@@ -65,7 +130,6 @@ Return ONLY valid JSON with this structure:
 {
     "storyboard": {
       "id": "storyboard-1",
-      "mood": "${selectedMood}",
     "segments": [
       {
         "type": "hook",
@@ -99,7 +163,7 @@ Return ONLY valid JSON with this structure:
   }
 }`
 
-    const userPrompt = `Create an emotionally captivating ${selectedMood} tone storyboard based on this story:
+    const userPrompt = `Create an emotionally captivating storyboard based on this story:
 
 Story Description: ${story.description}
 Hook: ${story.hook}
@@ -108,6 +172,7 @@ Body 2: ${story.bodyTwo}
 CTA: ${story.callToAction}
 
 Original Prompt: ${prompt}
+Ad Type: ${selectedAdType}
 ${productImages.length > 0 ? `Product images are available for reference.` : ''}
 
 🚨 CHARACTER CONSISTENCY REQUIREMENT:
@@ -116,7 +181,7 @@ ${productImages.length > 0 ? `Product images are available for reference.` : ''}
 - In body and CTA segments: Reference characters as "the same [age] [gender] person with [features]" to maintain consistency
 - Do NOT change character gender, age, or physical appearance between scenes
 
-The storyboard should have a ${selectedMood} tone and visual style while staying true to the story content. Focus on creating emotionally compelling visuals that evoke emotions through facial expressions, body language, and visual mood. Limit all scenes to 3-4 people maximum and ensure clear, sharp faces through close-ups and medium shots.`
+Stay true to the story content. Focus on creating emotionally compelling visuals that evoke emotions through facial expressions, body language, and visual mood. Limit all scenes to 3-4 people maximum and ensure clear, sharp faces through close-ups and medium shots.`
 
     // Use OpenAI chat completion via MCP
     const storyboardsData = await callOpenAIMCP('chat_completion', {
@@ -210,8 +275,8 @@ The storyboard should have a ${selectedMood} tone and visual style while staying
       meta: {
         duration: 16,
         aspectRatio,
-        mood: sbData.mood || selectedMood,
         model: model || 'google/veo-3-fast',
+        adType: selectedAdType,
       },
       createdAt: Date.now(),
     }
@@ -230,4 +295,3 @@ The storyboard should have a ${selectedMood} tone and visual style while staying
     })
   }
 })
-

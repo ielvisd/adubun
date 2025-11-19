@@ -48,6 +48,7 @@ export interface Storyboard {
     duration: number
     aspectRatio: '16:9' | '9:16'
     mood?: string // Video tone/mood from homepage (e.g., 'professional', 'playful', 'inspirational')
+    adType?: string // Ad Type from homepage
     mode?: 'demo' | 'production'
     model?: string // Video model ID (e.g., 'google/veo-3.1')
     firstFrameImage?: string // Global default first frame image path/URL
@@ -103,6 +104,7 @@ export interface ParsedPrompt {
     model?: string // Video model ID
     firstFrameImage?: string
     subjectReference?: string
+    adType?: string // New field for ad type
   }
 }
 
@@ -142,4 +144,3 @@ export interface Story {
   emoji?: string // Emoji that best represents the story
   previewImageUrl?: string // Preview image generated from hook
 }
-

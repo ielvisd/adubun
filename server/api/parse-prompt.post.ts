@@ -68,6 +68,7 @@ export default defineEventHandler(async (event) => {
     // Parse with OpenAI MCP first (this is the slow part)
     const parsed = await callOpenAIMCP('parse_prompt', {
       prompt: validated.prompt,
+      adType: validated.adType, // Pass adType to prompt parser context
     })
 
     // Debug: log the raw response
@@ -192,6 +193,8 @@ export default defineEventHandler(async (event) => {
         style: validated.style,
         mode: validated.mode || 'demo',
         model: validated.model || 'google/veo-3.1', // Default to google/veo-3.1
+        adType: validated.adType || 'lifestyle', // Default to lifestyle,
+        mood: validated.mood, // Pass through mood
         // Veo 3.1 fields
         image: validated.image || undefined,
         lastFrame: validated.lastFrame || undefined,
@@ -236,4 +239,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-

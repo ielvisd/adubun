@@ -6,7 +6,31 @@
         <!-- SIMPLE MODE (Default) -->
         <div v-if="!showAdvanced" class="space-y-6">
           
-          <!-- 1. Enhanced Prompt Field -->
+          <!-- 1. Ad Type Selection -->
+          <UFormField 
+            label="What kind of ad are you making?" 
+            name="adType" 
+            required
+          >
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div 
+                v-for="type in adTypeOptions" 
+                :key="type.value"
+                @click="form.adType = type.value"
+                :class="[
+                  'p-3 rounded-lg border-2 cursor-pointer transition-all flex flex-col items-center text-center gap-2',
+                  form.adType === type.value
+                    ? 'border-secondary-500 bg-secondary-50 dark:bg-secondary-900/20'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                ]"
+              >
+                <span class="text-2xl">{{ type.icon }}</span>
+                <span class="text-sm font-medium text-gray-900 dark:text-white leading-tight">{{ type.label }}</span>
+              </div>
+            </div>
+          </UFormField>
+
+          <!-- 2. Enhanced Prompt Field with Dynamic Placeholder -->
           <UFormField 
             label="Describe your ad" 
             name="prompt" 
@@ -16,16 +40,17 @@
             <EnhancedPromptField 
               v-model="form.prompt" 
               :disabled="props.loading"
+              :placeholder="dynamicPlaceholder"
               @update:model-value="detectSettingsFromPrompt"
             />
             <template #description>
               <span class="text-gray-600 dark:text-gray-400">
-                Describe your product and target audience
+                {{ dynamicDescription }}
               </span>
             </template>
           </UFormField>
 
-          <!-- 2. Product Image Upload -->
+          <!-- 3. Product Image Upload -->
           <UFormField 
             label="Product Photos (Optional)" 
             name="productImages"
@@ -42,7 +67,7 @@
             </template>
           </UFormField>
 
-          <!-- 3. Quick Format Picker (Visual) -->
+          <!-- 4. Quick Format Picker (Visual) -->
           <UFormField 
             label="Where will you share this?" 
             name="aspectRatio" 
@@ -89,16 +114,26 @@
             </button>
           </div>
 
-          <!-- 1. Enhanced Prompt Field -->
+          <!-- 1. Ad Type Selection -->
+          <UFormField label="Ad Type" name="adType" required>
+            <USelect
+              v-model="form.adType"
+              :items="adTypeOptions"
+              :disabled="props.loading"
+            />
+          </UFormField>
+
+          <!-- 2. Enhanced Prompt Field -->
           <UFormField label="Describe your ad" name="prompt" required>
             <EnhancedPromptField 
               v-model="form.prompt" 
               :disabled="props.loading"
+              :placeholder="dynamicPlaceholder"
               @update:model-value="detectSettingsFromPrompt"
             />
           </UFormField>
 
-          <!-- 2. Product Images -->
+          <!-- 3. Product Images -->
           <UFormField 
             label="Product Photos (Optional)" 
             name="productImages"
@@ -113,7 +148,7 @@
             </template>
           </UFormField>
 
-          <!-- 3. Format Picker -->
+          <!-- 4. Format Picker -->
           <UFormField label="Where will you share this?" name="aspectRatio" required>
             <QuickFormatPicker 
               v-model="form.aspectRatio" 
@@ -121,7 +156,7 @@
             />
           </UFormField>
 
-          <!-- 4. Video Style/Mood -->
+          <!-- 5. Video Style/Mood -->
           <UFormField label="Video Style" name="mood" required>
             <USelect
               v-model="form.mood"
@@ -133,7 +168,7 @@
             </template>
           </UFormField>
 
-          <!-- 5. Quality & Speed (Model Selection) -->
+          <!-- 6. Quality & Speed (Model Selection) -->
           <UFormField label="Quality & Speed" name="model" required>
             <div class="space-y-3">
               <div
@@ -170,7 +205,7 @@
             </div>
           </UFormField>
 
-          <!-- 6. Voiceover Toggle -->
+          <!-- 7. Voiceover Toggle -->
           <UFormField label="Generate Voiceover Script" name="generateVoiceover">
             <div class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
               <USwitch
@@ -231,6 +266,7 @@ import { VIDEO_MODELS, DEFAULT_MODEL_ID, getModelById } from '~/config/video-mod
 import type { VideoModel } from '~/types/generation'
 
 const schema = z.object({
+  adType: z.string().min(1, 'Please select an ad type'),
   prompt: z.string().min(10, 'Please provide at least 10 characters describing your ad').max(1000, 'Description must be less than 1000 characters'),
   productImages: z.array(z.union([z.instanceof(File), z.string()])).max(10).optional(),
   aspectRatio: z.enum(['16:9', '9:16']),
@@ -241,6 +277,7 @@ const schema = z.object({
 
 // Initialize form state
 const getInitialFormState = () => ({
+  adType: 'lifestyle',
   prompt: '',
   productImages: [] as (File | string)[],
   aspectRatio: '16:9' as '16:9' | '9:16' | '1:1',
@@ -256,6 +293,27 @@ const showAdvanced = ref(false)
 onMounted(() => {
   mounted.value = true
   handleModelChange(DEFAULT_MODEL_ID)
+})
+
+// Ad Type Options
+const adTypeOptions = [
+  { label: 'Lifestyle Ad', value: 'lifestyle', icon: '🌟', placeholder: 'Describe your product in real-life situations, focusing on benefits and usage...', description: 'Shows the product in real-life situations' },
+  { label: 'Product Ad', value: 'product', icon: '📦', placeholder: 'Describe your product\'s key features, focusing on close-ups and details...', description: 'Super focused on the product in all frames' },
+  { label: 'Unboxing Ad', value: 'unboxing', icon: '🎁', placeholder: 'Describe the unboxing experience, from package to reveal...', description: 'Shows the product unboxing experience' },
+  { label: 'Testimonial Ad', value: 'testimonial', icon: '💬', placeholder: 'Paste a customer review or describe the user experience you want to highlight...', description: 'Real customers sharing experiences' },
+  { label: 'Tutorial Ad', value: 'tutorial', icon: '📚', placeholder: 'List the steps to use your product (e.g., Step 1: ..., Step 2: ...)', description: 'Step-by-step guide on how to use' },
+  { label: 'Brand Story', value: 'brand_story', icon: '📖', placeholder: 'Tell the story of your brand, its values, and mission...', description: 'Tells a narrative about brand value' },
+]
+
+// Computed dynamic placeholder
+const dynamicPlaceholder = computed(() => {
+  const selected = adTypeOptions.find(opt => opt.value === form.adType)
+  return selected ? selected.placeholder : 'Describe your product and target audience...'
+})
+
+const dynamicDescription = computed(() => {
+  const selected = adTypeOptions.find(opt => opt.value === form.adType)
+  return selected ? selected.description : 'Describe your product and target audience'
 })
 
 // Model options

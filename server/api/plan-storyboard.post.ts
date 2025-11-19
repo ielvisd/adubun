@@ -36,6 +36,7 @@ export default defineEventHandler(async (event) => {
       duration: parsed.meta.duration,
       style: parsed.meta.style,
       referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
+      adType: parsed.meta.adType,
     })
     
     // Ensure storyboardData is an object

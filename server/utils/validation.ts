@@ -5,12 +5,14 @@ export const parsePromptSchema = z.object({
   model: z.string().optional(), // Video model ID
   duration: z.number().min(1).max(180).optional(), // Allow shorter durations for models like Veo 3.1 (4, 6, 8s) and Hailuo (3, 5, 10s)
   aspectRatio: z.enum(['16:9', '9:16']),
-  style: z.string().min(1),
+  style: z.string().min(1).optional(), // Legacy field, kept for compatibility
+  mood: z.string().optional(), // New field for video tone
+  adType: z.string().optional(), // New field for ad type
   mode: z.enum(['demo', 'production']).optional(),
   // Veo 3.1 fields
   image: z.string().optional().nullable(),
   lastFrame: z.string().optional().nullable(),
-  referenceImages: z.array(z.string()).max(3).optional(),
+  referenceImages: z.array(z.string()).max(10).optional(),
   negativePrompt: z.string().optional().nullable(),
   resolution: z.string().optional(),
   generateAudio: z.boolean().optional(),
@@ -32,13 +34,14 @@ export const planStoryboardSchema = z.object({
     meta: z.object({
       duration: z.number(),
       aspectRatio: z.enum(['16:9', '9:16']),
-      style: z.string(),
+      style: z.string().optional(),
       mood: z.string().optional(), // Video tone/mood
+      adType: z.string().optional(), // New field for ad type
       mode: z.enum(['demo', 'production']).optional(),
       // Veo 3.1 fields
       image: z.string().optional().nullable(),
       lastFrame: z.string().optional().nullable(),
-      referenceImages: z.array(z.string()).max(3).optional(),
+      referenceImages: z.array(z.string()).max(10).optional(),
       negativePrompt: z.string().optional().nullable(),
       resolution: z.string().optional(),
       generateAudio: z.boolean().optional(),
@@ -67,7 +70,7 @@ export const generateAssetsSchema = z.object({
         // Veo 3.1 segment-specific fields
         image: z.string().optional().nullable(),
         lastFrame: z.string().optional().nullable(),
-        referenceImages: z.array(z.string()).max(3).optional().nullable(),
+        referenceImages: z.array(z.string()).max(10).optional().nullable(),
         negativePrompt: z.string().optional().nullable(),
         resolution: z.string().optional().nullable(),
         generateAudio: z.boolean().optional().nullable(),
@@ -83,11 +86,12 @@ export const generateAssetsSchema = z.object({
       aspectRatio: z.enum(['16:9', '9:16']),
       style: z.string().optional(), // Legacy field, use mood instead
       mood: z.string().optional(), // Video tone/mood
+      adType: z.string().optional(), // Ad type
       mode: z.enum(['demo', 'production']).optional(),
       // Veo 3.1 fields
       image: z.string().optional().nullable(),
       lastFrame: z.string().optional().nullable(),
-      referenceImages: z.array(z.string()).max(3).optional(),
+      referenceImages: z.array(z.string()).max(10).optional(),
       negativePrompt: z.string().optional().nullable(),
       resolution: z.string().optional(),
       generateAudio: z.boolean().optional(),
@@ -127,4 +131,3 @@ export const exportFormatSchema = z.object({
   videoUrl: z.string().url(),
   format: z.enum(['webm', 'gif', 'hls']),
 })
-
