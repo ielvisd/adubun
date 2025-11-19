@@ -405,19 +405,25 @@
                 <!-- Opening Shot (First Frame) -->
                 <UFormField label="Opening Shot">
                   <div v-if="segment.firstFrameImage" class="space-y-2">
-                    <div class="relative w-full">
+                    <div 
+                      class="relative w-full cursor-pointer group rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-700 hover:border-primary-400 dark:hover:border-primary-500 transition-colors bg-black"
+                      style="height: 400px;"
+                      @click="openFrameEditor(index, 'firstFrameImage')"
+                    >
                       <NuxtImg
                         :src="segment.firstFrameImage"
                         alt="Opening shot"
-                        class="w-full h-auto rounded-lg border border-gray-200 dark:border-gray-700"
+                        class="w-full h-full object-contain"
                         loading="lazy"
                       />
+                      <!-- Hover overlay -->
+                      <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div class="text-white text-center">
+                          <UIcon name="i-heroicons-pencil-square" class="w-8 h-8 mx-auto mb-2" />
+                          <p class="text-sm font-medium">Click to Edit</p>
+                        </div>
+                      </div>
                     </div>
-                    <ImageUpload
-                      v-model="segment.firstFrameImage"
-                      @upload="(file) => handleFrameImageUpload(index, 'firstFrameImage', file)"
-                      button-text="Replace"
-                    />
                   </div>
                   <div v-else class="aspect-video bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center p-6">
                     <UIcon name="i-heroicons-photo" class="w-12 h-12 text-gray-400 mb-2" />
@@ -432,19 +438,25 @@
                   label="Closing Shot"
                 >
                   <div v-if="segment.lastFrameImage" class="space-y-2">
-                    <div class="relative w-full">
+                    <div 
+                      class="relative w-full cursor-pointer group rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-700 hover:border-primary-400 dark:hover:border-primary-500 transition-colors bg-black"
+                      style="height: 400px;"
+                      @click="openFrameEditor(index, 'lastFrameImage')"
+                    >
                       <NuxtImg
                         :src="segment.lastFrameImage"
                         alt="Closing shot"
-                        class="w-full h-auto rounded-lg border border-gray-200 dark:border-gray-700"
+                        class="w-full h-full object-contain"
                         loading="lazy"
                       />
+                      <!-- Hover overlay -->
+                      <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div class="text-white text-center">
+                          <UIcon name="i-heroicons-pencil-square" class="w-8 h-8 mx-auto mb-2" />
+                          <p class="text-sm font-medium">Click to Edit</p>
+                        </div>
+                      </div>
                     </div>
-                    <ImageUpload
-                      v-model="segment.lastFrameImage"
-                      @upload="(file) => handleFrameImageUpload(index, 'lastFrameImage', file)"
-                      button-text="Replace"
-                    />
                   </div>
                   <div v-else class="aspect-video bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center p-6">
                     <UIcon name="i-heroicons-photo" class="w-12 h-12 text-gray-400 mb-2" />
@@ -459,19 +471,25 @@
                   label="Final Frame"
                 >
                   <div v-if="segment.lastFrameImage" class="space-y-2">
-                    <div class="relative w-full">
+                    <div 
+                      class="relative w-full cursor-pointer group rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-700 hover:border-primary-400 dark:hover:border-primary-500 transition-colors bg-black"
+                      style="height: 400px;"
+                      @click="openFrameEditor(index, 'lastFrameImage')"
+                    >
                       <NuxtImg
                         :src="segment.lastFrameImage"
                         alt="Final frame"
-                        class="w-full h-auto rounded-lg border border-gray-200 dark:border-gray-700"
+                        class="w-full h-full object-contain"
                         loading="lazy"
                       />
+                      <!-- Hover overlay -->
+                      <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div class="text-white text-center">
+                          <UIcon name="i-heroicons-pencil-square" class="w-8 h-8 mx-auto mb-2" />
+                          <p class="text-sm font-medium">Click to Edit</p>
+                        </div>
+                      </div>
                     </div>
-                    <ImageUpload
-                      v-model="segment.lastFrameImage"
-                      @upload="(file) => handleFrameImageUpload(index, 'lastFrameImage', file)"
-                      button-text="Replace"
-                    />
                   </div>
                   <div v-else class="aspect-video bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center p-6">
                     <UIcon name="i-heroicons-photo" class="w-12 h-12 text-gray-400 mb-2" />
@@ -714,12 +732,28 @@
         </div>
       </div>
     </UContainer>
+
+    <!-- Frame Image Editor Modal (Outside container for proper overlay) -->
+    <Teleport to="body">
+      <FrameImageEditorModal
+        v-if="editingFrame"
+        v-model="showFrameEditor"
+        :image-url="editingFrame.imageUrl"
+        :segment-index="editingFrame.segmentIndex"
+        :frame-type="editingFrame.frameType"
+        :aspect-ratio="selectedStoryboard?.meta?.aspectRatio || '9:16'"
+        @image-replaced="handleFrameImageEdited"
+        @close="closeFrameEditor"
+      />
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { Storyboard, Segment } from '~/types/generation'
+import FrameImageEditorModal from '~/components/storyboards/FrameImageEditorModal.vue'
 import FrameComparison from '~/components/generation/FrameComparison.vue'
+import ImageUpload from '~/components/ui/ImageUpload.vue'
 import { nextTick, triggerRef } from 'vue'
 import { getModelById } from '~/config/video-models'
 
@@ -744,6 +778,7 @@ const composingVideo = ref(false)
 const regeneratingFrames = ref<Map<string, boolean>>(new Map())
 const frameImageDimensions = ref<Map<string, { width: number; height: number; aspectRatio: string }>>(new Map())
 
+
 // File input refs
 const fileInputRefs = ref<Record<string, HTMLInputElement>>({})
 
@@ -752,6 +787,22 @@ const imageLoadError = ref<Record<string, boolean>>({})
 
 // View mode toggle: 'user' (simplified) or 'admin' (full control)
 const viewMode = ref<'user' | 'admin'>('user')
+
+// Frame Editor Modal State
+const editingFrame = ref<{
+  segmentIndex: number
+  frameType: 'firstFrameImage' | 'lastFrameImage'
+  imageUrl: string
+} | null>(null)
+
+const showFrameEditor = computed({
+  get: () => editingFrame.value !== null,
+  set: (value) => {
+    if (!value) {
+      editingFrame.value = null
+    }
+  },
+})
 
 // Available styles for storyboard regeneration (legacy - not currently used for regeneration)
 const availableStyles = ref<string[]>(['Cinematic', 'Professional', 'Playful', 'Dramatic', 'Minimalist'])
@@ -1138,27 +1189,24 @@ const regenerateSingleFrame = async (segmentIndex: number, field: 'firstFrameIma
       }
       selectedStoryboard.value.segments = updatedSegments
       
-      // Auto-sync linked frames
+      // Auto-sync linked frames for continuity
       if (field === 'lastFrameImage') {
-        // Hook last → Body1 first
-        if (segmentIndex === 0 && updatedSegments[1]) {
-          updatedSegments[1] = {
-            ...updatedSegments[1],
+        // If a closing shot changes, update the next scene's opening shot
+        if (updatedSegments[segmentIndex + 1]) {
+          console.log('[Storyboards] Regenerate: Propagating lastFrameImage to next segment firstFrameImage')
+          updatedSegments[segmentIndex + 1] = {
+            ...updatedSegments[segmentIndex + 1],
             firstFrameImage: frame.imageUrl
           }
         }
-        // Body1 last → Body2 first
-        else if (segmentIndex === 1 && updatedSegments[2]) {
-          updatedSegments[2] = {
-            ...updatedSegments[2],
-            firstFrameImage: frame.imageUrl
-          }
-        }
-        // Body2 last → CTA first
-        else if (segmentIndex === 2 && updatedSegments[3]) {
-          updatedSegments[3] = {
-            ...updatedSegments[3],
-            firstFrameImage: frame.imageUrl
+        selectedStoryboard.value.segments = updatedSegments
+      } else if (field === 'firstFrameImage') {
+        // If an opening shot changes, update the previous scene's closing shot
+        if (updatedSegments[segmentIndex - 1]) {
+          console.log('[Storyboards] Regenerate: Propagating firstFrameImage to previous segment lastFrameImage')
+          updatedSegments[segmentIndex - 1] = {
+            ...updatedSegments[segmentIndex - 1],
+            lastFrameImage: frame.imageUrl
           }
         }
         selectedStoryboard.value.segments = updatedSegments
@@ -1290,6 +1338,71 @@ const handleImageFileChange = async (index: number, field: 'firstFrameImage' | '
   }
   // Reset input
   input.value = ''
+}
+
+// Frame Editor Modal Functions
+const openFrameEditor = (segmentIndex: number, frameType: 'firstFrameImage' | 'lastFrameImage') => {
+  if (!selectedStoryboard.value) return
+  
+  const segment = selectedStoryboard.value.segments[segmentIndex]
+  const imageUrl = segment[frameType]
+  
+  if (!imageUrl) {
+    console.log('[Frame Editor] No image URL found')
+    return
+  }
+  
+  console.log('[Frame Editor] Opening editor for:', { segmentIndex, frameType, imageUrl })
+  
+  editingFrame.value = {
+    segmentIndex,
+    frameType,
+    imageUrl,
+  }
+  
+  console.log('[Frame Editor] editingFrame set:', editingFrame.value)
+  console.log('[Frame Editor] showFrameEditor:', showFrameEditor.value)
+}
+
+const closeFrameEditor = () => {
+  editingFrame.value = null
+}
+
+const handleFrameImageEdited = async ({ imageUrl, segmentIndex, frameType }: { imageUrl: string; segmentIndex: number; frameType: string }) => {
+  if (!selectedStoryboard.value) return
+  
+  console.log('[Storyboards] Frame image edited:', { segmentIndex, frameType, imageUrl })
+  
+  // Update the segment with the new image
+  const segment = selectedStoryboard.value.segments[segmentIndex]
+  segment[frameType as 'firstFrameImage' | 'lastFrameImage'] = imageUrl
+  
+  // Maintain continuity: propagate changes to adjacent scenes
+  if (frameType === 'lastFrameImage') {
+    // If a closing shot changes, update the next scene's opening shot
+    const nextSegment = selectedStoryboard.value.segments[segmentIndex + 1]
+    if (nextSegment) {
+      console.log('[Storyboards] Propagating lastFrameImage to next segment firstFrameImage')
+      nextSegment.firstFrameImage = imageUrl
+    }
+  } else if (frameType === 'firstFrameImage') {
+    // If an opening shot changes, update the previous scene's closing shot
+    const prevSegment = selectedStoryboard.value.segments[segmentIndex - 1]
+    if (prevSegment) {
+      console.log('[Storyboards] Propagating firstFrameImage to previous segment lastFrameImage')
+      prevSegment.lastFrameImage = imageUrl
+    }
+  }
+  
+  // Save to localStorage
+  debouncedSave()
+  
+  // Show success toast
+  toast.add({
+    title: 'Frame Updated',
+    description: 'Your frame image has been successfully replaced. Adjacent scene frames updated for continuity.',
+    color: 'green',
+  })
 }
 
 // Drag and drop handlers
@@ -2359,6 +2472,28 @@ const handleFrameImageUpload = async (segmentIndex: number, field: 'firstFrameIm
             ...updatedSegments[segmentIndex],
             [field]: imageUrl
           }
+          
+          // Maintain continuity: propagate changes to adjacent scenes
+          if (field === 'lastFrameImage') {
+            // If a closing shot changes, update the next scene's opening shot
+            if (updatedSegments[segmentIndex + 1]) {
+              console.log('[Storyboards] Propagating lastFrameImage to next segment firstFrameImage')
+              updatedSegments[segmentIndex + 1] = {
+                ...updatedSegments[segmentIndex + 1],
+                firstFrameImage: imageUrl
+              }
+            }
+          } else if (field === 'firstFrameImage') {
+            // If an opening shot changes, update the previous scene's closing shot
+            if (updatedSegments[segmentIndex - 1]) {
+              console.log('[Storyboards] Propagating firstFrameImage to previous segment lastFrameImage')
+              updatedSegments[segmentIndex - 1] = {
+                ...updatedSegments[segmentIndex - 1],
+                lastFrameImage: imageUrl
+              }
+            }
+          }
+          
           selectedStoryboard.value.segments = updatedSegments
           
           // Also update the local segment reference
