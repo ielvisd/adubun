@@ -195,7 +195,11 @@
               <UButton
                 size="sm"
                 variant="solid"
-                class="w-full bg-brand-blue-dark hover:bg-brand-blue-light dark:bg-brand-blue-light dark:hover:bg-brand-blue-dark text-white dark:text-gray-900 font-semibold rounded-lg transition-all duration-300"
+                :style="{
+                  backgroundColor: '#E8C8A7',
+                  color: isDark ? '#E8C8A7' : '#111827'
+                }"
+                class="w-full !bg-brand-cream hover:!bg-brand-cream-500 dark:!bg-brand-cream dark:hover:!bg-brand-cream-500 !text-gray-900 dark:!text-brand-cream font-semibold rounded-lg transition-all duration-300"
               >
                 Use This Template
                 <UIcon name="i-heroicons-arrow-right" class="ml-2 w-4 h-4" />
@@ -289,6 +293,8 @@
 const { user, loading: authLoading } = useAuth()
 const router = useRouter()
 const toast = useToast()
+const colorMode = useColorMode()
+const isDark = computed(() => colorMode.value === 'dark')
 
 // Check authentication - but don't redirect in dev mode (demo login is allowed)
 // Use onMounted to ensure this only runs on client side to avoid hydration issues
