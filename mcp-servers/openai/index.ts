@@ -1106,7 +1106,29 @@ Each segment needs:
 - description: Shot description
 - startTime: number (seconds)
 - endTime: number (seconds)
-- visualPrompt: Detailed, specific prompt for video generation (this will be the primary/default prompt). Must include:
+- visualPrompt: Detailed, specific prompt for video generation (this will be the primary/default prompt).
+
+🚨 VEO 3.1 PROMPTING FORMULA:
+For the 'visualPrompt' field, you MUST use this specific 5-part structure for EVERY scene:
+[Cinematography] + [Subject] + [Action] + [Context] + [Style & Ambiance]
+
+Definitions:
+- Cinematography: Camera work, shot composition, movement (e.g., "Wide shot, slow pan", "Close-up with shallow depth of field")
+- Subject: Main character or focal point (e.g., "a young woman", "a sleek product bottle")
+- Action: What the subject is doing (e.g., "walking briskly", "catching the light")
+- Context: Environment and background (e.g., "in a busy city street", "on a wooden table")
+- Style & Ambiance: Aesthetic, mood, lighting (e.g., "cinematic lighting", "warm golden hour glow")
+
+🚨 TIMECODE & AUDIO REQUIREMENTS:
+- Veo 3.1 supports native audio generation. You MUST include audio cues within the visualPrompt if applicable.
+- Add timecodes for specific actions if needed: "[00:00-00:02] The woman smiles. [00:02-00:04] She turns to the camera."
+- For DIALOGUE:
+  - If a character speaks, write it explicitly: 'The man says: "Hello, world."'
+  - Use ellipses (...) for natural pauses.
+  - Include audio actions: "(laughs)", "(sighs)", "(claps)".
+- Audio inputs are strictly ignored by the video model, so all audio intent must be in the prompt text.
+
+  Must include:
   * Specific camera angles and movements (close-up, wide shot, pan, zoom, etc.)
   * Lighting details (soft natural light, studio lighting, etc.)
   * Composition and framing details
@@ -1130,6 +1152,7 @@ Each segment needs:
     - Do NOT change character gender, age, or physical appearance between scenes
     - Example: If hook describes "a teenage boy with brown hair", body segments must reference "the same teenage boy with brown hair", not "a teen" or "a young person"
 - visualPromptAlternatives: Array of 3-5 alternative visual prompts for this segment. Each alternative should:
+  * Follow the 5-part formula: [Cinematography] + [Subject] + [Action] + [Context] + [Style & Ambiance]
   * Offer a different creative approach (different camera angle, lighting, composition, or perspective)
   * Maintain the same core message and product focus
   * Be equally detailed and specific as the primary visualPrompt

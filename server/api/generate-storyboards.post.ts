@@ -129,6 +129,26 @@ Generate a single storyboard for a 16-second ad. The storyboard must have 4 scen
 3. Body 2 (8-12s): Second key message or benefit with emotional impact
 4. CTA (12-16s): Call to action with emotional payoff
 
+🚨 VEO 3.1 PROMPTING FORMULA:
+For the 'visualPrompt' field, you MUST use this specific 5-part structure for EVERY scene:
+[Cinematography] + [Subject] + [Action] + [Context] + [Style & Ambiance]
+
+Definitions:
+- Cinematography: Camera work, shot composition, movement (e.g., "Wide shot, slow pan", "Close-up with shallow depth of field")
+- Subject: Main character or focal point (e.g., "a young woman", "a sleek product bottle")
+- Action: What the subject is doing (e.g., "walking briskly", "catching the light")
+- Context: Environment and background (e.g., "in a busy city street", "on a wooden table")
+- Style & Ambiance: Aesthetic, mood, lighting (e.g., "cinematic lighting", "warm golden hour glow")
+
+🚨 TIMECODE & AUDIO REQUIREMENTS:
+- Veo 3.1 supports native audio generation. You MUST include audio cues within the visualPrompt if applicable.
+- Add timecodes for specific actions if needed: "[00:00-00:02] The woman smiles. [00:02-00:04] She turns to the camera."
+- For DIALOGUE:
+  - If a character speaks, write it explicitly: 'The man says: "Hello, world."'
+  - Use ellipses (...) for natural pauses.
+  - Include audio actions: "(laughs)", "(sighs)", "(claps)".
+- Audio inputs are strictly ignored by the video model, so all audio intent must be in the prompt text.
+
 🚨 CRITICAL CHARACTER CONSISTENCY REQUIREMENTS:
 - Extract ALL characters mentioned in the hook scene and maintain their EXACT appearance across ALL segments
 - For each character, identify: gender (male/female/non-binary), age (teenage/elderly/young adult/etc.), physical features (hair color/style, build, distinctive features), and clothing style
@@ -156,28 +176,28 @@ Return ONLY valid JSON with this structure:
       {
         "type": "hook",
         "description": "Hook scene description",
-        "visualPrompt": "Detailed visual prompt for hook scene",
+        "visualPrompt": "Detailed visual prompt for hook scene following the 5-part formula",
         "startTime": 0,
         "endTime": 4
       },
       {
         "type": "body",
         "description": "Body 1 scene description",
-        "visualPrompt": "Detailed visual prompt for body 1 scene",
+        "visualPrompt": "Detailed visual prompt for body 1 scene following the 5-part formula",
         "startTime": 4,
         "endTime": 8
       },
       {
         "type": "body",
         "description": "Body 2 scene description",
-        "visualPrompt": "Detailed visual prompt for body 2 scene",
+        "visualPrompt": "Detailed visual prompt for body 2 scene following the 5-part formula",
         "startTime": 8,
         "endTime": 12
       },
       {
         "type": "cta",
         "description": "CTA scene description",
-        "visualPrompt": "Detailed visual prompt for CTA scene",
+        "visualPrompt": "Detailed visual prompt for CTA scene following the 5-part formula",
         "startTime": 12,
         "endTime": 16
       }

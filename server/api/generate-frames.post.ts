@@ -22,7 +22,15 @@ const generateFramesSchema = z.object({
       id: z.string(),
       name: z.string().optional(),
       description: z.string(),
-      gender: z.enum(['male', 'female', 'non-binary', 'unspecified']),
+      gender: z.preprocess((val) => {
+        if (typeof val !== 'string') return 'unspecified'
+        const normalized = val.toLowerCase().trim()
+        if (normalized === 'male' || normalized === 'man' || normalized === 'men' || normalized === 'm') return 'male'
+        if (normalized === 'female' || normalized === 'woman' || normalized === 'women' || normalized === 'w' || normalized === 'f') return 'female'
+        if (normalized === 'non-binary' || normalized === 'nonbinary' || normalized === 'nb' || normalized === 'other') return 'non-binary'
+        if (normalized === 'unspecified' || normalized === 'unknown' || normalized === '') return 'unspecified'
+        return 'unspecified' // Default fallback
+      }, z.enum(['male', 'female', 'non-binary', 'unspecified'])),
       age: z.string().optional(),
       physicalFeatures: z.string().optional(),
       clothing: z.string().optional(),
@@ -227,16 +235,25 @@ export default defineEventHandler(async (event) => {
         previousFrameInstruction = `CRITICAL VISUAL CONTINUITY: Use the previous frame image as a visual reference to maintain continuity. Keep the same characters, same environment, same lighting style, and same overall composition. The scene should flow naturally from the previous frame. `
         } else {
           // For progression within same scene: FORCE different angle/composition
-          previousFrameInstruction = `CRITICAL SCENE PROGRESSION - MUST CREATE VARIATION: This frame MUST be visually DIFFERENT from the previous frame. While keeping the SAME characters and setting, you MUST change: 1) Camera angle (try close-up, wide shot, over-shoulder, or side angle), 2) Character pose and body language (different position, gesture, or facial expression), 3) Composition and framing (different placement in frame, different focal point). DO NOT replicate the previous frame's composition. Show a LATER moment in time with CLEAR visual progression. The previous frame is only for character/setting reference - DO NOT copy its composition, angle, or pose. `
+          previousFrameInstruction = `CRITICAL SCENE PROGRESSION - MANDATORY VISUAL VARIATION: This final frame MUST be SIGNIFICANTLY visually different from the previous frame. DO NOT just change text or minor details. You MUST create a DISTINCT visual composition by: 1) Using a DIFFERENT camera angle (switch from medium to close-up, or wide to over-shoulder, or front to side/three-quarter angle), 2) Changing character pose and body language (different standing/sitting position, different gesture, different facial expression, different body orientation), 3) Altering composition and framing (different character placement in frame, different focal point, different depth of field, different framing style). The previous frame is ONLY for character/setting reference to maintain consistency - DO NOT copy its composition, camera angle, pose, or framing. Show a DISTINCT later moment with CLEAR visual progression. Text changes alone are NOT sufficient - the entire visual composition must be different. `
         }
       }
       
+      // Add text/typography instruction
+      const textInstruction = `TEXT ACCURACY: If text is visible, it MUST read exactly: "${storyText}". CHECK SPELLING: Ensure all words are spelled PERFECTLY. `
+
+      // Add variation reinforcement
+      let variationReinforcement = ''
+      if (previousFrameImage && !isTransition) {
+        variationReinforcement = ` FINAL MANDATORY INSTRUCTION: IGNORE the input image composition. You MUST create a visually DISTINCT final frame with a NEW camera angle and pose. Do not copy the previous frame. `
+      }
+
       // Add product consistency and reference image instructions if we have reference images
       if (hasReferenceImages) {
         const productConsistencyInstruction = `CRITICAL INSTRUCTIONS: Do not add new products to the scene. Only enhance existing products shown in the reference images. Keep product design and style exactly as shown in references. The reference images provided are the EXACT product you must recreate. You MUST copy the product from the reference images with pixel-perfect accuracy. Do NOT create a different product, do NOT use different colors, do NOT change the design, do NOT hallucinate new products. The product in your generated image must be visually IDENTICAL to the product in the reference images. Study every detail: exact color codes, exact design patterns, exact text/fonts, exact materials, exact textures, exact proportions, exact placement. The reference images are your ONLY source of truth for the product appearance. Ignore any text in the prompt that contradicts the reference images - the reference images take absolute priority. Generate the EXACT same product as shown in the reference images. `
-        return `${characterInstruction}${previousFrameInstruction}${productConsistencyInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality, product must be pixel-perfect match to reference images, product appearance must be identical to reference images`
+        return `${characterInstruction}${textInstruction}${previousFrameInstruction}${productConsistencyInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality, product must be pixel-perfect match to reference images, product appearance must be identical to reference images ${variationReinforcement}`
       } else {
-        return `${characterInstruction}${previousFrameInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality`
+        return `${characterInstruction}${textInstruction}${previousFrameInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality ${variationReinforcement}`
       }
     }
 

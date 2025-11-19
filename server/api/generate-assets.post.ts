@@ -394,6 +394,10 @@ export default defineEventHandler(async (event) => {
             console.log(`[Segment ${idx}] Using segment-specific generateAudio: ${(segment as any).generateAudio}`)
           } else if (storyboard.meta.generateAudio !== undefined) {
             videoParams.generate_audio = storyboard.meta.generateAudio
+          } else {
+            // Default to true for Veo 3.1 to enable native audio
+            videoParams.generate_audio = true
+            console.log(`[Segment ${idx}] Defaulting generateAudio to true for Veo 3.1`)
           }
           
           // Priority: segment.seed > storyboard.meta.seed
@@ -772,6 +776,13 @@ export default defineEventHandler(async (event) => {
       .filter(asset => asset.status === 'completed' && asset.metadata?.audioNotes)
       .map(async (asset) => {
         const idx = asset.segmentId
+        
+        // Skip voice synthesis for Veo 3.1 as it has native audio
+        if (storyboard.meta.model === 'google/veo-3.1') {
+          console.log(`[Segment ${idx}] Skipping TTS voice synthesis for Veo 3.1 (using native audio)`)
+          return { idx, voiceUrl: undefined }
+        }
+
         const audioNotes = asset.metadata?.audioNotes as string | undefined
         
         if (!audioNotes) {
