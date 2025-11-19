@@ -296,6 +296,7 @@ const generateMoreStories = async () => {
       body: {
         prompt: promptData.value.prompt,
         productImages: promptData.value.productImages || [],
+        personReference: promptData.value.personReference,
         aspectRatio: promptData.value.aspectRatio,
         mood: promptData.value.mood,
         adType: promptData.value.adType,
@@ -396,6 +397,7 @@ const generateStories = async () => {
       const body: any = {
         prompt: promptData.value.prompt,
         productImages: promptData.value.productImages,
+        personReference: promptData.value.personReference,
         aspectRatio: promptData.value.aspectRatio,
         mood: promptData.value.mood,
         adType: promptData.value.adType,
@@ -424,6 +426,7 @@ const generateStories = async () => {
         body: {
           prompt: promptData.value.prompt,
           productImages: [],
+          personReference: promptData.value.personReference,
           aspectRatio: promptData.value.aspectRatio,
           mood: promptData.value.mood,
           adType: promptData.value.adType,

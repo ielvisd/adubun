@@ -7,6 +7,7 @@ import { saveAsset, deleteFile } from '../utils/storage'
 const generateStoriesSchema = z.object({
   prompt: z.string().min(1),
   productImages: z.array(z.union([z.instanceof(File), z.string()])).max(10).optional(),
+  personReference: z.string().optional(),
   aspectRatio: z.enum(['16:9', '9:16']),
   mood: z.string().optional(),
   adType: z.string().optional(),
@@ -97,7 +98,7 @@ export default defineEventHandler(async (event) => {
       body = await readBody(event)
     }
 
-    const { prompt, productImages = [], aspectRatio, mood, adType, model, generateVoiceover } = generateStoriesSchema.parse(body)
+    const { prompt, productImages = [], personReference, aspectRatio, mood, adType, model, generateVoiceover } = generateStoriesSchema.parse(body)
 
     // Convert product images to URLs (they should already be URLs if from formData, or File objects)
     const imageUrls: string[] = []
@@ -264,6 +265,7 @@ export default defineEventHandler(async (event) => {
       promptData: {
         prompt,
         productImages: imageUrls,
+        subjectReference: personReference, // Map personReference to subjectReference for backend
         aspectRatio,
         mood,
         adType,

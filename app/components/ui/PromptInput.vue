@@ -67,6 +67,24 @@
             </template>
           </UFormField>
 
+          <!-- 3.5. Person Reference Upload (for Lifestyle/Testimonial/Tutorial ads) -->
+          <UFormField 
+            v-if="form.adType === 'lifestyle' || form.adType === 'testimonial' || form.adType === 'tutorial'"
+            label="Person Reference (Optional)" 
+            name="personReference"
+          >
+            <MultiImageUpload 
+              v-model="form.personReference" 
+              :max-images="1" 
+              @upload="handlePersonReferenceUpload($event)" 
+            />
+            <template #description>
+              <span class="text-gray-600 dark:text-gray-400">
+                Upload a clear photo of the person you want to feature. They'll appear consistently across all scenes.
+              </span>
+            </template>
+          </UFormField>
+
           <!-- 4. Quick Format Picker (Visual) -->
           <UFormField 
             label="Where will you share this?" 
@@ -145,6 +163,22 @@
             />
             <template #description>
               <span class="text-gray-600 dark:text-gray-400">Upload 3-10 photos from different angles</span>
+            </template>
+          </UFormField>
+
+          <!-- 3.5. Person Reference (Advanced Mode) -->
+          <UFormField 
+            v-if="form.adType === 'lifestyle' || form.adType === 'testimonial' || form.adType === 'tutorial'"
+            label="Person Reference (Optional)" 
+            name="personReference"
+          >
+            <MultiImageUpload 
+              v-model="form.personReference" 
+              :max-images="1" 
+              @upload="handlePersonReferenceUpload($event)" 
+            />
+            <template #description>
+              <span class="text-gray-600 dark:text-gray-400">Upload a photo of the person to feature in your ad</span>
             </template>
           </UFormField>
 
@@ -269,6 +303,7 @@ const schema = z.object({
   adType: z.string().min(1, 'Please select an ad type'),
   prompt: z.string().min(10, 'Please provide at least 10 characters describing your ad').max(1000, 'Description must be less than 1000 characters'),
   productImages: z.array(z.union([z.instanceof(File), z.string()])).max(10).optional(),
+  personReference: z.array(z.union([z.instanceof(File), z.string()])).max(1).optional(),
   aspectRatio: z.enum(['16:9', '9:16']),
   mood: z.string().min(1, 'Please select a video tone'),
   model: z.string().min(1, 'Please select a video generation model'),
@@ -280,6 +315,7 @@ const getInitialFormState = () => ({
   adType: 'lifestyle',
   prompt: '',
   productImages: [] as (File | string)[],
+  personReference: [] as (File | string)[],
   aspectRatio: '16:9' as '16:9' | '9:16' | '1:1',
   mood: 'professional',
   model: DEFAULT_MODEL_ID,
@@ -400,6 +436,10 @@ const handleModelChange = (modelId: string) => {
 
 const handleProductImageUpload = (files: (File | string | null)[]) => {
   form.productImages = files.filter(f => f !== null) as (File | string)[]
+}
+
+const handlePersonReferenceUpload = (files: (File | string | null)[]) => {
+  form.personReference = files.filter(f => f !== null) as (File | string)[]
 }
 
 const handleSubmit = async (event: any) => {

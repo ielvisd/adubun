@@ -350,6 +350,13 @@ export default defineEventHandler(async (event) => {
             console.log(`[Segment ${idx}] Using last frame image: ${lastFrameImage}`)
           }
           
+          // Add subject reference (person reference) if available
+          const subjectReference = (segment as any).subjectReference || storyboard.meta.subjectReference
+          if (subjectReference) {
+            videoParams.subject_reference = await prepareImageInput(subjectReference)
+            console.log(`[Segment ${idx}] Using subject reference (person): ${subjectReference}`)
+          }
+          
           // Build negative prompt - add children-related terms if detected in frames, and default face quality terms
           const defaultFaceQualityNegative = 'blurry faces, distorted faces, crowds, large groups, more than 4 people, deformed faces, bad anatomy'
           let negativePrompt = defaultFaceQualityNegative

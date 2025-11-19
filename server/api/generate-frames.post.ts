@@ -32,6 +32,7 @@ const generateFramesSchema = z.object({
       aspectRatio: z.enum(['16:9', '9:16']),
       mode: z.enum(['demo', 'production']).optional(),
       mood: z.string().optional(),
+      subjectReference: z.string().optional(),
     }),
   }),
   productImages: z.array(z.string()).optional(),
@@ -172,6 +173,13 @@ export default defineEventHandler(async (event) => {
     
     // Use all available reference images (up to model limit of 10)
     const referenceImages = productImages.length > 0 ? productImages.slice(0, 10) : []
+    
+    // Add person reference (subjectReference) if available
+    const subjectReference = storyboard.meta.subjectReference
+    if (subjectReference) {
+      console.log(`[Generate Frames] Adding person reference to nano-banana inputs: ${subjectReference}`)
+      referenceImages.push(subjectReference)
+    }
 
     // Get characters from storyboard for consistency
     const characters: Character[] = storyboard.characters || []
