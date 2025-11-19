@@ -182,11 +182,10 @@ export default defineEventHandler(async (event) => {
     // Use all available reference images (up to model limit of 10)
     const referenceImages = productImages.length > 0 ? productImages.slice(0, 10) : []
     
-    // Add person reference (subjectReference) if available
-    const subjectReference = storyboard.meta.subjectReference
-    if (subjectReference) {
-      console.log(`[Generate Frames] Adding person reference to nano-banana inputs: ${subjectReference}`)
-      referenceImages.push(subjectReference)
+    // Add person reference (subjectReference) if available from storyboard meta
+    if (storyboard.meta.subjectReference) {
+      console.log(`[Generate Frames] Adding person reference to nano-banana inputs: ${storyboard.meta.subjectReference}`)
+      referenceImages.push(storyboard.meta.subjectReference)
     }
 
     // Get characters from storyboard for consistency
