@@ -1,5 +1,5 @@
 <template>
-  <div class="frame-card">
+  <div class="p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
     <div class="relative aspect-video bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden mb-2">
       <img 
         v-if="frame.imageUrl" 
@@ -30,10 +30,4 @@ defineProps<{
   index: number
 }>()
 </script>
-
-<style scoped>
-.frame-card {
-  @apply p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow;
-}
-</style>
 

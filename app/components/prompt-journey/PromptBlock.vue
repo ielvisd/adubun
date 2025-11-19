@@ -66,9 +66,4 @@ const copyContent = async () => {
 }
 </script>
 
-<style scoped>
-.prompt-block {
-  @apply w-full;
-}
-</style>
 

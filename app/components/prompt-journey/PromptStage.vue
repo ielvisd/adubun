@@ -1,12 +1,12 @@
 <template>
-  <div class="prompt-stage">
+  <div class="relative">
     <!-- Timeline connector line (except for first stage) -->
-    <div v-if="stageNumber > 1" class="timeline-line" />
+    <div v-if="stageNumber > 1" class="absolute left-6 top-0 w-0.5 h-8 bg-gray-300 dark:bg-gray-600 -translate-y-8" />
     
-    <div class="stage-container">
+    <div class="flex gap-4">
       <!-- Stage Icon -->
       <div :class="[
-        'stage-icon',
+        'flex-shrink-0 w-12 h-12 rounded-full border-2 flex items-center justify-center',
         `bg-${iconColor}-100 dark:bg-${iconColor}-900/30`,
         `border-${iconColor}-300 dark:border-${iconColor}-700`
       ]">
@@ -17,7 +17,7 @@
       </div>
       
       <!-- Stage Content -->
-      <div class="stage-content">
+      <div class="flex-1 pb-4">
         <!-- Stage Header -->
         <div class="flex items-start justify-between mb-4">
           <div>
@@ -34,7 +34,7 @@
         </div>
         
         <!-- Stage Body (slot for content) -->
-        <div class="stage-body">
+        <div class="space-y-4">
           <slot />
         </div>
       </div>
@@ -52,29 +52,4 @@ defineProps<{
 }>()
 </script>
 
-<style scoped>
-.prompt-stage {
-  @apply relative;
-}
-
-.timeline-line {
-  @apply absolute left-6 top-0 w-0.5 h-8 bg-gray-300 dark:bg-gray-600 -translate-y-8;
-}
-
-.stage-container {
-  @apply flex gap-4;
-}
-
-.stage-icon {
-  @apply flex-shrink-0 w-12 h-12 rounded-full border-2 flex items-center justify-center;
-}
-
-.stage-content {
-  @apply flex-1 pb-4;
-}
-
-.stage-body {
-  @apply space-y-4;
-}
-</style>
 
