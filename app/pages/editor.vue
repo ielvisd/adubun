@@ -211,7 +211,13 @@ const getVideoDurationFromUrl = (url: string): Promise<number> => {
 
 const handleVideoUpload = async (files: File[]) => {
   for (const file of files) {
-    if (!file.type.startsWith('video/')) {
+    // Check MIME type first, then fallback to file extension
+    // (videos from FFmpeg/AI services may not have proper MIME types)
+    const hasValidMimeType = file.type.startsWith('video/')
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    const hasValidExtension = ext && ['mp4', 'webm', 'mov', 'avi', 'mkv', 'flv'].includes(ext)
+    
+    if (!hasValidMimeType && !hasValidExtension) {
       toast.add({
         title: 'Invalid file',
         description: `${file.name} is not a video file`,
@@ -437,6 +443,7 @@ const handleAlephSubmit = async (data: {
   clip: EditorClip
   prompt: string
   referenceImageFile?: File
+  maskFile?: File
 }) => {
   isAlephProcessing.value = true
   
@@ -459,16 +466,22 @@ const handleAlephSubmit = async (data: {
       formData.append('referenceImageFile', data.referenceImageFile)
     }
     
-    // Step 2: Send to Aleph editing endpoint (returns video binary directly)
-    const response = await fetch('/api/editor/aleph-edit', {
+    // NEW: Add mask if provided
+    if (data.maskFile) {
+      formData.append('maskFile', data.maskFile)
+      console.log('[Editor] Mask file included in request')
+    }
+    
+    // Step 2: Send to Gen-4 Aleph editing endpoint (returns video binary directly)
+    const response = await fetch('/api/editor/gen3-edit', {
       method: 'POST',
       body: formData,
     })
-    
+
     if (!response.ok) {
-      throw new Error('Aleph editing failed')
+      throw new Error('AI video editing failed')
     }
-    
+
     // Step 3: Get video binary and metadata from response headers
     const videoBlob = await response.blob()
     const editedDuration = parseFloat(response.headers.get('X-Video-Duration') || '0')
@@ -511,7 +524,7 @@ const handleAlephSubmit = async (data: {
       // Save current time
       const savedTime = currentTime.value
       
-      // Create new clip with Aleph-edited video (fully local)
+      // Create new clip with AI-edited video (fully local)
       const newClip: EditorClip = {
         id: clipId,
         videoId: clipId,
@@ -550,7 +563,7 @@ const handleAlephSubmit = async (data: {
     
     alephModalOpen.value = false
   } catch (error: any) {
-    console.error('[Editor] Aleph edit failed:', error)
+    console.error('[Editor] AI edit failed:', error)
     toast.add({
       title: 'Edit failed',
       description: error.data?.message || error.message || 'Failed to edit video with AI',

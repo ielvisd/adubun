@@ -137,7 +137,18 @@ const handleDrop = (event: DragEvent) => {
   isDragOver.value = false
 
   const files = Array.from(event.dataTransfer?.files || [])
-  const videoFiles = files.filter(file => file.type.startsWith('video/'))
+  
+  // Filter video files by MIME type OR file extension (fallback for videos without proper MIME)
+  const videoFiles = files.filter(file => {
+    // Check MIME type first
+    if (file.type.startsWith('video/')) {
+      return true
+    }
+    // Fallback: Check file extension for videos without proper MIME type
+    // (e.g., videos created by FFmpeg or downloaded from AI services)
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    return ext && ['mp4', 'webm', 'mov', 'avi', 'mkv', 'flv'].includes(ext)
+  })
 
   if (videoFiles.length === 0) {
     return
