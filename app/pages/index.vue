@@ -80,7 +80,7 @@
                     src="/cameraguy.MP4" 
                     autoplay 
                     loop 
-                    muted 
+                    muted
                     playsinline
                     class="w-full h-full object-contain rounded-lg"
                   />
@@ -317,6 +317,7 @@ const examplePrompts = [
     aspectRatio: '9:16',
     style: 'Elegant',
     icon: '⌚',
+    adType: 'product',
   },
   {
     title: 'Fitness Product Launch',
@@ -326,6 +327,7 @@ const examplePrompts = [
     aspectRatio: '16:9',
     style: 'Energetic',
     icon: '💪',
+    adType: 'lifestyle',
   },
   {
     title: 'Coffee Brand Story',
@@ -335,6 +337,7 @@ const examplePrompts = [
     aspectRatio: '16:9',
     style: 'Cinematic',
     icon: '☕',
+    adType: 'brand_story',
   },
   {
     title: 'Tech Product Demo',
@@ -344,6 +347,7 @@ const examplePrompts = [
     aspectRatio: '16:9',
     style: 'Minimal',
     icon: '📱',
+    adType: 'product',
   },
   {
     title: 'Fashion Brand Campaign',
@@ -353,6 +357,7 @@ const examplePrompts = [
     aspectRatio: '9:16',
     style: 'Elegant',
     icon: '👗',
+    adType: 'lifestyle',
   },
   {
     title: 'Food Delivery Service',
@@ -362,6 +367,7 @@ const examplePrompts = [
     aspectRatio: '16:9',
     style: 'Energetic',
     icon: '🍔',
+    adType: 'lifestyle',
   },
 ]
 
@@ -393,6 +399,8 @@ const useExample = (example: typeof examplePrompts[0]) => {
         aspectRatio: example.aspectRatio as '16:9' | '9:16',
         model: 'google/veo-3.1', // Default model
         generateVoiceover: false,
+        adType: example.adType || 'lifestyle',
+        mood: example.style,
       })
     }, 500)
   }
@@ -411,6 +419,7 @@ const handleSubmit = async (formData: any) => {
       title: 'Authentication Required',
       description: 'Please sign in to create an ad',
       color: 'warning',
+      icon: 'i-heroicons-lock-closed',
     })
     await router.push('/auth/login')
     return
@@ -462,6 +471,7 @@ const handleSubmit = async (formData: any) => {
         aspectRatio: formData.aspectRatio,
         model: formData.model,
         mood: formData.mood,
+        adType: formData.adType,
         generateVoiceover: formData.generateVoiceover || false,
       }))
     }
@@ -473,10 +483,10 @@ const handleSubmit = async (formData: any) => {
     toast.add({
       title: 'Error',
       description: errorMessage,
-      color: 'error',
+      color: 'red',
+      icon: 'i-heroicons-exclamation-circle',
     })
     isLoading.value = false
   }
 }
 </script>
-

@@ -20,12 +20,13 @@ const generateStoryboardsSchema = z.object({
   aspectRatio: z.enum(['16:9', '9:16']),
   model: z.string().optional(),
   mood: z.string().optional(), // Video tone/mood from homepage
+  adType: z.string().optional(), // Ad Type from homepage
 })
 
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
-    const { story, prompt, productImages = [], aspectRatio, model, mood } = generateStoryboardsSchema.parse(body)
+    const { story, prompt, productImages = [], aspectRatio, model, mood, adType } = generateStoryboardsSchema.parse(body)
 
     // Track cost
     await trackCost('generate-storyboards', 0.002, { storyId: story.id })
@@ -34,7 +35,65 @@ export default defineEventHandler(async (event) => {
     // Use chat completion to generate a single storyboard
     // Use mood (Video Tone) from homepage, default to 'professional' if not provided
     const selectedMood = mood || 'professional'
+    const selectedAdType = adType || 'lifestyle'
+    
+    // Construct system prompt with Ad Type logic
+    let adTypeInstruction = ''
+    
+    switch (selectedAdType) {
+      case 'lifestyle':
+        adTypeInstruction = `LIFESTYLE AD STRATEGY:
+- Focus on the product being used in real-life situations
+- Emphasize human interaction, social context, and environmental details
+- Show the benefits and emotional payoff of using the product
+- Use natural lighting and authentic settings`
+        break
+      case 'product':
+        adTypeInstruction = `PRODUCT AD STRATEGY:
+- CRITICAL: The product MUST be the main focus in 100% of frames
+- Use macro shots, close-ups, and slow pans to show details
+- Minimal or blurred backgrounds (bokeh) to keep attention on the product
+- Highlight craftsmanship, texture, and quality`
+        break
+      case 'unboxing':
+        adTypeInstruction = `UNBOXING AD STRATEGY:
+- Structure the narrative as a reveal process:
+  1. Hook: Sealed box/packaging (anticipation)
+  2. Body 1: Hands opening the package (action)
+  3. Body 2: Reveal of the product inside (satisfaction)
+  4. CTA: Product fully displayed with accessories (completeness)
+- Focus on the tactile experience and packaging quality`
+        break
+      case 'testimonial':
+        adTypeInstruction = `TESTIMONIAL AD STRATEGY:
+- Visual style should feel authentic and user-generated (UGC)
+- Use "selfie-style" angles or intimate interview setups
+- Focus on facial expressions of satisfaction and trust
+- Show the user interacting with the product naturally`
+        break
+      case 'tutorial':
+        adTypeInstruction = `TUTORIAL AD STRATEGY:
+- Structure as a clear step-by-step guide:
+  1. Hook: The problem or the "before" state
+  2. Body 1: Step 1 of using the product (clear action)
+  3. Body 2: Step 2/Result of using the product
+  4. CTA: The final result/benefit achieved
+- Visuals must be instructional and clear (no distracting elements)`
+        break
+      case 'brand_story':
+        adTypeInstruction = `BRAND STORY AD STRATEGY:
+- Cinematic, narrative-driven approach
+- Focus on values, origin, and atmosphere over direct product selling
+- Use wide shots, slow motion, and dramatic lighting
+- Connect the brand's mission to the viewer's identity`
+        break
+      default:
+        adTypeInstruction = `Create a professional, high-quality ad that showcases the product effectively.`
+    }
+
     const systemPrompt = `You are an expert at creating emotionally captivating video storyboards for ad content.
+    
+${adTypeInstruction}
 
 Generate a single storyboard for a 16-second ad with ${selectedMood} tone and visual style. The storyboard must have 4 scenes:
 1. Hook (0-4s): Opening scene that grabs attention and creates emotional connection
@@ -53,6 +112,7 @@ Generate a single storyboard for a 16-second ad with ${selectedMood} tone and vi
 
 The storyboard should:
 - Have a ${selectedMood} tone and visual style
+- Follow the specific strategy for ${selectedAdType} ads
 - Include detailed visual prompts for each scene that create emotional captivation
 - Use emotional visual storytelling: include facial expressions, body language, and visual mood that connects with viewers
 - Limit scenes to 3-4 people maximum per scene (prefer 1-3 people for better face quality)
@@ -108,6 +168,7 @@ Body 2: ${story.bodyTwo}
 CTA: ${story.callToAction}
 
 Original Prompt: ${prompt}
+Ad Type: ${selectedAdType}
 ${productImages.length > 0 ? `Product images are available for reference.` : ''}
 
 🚨 CHARACTER CONSISTENCY REQUIREMENT:
@@ -212,6 +273,7 @@ The storyboard should have a ${selectedMood} tone and visual style while staying
         aspectRatio,
         mood: sbData.mood || selectedMood,
         model: model || 'google/veo-3-fast',
+        adType: selectedAdType,
       },
       createdAt: Date.now(),
     }
@@ -230,4 +292,3 @@ The storyboard should have a ${selectedMood} tone and visual style while staying
     })
   }
 })
-
