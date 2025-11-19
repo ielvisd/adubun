@@ -7,7 +7,7 @@ The platform turns a simple text prompt (plus optional product images) into a pu
 - A clear 4-part structure: **Hook → Body 1 → Body 2 → CTA**
 - Consistent visual style across all scenes
 - Auto-generated background music that matches the mood
-- Optional AI-generated voiceover script
+- Optional AI-generated voiceover script & music. 
 
 
 ## 2. Goals & Non-Goals
