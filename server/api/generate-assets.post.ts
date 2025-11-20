@@ -6,6 +6,7 @@ import { uploadFileToReplicate } from '../utils/replicate-upload'
 import { extractFramesFromVideo } from '../utils/ffmpeg'
 import { sanitizeVideoPrompt } from '../utils/prompt-sanitizer'
 import { checkFrameForChildren } from '../utils/frame-content-checker'
+import { detectSceneConflict } from '../utils/scene-conflict-checker'
 import { nanoid } from 'nanoid'
 import type { GenerationJob, Asset } from '../../app/types/generation'
 import { promises as fs } from 'fs'
@@ -339,6 +340,33 @@ export default defineEventHandler(async (event) => {
           }
         }
 
+        // Optional safety check: Detect scene conflicts for body segments (log warning only, don't block)
+        if (segment.type === 'body' && firstFrameImage) {
+          try {
+            // Get hook first frame for conflict detection
+            const hookSegment = storyboard.segments.find(s => s.type === 'hook')
+            const hookFirstFrame = hookSegment?.firstFrameImage
+            const hookLastFrame = hookSegment?.lastFrameImage
+            
+            if (hookFirstFrame || hookLastFrame) {
+              const hookFrames = [hookFirstFrame, hookLastFrame].filter(Boolean) as string[]
+              if (hookFrames.length > 0 && story) {
+                const conflictCheck = await detectSceneConflict(hookFrames, segment, story)
+                if (conflictCheck.hasConflict) {
+                  const actionTypeInfo = conflictCheck.actionType ? ` (action type: ${conflictCheck.actionType})` : ''
+                  console.warn(`[Segment ${idx}] ⚠️ SCENE CONFLICT DETECTED (safety check): ${conflictCheck.item} is already present in hook scene${actionTypeInfo}`)
+                  console.warn(`[Segment ${idx}] This is a warning only - video generation will proceed. Consider regenerating the storyboard.`)
+                } else if (conflictCheck.actionType === 'interacting') {
+                  console.log(`[Segment ${idx}] ✓ No conflict: Action type is "interacting" - item interaction is expected`)
+                }
+              }
+            }
+          } catch (conflictError: any) {
+            // Don't fail video generation if conflict check fails
+            console.warn(`[Segment ${idx}] Conflict check failed (non-blocking):`, conflictError.message)
+          }
+        }
+
         // Get model from storyboard meta, default to google/veo-3.1
         const model = storyboard.meta.model || 'google/veo-3.1'
 
@@ -353,14 +381,109 @@ export default defineEventHandler(async (event) => {
         }
         
         // Sanitize prompt to avoid content moderation flags
-        const sanitizedPrompt = sanitizeVideoPrompt(selectedPrompt)
+        let sanitizedPrompt = sanitizeVideoPrompt(selectedPrompt)
         
         // Extract mood from storyboard meta
         const mood = storyboard.meta.mood || 'professional'
         const moodInstruction = mood ? ` ${mood.charAt(0).toUpperCase() + mood.slice(1)} tone and mood.` : ''
         
+        // Extract dialogue from audioNotes and build speaking instructions
+        let dialogueInstructions = ''
+        let dialogueTextForPrompt = ''
+        if (segment.audioNotes) {
+          // Check if audioNotes contains dialogue format: "Dialogue: [Character description] says: '[text]'"
+          // Handle formats like:
+          // - "Dialogue: The man says: 'text'"
+          // - "Dialogue: The man with a thoughtful voice says: 'text'"
+          // - "Dialogue: The same man says: 'text'"
+          const dialogueMatch = segment.audioNotes.match(/Dialogue:\s*(.+?)\s+says:\s*['"](.+?)['"]/i)
+          if (dialogueMatch) {
+            let characterDescription = dialogueMatch[1].trim()
+            const dialogueText = dialogueMatch[2].trim()
+            
+            // Clean up character description - remove voice descriptions like "with a thoughtful, yet tired voice"
+            // Keep only the character identifier (e.g., "The man", "The same man", "The young woman")
+            characterDescription = characterDescription.replace(/\s+with\s+[^,]+(?:,\s*[^,]+)*\s+voice/gi, '')
+            characterDescription = characterDescription.replace(/\s+voice$/gi, '')
+            characterDescription = characterDescription.trim()
+            
+            // If character description is too long or contains voice info, simplify it
+            if (characterDescription.length > 50 || characterDescription.includes('voice')) {
+              // Extract just the main character identifier
+              const simpleMatch = characterDescription.match(/(?:the\s+)?(?:same\s+)?(?:young\s+|elderly\s+|middle-aged\s+)?(man|woman|person|character)/i)
+              if (simpleMatch) {
+                const baseChar = simpleMatch[1].toLowerCase()
+                characterDescription = characterDescription.includes('same') ? `the same ${baseChar}` : `the ${baseChar}`
+              }
+            }
+            
+            const segmentDuration = segment.endTime - segment.startTime
+            // Dialogue should end 2 seconds before segment ends
+            const dialogueEndTime = Math.max(0, segmentDuration - 2)
+            // Estimate dialogue duration (roughly 2-3 words per second for natural speech)
+            const estimatedWords = dialogueText.split(/\s+/).length
+            const estimatedDuration = Math.min(dialogueEndTime, Math.max(2, estimatedWords / 2.5))
+            const dialogueStartTime = 0
+            const dialogueEndTimeFormatted = dialogueStartTime + estimatedDuration
+            
+            // Format timecodes as [00:00-00:04] for Veo 3.1
+            const formatTimecode = (seconds: number): string => {
+              const mins = Math.floor(seconds / 60)
+              const secs = Math.floor(seconds % 60)
+              return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+            }
+            
+            const startTimecode = formatTimecode(dialogueStartTime)
+            const endTimecode = formatTimecode(dialogueEndTimeFormatted)
+            
+            // Build explicit speaking instructions with timecodes
+            dialogueInstructions = ` CRITICAL ON-CAMERA SPOKEN DIALOGUE REQUIREMENT - NOT VOICEOVER, NOT THOUGHTS: [${startTimecode}-${endTimecode}] The ${characterDescription} SPEAKS ALOUD directly on-camera: "${dialogueText}". 
+
+ABSOLUTELY NO VOICEOVER OR INTERNAL THOUGHTS:
+- This is SPOKEN DIALOGUE, not internal thoughts, not voiceover, not narration
+- The character's voice must come from their MOUTH, not from off-screen or as thoughts
+- The dialogue "${dialogueText}" must be SPOKEN ALOUD by the character on-camera
+- Do NOT generate this as internal monologue, thoughts, or voiceover narration
+- The character must be HEARD speaking these words with their voice coming from their mouth
+
+MANDATORY VISUAL REQUIREMENTS:
+- The character's MOUTH MUST MOVE clearly and naturally as they SPEAK each word ALOUD
+- The character's LIPS MUST SYNC with the spoken words "${dialogueText}"
+- The character MUST be shown SPEAKING on-camera, not just reacting, thinking, or expressing
+- Use CLOSE-UP or MEDIUM SHOT to clearly show the character's face and mouth movements
+- The character's FACE must be clearly visible with mouth movements matching the dialogue
+- Show the character actively SPEAKING with visible speaking gestures, mouth movements, and facial expressions
+- The character must be looking at the camera or at other visible characters while SPEAKING
+- Do NOT show the character silent or with closed mouth during this dialogue timecode
+- The character's voice must be AUDIBLE and come from their MOUTH, not as thoughts or narration
+
+The character's mouth movements must match the words being SPOKEN ALOUD: "${dialogueText}". This is SPOKEN DIALOGUE, not thoughts or voiceover.`
+            
+            // Add the actual dialogue text in Veo format so it generates the spoken audio
+            dialogueTextForPrompt = ` [${startTimecode}-${endTimecode}] The ${characterDescription} says: "${dialogueText}"`
+            
+            // Enhance visual prompt to explicitly include dialogue text and state character is SPEAKING
+            if (!sanitizedPrompt.includes(`"${dialogueText}"`) && !sanitizedPrompt.includes(`'${dialogueText}'`)) {
+              // Add explicit dialogue to visual prompt at the appropriate timecode
+              const dialogueInVisualPrompt = ` [${startTimecode}-${endTimecode}] The ${characterDescription} speaks directly on-camera, saying "${dialogueText}" with clear mouth movements. The character's lips move in sync with each word: "${dialogueText}".`
+              
+              // Insert dialogue description into the visual prompt (before other instructions)
+              // We'll prepend it to sanitizedPrompt so it appears early in the prompt
+              sanitizedPrompt = `${sanitizedPrompt}${dialogueInVisualPrompt}`
+              
+              console.log(`[Segment ${idx}] Added dialogue to visual prompt: "${dialogueText}"`)
+            }
+            
+            console.log(`[Segment ${idx}] Extracted dialogue: "${dialogueText}" from character: ${characterDescription}`)
+            console.log(`[Segment ${idx}] Dialogue timing: ${startTimecode} to ${endTimecode} (${estimatedDuration.toFixed(1)}s)`)
+          } else {
+            console.log(`[Segment ${idx}] No dialogue found in audioNotes: ${segment.audioNotes?.substring(0, 100)}`)
+          }
+        }
+        
         // Add hold-final-frame instruction, face quality, people count limits, dialogue-only audio instructions, and clothing/jewelry stability
-        const videoPrompt = `${sanitizedPrompt}${moodInstruction} The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene. AUDIO: Generate dialogue-only audio - no background music, ambient sounds, or other audio. Only spoken dialogue from characters visible in the scene speaking on-camera. Characters should speak directly in English - NO narrator, NO voiceover, NO off-screen announcer. If dialogue is present, it must end at least 2 seconds before the scene ends to ensure smooth transitions. CLOTHING & JEWELRY: Characters should already be wearing their clothes and jewelry from the start of the scene. Do NOT show characters putting on or taking off items. Items should be worn consistently throughout the scene. No wardrobe changes during the scene. TYPOGRAPHY & TEXT: If displaying any text, brand names, or product names: Use clean, elegant, modern typeface (sans-serif like Helvetica, Futura, Gotham for contemporary brands OR serif like Didot, Bodoni for luxury brands). High contrast for maximum legibility: crisp white text on dark background OR bold black text on light background. Large, bold, professional font size with generous spacing. Centered or elegantly positioned with balanced composition. Spell exactly as mentioned in prompt with perfect accuracy. Professional kerning, leading, and letter spacing. Sharp, crisp edges - no blurry or distorted text. Minimize decorative or script fonts unless specifically luxury brand requirement. Text should be perfectly readable at any resolution with cinema-quality typography. FACE QUALITY: Limit scene to 3-4 people maximum. Use close-ups and medium shots to ensure sharp faces, clear facial features, detailed faces, professional portrait quality. Avoid large groups, crowds, or more than 4 people.`
+        // Insert dialogue text and instructions BEFORE other instructions so they take priority
+        const videoPrompt = `${sanitizedPrompt}${moodInstruction}${dialogueTextForPrompt}${dialogueInstructions} CRITICAL CONTINUOUS SHOT REQUIREMENT: This must be a SINGLE CONTINUOUS SHOT in ONE LOCATION. NO scene changes, NO location changes, NO background changes, NO room changes. The entire segment must take place in the exact same location with the same background, same environment, same surroundings from start to finish. Maintain the same camera perspective and same setting throughout. The video should feel like ONE unbroken moment in ONE place - do NOT change locations, rooms, backgrounds, or environments during this segment. ONE continuous shot, ONE location, ONE background. The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene. AUDIO: CRITICAL AUDIO REQUIREMENTS - SPOKEN DIALOGUE ONLY: Characters must SPEAK their dialogue ALOUD on-camera - this is SPOKEN DIALOGUE, not voiceover, not thoughts, not narration. Dialogue must come from the character's MOUTH as they speak on-camera. ABSOLUTELY NO MUSIC: Do NOT generate any background music, soundtrack, instrumental music, background score, or any musical audio whatsoever. Sound effects (SFX) and SPOKEN DIALOGUE are allowed, but NO music of any kind. ONLY on-camera characters visible in the scene may speak - their dialogue must be SPOKEN ALOUD, not heard as thoughts or voiceover. ONLY English language is allowed - NO other languages whatsoever. ABSOLUTELY NO narration, NO voiceover, NO off-screen announcer, NO background voices, NO foreign languages, NO other languages. ABSOLUTELY NO internal thoughts, NO internal monologue, NO thought bubbles, NO voiceover narration. If no character is speaking in a scene, there should be NO speech at all - complete silence. Only characters shown on-camera SPEAKING DIRECTLY to the camera or to other visible characters may have dialogue, and they must SPEAK ONLY in English. All dialogue must be SPOKEN ALOUD by the character on-camera - do NOT generate dialogue as thoughts, voiceover, or narration. If dialogue is present, it must end at least 2 seconds before the scene ends to ensure smooth transitions. CLOTHING & JEWELRY: Characters should already be wearing their clothes and jewelry from the start of the scene. Do NOT show characters putting on or taking off items. Items should be worn consistently throughout the scene. No wardrobe changes during the scene. TYPOGRAPHY & TEXT: If displaying any text, brand names, or product names: Use clean, elegant, modern typeface (sans-serif like Helvetica, Futura, Gotham for contemporary brands OR serif like Didot, Bodoni for luxury brands). High contrast for maximum legibility: crisp white text on dark background OR bold black text on light background. Large, bold, professional font size with generous spacing. Centered or elegantly positioned with balanced composition. Spell exactly as mentioned in prompt with perfect accuracy. Professional kerning, leading, and letter spacing. Sharp, crisp edges - no blurry or distorted text. Minimize decorative or script fonts unless specifically luxury brand requirement. Text should be perfectly readable at any resolution with cinema-quality typography. FACE QUALITY: Limit scene to 3-4 people maximum. Use close-ups and medium shots to ensure sharp faces, clear facial features, detailed faces, professional portrait quality. Avoid large groups, crowds, or more than 4 people.`
         
         const videoParams: any = {
           model,
@@ -389,8 +512,8 @@ export default defineEventHandler(async (event) => {
             console.log(`[Segment ${idx}] Using subject reference (person): ${subjectReference}`)
           }
           
-          // Build negative prompt - add children-related terms if detected in frames, and default face quality terms
-          const defaultFaceQualityNegative = 'blurry faces, distorted faces, crowds, large groups, more than 4 people, deformed faces, bad anatomy'
+          // Build negative prompt - add children-related terms if detected in frames, scene change terms, language/narration terms, music terms, and default face quality terms
+          const defaultFaceQualityNegative = 'blurry faces, distorted faces, crowds, large groups, more than 4 people, deformed faces, bad anatomy, scene changes, location changes, background changes, different rooms, different locations, multiple settings, changing environments, narration, voiceover, off-screen voices, foreign languages, non-English speech, background narration, announcer, other languages, background music, soundtrack, instrumental music, background score, music, musical score, musical audio'
           let negativePrompt = defaultFaceQualityNegative
           
           if (childrenDetected) {

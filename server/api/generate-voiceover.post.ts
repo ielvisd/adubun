@@ -13,8 +13,9 @@ const generateVoiceoverSchema = z.object({
   }),
   story: z.object({
     hook: z.string(),
-    bodyOne: z.string(),
-    bodyTwo: z.string(),
+    body: z.string().optional(), // New format - single body field
+    bodyOne: z.string().optional(), // Old format - for backward compatibility
+    bodyTwo: z.string().optional(), // Old format - for backward compatibility
     callToAction: z.string(),
   }),
 })
@@ -30,13 +31,21 @@ export default defineEventHandler(async (event) => {
 
 Generate dialogue for characters visible in the video who speak on-camera. This is NOT narration or voiceover - characters must speak directly on-camera.
 
+**CRITICAL REQUIREMENTS:**
+- **HUMAN CHARACTERS ONLY**: Only human characters should speak. Robots, products, or non-human entities should NEVER speak. If the story involves a robot or product, only the human character(s) should have dialogue.
+- **NO MUSIC**: Do NOT include any music, background music, or soundtracks. Only dialogue should be generated.
+- **3 SEGMENTS ONLY**: Generate exactly 3 segments: Hook (0-6s), Body (6-12s), and CTA (12-16s). Do NOT create 4 segments.
+- **CRITICAL: COMPLETE SENTENCES**: All dialogue must be complete, grammatically correct English sentences. Do NOT generate incomplete phrases, fragments, or cut-off sentences. Each dialogue must be a full, meaningful sentence that makes sense on its own. Examples: ✅ "Oh, thank you! That's exactly what I needed." ✅ "How am I going to finish all of this?" ❌ "Oh, thank you, that" (incomplete - REJECTED) ❌ "That's exactly..." (cut-off - REJECTED). Before finalizing dialogue, verify that each sentence is complete and grammatically correct. If a sentence feels incomplete, expand it to be a full, meaningful statement.
+
 The dialogue should:
 - Be concise and impactful (fit within 16 seconds when spoken)
 - Match the tone and content of each scene
 - Flow naturally from scene to scene as a conversation or monologue
-- Be spoken by characters visible in the scene (on-camera dialogue)
+- Be spoken by HUMAN characters visible in the scene (on-camera dialogue)
 - Include a clear call to action at the end
 - **CRITICAL:** Characters must speak on-camera - this is dialogue, not off-screen narration
+- **CRITICAL:** Only human characters speak - robots/products do not speak
+- **CRITICAL:** Every dialogue must be a complete, grammatically correct sentence - no fragments or incomplete phrases
 
 Return ONLY valid JSON with this structure:
 {
@@ -44,44 +53,56 @@ Return ONLY valid JSON with this structure:
   "segments": [
     {
       "type": "hook",
-      "script": "Dialogue text for hook scene - character speaks on-camera (0-4s). Format: '[Character description] says: [dialogue text]'"
+      "script": "Dialogue text for hook scene - HUMAN character speaks on-camera (0-6s). Format: '[Human character description] says: [dialogue text]'"
     },
     {
       "type": "body",
-      "script": "Dialogue text for body 1 scene - character speaks on-camera (4-8s). Format: '[Character description] says: [dialogue text]'"
-    },
-    {
-      "type": "body",
-      "script": "Dialogue text for body 2 scene - character speaks on-camera (8-12s). Format: '[Character description] says: [dialogue text]'"
+      "script": "Dialogue text for body scene - HUMAN character speaks on-camera (6-12s). Format: '[Human character description] says: [dialogue text]'"
     },
     {
       "type": "cta",
-      "script": "Dialogue text for CTA scene - character speaks on-camera (12-16s). Format: '[Character description] says: [dialogue text]'"
+      "script": "Dialogue text for CTA scene - HUMAN character speaks on-camera (12-16s). Format: '[Human character description] says: [dialogue text]'"
     }
   ]
 }
 
-IMPORTANT: Format each script as "[Character] says: '[dialogue text]'" so it can be used in the audioNotes field as "Dialogue: [Character] says: '[dialogue text]'"`
+IMPORTANT: 
+- Format each script as "[Human Character] says: '[dialogue text]'" so it can be used in the audioNotes field as "Dialogue: [Human Character] says: '[dialogue text]'"
+- Do NOT include music or soundtracks
+- Do NOT have robots or products speak - only humans`
 
+    // Support both new format (body) and old format (bodyOne/bodyTwo) for backward compatibility
+    const bodyContent = story.body || story.bodyOne || story.bodyTwo || ''
+    
     const userPrompt = `Create dialogue for characters in this ad. Characters must speak on-camera (this is dialogue, not narration).
 
 Story:
 Hook: ${story.hook}
-Body 1: ${story.bodyOne}
-Body 2: ${story.bodyTwo}
+Body: ${bodyContent}
 CTA: ${story.callToAction}
 
 Storyboard Scenes:
 ${storyboard.segments.map((seg, idx) => `${idx + 1}. ${seg.type}: ${seg.description}`).join('\n')}
 
+**CRITICAL REQUIREMENTS:**
+- **ONLY HUMAN CHARACTERS SPEAK**: Robots, products, or non-human entities should NEVER speak. Only human characters visible in the scene should have dialogue.
+- **ONLY ENGLISH LANGUAGE**: All dialogue must be in English ONLY. NO other languages whatsoever. NO foreign languages, NO non-English speech.
+- **NO NARRATION**: ABSOLUTELY NO narration, NO voiceover, NO off-screen announcer, NO background voices. Only on-camera characters speaking directly.
+- **NO MUSIC**: Do NOT include any music, background music, or soundtracks. Only dialogue.
+- **3 SEGMENTS**: Generate exactly 3 segments (Hook, Body, CTA) - do NOT create 4 segments.
+- **CRITICAL: COMPLETE SENTENCES**: All dialogue must be complete, grammatically correct English sentences. Do NOT generate incomplete phrases, fragments, or cut-off sentences. Each dialogue must be a full, meaningful sentence that makes sense on its own. Examples: ✅ "Oh, thank you! That's exactly what I needed." ✅ "How am I going to finish all of this?" ❌ "Oh, thank you, that" (incomplete - REJECTED) ❌ "That's exactly..." (cut-off - REJECTED). Before finalizing dialogue, verify that each sentence is complete and grammatically correct. If a sentence feels incomplete, expand it to be a full, meaningful statement.
+
 The dialogue should:
 - Be engaging, concise, and match the storyboard content
-- Be spoken by characters visible in each scene (on-camera dialogue)
+- Be spoken by HUMAN characters visible in each scene (on-camera dialogue)
+- Be in English ONLY - no exceptions
 - Progress the story naturally from scene to scene
-- Format each segment's script as "[Character description] says: '[dialogue text]'"
+- Format each segment's script as "[Human character description] says: '[dialogue text]'"
 - Example: "The young woman says: 'How am I going to finish all of this?'"
+- If the story involves a robot or product, only the human character should speak - the robot/product should be silent
+- **CRITICAL:** Every dialogue must be a complete, grammatically correct sentence - no fragments or incomplete phrases
 
-CRITICAL: This is on-camera dialogue, not off-screen narration. Characters must be shown speaking in the video.`
+CRITICAL: This is on-camera dialogue, not off-screen narration. Only human characters must be shown speaking in the video. Robots and products do not speak. All dialogue must be in English only and must be complete, grammatically correct sentences.`
 
     // Use OpenAI chat completion via MCP
     const voiceoverData = await callOpenAIMCP('chat_completion', {

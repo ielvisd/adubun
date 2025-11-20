@@ -165,8 +165,8 @@ function buildFilterComplex(clips: Clip[], options: CompositionOptions, clipsWit
       console.log(`[FFmpeg] Adding embedded audio from clip ${idx} video, volume ${volume}, start time ${segmentStartTime}s`)
       
       // Extract audio from video input (video inputs are at index idx)
-      // Trim to segment duration and delay to match segment start time
-      filters.push(`[${idx}:a]atrim=duration=${duration},asetpts=PTS-STARTPTS,volume=${volume},adelay=${segmentStartTime * 1000}|${segmentStartTime * 1000}[vo${idx}]`)
+      // Trim to segment duration starting from 0 to match video trim, and delay to match segment start time
+      filters.push(`[${idx}:a]atrim=0:${duration},asetpts=PTS-STARTPTS,volume=${volume},adelay=${segmentStartTime * 1000}|${segmentStartTime * 1000}[vo${idx}]`)
       audioInputs.push(`[vo${idx}]`)
     } else if (clip.voicePath) {
       // Fallback: Use separate speech audio file (legacy support)
@@ -182,16 +182,16 @@ function buildFilterComplex(clips: Clip[], options: CompositionOptions, clipsWit
           const hintDuration = hint.endTime - hint.startTime
           const filterLabel = `vo${idx}_${hintIdx}`
           
-          // Trim audio to match hint duration and position it at the correct time
-          filters.push(`[${audioInputIndex}:a]atrim=duration=${hintDuration},asetpts=PTS-STARTPTS,volume=${volume},adelay=${hint.startTime * 1000}|${hint.startTime * 1000}[${filterLabel}]`)
+          // Trim audio to match hint duration starting from 0, and position it at the correct time
+          filters.push(`[${audioInputIndex}:a]atrim=0:${hintDuration},asetpts=PTS-STARTPTS,volume=${volume},adelay=${hint.startTime * 1000}|${hint.startTime * 1000}[${filterLabel}]`)
           audioInputs.push(`[${filterLabel}]`)
         })
       } else {
         // No timing hints - use full duration, positioned at segment start
         console.log(`[FFmpeg] Adding speech audio from clip ${idx}, audio index ${audioInputIndex}, volume ${volume}, start time ${segmentStartTime}s`)
         
-        // Trim to segment duration and delay to match segment start time
-        filters.push(`[${audioInputIndex}:a]atrim=duration=${duration},asetpts=PTS-STARTPTS,volume=${volume},adelay=${segmentStartTime * 1000}|${segmentStartTime * 1000}[vo${idx}]`)
+        // Trim to segment duration starting from 0 to match video trim, and delay to match segment start time
+        filters.push(`[${audioInputIndex}:a]atrim=0:${duration},asetpts=PTS-STARTPTS,volume=${volume},adelay=${segmentStartTime * 1000}|${segmentStartTime * 1000}[vo${idx}]`)
         audioInputs.push(`[vo${idx}]`)
       }
       

@@ -1106,19 +1106,30 @@ For the 'visualPrompt' field, you MUST use this specific 5-part structure for EV
 [Cinematography] + [Subject] + [Action] + [Context] + [Style & Ambiance]
 
 Definitions:
-- Cinematography: Camera work, shot composition, movement (e.g., "Wide shot, slow pan", "Close-up with shallow depth of field")
+- Cinematography: Camera work, shot composition, movement. Use advanced techniques: dolly shot, tracking shot, crane shot, aerial view, slow pan, POV shot, wide shot, close-up, extreme close-up, low angle, two-shot, shallow depth of field, wide-angle lens, soft focus, macro lens, deep focus
 - Subject: Main character or focal point (e.g., "a young woman", "a sleek product bottle")
 - Action: What the subject is doing (e.g., "walking briskly", "catching the light")
 - Context: Environment and background (e.g., "in a busy city street", "on a wooden table")
 - Style & Ambiance: Aesthetic, mood, lighting (e.g., "cinematic lighting", "warm golden hour glow")
 
+🚨 VEO 3.1 CAPABILITIES:
+- Variable clip length: 4, 6, or 8 seconds
+- Rich audio & dialogue: Generate realistic, synchronized sound, from multi-person conversations to precisely timed sound effects
+- Timestamp prompting: Use [00:00-00:02] format for precise action timing
+- Sound effects: Use "SFX: [description]" (e.g., "SFX: thunder cracks in the distance")
+- Ambient noise: Use "Ambient noise: [description]" (e.g., "Ambient noise: the quiet hum of a starship bridge")
+- Dialogue: Use quotation marks for specific speech (e.g., A woman says, "We have to leave now.")
+
 🚨 TIMECODE & AUDIO REQUIREMENTS:
-- Veo 3.1 supports native audio generation. You MUST include audio cues within the visualPrompt if applicable.
-- Add timecodes for specific actions if needed: "[00:00-00:02] The woman smiles. [00:02-00:04] She turns to the camera."
+- Veo 3.1 supports native audio generation with rich audio & dialogue capabilities. You MUST include audio cues within the visualPrompt if applicable.
+- **Timestamp prompting**: Use precise timecodes for actions: "[00:00-00:02] The woman smiles. [00:02-00:04] She turns to the camera." This allows you to direct complete sequences with precise cinematic pacing.
 - For DIALOGUE:
-  - If a character speaks, write it explicitly: 'The man says: "Hello, world."'
+  - If a character speaks, write it explicitly with quotation marks: 'The man says: "Hello, world."'
   - Use ellipses (...) for natural pauses.
   - Include audio actions: "(laughs)", "(sighs)", "(claps)".
+  - **CRITICAL: Only one character should speak per segment. Different characters can speak in different segments, but within a single segment, only one character speaks.**
+- For SOUND EFFECTS (SFX): Describe sounds with clarity: "SFX: thunder cracks in the distance", "SFX: door creaks open"
+- For AMBIENT NOISE: Define the background soundscape: "Ambient noise: the quiet hum of a starship bridge", "Ambient noise: distant city traffic"
 - Audio inputs are strictly ignored by the video model, so all audio intent must be in the prompt text.
 
   Must include:
@@ -1139,6 +1150,12 @@ Definitions:
   * Each segment must feel like a natural continuation of the previous segment with NO visual breaks, cuts, or scene changes. Maintain the same camera perspective, same environment, same moment in time flowing forward.
   * Create a cohesive narrative arc where each segment feels like a natural continuation, not an abrupt change
   * NO MIRRORS/REFLECTIONS: DO NOT use mirrors, reflections, or stories about people looking at their reflection. Avoid any scenes involving mirrors or reflective surfaces.
+  * **CRITICAL: NO CHILDREN**: DO NOT include children in any scenes. No children visible in any part of the storyboard. All characters must be adults.
+  * **CRITICAL: NO ELECTRONIC DEVICES**: DO NOT use laptops, phones, tablets, computers, screens, monitors, or ANY electronic devices in scenes. ABSOLUTELY NO technology interfaces, NO devices, NO screens of any kind. This is a hard requirement - if you include any electronic device, the storyboard will be rejected.
+  * **CRITICAL: MINIMAL BACKGROUND**: Keep scenes clean and focused. Avoid cluttered backgrounds with lots of objects, furniture, or visual distractions. Minimize background elements to keep focus on the product and characters. Simple, uncluttered environments work best. Use shallow depth of field or selective focus to blur background distractions when needed.
+  * **CRITICAL: SIMPLE TASKS**: Keep tasks simple and achievable within the segment duration. Each segment should show ONE simple action that moves the story forward, not complex multi-step tasks. For example, instead of "clearing a table" (too complex for 6 seconds), show "picking up one item" or "placing one object". Focus on what the product is solving - make the problem clear and the solution obvious. Use humor when appropriate.
+  * **CRITICAL: ONE PRODUCT ONLY**: Each scene must contain ONLY ONE product. Do NOT include multiple products, product variations, or different product models in the same scene. If the product is a robot, there should be only ONE robot. If the product is a bottle, there should be only ONE bottle. Multiple products in a scene will cause visual confusion and inconsistency. Examples to avoid: ❌ "two robots", ❌ "multiple bottles", ❌ "several products". Instead use: ✅ "one robot", ✅ "a single bottle", ✅ "the product".
+  * **CRITICAL: ONE CHARACTER SPEAKING**: Only one character should speak per segment. Different characters can speak in different segments, but within a single segment, only one character speaks.
   * ${sceneDescription ? `🚨 CRITICAL REMINDER: The hook segment visualPrompt MUST start with "${sceneDescription}". This is non-negotiable. Before finalizing your response, verify that the hook segment visualPrompt begins with this exact scene description.` : ''}
   * 🚨 CHARACTER CONSISTENCY: Extract ALL characters from the hook segment and maintain their EXACT appearance across ALL segments:
     - In hook segment: Include explicit character descriptions with gender, age, physical features (hair color/style, build), and clothing
@@ -1663,7 +1680,7 @@ PRIMARY TASK: Select the frame where any product (can, bottle, package, label, e
     prompt: string,
     imageUrls: string[],
     duration: number = 24,
-    clipCount: number = 4,
+    clipCount: number = 3,
     clipDuration: number = 6,
     mood?: string,
     adType?: string
@@ -1706,8 +1723,7 @@ AD TYPE: PRODUCT-FOCUSED AD NARRATIVE
 AD TYPE: UNBOXING AD NARRATIVE
 - Story MUST follow a reveal structure: anticipation → opening → reveal → satisfaction
 - Hook: Show sealed packaging, build anticipation
-- Body 1: Opening the package, hands interacting with box
-- Body 2: Reveal the product inside, first look reaction
+- Body: Opening the package and revealing the product (ONE action)
 - CTA: Product displayed with all accessories, satisfaction moment
 - Focus on the tactile, sensory experience of unboxing`
             break
@@ -1725,13 +1741,12 @@ AD TYPE: TESTIMONIAL AD NARRATIVE
           case 'tutorial':
             adTypeGuidance = `
 AD TYPE: TUTORIAL/HOW-TO AD NARRATIVE
-- Story MUST follow an instructional structure: problem → step 1 → step 2 → result
+- Story MUST follow an instructional structure: problem → action → result
 - Hook: Present the problem or challenge clearly
-- Body 1: First step of using the product (specific action)
-- Body 2: Second step or continuation (specific action)
+- Body: ONE key action demonstrating how to use the product (single action)
 - CTA: Show the final result/benefit achieved
 - Focus on clarity, actionable steps, and practical value
-- Each scene should teach something specific`
+- The body should show ONE clear action, not multiple steps`
             break
           case 'brand_story':
             adTypeGuidance = `
@@ -1749,15 +1764,14 @@ AD TYPE: BRAND STORY AD NARRATIVE
 AD TYPE: LUXURY/CINEMATIC AD NARRATIVE
 - Epic, cinematic storytelling connecting product to nature and elements
 - CRITICAL: NO HUMANS in this narrative - product is the sole protagonist in a grand, dramatic story
-- Story structure: Epic environment → Product integration → Ingredient reveal → Product hero shot
+- Story structure: Epic environment → Product integration → Product hero shot
 - Hook: Establish epic natural environment (waterfalls, mountains, oceans, dramatic landscapes)
-- Body 1: Product integrated with natural elements (water, mist, smoke, atmospheric effects)
-- Body 2: Show raw materials/ingredients that inspired the product (wood, botanicals, minerals)
+- Body: Product integrated with natural elements in ONE transformative moment (water, mist, smoke, atmospheric effects)
 - CTA: Product reveal as the hero, brand name overlay, powerful tagline
 - Tone: Aspirational, powerful, premium, awe-inspiring
 - Focus on transformation, purity, and natural power
 - The product embodies the essence of natural elements
-- Visual narrative: Nature → Essence → Ingredients → Product
+- Visual narrative: Nature → Essence → Product
 - No people, no hands - pure product and nature cinematography`
             break
         }
@@ -1765,25 +1779,47 @@ AD TYPE: LUXURY/CINEMATIC AD NARRATIVE
 
       const systemPrompt = `You are an expert at creating emotionally captivating ad stories for short-form video content. Your goal is to create narratives that deeply resonate with viewers through emotional storytelling techniques.
 
-Generate exactly 1 cohesive story option for a ${duration}-second ad. The story will be broken down into 4 scenes: Hook, Body 1, Body 2, and CTA.
+Generate exactly 3 cohesive story options for a ${duration}-second ad. Each story will be broken down into 3 scenes: Hook, Body, and CTA. Each story should offer a different narrative approach, emotional angle, or problem-solving perspective while staying true to the product and prompt.
 
 ${adTypeGuidance ? `${adTypeGuidance}\n` : ''}
 
+🚨 16-SECOND FORMAT REQUIREMENT - ULTRA-SIMPLE & SNAPPY:
+For ${duration}-second ads, stories MUST be ULTRA-SIMPLE and SNAPPY. The entire story should be: Hook (problem visible) → Body (robot/product does ONE simple action) → CTA (gratitude/resolution). No complex sequences, no multi-step actions, no elaborate setups.
+
+GOOD SIMPLE STORIES (✅ APPROVED):
+- "Person looks tired → Robot brings coffee → Person smiles"
+- "Person struggles with task → Robot offers help → Person shows gratitude"
+- "Person looks stressed → Robot brings tea → Person relaxes"
+
+BAD COMPLEX STORIES (❌ REJECTED - TOO COMPLICATED):
+- ❌ "Person prepares for party, realizes forgotten item, robot retrieves item from shelf, hands it over, person finishes setup" (multiple steps - REJECTED)
+- ❌ "Person struggles with pose, robot adjusts mat, person finds center, completes pose" (multi-step sequence - REJECTED)
+- ❌ "Person slumps over counter, robot brews coffee, places cup, person's eyes light up, person smiles" (too many actions - REJECTED)
+
 The story must:
-- Be a cohesive, complete narrative that flows from Hook → Body 1 → Body 2 → CTA
-- **CRITICAL: Maintain the SAME location/setting throughout ALL scenes (Hook, Body 1, Body 2, CTA). NO location changes, NO scene changes, NO environment changes. The entire story must take place in ONE continuous location (e.g., same room, same outdoor space, same office, same kitchen, same park bench, etc.). All action must happen in the exact same place with the same background, same environment, same surroundings. This is essential for creating a continuous video with no cuts or transitions.**
+- Be a cohesive, complete narrative that flows from Hook → Body → CTA
+- **CRITICAL: Only ONE action should happen in the entire story. The product/character should do ONE thing, not multiple things. Structure: Hook (setup/problem visible) → Body (ONE simple action happens) → CTA (gratitude/resolution). The body action must be achievable in 6 seconds - think one gesture, one movement, one simple act. NOT multiple steps, sequences, or complex tasks.**
+- **Examples of ONE simple action: ✅ "Robot offers a cup of tea" ✅ "Robot brings coffee" ✅ "Robot hands over an item"**
+- **Examples of MULTIPLE actions (REJECTED): ❌ "Robot brews coffee AND places cup" ❌ "Robot retrieves item AND hands it over" ❌ "Robot adjusts mat AND person finds balance"**
+- **CRITICAL: Maintain the SAME location/setting throughout ALL scenes (Hook, Body, CTA). NO location changes, NO scene changes, NO environment changes. The entire story must take place in ONE continuous location (e.g., same room, same outdoor space, same office, same kitchen, same park bench, etc.). All action must happen in the exact same place with the same background, same environment, same surroundings. This is essential for creating a continuous video with no cuts or transitions.**
+- **HARD REJECTION RULE: Any story that mentions mirrors, reflections, reflective surfaces, bathroom mirrors, or people looking at their reflection will be automatically rejected. DO NOT generate stories with these elements.**
+- **CRITICAL: DO NOT include children in any scenes. No children visible in any part of the story. All characters must be adults.**
+- **CRITICAL: DO NOT use laptops, phones, tablets, computers, screens, monitors, or ANY electronic devices in scenes. ABSOLUTELY NO technology interfaces, NO devices, NO screens of any kind. This is a hard requirement - if you include any electronic device, the story will be rejected.**
+- **CRITICAL: Focus on what the product is solving - make the problem clear and the solution obvious. Use humor when appropriate to make the story engaging and memorable.**
+- **CRITICAL: Keep tasks SIMPLE and SNAPPY - achievable in 6 seconds. The body scene should show ONE simple action that moves the story forward, not complex multi-step tasks. Think: one gesture, one movement, one simple act. Examples: ✅ "Robot brings coffee" ✅ "Robot offers tea" ✅ "Robot hands over item" ❌ "Robot brews coffee, places cup, person reacts" (too many steps) ❌ "Robot retrieves item from shelf, glides over, hands it to person" (multi-step - REJECTED).**
+- **CRITICAL: Only one character should speak per segment. Different characters can speak in different segments, but within a single segment, only one character speaks.**
 - Be emotionally captivating and create a strong emotional connection between the viewer and the product/story
 - Evoke specific emotions (joy, aspiration, relief, excitement, inspiration, trust, etc.) through relatable moments and emotional triggers
-- Use emotional storytelling techniques: create an emotional hook that grabs attention, build emotional investment through the body scenes, and deliver an emotional payoff in the CTA
+- Use emotional storytelling techniques: create an emotional hook that grabs attention, build emotional investment through the body scene, and deliver an emotional payoff in the CTA
 - Include relatable moments that viewers can connect with on a personal level
 - Be related to the initial prompt
 - Be suitable for a ${duration}-second ad format
 - Include a full paragraph description that captures the entire story arc and emotional journey
-- Include a single emoji that best represents the story's theme and content
+- Include a single emoji that best represents the story's theme and content (NO images, only emojis)
 
 EMOTIONAL STORYTELLING REQUIREMENTS:
-- Hook: Create an emotional opening that immediately captures attention and establishes an emotional connection (curiosity, surprise, relatability, aspiration). **Must establish the single location that will be used throughout the entire story.**
-- Body 1 & 2: Build emotional investment through relatable moments, emotional triggers, or aspirational scenarios that make viewers feel something. **Must continue in the exact same location established in the Hook. No location changes, no scene changes.**
+- Hook: Create an emotional opening that immediately captures attention and establishes an emotional connection (curiosity, surprise, relatability, aspiration). **Must establish the single location that will be used throughout the entire story. Keep it SIMPLE - just show the problem or situation.**
+- Body: Build emotional investment through ONE SIMPLE action that demonstrates the product solving a problem. This must be a SINGLE, CLEAR action (not multiple actions, not a sequence). Think: Person has problem → Robot does ONE thing → Problem solved. **Must continue in the exact same location established in the Hook. No location changes, no scene changes.**
 - CTA: Deliver an emotional payoff that connects the emotional journey to the product, creating a memorable and compelling call to action. **Must remain in the exact same location as all previous scenes.**
 
 IMPORTANT: 
@@ -1800,22 +1836,55 @@ Return ONLY valid JSON with this exact structure:
       "description": "A full paragraph (3-5 sentences) describing the complete story arc from Hook to CTA",
       "emoji": "🎯",
       "hook": "Brief hook description for the opening scene",
-      "bodyOne": "Brief body 1 description for the first body scene",
-      "bodyTwo": "Brief body 2 description for the second body scene",
+      "body": "Brief body description for the single action that happens (ONE action only)",
+      "callToAction": "Brief CTA description for the closing scene"
+    },
+    {
+      "id": "story-2",
+      "title": "A Different Story Title",
+      "description": "A full paragraph (3-5 sentences) describing a different story approach",
+      "emoji": "✨",
+      "hook": "Brief hook description for the opening scene",
+      "body": "Brief body description for the single action that happens (ONE action only)",
+      "callToAction": "Brief CTA description for the closing scene"
+    },
+    {
+      "id": "story-3",
+      "title": "Another Story Title",
+      "description": "A full paragraph (3-5 sentences) describing yet another story approach",
+      "emoji": "🚀",
+      "hook": "Brief hook description for the opening scene",
+      "body": "Brief body description for the single action that happens (ONE action only)",
       "callToAction": "Brief CTA description for the closing scene"
     }
   ]
 }`
 
-      const userPrompt = `Create 1 emotionally captivating ad story based on this prompt: "${prompt}"
+      const userPrompt = `Create 3 emotionally captivating ad stories based on this prompt: "${prompt}"
+
+Each story should offer a unique narrative approach, different emotional angle, or alternative problem-solving perspective. Make each story distinct while staying true to the product and prompt.
 
 ${adType ? `CRITICAL: This is a ${adType.replace('_', ' ')} ad. The story MUST follow the ${adType.replace('_', ' ')} narrative structure and requirements outlined above.` : ''}
 
 ${imageUrls.length > 0 ? `Reference images are available to inform the visual style and product details.` : ''}
 
-**CRITICAL REQUIREMENT: The entire story (Hook, Body 1, Body 2, CTA) MUST take place in ONE SINGLE LOCATION with NO location changes, NO scene changes, and NO environment changes. Choose a specific location (e.g., "a modern kitchen", "a cozy living room", "a park bench", "an office desk") and keep ALL scenes in that exact same place. The story should feel like one continuous moment happening in the same location, not multiple scenes in different places. DO NOT use mirrors, reflections, or bathroom mirror locations.**
+**CRITICAL REQUIREMENT: The entire story (Hook, Body, CTA) MUST take place in ONE SINGLE LOCATION with NO location changes, NO scene changes, and NO environment changes. Choose a specific location (e.g., "a modern kitchen", "a cozy living room", "a park bench", "an office desk") and keep ALL scenes in that exact same place. The story should feel like one continuous moment happening in the same location, not multiple scenes in different places.**
 
-Focus on creating a story that evokes strong emotions and creates a deep connection with viewers through relatable moments, emotional triggers, and compelling narratives - all while maintaining a single continuous location throughout.`
+**HARD REJECTION RULE: DO NOT use mirrors, reflections, reflective surfaces, bathroom mirrors, or people looking at their reflection. Any story containing these elements will be automatically rejected.**
+
+**CRITICAL RESTRICTIONS:**
+- **NO MIRRORS/REFLECTIONS**: HARD REJECTION RULE - DO NOT use mirrors, reflections, reflective surfaces, bathroom mirrors, or people looking at their reflection. Any story containing these elements will be automatically rejected.
+- **ONE ACTION ONLY - ULTRA-SIMPLE**: CRITICAL - Only ONE simple action should happen in the entire story. The product/character should do ONE thing in the body scene, not multiple things, not a sequence. The body should be: Person has problem → Robot does ONE simple thing → Person shows gratitude. That's it. Examples: ✅ "Robot offers a cup of tea" (single action) ✅ "Robot brings coffee" (single action) ❌ "Robot brews coffee AND places cup" (multiple actions - REJECTED) ❌ "Robot retrieves item from shelf AND glides over AND hands it to person" (sequence - REJECTED) ❌ "Robot tidies magazine AND offers tea AND helps zip dress" (multiple actions - REJECTED).
+- **16-SECOND FORMAT - KEEP IT SNAPPY**: For ${duration}-second ads, stories must be ULTRA-SIMPLE. Avoid complex setups, multi-step sequences, or elaborate actions. Think: problem → solution (one action) → gratitude. The body action must be achievable in 6 seconds with a single gesture or movement.
+- **NO CHILDREN**: DO NOT include children in any scenes. No children visible in any part of the story. All characters must be adults.
+- **NO ELECTRONIC DEVICES**: DO NOT use laptops, phones, tablets, computers, screens, monitors, or ANY electronic devices in scenes. ABSOLUTELY NO technology interfaces, NO devices, NO screens of any kind. This is a hard requirement - if you include any electronic device, the story will be rejected.
+- **SIMPLE TASKS**: Keep the body action SIMPLE and SNAPPY. The body scene should show ONE simple action that moves the story forward, not complex multi-step tasks. Examples: ✅ "Robot brings coffee" ✅ "Robot offers tea" ✅ "Robot hands over item" ❌ "Robot brews coffee, places cup, person reacts" (too many steps - REJECTED) ❌ "Person prepares for party, realizes forgotten item, robot retrieves item, hands it over" (complex sequence - REJECTED).
+- **ONE CHARACTER SPEAKING**: Only one character should speak per segment. Different characters can speak in different segments, but within a single segment, only one character speaks.
+- **PROBLEM-SOLVING FOCUS**: Focus on what the product is solving - make the problem clear and the solution obvious. Use humor when appropriate to make the story engaging and memorable.
+- **MINIMAL BACKGROUND**: Keep scenes clean and focused. Avoid cluttered backgrounds with lots of objects, furniture, or visual distractions. Minimize background elements to keep focus on the product and characters. Simple, uncluttered environments work best.
+- **NO MESSY SURFACES**: DO NOT use "messy", "cluttered", "disorganized", or "chaotic" to describe surfaces, countertops, tables, desks, or any surfaces. Keep all surfaces clean, organized, and minimal. Examples to avoid: ❌ "messy countertop", ❌ "cluttered table", ❌ "disorganized workspace". Instead use: ✅ "clean countertop", ✅ "minimal table", ✅ "organized workspace". Messy surfaces lead to duplicate or weird items appearing in scenes.
+
+Focus on creating a story that evokes strong emotions and creates a deep connection with viewers through relatable moments, emotional triggers, and compelling narratives - all while maintaining a single continuous location throughout with minimal background clutter and clean, organized surfaces. Remember: For ${duration}-second format, KEEP IT SIMPLE AND SNAPPY. Problem → Robot does ONE thing → Gratitude. That's the formula.`
 
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o',
@@ -1845,14 +1914,36 @@ Focus on creating a story that evokes strong emotions and creates a deep connect
         throw new Error('Response missing stories array')
       }
 
-      if (parsed.stories.length !== 1) {
-        throw new Error(`Expected 1 story, got ${parsed.stories.length}`)
+      if (parsed.stories.length !== 3) {
+        throw new Error(`Expected 3 stories, got ${parsed.stories.length}`)
       }
 
-      // Validate each story has required fields
-      for (const story of parsed.stories) {
-        if (!story.description || !story.hook || !story.bodyOne || !story.bodyTwo || !story.callToAction) {
-          throw new Error('Story missing required fields (description, hook, bodyOne, bodyTwo, callToAction)')
+      // Validation function to check for mirror/reflection keywords
+      const hasMirrorReflection = (text: string): boolean => {
+        if (!text) return false
+        const lowerText = text.toLowerCase()
+        const mirrorKeywords = [
+          'mirror', 'reflection', 'reflective', 'reflecting', 'reflected',
+          'bathroom mirror', 'looking at reflection', 'looking in mirror',
+          'mirror surface', 'reflective surface', 'glass reflection'
+        ]
+        return mirrorKeywords.some(keyword => lowerText.includes(keyword))
+      }
+
+      // Validate each story has required fields and check for violations
+      for (let i = 0; i < parsed.stories.length; i++) {
+        const story = parsed.stories[i]
+        
+        // Check for required fields - support both new format (body) and old format (bodyOne/bodyTwo) for backward compatibility
+        const hasBody = story.body || story.bodyOne || story.bodyTwo
+        if (!story.description || !story.hook || !hasBody || !story.callToAction) {
+          throw new Error(`Story ${i + 1} missing required fields (description, hook, body, callToAction)`)
+        }
+
+        // Check for mirror/reflection violations - HARD REJECTION
+        const allText = `${story.description} ${story.hook} ${story.body || story.bodyOne || story.bodyTwo} ${story.callToAction}`.toLowerCase()
+        if (hasMirrorReflection(allText)) {
+          throw new Error(`Story ${i + 1} contains mirrors/reflections and will be rejected. Found in: ${story.description || story.hook || story.body || story.callToAction}`)
         }
       }
 

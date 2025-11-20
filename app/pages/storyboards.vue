@@ -521,7 +521,7 @@
                     :nano-image-url="frameGenerationStatus.get(index)?.firstNanoImageUrl"
                     :seedream-image-url="frameGenerationStatus.get(index)?.firstSeedreamImageUrl"
                     :show-comparison="showComparison.get(`${index}-first`) || false"
-                    :frame-label="`${segment.type === 'hook' ? 'Hook' : segment.type === 'body' ? (index === 1 ? 'Body 1' : 'Body 2') : 'CTA'} First Frame`"
+                    :frame-label="`${segment.type === 'hook' ? 'Hook' : segment.type === 'body' ? 'Body' : 'CTA'} First Frame`"
                     @show="showComparison.set(`${index}-first`, true)"
                     @close="showComparison.set(`${index}-first`, false)"
                   />
@@ -643,7 +643,7 @@
                     :nano-image-url="frameGenerationStatus.get(index)?.lastNanoImageUrl"
                     :seedream-image-url="frameGenerationStatus.get(index)?.lastSeedreamImageUrl"
                     :show-comparison="showComparison.get(`${index}-last`) || false"
-                    :frame-label="`${segment.type === 'hook' ? 'Hook' : segment.type === 'body' ? (index === 1 ? 'Body 1' : 'Body 2') : 'CTA'} Last Frame`"
+                    :frame-label="`${segment.type === 'hook' ? 'Hook' : segment.type === 'body' ? 'Body' : 'CTA'} Last Frame`"
                     @show="showComparison.set(`${index}-last`, true)"
                     @close="showComparison.set(`${index}-last`, false)"
                   />
@@ -780,7 +780,7 @@ const getSegmentLabel = (type: string) => {
   if (viewMode.value === 'admin') {
     return type === 'hook' ? 'Hook' : 
            type === 'cta' ? 'Call to Action' : 
-           type === 'body1' ? 'Body 1' : 'Body 2'
+           'Body'
   }
   // User mode - friendlier labels
   return type === 'hook' ? 'Intro' : 
@@ -1704,6 +1704,33 @@ const generateFrames = async () => {
     console.log('[Storyboards] ========================================')
     console.log('[Storyboards] API response:', result)
 
+    // Check if prompts were refined and update storyboard
+    if (result.promptsRefined && result.storyboard) {
+      console.log('[Storyboards] Prompts were refined, updating storyboard with refined prompts')
+      // Update segments with refined visual prompts
+      if (result.storyboard.segments && selectedStoryboard.value) {
+        result.storyboard.segments.forEach((refinedSegment: any, index: number) => {
+          if (selectedStoryboard.value.segments[index] && refinedSegment.visualPrompt) {
+            const originalPrompt = selectedStoryboard.value.segments[index].visualPrompt
+            const refinedPrompt = refinedSegment.visualPrompt
+            if (originalPrompt !== refinedPrompt) {
+              selectedStoryboard.value.segments[index].visualPrompt = refinedPrompt
+              console.log(`[Storyboards] Updated visual prompt for segment ${index} (${refinedSegment.type})`)
+            }
+          }
+        })
+        // Save updated storyboard
+        debouncedSave()
+        
+        // Show notification that prompts were refined
+        toast.add({
+          title: 'Prompts Refined',
+          description: 'Visual prompts have been automatically refined to match the generated frames.',
+          color: 'blue',
+        })
+      }
+    }
+
     // Map frames to segments
     // Frames structure: [{ segmentIndex: 0, frameType: 'first', imageUrl: '...' }, ...]
     const frames = result.frames || []
@@ -2068,14 +2095,96 @@ const generateFrames = async () => {
     // Save storyboard state including frameGenerationStatus
     saveStoryboardState()
     
-    toast.add({
-      title: 'Frames Generated',
-      description: mode === 'demo' 
-        ? `Generated ${frameCount} frame(s) for first scene (demo mode)`
-        : `Frame images have been generated for all scenes`,
-      color: 'green',
-    })
-    console.log('[Storyboards] Frame generation completed successfully')
+    // Check if frames were regenerated due to conflicts
+    if (result.framesRegenerated && result.storyboard) {
+      console.log('[Storyboards] Frames were regenerated to resolve conflicts')
+      selectedStoryboard.value = result.storyboard
+      
+      const conflictItem = result.conflictDetails?.item || 'conflicting item'
+      const conflictResolved = !result.conflictDetected
+      
+      if (conflictResolved) {
+        toast.add({
+          title: 'Frames Regenerated',
+          description: `Conflicting frames regenerated to remove ${conflictItem}. Conflict resolved.`,
+          color: 'success',
+          timeout: 5000,
+        })
+      } else {
+        toast.add({
+          title: 'Frames Regenerated',
+          description: `Conflicting frames regenerated to remove ${conflictItem}, but conflict may still exist.`,
+          color: 'warning',
+          timeout: 5000,
+        })
+      }
+      
+      // Refresh frame display
+      debouncedSave()
+    } else if (result.conflictDetected && result.conflictDetails) {
+      // Check for unresolved scene conflicts (no regeneration attempted or regeneration failed)
+      console.warn('[Storyboards] ⚠️ Scene conflict detected:', result.conflictDetails)
+      const conflictItem = result.conflictDetails.item || 'an item'
+      
+      // Legacy fallback: Regenerate storyboard with different solution
+      toast.add({
+        title: 'Scene Conflict Detected',
+        description: `We detected that ${conflictItem} is already in the scene. Regenerating storyboard with a different solution...`,
+        color: 'warning',
+        timeout: 5000,
+      })
+
+      try {
+        // Regenerate storyboard with different solution (fallback)
+        console.log('[Storyboards] Falling back to storyboard regeneration due to conflict...')
+        const regenerateResult = await $fetch('/api/regenerate-storyboard-conflict', {
+          method: 'POST',
+          body: {
+            storyboardId: selectedStoryboard.value.id,
+            conflictDetails: result.conflictDetails,
+            originalStory: selectedStory.value,
+            originalPrompt: promptData.value.prompt || '',
+            productImages: promptData.value.productImages || [],
+          },
+        }) as any
+
+        if (regenerateResult.storyboard) {
+          // Replace current storyboard with regenerated one
+          console.log('[Storyboards] Storyboard regenerated successfully:', regenerateResult.storyboard.id)
+          selectedStoryboard.value = regenerateResult.storyboard
+
+          toast.add({
+            title: 'Storyboard Regenerated',
+            description: `New storyboard created with a different solution (avoiding ${result.conflictDetails.item}). Please regenerate frames.`,
+            color: 'success',
+            timeout: 8000,
+          })
+
+          // Note: User will need to regenerate frames for the new storyboard
+          console.log('[Storyboards] User should regenerate frames for the new storyboard')
+        } else {
+          throw new Error('Regenerated storyboard not returned')
+        }
+      } catch (regenerateError: any) {
+        console.error('[Storyboards] Error regenerating storyboard:', regenerateError)
+        toast.add({
+          title: 'Regeneration Failed',
+          description: `Failed to regenerate storyboard: ${regenerateError.data?.message || regenerateError.message || 'Unknown error'}. You may need to manually adjust the storyboard.`,
+          color: 'error',
+          timeout: 10000,
+        })
+      }
+    } else {
+      // No conflict - show success message
+      toast.add({
+        title: 'Frames Generated',
+        description: mode === 'demo' 
+          ? `Generated ${frameCount} frame(s) for first scene (demo mode)`
+          : `Frame images have been generated for all scenes`,
+        color: 'green',
+      })
+      console.log('[Storyboards] Frame generation completed successfully')
+    }
   } catch (err: any) {
     console.error('[Storyboards] Error generating frames:', err)
     frameGenerationError.value = err.data?.message || err.message || 'Failed to generate frame images'
