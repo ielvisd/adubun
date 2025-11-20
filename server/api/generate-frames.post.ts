@@ -22,15 +22,7 @@ const generateFramesSchema = z.object({
       id: z.string(),
       name: z.string().optional(),
       description: z.string(),
-      gender: z.preprocess((val) => {
-        if (typeof val !== 'string') return 'unspecified'
-        const normalized = val.toLowerCase().trim()
-        if (normalized === 'male' || normalized === 'man' || normalized === 'men' || normalized === 'm') return 'male'
-        if (normalized === 'female' || normalized === 'woman' || normalized === 'women' || normalized === 'w' || normalized === 'f') return 'female'
-        if (normalized === 'non-binary' || normalized === 'nonbinary' || normalized === 'nb' || normalized === 'other') return 'non-binary'
-        if (normalized === 'unspecified' || normalized === 'unknown' || normalized === '') return 'unspecified'
-        return 'unspecified' // Default fallback
-      }, z.enum(['male', 'female', 'non-binary', 'unspecified'])),
+      gender: z.enum(['male', 'female', 'non-binary', 'unspecified']),
       age: z.string().optional(),
       physicalFeatures: z.string().optional(),
       clothing: z.string().optional(),
@@ -40,6 +32,7 @@ const generateFramesSchema = z.object({
       aspectRatio: z.enum(['16:9', '9:16']),
       mode: z.enum(['demo', 'production']).optional(),
       mood: z.string().optional(),
+      adType: z.string().optional(),
       subjectReference: z.string().optional(),
     }),
   }),
@@ -144,9 +137,11 @@ export default defineEventHandler(async (event) => {
     const generationMode = mode || storyboard.meta.mode || 'production'
     console.log(`[Generate Frames] Mode: ${generationMode}`)
     
-    // Extract mood from storyboard meta
+    // Extract mood and adType from storyboard meta
     const mood = storyboard.meta.mood || 'professional'
+    const adType = storyboard.meta.adType || ''
     console.log(`[Generate Frames] Mood: ${mood}`)
+    console.log(`[Generate Frames] Ad Type: ${adType}`)
 
     // According to PRD, we need to generate 5 frame images:
     // 1. Hook first frame (using hook paragraph + story description)
@@ -178,6 +173,7 @@ export default defineEventHandler(async (event) => {
       seedreamImageUrl?: string;
     }> = []
     const aspectRatio = storyboard.meta.aspectRatio
+    console.log(`[Generate Frames] Aspect ratio from storyboard.meta: "${aspectRatio}" (type: ${typeof aspectRatio})`)
 
     const dimensions = getDimensions(aspectRatio)
 
@@ -188,12 +184,29 @@ export default defineEventHandler(async (event) => {
     }
     
     // Use all available reference images (up to model limit of 10)
-    const referenceImages = productImages.length > 0 ? productImages.slice(0, 10) : []
+    // Filter out SVG files as nano-banana doesn't support them
+    const referenceImages = productImages
+      .filter(img => {
+        const isSvg = img.toLowerCase().includes('.svg')
+        if (isSvg) {
+          console.log(`[Generate Frames] Filtering out SVG image (not supported by nano-banana): ${img.substring(0, 100)}...`)
+        }
+        return !isSvg
+      })
+      .slice(0, 10)
+    console.log(`[Generate Frames] Initial referenceImages count (after filtering SVGs): ${referenceImages.length}`)
     
     // Add person reference (subjectReference) if available from storyboard meta
     if (storyboard.meta.subjectReference) {
-      console.log(`[Generate Frames] Adding person reference to nano-banana inputs: ${storyboard.meta.subjectReference}`)
-      referenceImages.push(storyboard.meta.subjectReference)
+      // Also check if subjectReference is an SVG
+      const isSubjectSvg = storyboard.meta.subjectReference.toLowerCase().includes('.svg')
+      if (isSubjectSvg) {
+        console.log(`[Generate Frames] WARNING: subjectReference is an SVG file (not supported by nano-banana): ${storyboard.meta.subjectReference}`)
+      } else {
+        console.log(`[Generate Frames] Adding person reference to nano-banana inputs: ${storyboard.meta.subjectReference}`)
+        referenceImages.push(storyboard.meta.subjectReference)
+        console.log(`[Generate Frames] After adding subjectReference, referenceImages count: ${referenceImages.length}`)
+      }
     }
 
     // Get characters from storyboard for consistency
@@ -206,7 +219,8 @@ export default defineEventHandler(async (event) => {
       isTransition: boolean = false, 
       transitionText?: string, 
       transitionVisual?: string,
-      previousFrameImage?: string  // NEW: Add previous frame as input
+      previousFrameImage?: string,  // NEW: Add previous frame as input
+      segmentType?: string  // NEW: Add segment type for unboxing multi-angle logic
     ) => {
       const moodStyle = mood ? `${mood} style` : 'professional style'
       const hasReferenceImages = referenceImages.length > 0
@@ -235,25 +249,32 @@ export default defineEventHandler(async (event) => {
         previousFrameInstruction = `CRITICAL VISUAL CONTINUITY: Use the previous frame image as a visual reference to maintain continuity. Keep the same characters, same environment, same lighting style, and same overall composition. The scene should flow naturally from the previous frame. `
         } else {
           // For progression within same scene: FORCE different angle/composition
-          previousFrameInstruction = `CRITICAL SCENE PROGRESSION - MANDATORY VISUAL VARIATION: This final frame MUST be SIGNIFICANTLY visually different from the previous frame. DO NOT just change text or minor details. You MUST create a DISTINCT visual composition by: 1) Using a DIFFERENT camera angle (switch from medium to close-up, or wide to over-shoulder, or front to side/three-quarter angle), 2) Changing character pose and body language (different standing/sitting position, different gesture, different facial expression, different body orientation), 3) Altering composition and framing (different character placement in frame, different focal point, different depth of field, different framing style). The previous frame is ONLY for character/setting reference to maintain consistency - DO NOT copy its composition, camera angle, pose, or framing. Show a DISTINCT later moment with CLEAR visual progression. Text changes alone are NOT sufficient - the entire visual composition must be different. `
+          previousFrameInstruction = `CRITICAL SCENE PROGRESSION - MUST CREATE VARIATION: This frame MUST be visually DIFFERENT from the previous frame. While keeping the SAME characters and setting, you MUST change: 1) Camera angle (try close-up, wide shot, over-shoulder, or side angle), 2) Character pose and body language (different position, gesture, or facial expression), 3) Composition and framing (different placement in frame, different focal point). DO NOT replicate the previous frame's composition. Show a LATER moment in time with CLEAR visual progression. The previous frame is only for character/setting reference - DO NOT copy its composition, angle, or pose. `
         }
       }
       
-      // Add text/typography instruction
-      const textInstruction = `TEXT ACCURACY: If text is visible, it MUST read exactly: "${storyText}". CHECK SPELLING: Ensure all words are spelled PERFECTLY. `
-
-      // Add variation reinforcement
-      let variationReinforcement = ''
-      if (previousFrameImage && !isTransition) {
-        variationReinforcement = ` FINAL MANDATORY INSTRUCTION: IGNORE the input image composition. You MUST create a visually DISTINCT final frame with a NEW camera angle and pose. Do not copy the previous frame. `
-      }
-
       // Add product consistency and reference image instructions if we have reference images
       if (hasReferenceImages) {
         const productConsistencyInstruction = `CRITICAL INSTRUCTIONS: Do not add new products to the scene. Only enhance existing products shown in the reference images. Keep product design and style exactly as shown in references. The reference images provided are the EXACT product you must recreate. You MUST copy the product from the reference images with pixel-perfect accuracy. Do NOT create a different product, do NOT use different colors, do NOT change the design, do NOT hallucinate new products. The product in your generated image must be visually IDENTICAL to the product in the reference images. Study every detail: exact color codes, exact design patterns, exact text/fonts, exact materials, exact textures, exact proportions, exact placement. The reference images are your ONLY source of truth for the product appearance. Ignore any text in the prompt that contradicts the reference images - the reference images take absolute priority. Generate the EXACT same product as shown in the reference images. `
-        return `${characterInstruction}${textInstruction}${previousFrameInstruction}${productConsistencyInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality, product must be pixel-perfect match to reference images, product appearance must be identical to reference images ${variationReinforcement}`
+        
+        // SPECIAL INSTRUCTION FOR UNBOXING: Add multi-angle guidance with hands
+        let multiAngleInstruction = ''
+        if (adType === 'unboxing' && referenceImages.length > 1) {
+          if (segmentType === 'body2') {
+            // Body2: Hands holding and beginning rotation
+            multiAngleInstruction = `CRITICAL - HANDS HOLDING AND ROTATING PRODUCT: You have ${referenceImages.length} reference images showing the SAME product from DIFFERENT angles/perspectives (front, side, back, detail views). Hands are HOLDING and ROTATING the product smoothly. Show the product being turned in hands - starting position shows one angle (e.g., front view), and the rotation begins toward the next angle. Hands must be clearly VISIBLE gripping the product gently. The rotation should be smooth and natural, not static poses. Match the angles shown in the reference images as the product begins to turn. `
+          } else if (segmentType === 'cta') {
+            // CTA: Hands completing the 360° rotation
+            multiAngleInstruction = `CRITICAL - HANDS COMPLETING 360° ROTATION: You have ${referenceImages.length} reference images showing the SAME product from DIFFERENT angles. Hands continue the SMOOTH CONTINUOUS ROTATION of the product, showing it from multiple angles in sequence as it turns (front → side → back → front). The rotation should feel fluid and natural. Hands remain steady and VISIBLE throughout the turn, showcasing all perspectives of the product. This is ONE continuous rotation motion showing all angles from the reference images as the product turns in hands. `
+          } else {
+            // Hook and Body1 focus on the box/opening
+            multiAngleInstruction = `MULTIPLE REFERENCE IMAGES: You have ${referenceImages.length} reference images showing the SAME product from different angles. For this scene, maintain product consistency - the product appearance must match ALL reference images (it's the same product, just from different angles). `
+          }
+        }
+        
+        return `${characterInstruction}${previousFrameInstruction}${productConsistencyInstruction}${multiAngleInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality, product must be pixel-perfect match to reference images, product appearance must be identical to reference images`
       } else {
-        return `${characterInstruction}${textInstruction}${previousFrameInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality ${variationReinforcement}`
+        return `${characterInstruction}${previousFrameInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality`
       }
     }
 
@@ -300,6 +321,8 @@ export default defineEventHandler(async (event) => {
         }
         
         console.log(`[Generate Frames] Total image inputs being sent: ${imageInputs.length} images (${referenceImages.length} product + ${(previousFrameImage && includePreviousFrameInInput) ? 1 : 0} previous frame)`)
+        console.log(`[Generate Frames] Aspect ratio being sent to nano-banana: "${aspectRatio}" (type: ${typeof aspectRatio})`)
+        console.log(`[Generate Frames] Image input URLs:`, JSON.stringify(imageInputs, null, 2))
         
         const nanoResult = await callReplicateMCP('generate_image', {
           model: 'google/nano-banana',
@@ -380,7 +403,7 @@ export default defineEventHandler(async (event) => {
     let hookFirstFrameResult: any = null
     if (hookSegment) {
       console.log('\n[Generate Frames] === FRAME 1: Hook First Frame ===')
-      const nanoPrompt = buildNanoPrompt(story.hook, hookSegment.visualPrompt)
+      const nanoPrompt = buildNanoPrompt(story.hook, hookSegment.visualPrompt, false, undefined, undefined, undefined, 'hook')
       hookFirstFrameResult = await generateSingleFrame(
         'hook first frame', 
         nanoPrompt, 
@@ -408,7 +431,8 @@ export default defineEventHandler(async (event) => {
         true, 
         story.bodyOne, 
         body1Segment.visualPrompt,
-        hookFirstFrameResult.imageUrl  // Use hook first frame as input
+        hookFirstFrameResult.imageUrl,  // Use hook first frame as input
+        'hook'
       )
       hookLastFrameResult = await generateSingleFrame(
         'hook last frame', 
@@ -458,7 +482,8 @@ export default defineEventHandler(async (event) => {
         true, 
         story.bodyTwo, 
         body2Segment.visualPrompt,
-        hookLastFrameResult.imageUrl  // Use hook last frame (= Body1 first frame) as input
+        hookLastFrameResult.imageUrl,  // Use hook last frame (= Body1 first frame) as input
+        'body'
       )
       body1LastFrameResult = await generateSingleFrame(
         'body1 last frame', 
@@ -492,7 +517,8 @@ export default defineEventHandler(async (event) => {
         true, 
         story.callToAction, 
         ctaSegment.visualPrompt,
-        body1LastFrameResult.imageUrl  // Use body1 last frame (= Body2 first frame) as input
+        body1LastFrameResult.imageUrl,  // Use body1 last frame (= Body2 first frame) as input
+        'body2'  // CRITICAL: body2 for unboxing multi-angle
       )
       body2LastFrameResult = await generateSingleFrame(
         'body2 last frame', 
@@ -535,7 +561,8 @@ export default defineEventHandler(async (event) => {
         false,  // Not a transition (CTA is the final scene)
         undefined,
         undefined,
-        body2LastFrameResult.imageUrl  // Use CTA first frame as input per spec
+        body2LastFrameResult.imageUrl,  // Use CTA first frame as input per spec
+        'cta'  // CRITICAL: cta for unboxing multi-angle showcase
       )
       
       console.log('[Generate Frames] CTA nano prompt:', nanoPrompt)

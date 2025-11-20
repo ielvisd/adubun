@@ -63,12 +63,60 @@ export default defineEventHandler(async (event) => {
         break
       case 'unboxing':
         adTypeInstruction = `UNBOXING AD STRATEGY:
+- Camera Angle: Top-down overhead view (bird's eye) OR slightly angled view showing hands and product clearly
+- Setting: Clean, minimal surface (white marble table, wood desk, or neutral backdrop)
+- Lighting: Soft, even lighting from above and sides to eliminate harsh shadows
 - Structure the narrative as a reveal process:
-  1. Hook: Sealed box/packaging (anticipation)
+  1. Hook: Sealed box/packaging centered on clean surface (anticipation)
+     - Show FULL box in frame, unopened, centered
+     - Include branding, logos, and any seals visible
+     - Hands may be positioned near but not touching yet
+  
   2. Body 1: Hands opening the package (action)
-  3. Body 2: Reveal of the product inside (satisfaction)
-  4. CTA: Product fully displayed with accessories (completeness)
-- Focus on the tactile experience and packaging quality`
+     - Show hands carefully lifting lid or unwrapping outer packaging
+     - Capture the moment of breaking seals, lifting flaps
+     - Focus on the tactile interaction with packaging materials
+     - Show any tissue paper, foam, or protective layers being removed
+  
+  3. Body 2: Hands holding and beginning to ROTATE the product (satisfaction)
+     - Show hands lifting product out of box and holding it firmly
+     - Hands must be VISIBLE throughout, gently gripping the product
+     - Begin a SMOOTH ROTATION motion to show different angles
+     - Product should be clearly visible, centered in frame
+     - Show the product starting to turn: front view transitioning to side view
+     - If multiple reference images provided, the rotation reveals those different angles:
+       * Start with front view, begin rotating toward side view
+       * Smooth, continuous motion - not static poses
+     - Capture the "wow" moment as product begins rotating to reveal all sides
+  
+  4. CTA: Hands smoothly rotating product to show ALL ANGLES - 360° turn (completeness)
+     - Hands continue the SMOOTH CONTINUOUS ROTATION of the product
+     - Product rotates from side view → back view → full circle back to front
+     - Hands remain steady and VISIBLE throughout the entire rotation
+     - Showcase the product from all angles in one continuous motion
+     - If multiple reference images provided, show each angle during rotation:
+       * Front features, side profile, back details - all visible as product turns
+     - The rotation should feel fluid and natural, completing a full 360° showcase
+     
+- Visual Requirements:
+  * Hands should be well-manicured, neutral skin tone unless specified
+  * Hands must be VISIBLE throughout Body 2 and CTA scenes
+  * Same hands throughout (consistent skin tone, manicured nails)
+  * Movements should be slow, deliberate, and graceful
+  * Smooth, continuous rotation motion - not static poses
+  * Keep composition clean and uncluttered
+  * Maintain consistent camera angle throughout (no jarring changes)
+  * Product should always be in focus and clearly visible
+  * Show packaging details: textures, materials, premium finishes
+  
+- MULTIPLE PRODUCT ANGLES (if user provides multiple reference images):
+  * Body 2: Hands holding product, beginning smooth rotation to reveal angles
+  * CTA: Hands completing 360° rotation showing all angles continuously
+  * Each angle should match one of the reference images during rotation
+  * Rotation should be fluid and natural - one continuous motion
+  
+- CRITICAL: Each scene must clearly show the SAME product throughout
+- Maintain spatial consistency: if box is on left in Hook, keep it on left in Body 1`
         break
       case 'testimonial':
         adTypeInstruction = `TESTIMONIAL AD STRATEGY:

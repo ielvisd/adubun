@@ -994,12 +994,67 @@ AD TYPE: PRODUCT FOCUS AD
         case 'unboxing':
           adTypeInstruction = `
 AD TYPE: UNBOXING EXPERIENCE
-- Scene Structure:
-  1. Hook: Sealed box/packaging on a surface or being held
-  2. Body 1: Hands opening the box/packaging (anticipation)
-  3. Body 2: The reveal/first look of the product inside
-  4. CTA: The product fully removed and displayed with accessories
-- Focus on the tactile experience and packaging details
+- Camera Setup: Top-down overhead angle OR 45-degree angle showing table surface
+- Setting: Clean, minimal environment (white/marble table, wood surface, or solid neutral background)
+- Lighting: Soft, diffused lighting to showcase product without harsh shadows
+
+- Scene Structure & Visual Details:
+  1. Hook: SEALED BOX ON SURFACE (0-4 seconds)
+     Visual: "Medium shot of [product] box centered on clean [surface type] surface. 
+     The box is unopened, sealed, showing brand logo and packaging details clearly. 
+     Soft overhead lighting. Clean composition. Hands positioned at sides of frame, 
+     not yet touching the box. Camera is stationary, top-down or slightly angled view."
+     
+  2. Body 1: OPENING THE PACKAGE (4-8 seconds)
+     Visual: "Close-up top-down view of hands carefully lifting the lid of the [product] box. 
+     Show fingers gripping the edges, lifting slowly. Reveal the interior packaging: 
+     tissue paper, protective foam, or custom inserts visible. The box remains centered 
+     in frame. Hands move deliberately and gracefully. Same camera angle as Hook."
+     
+  3. Body 2: HANDS HOLDING AND BEGINNING ROTATION (8-12 seconds)
+     Visual: "Top-down close-up of hands lifting the [product] out of its packaging and 
+     holding it firmly. Hands are VISIBLE, gently gripping the product. The product emerges 
+     from tissue paper/foam, clearly visible and centered in frame. Show the 'first glimpse' 
+     moment, then hands begin a SMOOTH ROTATION motion. Product details are sharp and well-lit. 
+     Box visible in background. 
+     CRITICAL: Hands hold the product and begin rotating it to show different angles. Starting 
+     position shows front view transitioning to side view. The rotation is smooth and continuous, 
+     not static poses. Hands must be clearly visible throughout, showcasing the product as it 
+     begins to turn. Each angle should match the reference images provided by the user."
+     
+  4. CTA: HANDS COMPLETING 360° ROTATION (12-16 seconds)
+     Visual: "Top-down shot with hands continuing the SMOOTH CONTINUOUS ROTATION of the [product]. 
+     Hands remain steady and VISIBLE throughout, completing a full 360° turn. The product rotates 
+     from side view → back view → full circle back to front view. Show all angles in one continuous 
+     motion as hands turn the product smoothly.
+     CRITICAL: Hands must be visible holding and rotating the product throughout the entire scene. 
+     The rotation should feel fluid and natural, showcasing front features, side profile, and back 
+     details as the product turns. Each angle during rotation should match one of the reference 
+     images provided. This is a continuous rotation motion, not quick cuts or static poses."
+
+- Visual Consistency Rules:
+  * Camera angle must remain consistent (top-down throughout OR angled throughout)
+  * Surface/background must be the same in all scenes
+  * Product must be visually identical across all scenes (same model, color, design)
+  * Hands MUST be visible throughout Body 2 and CTA scenes
+  * Same hands throughout (consistent skin tone, well-manicured nails)
+  * Lighting must remain constant
+  
+- MULTIPLE PRODUCT ANGLES (when user provides multiple reference images):
+  * Body 2: Hands hold product and begin smooth continuous rotation to reveal angles
+  * CTA: Hands complete the 360° rotation showing all angles in one fluid motion
+  * Each angle view should correspond to one of the reference images during rotation
+  * Rotation should be smooth and continuous - one natural turning motion
+  * Hands remain visible and steady throughout the rotation
+  * All angles must show the SAME product (just from different perspectives)
+  * Match the angle/perspective shown in each reference image as product rotates
+  
+- Unboxing-Specific Requirements:
+  * Show packaging materials: box, tissue paper, foam inserts, protective films
+  * Emphasize premium packaging details: embossing, magnetic closures, ribbon pulls
+  * Capture the tactile satisfaction of unwrapping
+  * Product should progress from sealed → opening → revealed → displayed from all angles
+  * Focus on the sensory/ASMR qualities: textures, materials, satisfying reveals
 `
           break
         case 'testimonial':
@@ -1665,12 +1720,53 @@ AD TYPE: PRODUCT-FOCUSED AD NARRATIVE
           case 'unboxing':
             adTypeGuidance = `
 AD TYPE: UNBOXING AD NARRATIVE
-- Story MUST follow a reveal structure: anticipation → opening → reveal → satisfaction
-- Hook: Show sealed packaging, build anticipation
-- Body 1: Opening the package, hands interacting with box
-- Body 2: Reveal the product inside, first look reaction
-- CTA: Product displayed with all accessories, satisfaction moment
-- Focus on the tactile, sensory experience of unboxing`
+- Story MUST follow unboxing reveal structure: anticipation → opening → reveal → 360° showcase → satisfaction
+
+- Hook (Scene 1): SEALED ANTICIPATION
+  Narrative: Introduce the sealed package, build curiosity and anticipation
+  Visual Focus: "The pristine, unopened box sits on a clean surface, promising something special inside"
+  Mood: Anticipatory, curious, excited
+  
+- Body 1 (Scene 2): THE OPENING
+  Narrative: The tactile experience of opening, breaking seals, unwrapping
+  Visual Focus: "Hands carefully lift the lid, revealing layers of premium packaging that protect the treasure within"
+  Mood: Satisfying, careful, deliberate
+  
+- Body 2 (Scene 3): HANDS HOLD AND BEGIN SMOOTH ROTATION
+  Narrative: First glimpse of the product as hands lift it out and begin rotating it
+  Visual Focus: "Hands lift the product from its packaging for the first time, holding it firmly. 
+  As the product emerges, hands begin a smooth rotation motion, starting to reveal different angles. 
+  The rotation begins: front view transitioning toward side view, showcasing the design as it starts to turn."
+  Mood: Delighted, impressed, satisfied, discovering
+  CRITICAL: Emphasize HANDS HOLDING the product and BEGINNING A SMOOTH ROTATION to reveal angles
+  
+- CTA (Scene 4): HANDS COMPLETE 360° ROTATION
+  Narrative: Hands continue the smooth rotation, completing a full turn to showcase all angles
+  Visual Focus: "Hands complete a smooth 360° rotation of the product, showcasing every angle as it turns. 
+  Front features, side profile, back details - all visible as the product rotates continuously in frame. 
+  The rotation is fluid and natural, with hands steady and visible throughout, displaying the product 
+  from all perspectives in one complete turn."
+  Mood: Complete, premium, thoroughly showcased, ready to own
+  CRITICAL: Emphasize HANDS COMPLETING THE CONTINUOUS ROTATION - not static shots, one fluid 360° turn
+  
+- Narrative Guidelines:
+  * Emphasize the SENSORY experience: touch, sight, satisfaction
+  * Describe packaging quality and attention to detail
+  * Build from anticipation → satisfaction → thorough exploration through rotation
+  * Highlight what makes the unboxing experience premium
+  * Focus on the physical, tactile journey and the act of rotating the product
+  * Use words like: pristine, carefully, revealing, unwrapping, discovering, nestled, protected, holding, rotating, turning, showcasing, every angle
+  * For multiple angles: mention "hands rotate," "smooth turn," "360° rotation," "continuous motion," "turning in hands," "all perspectives as it rotates"
+  * Emphasize HANDS being visible and active throughout the rotation
+  
+- MULTIPLE ANGLES EMPHASIS (when reference images provided):
+  * Body 2: Describe the product being turned/rotated to show different sides
+  * CTA: Explicitly mention showing the product from multiple perspectives/angles
+  * Narrative should guide the viewer's eye around the product
+  * Build excitement about seeing "every detail" and "all angles"
+  
+- CRITICAL: Story should make viewer FEEL the unboxing experience AND see the product completely
+- Tone: Satisfying, premium, ASMR-friendly, tactile, sensory, comprehensive, thorough`
             break
           case 'testimonial':
             adTypeGuidance = `
