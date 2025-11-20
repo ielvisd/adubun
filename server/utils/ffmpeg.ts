@@ -147,29 +147,57 @@ function buildFilterComplex(clips: Clip[], options: CompositionOptions, clipsWit
 
   // Audio mixing
   // Calculate audio input indices:
-  // - Video inputs: 0, 1, 2, 3 (4 clips) - each video may have embedded audio at [idx:a]
-  // - Voiceover audio: separate inputs after video inputs (if voicePath exists)
+  // - Video inputs: 0, 1, 2, 3 (4 clips) - may contain embedded audio
+  // - Speech audio: separate inputs after video inputs (if voicePath exists, for legacy support)
   // - Background music: last input (if provided)
   const audioInputs: string[] = []
   let audioInputIndex = clips.length // Start after video inputs
   
-  // Add audio from clips - prefer separate voiceover, fallback to embedded video audio
+  // Add audio from clips - prioritize embedded audio from videos, fallback to separate voicePath
   clips.forEach((clip, idx) => {
     const duration = clip.endTime - clip.startTime
-    if (clip.voicePath) {
-      // Use separate voiceover audio file
-      const volume = 1.0 // Full volume for voiceover
-      console.log(`[FFmpeg] Adding voiceover audio from clip ${idx}, audio index ${audioInputIndex}, volume ${volume}`)
-      filters.push(`[${audioInputIndex}:a]atrim=duration=${duration},asetpts=PTS-STARTPTS,volume=${volume}[vo${idx}]`)
+    const segmentStartTime = clip.startTime
+    const volume = 1.0 // Full volume for speech
+    
+    // Check if video has embedded audio
+    if (clipsWithAudio.includes(idx)) {
+      // Use embedded audio from video
+      console.log(`[FFmpeg] Adding embedded audio from clip ${idx} video, volume ${volume}, start time ${segmentStartTime}s`)
+      
+      // Extract audio from video input (video inputs are at index idx)
+      // Trim to segment duration and delay to match segment start time
+      filters.push(`[${idx}:a]atrim=duration=${duration},asetpts=PTS-STARTPTS,volume=${volume},adelay=${segmentStartTime * 1000}|${segmentStartTime * 1000}[vo${idx}]`)
       audioInputs.push(`[vo${idx}]`)
+    } else if (clip.voicePath) {
+      // Fallback: Use separate speech audio file (legacy support)
+      // Check for timing hints in clip metadata
+      const timingHints = (clip as any).timingHints as Array<{ startTime: number; endTime: number; text: string }> | undefined
+      
+      if (timingHints && timingHints.length > 0) {
+        // Apply timing hints - create multiple audio segments with proper timing
+        console.log(`[FFmpeg] Adding speech audio from clip ${idx} with ${timingHints.length} timing hints`)
+        
+        // For each timing hint, create a trimmed and positioned audio segment
+        timingHints.forEach((hint, hintIdx) => {
+          const hintDuration = hint.endTime - hint.startTime
+          const filterLabel = `vo${idx}_${hintIdx}`
+          
+          // Trim audio to match hint duration and position it at the correct time
+          filters.push(`[${audioInputIndex}:a]atrim=duration=${hintDuration},asetpts=PTS-STARTPTS,volume=${volume},adelay=${hint.startTime * 1000}|${hint.startTime * 1000}[${filterLabel}]`)
+          audioInputs.push(`[${filterLabel}]`)
+        })
+      } else {
+        // No timing hints - use full duration, positioned at segment start
+        console.log(`[FFmpeg] Adding speech audio from clip ${idx}, audio index ${audioInputIndex}, volume ${volume}, start time ${segmentStartTime}s`)
+        
+        // Trim to segment duration and delay to match segment start time
+        filters.push(`[${audioInputIndex}:a]atrim=duration=${duration},asetpts=PTS-STARTPTS,volume=${volume},adelay=${segmentStartTime * 1000}|${segmentStartTime * 1000}[vo${idx}]`)
+        audioInputs.push(`[vo${idx}]`)
+      }
+      
       audioInputIndex++
-    } else if (clipsWithAudio.includes(idx)) {
-      // Extract audio from embedded video stream (only if video has audio)
-      console.log(`[FFmpeg] Using embedded audio from video ${idx}`)
-      filters.push(`[${idx}:a]atrim=duration=${duration},asetpts=PTS-STARTPTS,volume=1.0[vo${idx}]`)
-      audioInputs.push(`[vo${idx}]`)
     } else {
-      console.log(`[FFmpeg] Clip ${idx} has no audio track, skipping`)
+      console.log(`[FFmpeg] Clip ${idx} has no audio track (embedded or separate), skipping`)
     }
   })
 

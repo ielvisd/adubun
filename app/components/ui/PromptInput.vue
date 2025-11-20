@@ -102,6 +102,18 @@
             </template>
           </UFormField>
 
+          <!-- 5. Video Style/Mood -->
+          <UFormField label="Video Style" name="mood" required>
+            <USelect
+              v-model="form.mood"
+              :items="moodOptions"
+              :disabled="props.loading"
+            />
+            <template #description>
+              <span class="text-gray-600 dark:text-gray-400">The emotional tone of your video</span>
+            </template>
+          </UFormField>
+
           <!-- Advanced Options Toggle -->
           <div class="pt-2">
             <button

@@ -91,98 +91,6 @@ async function prepareImageInput(filePath: string | undefined | null): Promise<s
 }
 
 
-// Helper function to extract VO script from audioNotes
-// Filters out descriptive notes and music cues, returning only the actual script text
-function extractVOScript(audioNotes: string): string | null {
-  if (!audioNotes || !audioNotes.trim()) {
-    return null
-  }
-  
-  // Remove leading/trailing whitespace
-  const trimmed = audioNotes.trim()
-  const lowerTrimmed = trimmed.toLowerCase()
-  
-  // Pattern 1: "Music: [description]. Voiceover: [script]" - extract voiceover part
-  const musicAndVoiceoverMatch = trimmed.match(/music:\s*[^.]*\.\s*voiceover:\s*(.+)/i)
-  if (musicAndVoiceoverMatch) {
-    const voText = musicAndVoiceoverMatch[1].trim()
-    // Remove trailing period if it's at the end
-    return voText.replace(/\.$/, '').trim()
-  }
-  
-  // Pattern 2: "Voiceover: [text]" or "VO: [text]" (standalone or with music prefix)
-  const voiceoverMatch = trimmed.match(/(?:voiceover|vo):\s*(.+?)(?:\.\s*$|$)/i)
-  if (voiceoverMatch) {
-    let voText = voiceoverMatch[1].trim()
-    // If there's a "Music:" prefix before this, we already handled it above
-    // Otherwise, check if this is descriptive text
-    const isDescriptive = voText.toLowerCase().match(/^(a |an |the )?(narrator|voiceover|voice|speaker|announcer)/i) ||
-                         voText.toLowerCase().match(/(describes|explains|discusses|talks about|says|tells)/i)
-    
-    if (!isDescriptive && voText.length > 5) {
-      return voText
-    }
-  }
-  
-  // Pattern 3: Text in quotes after "Voiceover:" or "VO:"
-  const quotedMatch = trimmed.match(/(?:voiceover|vo):\s*['"](.+?)['"]/i)
-  if (quotedMatch) {
-    return quotedMatch[1].trim()
-  }
-  
-  // Pattern 4: Text in quotes (standalone) - only if no music/sound keywords
-  const standaloneQuoted = trimmed.match(/['"](.+?)['"]/)
-  if (standaloneQuoted && !lowerTrimmed.includes('music') && !lowerTrimmed.includes('sound')) {
-    const quotedText = standaloneQuoted[1].trim()
-    // Check if it's descriptive
-    const isDescriptive = quotedText.toLowerCase().match(/^(a |an |the )?(narrator|voiceover|voice|speaker)/i)
-    if (!isDescriptive && quotedText.length > 5) {
-      return quotedText
-    }
-  }
-  
-  // Pattern 5: If it contains "Music:" or "Sound:", extract only the voiceover part
-  if (lowerTrimmed.includes('voiceover') || lowerTrimmed.includes('vo:')) {
-    // Split by common separators and find voiceover section
-    const parts = trimmed.split(/[.;]/)
-    for (const part of parts) {
-      const partLower = part.toLowerCase()
-      if (partLower.includes('voiceover') || partLower.includes('vo:')) {
-        let voText = part.replace(/^(?:voiceover|vo):\s*/i, '').trim()
-        // Check if it's descriptive
-        const isDescriptive = voText.toLowerCase().match(/^(a |an |the )?(narrator|voiceover|voice|speaker|announcer)/i) ||
-                             voText.toLowerCase().match(/(describes|explains|discusses|talks about|says|tells)/i)
-        
-        if (!isDescriptive && voText && !voText.toLowerCase().startsWith('music') && !voText.toLowerCase().startsWith('sound') && voText.length > 5) {
-          return voText
-        }
-      }
-    }
-  }
-  
-  // Pattern 6: Check for descriptive indicators and reject if found
-  const descriptiveIndicators = [
-    'a narrator', 'an announcer', 'the voiceover', 'the voice', 'the speaker',
-    'describes', 'explains', 'discusses', 'talks about', 'says that', 'tells',
-    'music begins', 'music plays', 'music reaches', 'music fades',
-    'sound of', 'ambient music', 'instrumental music'
-  ]
-  
-  const isDescriptiveNote = descriptiveIndicators.some(indicator => lowerTrimmed.includes(indicator))
-  
-  if (!isDescriptiveNote && trimmed.length > 10) {
-    // Additional check: if it starts with common descriptive phrases, reject it
-    const startsWithDescriptive = /^(a |an |the )?(narrator|voiceover|voice|speaker|announcer|professional)/i.test(trimmed)
-    if (!startsWithDescriptive) {
-      // Likely actual script text, return as-is
-      return trimmed
-    }
-  }
-  
-  // No valid VO script found
-  return null
-}
-
 const JOBS_FILE = path.join(process.env.MCP_FILESYSTEM_ROOT || './data', 'jobs.json')
 
 export async function saveJob(job: GenerationJob) {
@@ -211,6 +119,130 @@ export async function getJob(jobId: string): Promise<GenerationJob | null> {
     const jobs: GenerationJob[] = JSON.parse(content)
     return jobs.find(j => j.id === jobId) || null
   } catch {
+    return null
+  }
+}
+
+// Helper function to generate background music
+// Analyzes both story content and storyboard content to infer mood/style
+async function generateBackgroundMusic(
+  storyboard: any,
+  totalDuration: number
+): Promise<string | null> {
+  try {
+    console.log('[Music Generation] Starting background music generation')
+    
+    // Extract story content
+    const storyContent = storyboard.promptJourney?.storyGeneration?.output
+    const storyText = storyContent
+      ? `${storyContent.hook} ${storyContent.bodyOne} ${storyContent.bodyTwo} ${storyContent.callToAction} ${storyContent.description || ''}`
+      : ''
+    
+    // Extract storyboard content
+    const storyboardText = storyboard.segments
+      .map((seg: any) => `${seg.description} ${seg.visualPrompt || ''}`)
+      .join(' ')
+    
+    // Combine both sources for mood analysis
+    const combinedContent = `${storyText} ${storyboardText}`.trim()
+    
+    if (!combinedContent) {
+      console.warn('[Music Generation] No content available for mood analysis')
+      return null
+    }
+    
+    // Use OpenAI to analyze mood and generate music prompt
+    const moodAnalysisPrompt = `Analyze the following video ad content and determine the appropriate background music style, mood, and genre.
+
+Story Content: ${storyText.substring(0, 500)}
+Storyboard Content: ${storyboardText.substring(0, 500)}
+
+Based on the content, provide a concise music prompt (2-3 sentences) that describes:
+- The mood/emotion (e.g., energetic, calm, dramatic, playful, professional)
+- The music style/genre (e.g., upbeat electronic, calm piano, corporate professional, acoustic folk, dramatic orchestral, ambient soundscape)
+- The tempo and energy level
+
+Return ONLY the music description prompt, nothing else.`
+
+    const moodResult = await callOpenAIMCP('chat_completion', {
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'You are an expert at analyzing video content and determining appropriate background music.' },
+        { role: 'user', content: moodAnalysisPrompt },
+      ],
+      max_tokens: 150,
+    })
+    
+    let musicPrompt = ''
+    if (moodResult && typeof moodResult === 'object') {
+      if (moodResult.content && typeof moodResult.content === 'string') {
+        musicPrompt = moodResult.content.trim()
+      } else if (moodResult.choices && moodResult.choices[0]?.message?.content) {
+        musicPrompt = moodResult.choices[0].message.content.trim()
+      } else if (typeof moodResult === 'string') {
+        musicPrompt = moodResult.trim()
+      }
+    }
+    
+    if (!musicPrompt) {
+      // Fallback to generic prompt based on ad type or mood
+      const adType = storyboard.meta.adType || 'general'
+      const mood = storyboard.meta.mood || 'professional'
+      musicPrompt = `Background music for ${adType} ad with ${mood} mood, professional quality, suitable for video advertisement`
+    }
+    
+    console.log('[Music Generation] Music prompt:', musicPrompt)
+    
+    // Generate music via Replicate
+    const musicResult = await callReplicateMCP('generate_music', {
+      prompt: musicPrompt,
+      duration: totalDuration,
+      model: 'google/lyria-2',
+    })
+    
+    if (!musicResult?.predictionId) {
+      throw new Error('Failed to create music generation prediction')
+    }
+    
+    // Poll for completion
+    let predictionStatus = musicResult
+    while (predictionStatus.status === 'starting' || predictionStatus.status === 'processing') {
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      predictionStatus = await callReplicateMCP('check_prediction_status', {
+        predictionId: musicResult.predictionId,
+      })
+    }
+    
+    if (predictionStatus.status !== 'succeeded') {
+      throw new Error(`Music generation failed: ${predictionStatus.error || 'Unknown error'}`)
+    }
+    
+    // Get result URL
+    const musicUrlResult = await callReplicateMCP('get_prediction_result', {
+      predictionId: musicResult.predictionId,
+    })
+    
+    // Replicate may return audio as videoUrl or audioUrl - check both
+    const musicUrl = musicUrlResult?.videoUrl || musicUrlResult?.audioUrl || musicUrlResult?.url
+    
+    if (!musicUrl) {
+      throw new Error('Music generation succeeded but no URL returned')
+    }
+    
+    // Download and save music file
+    const musicBuffer = Buffer.from(await (await fetch(musicUrl)).arrayBuffer())
+    const musicPath = await saveAsset(musicBuffer, 'mp3')
+    
+    await trackCost('music-generation', 0.20, {
+      duration: totalDuration,
+      model: 'google/lyria-2',
+    })
+    
+    console.log('[Music Generation] Background music generated:', musicPath)
+    return musicPath
+  } catch (error: any) {
+    console.error('[Music Generation] Error:', error.message)
+    console.warn('[Music Generation] Continuing without background music')
     return null
   }
 }
@@ -327,8 +359,8 @@ export default defineEventHandler(async (event) => {
         const mood = storyboard.meta.mood || 'professional'
         const moodInstruction = mood ? ` ${mood.charAt(0).toUpperCase() + mood.slice(1)} tone and mood.` : ''
         
-        // Add hold-final-frame instruction, face quality, and people count limits
-        const videoPrompt = `${sanitizedPrompt}${moodInstruction} The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene. TYPOGRAPHY & TEXT: If displaying any text, brand names, or product names: Use clean, elegant, modern typeface (sans-serif like Helvetica, Futura, Gotham for contemporary brands OR serif like Didot, Bodoni for luxury brands). High contrast for maximum legibility: crisp white text on dark background OR bold black text on light background. Large, bold, professional font size with generous spacing. Centered or elegantly positioned with balanced composition. Spell exactly as mentioned in prompt with perfect accuracy. Professional kerning, leading, and letter spacing. Sharp, crisp edges - no blurry or distorted text. Minimize decorative or script fonts unless specifically luxury brand requirement. Text should be perfectly readable at any resolution with cinema-quality typography. FACE QUALITY: Limit scene to 3-4 people maximum. Use close-ups and medium shots to ensure sharp faces, clear facial features, detailed faces, professional portrait quality. Avoid large groups, crowds, or more than 4 people.`
+        // Add hold-final-frame instruction, face quality, people count limits, dialogue-only audio instructions, and clothing/jewelry stability
+        const videoPrompt = `${sanitizedPrompt}${moodInstruction} The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene. AUDIO: Generate dialogue-only audio - no background music, ambient sounds, or other audio. Only spoken dialogue from characters visible in the scene speaking on-camera. Characters should speak directly in English - NO narrator, NO voiceover, NO off-screen announcer. If dialogue is present, it must end at least 2 seconds before the scene ends to ensure smooth transitions. CLOTHING & JEWELRY: Characters should already be wearing their clothes and jewelry from the start of the scene. Do NOT show characters putting on or taking off items. Items should be worn consistently throughout the scene. No wardrobe changes during the scene. TYPOGRAPHY & TEXT: If displaying any text, brand names, or product names: Use clean, elegant, modern typeface (sans-serif like Helvetica, Futura, Gotham for contemporary brands OR serif like Didot, Bodoni for luxury brands). High contrast for maximum legibility: crisp white text on dark background OR bold black text on light background. Large, bold, professional font size with generous spacing. Centered or elegantly positioned with balanced composition. Spell exactly as mentioned in prompt with perfect accuracy. Professional kerning, leading, and letter spacing. Sharp, crisp edges - no blurry or distorted text. Minimize decorative or script fonts unless specifically luxury brand requirement. Text should be perfectly readable at any resolution with cinema-quality typography. FACE QUALITY: Limit scene to 3-4 people maximum. Use close-ups and medium shots to ensure sharp faces, clear facial features, detailed faces, professional portrait quality. Avoid large groups, crowds, or more than 4 people.`
         
         const videoParams: any = {
           model,
@@ -388,17 +420,9 @@ export default defineEventHandler(async (event) => {
             videoParams.resolution = storyboard.meta.resolution
           }
           
-          // Priority: segment.generateAudio > storyboard.meta.generateAudio
-          if ((segment as any).generateAudio !== undefined) {
-            videoParams.generate_audio = (segment as any).generateAudio
-            console.log(`[Segment ${idx}] Using segment-specific generateAudio: ${(segment as any).generateAudio}`)
-          } else if (storyboard.meta.generateAudio !== undefined) {
-            videoParams.generate_audio = storyboard.meta.generateAudio
-          } else {
-            // Default to true for Veo 3.1 to enable native audio
-            videoParams.generate_audio = true
-            console.log(`[Segment ${idx}] Defaulting generateAudio to true for Veo 3.1`)
-          }
+          // Enable Veo native audio generation for dialogue-only audio
+          videoParams.generate_audio = true
+          console.log(`[Segment ${idx}] Audio generation enabled (Veo will generate dialogue-only audio)`)
           
           // Priority: segment.seed > storyboard.meta.seed
           if ((segment as any).seed !== undefined && (segment as any).seed !== null) {
@@ -437,13 +461,9 @@ export default defineEventHandler(async (event) => {
             videoParams.resolution = storyboard.meta.resolution
           }
           
-          // Priority: segment.generateAudio > storyboard.meta.generateAudio
-          if ((segment as any).generateAudio !== undefined) {
-            videoParams.generate_audio = (segment as any).generateAudio
-            console.log(`[Segment ${idx}] Using segment-specific generateAudio: ${(segment as any).generateAudio}`)
-          } else if (storyboard.meta.generateAudio !== undefined) {
-            videoParams.generate_audio = storyboard.meta.generateAudio
-          }
+          // Enable Veo native audio generation for dialogue-only audio
+          videoParams.generate_audio = true
+          console.log(`[Segment ${idx}] Audio generation enabled (Veo will generate dialogue-only audio)`)
           
           // Priority: segment.seed > storyboard.meta.seed
           if ((segment as any).seed !== undefined && (segment as any).seed !== null) {
@@ -673,8 +693,7 @@ export default defineEventHandler(async (event) => {
         console.log(`[Segment ${idx}] Final video URL:`, finalVideoUrl)
         console.log(`[Segment ${idx}] Prediction ID:`, predictionId)
 
-        // Voice synthesis will be done in parallel after all videos complete
-        // Store audioNotes for later processing
+        // Audio is embedded in Veo-generated video - no separate audio generation needed
 
         // Store metadata including prediction ID and video URL for frontend access
         const metadata = {
@@ -682,7 +701,6 @@ export default defineEventHandler(async (event) => {
           videoUrl: finalVideoUrl, // S3 URL or Replicate URL (fallback)
           replicateVideoUrl: videoUrl, // Original Replicate URL
           s3VideoUrl: finalVideoUrl !== videoUrl ? finalVideoUrl : undefined, // S3 URL if uploaded
-          voiceUrl: undefined, // Will be set after parallel voice synthesis completes
           segmentIndex: idx,
           segmentType: segment.type,
           startTime: segment.startTime,
@@ -696,13 +714,9 @@ export default defineEventHandler(async (event) => {
 
         return {
           segmentId: idx,
-          videoUrl: finalVideoUrl, // Use S3 URL or Replicate fallback
-          voiceUrl: undefined, // Will be set after parallel voice synthesis
+          videoUrl: finalVideoUrl, // Use S3 URL or Replicate fallback (contains embedded audio)
           status: 'completed',
-          metadata: {
-            ...metadata,
-            audioNotes: segment.audioNotes, // Store for voice synthesis
-          }, // Include metadata for frontend access
+          metadata, // Include metadata for frontend access
         } as Asset
       } catch (error: any) {
         const errorMessage = error.message || 'Unknown error occurred'
@@ -770,84 +784,27 @@ export default defineEventHandler(async (event) => {
     console.log(`[Generate Assets] All segments processed. Total assets: ${assets.length}`)
     console.log(`[Generate Assets] Completed: ${assets.filter(a => a.status === 'completed').length}, Failed: ${assets.filter(a => a.status === 'failed').length}`)
 
-    // Generate all voiceovers in parallel after videos complete
-    console.log(`[Generate Assets] Starting parallel voice synthesis for completed segments...`)
-    const voicePromises = assets
-      .filter(asset => asset.status === 'completed' && asset.metadata?.audioNotes)
-      .map(async (asset) => {
-        const idx = asset.segmentId
-        
-        // Skip voice synthesis for Veo 3.1 as it has native audio
-        if (storyboard.meta.model === 'google/veo-3.1') {
-          console.log(`[Segment ${idx}] Skipping TTS voice synthesis for Veo 3.1 (using native audio)`)
-          return { idx, voiceUrl: undefined }
-        }
-
-        const audioNotes = asset.metadata?.audioNotes as string | undefined
-        
-        if (!audioNotes) {
-          return { idx, voiceUrl: undefined }
-        }
-        
-        try {
-          // Extract actual VO script from audioNotes, filtering out descriptive notes
-          const voScript = extractVOScript(audioNotes)
-          
-          if (!voScript) {
-            console.log(`[Segment ${idx}] No valid VO script found in audioNotes: "${audioNotes}"`)
-            return { idx, voiceUrl: undefined }
-          }
-          
-          console.log(`[Segment ${idx}] Extracted VO script: "${voScript}" (from: "${audioNotes}")`)
-          
-          const voiceResult = await callOpenAIMCP('text_to_speech', {
-            text: voScript,
-            voice: 'alloy',
-            model: 'tts-1',
-          })
-
-          // Save audio file
-          if (!voiceResult?.audioBase64) {
-            console.error(`[Segment ${idx}] No audioBase64 in voice result`)
-            console.warn(`[Segment ${idx}] Voice synthesis failed, continuing without audio`)
-            return { idx, voiceUrl: undefined }
-          }
-          
-          const audioBuffer = Buffer.from(voiceResult.audioBase64, 'base64')
-          const audioPath = await saveAsset(audioBuffer, 'mp3')
-          
-          await trackCost('voice-synthesis', 0.05, {
-            segmentId: idx,
-            textLength: voScript.length,
-          })
-          
-          console.log(`[Segment ${idx}] Voice synthesis completed: ${audioPath}`)
-          return { idx, voiceUrl: audioPath }
-        } catch (voiceError: any) {
-          console.error(`[Segment ${idx}] Voice synthesis error:`, voiceError.message)
-          console.warn(`[Segment ${idx}] Continuing without audio due to voice synthesis failure`)
-          return { idx, voiceUrl: undefined }
-        }
-      })
-    
-    const voiceResults = await Promise.allSettled(voicePromises)
-    
-    // Update assets with voice URLs
-    for (const result of voiceResults) {
-      if (result.status === 'fulfilled') {
-        const { idx, voiceUrl } = result.value
-        const asset = assets.find(a => a.segmentId === idx)
-        if (asset && voiceUrl) {
-          asset.voiceUrl = voiceUrl
-          if (asset.metadata) {
-            asset.metadata.voiceUrl = voiceUrl
-          }
-          console.log(`[Segment ${idx}] Voice URL updated: ${voiceUrl}`)
-        }
-      }
+    // Generate background music (single continuous track for entire video)
+    const totalDuration = Math.max(...storyboard.segments.map((s: any) => s.endTime), 0)
+    console.log(`[Generate Assets] Generating background music for ${totalDuration}s duration...`)
+    const musicUrl = await generateBackgroundMusic(storyboard, totalDuration)
+    if (musicUrl) {
+      console.log(`[Generate Assets] Background music generated: ${musicUrl}`)
+      // Store music URL in job metadata for later use in composition
+      if (!job.assets) job.assets = []
+      // We'll store this in a special way or pass it through to composition
+    } else {
+      console.warn(`[Generate Assets] Background music generation failed or skipped`)
     }
     
-    console.log(`[Generate Assets] Parallel voice synthesis completed`)
+    // Store music URL in job for composition
+    if (musicUrl) {
+      job.musicUrl = musicUrl
+      console.log(`[Generate Assets] Music URL stored in job: ${musicUrl}`)
+    }
+    
+    // Audio is embedded in Veo-generated videos - no separate audio generation needed
+    console.log(`[Generate Assets] Audio generation completed (embedded in video files)`)
 
     // Update job
     job.assets = assets
@@ -855,7 +812,7 @@ export default defineEventHandler(async (event) => {
     job.endTime = Date.now()
     await saveJob(job)
 
-    return { jobId, assets }
+    return { jobId, assets, musicUrl }
   } catch (error: any) {
     const errorMessage = error.message || 'Unknown error occurred'
     console.error('[Generation Job] Overall failure:', errorMessage)

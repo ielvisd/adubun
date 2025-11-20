@@ -26,40 +26,44 @@ export default defineEventHandler(async (event) => {
 
     // Generate voiceover script matching the storyboard content
     // The script should be concise and match each scene's description
-    const systemPrompt = `You are an expert at writing voiceover scripts for short-form video ads.
+    const systemPrompt = `You are an expert at writing dialogue scripts for short-form video ads.
 
-Generate a concise voiceover script for a 16-second ad that matches the storyboard scenes.
+Generate dialogue for characters visible in the video who speak on-camera. This is NOT narration or voiceover - characters must speak directly on-camera.
 
-The script should:
+The dialogue should:
 - Be concise and impactful (fit within 16 seconds when spoken)
 - Match the tone and content of each scene
-- Flow naturally from scene to scene
+- Flow naturally from scene to scene as a conversation or monologue
+- Be spoken by characters visible in the scene (on-camera dialogue)
 - Include a clear call to action at the end
+- **CRITICAL:** Characters must speak on-camera - this is dialogue, not off-screen narration
 
 Return ONLY valid JSON with this structure:
 {
-  "script": "Full voiceover script text that matches all scenes",
+  "script": "Full dialogue script text that matches all scenes",
   "segments": [
     {
       "type": "hook",
-      "script": "Voiceover text for hook scene (0-4s)"
+      "script": "Dialogue text for hook scene - character speaks on-camera (0-4s). Format: '[Character description] says: [dialogue text]'"
     },
     {
       "type": "body",
-      "script": "Voiceover text for body 1 scene (4-8s)"
+      "script": "Dialogue text for body 1 scene - character speaks on-camera (4-8s). Format: '[Character description] says: [dialogue text]'"
     },
     {
       "type": "body",
-      "script": "Voiceover text for body 2 scene (8-12s)"
+      "script": "Dialogue text for body 2 scene - character speaks on-camera (8-12s). Format: '[Character description] says: [dialogue text]'"
     },
     {
       "type": "cta",
-      "script": "Voiceover text for CTA scene (12-16s)"
+      "script": "Dialogue text for CTA scene - character speaks on-camera (12-16s). Format: '[Character description] says: [dialogue text]'"
     }
   ]
-}`
+}
 
-    const userPrompt = `Create a voiceover script for this ad:
+IMPORTANT: Format each script as "[Character] says: '[dialogue text]'" so it can be used in the audioNotes field as "Dialogue: [Character] says: '[dialogue text]'"`
+
+    const userPrompt = `Create dialogue for characters in this ad. Characters must speak on-camera (this is dialogue, not narration).
 
 Story:
 Hook: ${story.hook}
@@ -70,7 +74,14 @@ CTA: ${story.callToAction}
 Storyboard Scenes:
 ${storyboard.segments.map((seg, idx) => `${idx + 1}. ${seg.type}: ${seg.description}`).join('\n')}
 
-The script should be engaging, concise, and match the storyboard content.`
+The dialogue should:
+- Be engaging, concise, and match the storyboard content
+- Be spoken by characters visible in each scene (on-camera dialogue)
+- Progress the story naturally from scene to scene
+- Format each segment's script as "[Character description] says: '[dialogue text]'"
+- Example: "The young woman says: 'How am I going to finish all of this?'"
+
+CRITICAL: This is on-camera dialogue, not off-screen narration. Characters must be shown speaking in the video.`
 
     // Use OpenAI chat completion via MCP
     const voiceoverData = await callOpenAIMCP('chat_completion', {

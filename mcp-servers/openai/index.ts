@@ -1089,18 +1089,11 @@ DO NOT create a different scene. The reference image is the STARTING POINT, not 
     let systemPrompt = context?.systemPrompt
     
     if (!systemPrompt) {
-      systemPrompt = `${referenceImageSection}Create a video storyboard with 3-5 segments. 
-    
-    ${adTypeInstruction}
-
-    🚨 REQUIRED SEGMENT STRUCTURE:
-You MUST create at least 3 segments with the following structure:
-- 1 hook segment (required) - Establishes the scene, character, or action
-- 1-3 body segments (at least 1 required) - Continues the story from the hook
-- 1 CTA segment (required) - Builds to a natural conclusion showcasing the product
-
-The storyboard MUST include all three types: hook, body, and CTA. Do not create a storyboard with only one segment.
-
+      // Default to 16-second format if duration is 16 or not specified
+      const is16SecondFormat = !duration || duration === 16
+      
+      // Build common instructions that apply to both formats
+      const commonInstructions = `
 Each segment needs:
 - type: "hook" | "body" | "cta"
 - description: Shot description
@@ -1140,10 +1133,12 @@ Definitions:
   * PEOPLE COUNT LIMITATION: Limit scenes to 3-4 people maximum. Prefer smaller groups (1-3 people) when possible for better face quality. Avoid large groups, crowds, or more than 4 people in any scene
   * FACE QUALITY: Use close-ups and medium shots to ensure clear, sharp faces. Emphasize "sharp faces, clear facial features, detailed faces, professional portrait quality" in prompts. Avoid scenes with many people that could result in blurry or distorted faces
   * CRITICAL: For story continuity - Each segment must logically flow from the previous segment:
-    - Hook segment: ${sceneDescription ? `🚨 MANDATORY: MUST start with exactly what is shown in the reference image: "${sceneDescription}". The visualPrompt MUST begin by describing this exact scene. Example: If sceneDescription is "a man wearing a watch on his wrist", the prompt must start with "Close-up/Medium/Wide shot of a man wearing a watch on his wrist..." NOT "watch on table" or any other variation.` : 'Establish the scene, character, or action'}
-    - Body segment(s): Continue the story from the hook, building on the narrative. Use transition language like "continuing", "as the action progresses", "building on the momentum", etc.
-    - CTA segment: Build to a natural conclusion that showcases the product, transitioning smoothly from the body segment(s)
+    - Hook segment: ${sceneDescription ? `🚨 MANDATORY: MUST start with exactly what is shown in the reference image: "${sceneDescription}". The visualPrompt MUST begin by describing this exact scene. Example: If sceneDescription is "a man wearing a watch on his wrist", the prompt must start with "Close-up/Medium/Wide shot of a man wearing a watch on his wrist..." NOT "watch on table" or any other variation.` : 'Establish the scene, character, or action. For 16-second format: Start extreme close-up or compelling angle. Camera slowly pushes in or circles while action/problem escalates. End on peak of emotion/action (mini-resolve).'}
+    - Body segment(s): CRITICAL: Create ZERO to MINIMAL transitions. Each segment must flow as a CONTINUOUS story with NO cuts, jumps, or scene changes. Use language like "continuing seamlessly", "the same moment flows", "without interruption", "continuous action", "unbroken flow". Avoid any language suggesting scene changes, cuts, or transitions. The story should feel like ONE continuous shot, not multiple scenes. For 16-second format: Camera continues moving (match energy of hook). Product enters magically or talent uses it in real-time. Slow-motion reveal at 4-5s of this clip. End on mini-resolve.
+    - CTA segment: Build to a natural conclusion that showcases the product, continuing seamlessly from the body segment(s) with NO visual breaks, cuts, or scene changes. Maintain the same camera perspective, same environment, same moment in time flowing forward. For 16-second format: The CTA segment MUST have TWO distinct frames - a starting frame (same as body's last frame) and a visually DISTINCT ending frame. The ending frame should be a hero shot with: Freeze on perfect product/after state, text overlay with tagline, logo lockup visible, static or very slow push camera movement. The visualPrompt MUST explicitly describe the hero shot composition, text overlay placement, and logo lockup. One punchy tagline (spoken or on-screen). Ends exactly at 16.000s. CRITICAL: The ending frame must be visually different from the starting frame - use different camera angle, composition, or add text/logo overlay to create distinct visual progression.
+  * Each segment must feel like a natural continuation of the previous segment with NO visual breaks, cuts, or scene changes. Maintain the same camera perspective, same environment, same moment in time flowing forward.
   * Create a cohesive narrative arc where each segment feels like a natural continuation, not an abrupt change
+  * NO MIRRORS/REFLECTIONS: DO NOT use mirrors, reflections, or stories about people looking at their reflection. Avoid any scenes involving mirrors or reflective surfaces.
   * ${sceneDescription ? `🚨 CRITICAL REMINDER: The hook segment visualPrompt MUST start with "${sceneDescription}". This is non-negotiable. Before finalizing your response, verify that the hook segment visualPrompt begins with this exact scene description.` : ''}
   * 🚨 CHARACTER CONSISTENCY: Extract ALL characters from the hook segment and maintain their EXACT appearance across ALL segments:
     - In hook segment: Include explicit character descriptions with gender, age, physical features (hair color/style, build), and clothing
@@ -1159,21 +1154,31 @@ Definitions:
   * Provide variety in visual style while staying true to the segment's purpose
   * Maintain story continuity with previous segments (for body and CTA segments)
   * ${sceneDescription ? `🚨 CRITICAL: For the hook segment, ALL alternative prompts MUST also start with the same sceneDescription: "${sceneDescription}". They can vary camera angle (close-up, wide, overhead, side), lighting (soft, dramatic, natural, studio), composition, or perspective, but the product placement and scene must match the reference image. DO NOT create alternatives that change the product placement (e.g., from "wearing on wrist" to "on table" or "in case") - these are different scenes, not alternatives. Example: If sceneDescription is "a man wearing a watch on his wrist", all alternatives must show "person/man wearing watch on wrist", not "watch on table" or "watch in case".` : ''}
-- audioNotes: Format as "Voiceover: [actual script text to be spoken]" OR "Music: [description of music/sound effects]". 
-  CRITICAL: For voiceover segments, provide ONLY the actual script text that will be spoken by a narrator, NOT descriptive notes.
-  The voiceover text will be converted to speech using text-to-speech, so it must be natural, conversational script text.
+- audioNotes: Format as "Dialogue: [character name/description] says: '[actual script text]'" OR "Voiceover: [actual script text to be spoken by off-screen narrator]" OR "Music: [description of music/sound effects]". 
+  
+  🚨 CRITICAL: DIALOGUE vs VOICEOVER:
+  - **DIALOGUE**: Use when a character visible in the scene speaks on-camera. Format: "Dialogue: [character] says: '[text]'" (e.g., "Dialogue: The woman says: 'How am I going to finish all of this?'")
+  - **VOICEOVER**: Use only for off-screen narration. Format: "Voiceover: [text]" (e.g., "Voiceover: Discover the luxury watch collection...")
+  - **PREFER DIALOGUE**: For most ads, use Dialogue format so characters speak on-camera. Only use Voiceover if explicitly needed for off-screen narration.
+  
+  🚨 CRITICAL: If you use Dialogue format, you MUST update the visualPrompt to show the character speaking:
+  - Add timecodes showing when dialogue occurs: "[00:00-00:04] The woman speaks: 'How am I going to finish all of this?'"
+  - Describe the character's mouth movement and speaking gesture in the visualPrompt
+  - Ensure the character is shown speaking on-camera, not just reacting
   
   CORRECT examples:
-  - "Voiceover: Discover the luxury watch collection that defines elegance. Each timepiece is crafted with precision and passion."
-  - "Voiceover: Transform your fitness journey today. Join thousands who have achieved their goals with our revolutionary program."
-  - "Music: Upbeat electronic music. Voiceover: Experience the future of technology in your hands."
+  - "Dialogue: The woman says: 'How am I going to finish all of this?'"
+  - "Dialogue: The young woman says: 'Are you going to help me with this?' (slight laugh)"
+  - "Dialogue: She says: 'Finally, a little balance in my life.'"
+  - "Music: Upbeat electronic music. Dialogue: The man says: 'This changes everything.'"
   
   INCORRECT examples (DO NOT USE):
   - "Voiceover: A narrator describes the product features" (this is a description, not script)
   - "Voiceover: The voiceover explains the benefits" (this is a description, not script)
   - "A professional voiceover discusses the product" (this is a description, not script)
+  - "Dialogue: The woman thinks about her problems" (this is not dialogue, it's a thought)
   
-  If there's both music and voiceover, format as: "Music: [description]. Voiceover: [actual script text to be spoken]"
+  If there's both music and dialogue/voiceover, format as: "Music: [description]. Dialogue: [character] says: '[text]'" OR "Music: [description]. Voiceover: [text]"
   If there's only music, format as: "Music: [description of music/sound effects]"
 
 Duration: ${duration}s
@@ -1256,6 +1261,40 @@ FACE QUALITY AND PEOPLE COUNT REQUIREMENTS:
 Return JSON with a "segments" array. Each segment must include:
 - visualPrompt (string): The primary/default visual prompt${imageEnhancements ? ' (enhanced with reference image details)' : ''} that creates narrative flow
 - visualPromptAlternatives (array of strings): 3-5 alternative visual prompts for user selection${imageEnhancements ? ' (each enhanced with reference image details)' : ''} that maintain story continuity`
+
+      if (is16SecondFormat) {
+        systemPrompt = `${referenceImageSection}Create a video storyboard for a 16-second "Lego Block" format ad with exactly 3 segments. 
+    
+    ${adTypeInstruction}
+
+    🚨 REQUIRED SEGMENT STRUCTURE (16-Second Format):
+You MUST create exactly 3 segments with the following structure:
+- 1 hook segment (0-6s, required) - Attention-grabbing opening. Can be problem-focused (frustrated face, spilled coffee, sweaty gym guy) or any compelling opening. Start extreme close-up or compelling angle. Camera slowly pushes in or circles while action/problem escalates. End clip on the peak of emotion/action. Single continuous shot with ZERO cuts.
+- 1 body segment (6-12s, required) - Product introduction + transformation. One continuous shot delivering the "oh shit" moment. Camera continues moving (match the energy of clip 1), product enters frame magically or talent uses it in real-time → instant before/after inside the shot. Slow-motion reveal at second 4-5 of this clip (around 10-11s total timeline). Single continuous shot with ZERO cuts.
+- 1 CTA segment (12-16s, required) - Hero shot + CTA + logo lockup. Static or very slow push. Freeze on perfect product/after state. Text + logo slam in. One punchy tagline (spoken or on-screen). Ends exactly at 16.000s. Single continuous shot with ZERO cuts.
+
+🚨 CINEMATIC FLOW REQUIREMENTS:
+- CAMERA MOMENTUM MATCHING: Match camera momentum across cuts. If clip 1 ends pushing in, clip 2 should start already pushing or whip from the motion. Maintain energy flow between segments.
+- COLOR GRADING: Color-grade all clips identically before sequencing for visual consistency.
+- MINI-RESOLVE ENDINGS: End every clip on a "mini-resolve" (beat drop, head turn, smile, product glint) so even if someone watches only the first 4-8s it still feels complete.
+- ZERO CUTS: Each segment must be a SINGLE CONTINUOUS SHOT with ZERO cuts inside the clip. No scene changes, no transitions, no cuts within the segment.
+- NO MIRRORS/REFLECTIONS: DO NOT use mirrors, reflections, or stories about people looking at their reflection. Avoid any scenes involving mirrors or reflective surfaces.
+
+The storyboard MUST include all three types: hook, body, and CTA. Do not create a storyboard with only one segment.${commonInstructions}`
+      } else {
+        // Legacy 24-second format (4 segments) - kept for backward compatibility
+        systemPrompt = `${referenceImageSection}Create a video storyboard with 3-5 segments. 
+    
+    ${adTypeInstruction}
+
+    🚨 REQUIRED SEGMENT STRUCTURE:
+You MUST create at least 3 segments with the following structure:
+- 1 hook segment (required) - Establishes the scene, character, or action
+- 1-3 body segments (at least 1 required) - Continues the story from the hook
+- 1 CTA segment (required) - Builds to a natural conclusion showcasing the product
+
+The storyboard MUST include all three types: hook, body, and CTA. Do not create a storyboard with only one segment.${commonInstructions}`
+      }
     }
 
     // Build user message with sceneDescription emphasis if available
@@ -1732,6 +1771,7 @@ ${adTypeGuidance ? `${adTypeGuidance}\n` : ''}
 
 The story must:
 - Be a cohesive, complete narrative that flows from Hook → Body 1 → Body 2 → CTA
+- **CRITICAL: Maintain the SAME location/setting throughout ALL scenes (Hook, Body 1, Body 2, CTA). NO location changes, NO scene changes, NO environment changes. The entire story must take place in ONE continuous location (e.g., same room, same outdoor space, same office, same kitchen, same park bench, etc.). All action must happen in the exact same place with the same background, same environment, same surroundings. This is essential for creating a continuous video with no cuts or transitions.**
 - Be emotionally captivating and create a strong emotional connection between the viewer and the product/story
 - Evoke specific emotions (joy, aspiration, relief, excitement, inspiration, trust, etc.) through relatable moments and emotional triggers
 - Use emotional storytelling techniques: create an emotional hook that grabs attention, build emotional investment through the body scenes, and deliver an emotional payoff in the CTA
@@ -1742,9 +1782,9 @@ The story must:
 - Include a single emoji that best represents the story's theme and content
 
 EMOTIONAL STORYTELLING REQUIREMENTS:
-- Hook: Create an emotional opening that immediately captures attention and establishes an emotional connection (curiosity, surprise, relatability, aspiration)
-- Body 1 & 2: Build emotional investment through relatable moments, emotional triggers, or aspirational scenarios that make viewers feel something
-- CTA: Deliver an emotional payoff that connects the emotional journey to the product, creating a memorable and compelling call to action
+- Hook: Create an emotional opening that immediately captures attention and establishes an emotional connection (curiosity, surprise, relatability, aspiration). **Must establish the single location that will be used throughout the entire story.**
+- Body 1 & 2: Build emotional investment through relatable moments, emotional triggers, or aspirational scenarios that make viewers feel something. **Must continue in the exact same location established in the Hook. No location changes, no scene changes.**
+- CTA: Deliver an emotional payoff that connects the emotional journey to the product, creating a memorable and compelling call to action. **Must remain in the exact same location as all previous scenes.**
 
 IMPORTANT: 
 - The story needs a short, catchy title (4-6 words) that captures the main character's journey or transformation
@@ -1773,7 +1813,9 @@ ${adType ? `CRITICAL: This is a ${adType.replace('_', ' ')} ad. The story MUST f
 
 ${imageUrls.length > 0 ? `Reference images are available to inform the visual style and product details.` : ''}
 
-Focus on creating a story that evokes strong emotions and creates a deep connection with viewers through relatable moments, emotional triggers, and compelling narratives.`
+**CRITICAL REQUIREMENT: The entire story (Hook, Body 1, Body 2, CTA) MUST take place in ONE SINGLE LOCATION with NO location changes, NO scene changes, and NO environment changes. Choose a specific location (e.g., "a modern kitchen", "a cozy living room", "a park bench", "an office desk") and keep ALL scenes in that exact same place. The story should feel like one continuous moment happening in the same location, not multiple scenes in different places. DO NOT use mirrors, reflections, or bathroom mirror locations.**
+
+Focus on creating a story that evokes strong emotions and creates a deep connection with viewers through relatable moments, emotional triggers, and compelling narratives - all while maintaining a single continuous location throughout.`
 
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o',

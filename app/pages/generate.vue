@@ -61,6 +61,7 @@
           :status="status"
           :current-cost="currentCost"
           :estimated-total="estimatedTotal"
+          :music-url="musicUrl"
           @version-selected="handleVersionSelected"
         />
 
@@ -88,7 +89,7 @@ const generationStarted = ref(false)
 const assetsReady = ref(false)
 const planningStoryboard = ref(false)
 
-const { segments, overallProgress, status, overallError, jobId, startGeneration: startGen, pollProgress: pollGenProgress, reset, retrySegment: retrySegmentGen } = useGeneration()
+const { segments, overallProgress, status, overallError, jobId, musicUrl, startGeneration: startGen, pollProgress: pollGenProgress, reset, retrySegment: retrySegmentGen } = useGeneration()
 const { currentCost, estimatedTotal, startPolling } = useCostTracking()
 const toast = useToast()
 

@@ -175,6 +175,45 @@
             Open in Video Editor
           </UButton>
         </div>
+
+        <!-- Background Music Preview -->
+        <div v-if="props.musicUrl" class="space-y-2 mt-6">
+          <p class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Background Music Preview</p>
+          <div class="flex items-center gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            <UButton
+              :icon="musicPlaying ? 'i-heroicons-pause' : 'i-heroicons-play'"
+              color="primary"
+              variant="solid"
+              size="md"
+              square
+              @click="toggleMusicPlay"
+            />
+            <div class="flex-1">
+              <audio
+                ref="musicAudioRef"
+                :src="getMusicAudioUrl()"
+                class="hidden"
+                @timeupdate="onMusicTimeUpdate"
+                @ended="onMusicEnded"
+              />
+              <div class="flex items-center gap-3">
+                <USlider
+                  :model-value="musicProgress"
+                  :min="0"
+                  :max="100"
+                  :step="0.1"
+                  color="primary"
+                  size="sm"
+                  class="flex-1"
+                  @update:model-value="onMusicSeek"
+                />
+                <span class="text-xs font-medium text-gray-700 dark:text-gray-300 min-w-[80px] text-right">
+                  {{ formatMusicTime() }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Generate Button State -->
@@ -247,6 +286,7 @@ const props = defineProps<{
   status: 'idle' | 'processing' | 'completed' | 'failed'
   currentCost?: number
   estimatedTotal?: number
+  musicUrl?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -266,6 +306,13 @@ const smartVideoDuration = ref(0)
 const stitchAdjustments = ref<StitchAdjustment[]>([])
 const selectedVersion = ref<'original' | 'smart' | null>(null)
 const sendingToEditor = ref(false)
+
+// Music player state
+const musicAudioRef = ref<HTMLAudioElement | null>(null)
+const musicPlaying = ref(false)
+const musicProgress = ref(0)
+const musicCurrentTime = ref(0)
+const musicDuration = ref(0)
 
 const shouldShow = computed(() => {
   return props.status === 'completed' && props.clips.length > 0
@@ -489,6 +536,72 @@ const sendToEditor = async () => {
     sendingToEditor.value = false
     }
 }
+
+// Music player functions
+const getMusicAudioUrl = (): string => {
+  if (!props.musicUrl) return ''
+  if (props.musicUrl.startsWith('http')) return props.musicUrl
+  if (props.musicUrl.startsWith('/api/')) return props.musicUrl
+  const filename = props.musicUrl.split('/').pop() || props.musicUrl
+  return `/api/assets/${filename}`
+}
+
+const toggleMusicPlay = () => {
+  const audio = musicAudioRef.value
+  if (!audio) return
+
+  if (audio.paused) {
+    audio.play().then(() => {
+      musicPlaying.value = true
+    }).catch((error) => {
+      console.error('Error playing music:', error)
+    })
+  } else {
+    audio.pause()
+    musicPlaying.value = false
+  }
+}
+
+const onMusicTimeUpdate = (event: Event) => {
+  const audio = event.target as HTMLAudioElement
+  if (audio) {
+    musicCurrentTime.value = audio.currentTime
+    const duration = audio.duration || 0
+    if (duration > 0) {
+      musicProgress.value = (audio.currentTime / duration) * 100
+    }
+  }
+}
+
+const onMusicEnded = () => {
+  musicPlaying.value = false
+  musicProgress.value = 0
+  musicCurrentTime.value = 0
+}
+
+const onMusicSeek = (value: number) => {
+  const audio = musicAudioRef.value
+  if (audio && audio.duration) {
+    audio.currentTime = (value / 100) * audio.duration
+    musicProgress.value = value
+    musicCurrentTime.value = audio.currentTime
+  }
+}
+
+const formatMusicTime = (): string => {
+  const current = musicCurrentTime.value || 0
+  const duration = musicDuration.value || 0
+  return `${formatDuration(current)} / ${formatDuration(duration)}`
+}
+
+// Set music audio element ref and load duration
+watch(musicAudioRef, (el) => {
+  if (el) {
+    el.addEventListener('loadedmetadata', () => {
+      musicDuration.value = el.duration
+    })
+  }
+})
 
 // No auto-compose - user must click button to generate
 </script>

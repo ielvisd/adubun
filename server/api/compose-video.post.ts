@@ -115,6 +115,7 @@ export default defineEventHandler(async (event) => {
             startTime: clip.startTime,
             endTime: clip.endTime,
             type: clip.type,
+            timingHints: clip.timingHints, // Pass through timing hints if available
           }
         } catch (clipError: any) {
           console.error(`[Compose Video] Failed to process clip ${idx}:`, clipError.message)

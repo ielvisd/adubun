@@ -211,13 +211,16 @@ export default defineEventHandler(async (event) => {
       const moodStyle = mood ? `${mood} style` : 'professional style'
       const hasReferenceImages = referenceImages.length > 0
       
+      // Add instruction to prevent story text from appearing as visible text
+      const noTextInstruction = `CRITICAL: The story description ("${storyText}") is for scene understanding ONLY. DO NOT display this text as visible text, overlays, or dialogue. DO NOT have characters speak these words. The story text describes what happens in the scene, not what text to display. Only render text if explicitly mentioned in the visualPrompt. `
+      
       // Build the base prompt parts with full scene context for continuity
+      // Note: storyText is used for context, not for literal text rendering
       let basePrompt = ''
       if (isTransition && transitionText && transitionVisual) {
-        // Include both current scene AND full next scene for continuity
-        basePrompt = `Current scene: ${storyText}, ${visualPrompt}. Transitioning to next scene: ${transitionText}, ${transitionVisual}`
+        basePrompt = `Scene context: ${storyText}. Visual: ${visualPrompt}. Continuing seamlessly in the same continuous flow. Next moment context: ${transitionText}. Next visual: ${transitionVisual}`
       } else {
-        basePrompt = `${storyText}, ${visualPrompt}`
+        basePrompt = `Scene context: ${storyText}. Visual: ${visualPrompt}`
       }
       
       // Add character consistency instructions if we have characters
@@ -231,29 +234,26 @@ export default defineEventHandler(async (event) => {
       let previousFrameInstruction = ''
       if (previousFrameImage) {
         if (isTransition) {
-          // For transitions between scenes: maintain strong continuity
-        previousFrameInstruction = `CRITICAL VISUAL CONTINUITY: Use the previous frame image as a visual reference to maintain continuity. Keep the same characters, same environment, same lighting style, and same overall composition. The scene should flow naturally from the previous frame. `
+          // For transitions between scenes: maintain continuous flow with NO transitions
+        previousFrameInstruction = `CRITICAL CONTINUOUS FLOW - ZERO TRANSITIONS: Use the previous frame image as a visual reference to maintain CONTINUOUS story flow. This is NOT a transition - it's the SAME continuous moment flowing forward. Keep the same characters, same environment, same lighting style, same camera angle, and same overall composition. The scene should feel like ONE continuous shot with NO cuts, jumps, or scene changes. Maintain the exact same moment in time flowing seamlessly forward. `
         } else {
-          // For progression within same scene: FORCE different angle/composition
-          previousFrameInstruction = `CRITICAL SCENE PROGRESSION - MANDATORY VISUAL VARIATION: This final frame MUST be SIGNIFICANTLY visually different from the previous frame. DO NOT just change text or minor details. You MUST create a DISTINCT visual composition by: 1) Using a DIFFERENT camera angle (switch from medium to close-up, or wide to over-shoulder, or front to side/three-quarter angle), 2) Changing character pose and body language (different standing/sitting position, different gesture, different facial expression, different body orientation), 3) Altering composition and framing (different character placement in frame, different focal point, different depth of field, different framing style). The previous frame is ONLY for character/setting reference to maintain consistency - DO NOT copy its composition, camera angle, pose, or framing. Show a DISTINCT later moment with CLEAR visual progression. Text changes alone are NOT sufficient - the entire visual composition must be different. `
+          // For progression within same scene: FORCE different angle/composition while maintaining character consistency
+          previousFrameInstruction = `CRITICAL SCENE PROGRESSION - MANDATORY VISUAL VARIATION WITH CHARACTER CONSISTENCY: This final frame MUST be SIGNIFICANTLY visually different from the previous frame in composition, camera angle, and pose. However, you MUST maintain IDENTICAL character appearance from the previous frame: EXACT same clothing (same shirt, same pants, same colors, same style), EXACT same physical features (same hair, same build, same facial features), NO glasses if previous frame had no glasses, SAME glasses if previous frame had glasses. DO NOT change character clothing, accessories, or physical appearance. You MUST create a DISTINCT visual composition by: 1) Using a DIFFERENT camera angle (switch from medium to close-up, or wide to over-shoulder, or front to side/three-quarter angle), 2) Changing character pose and body language (different standing/sitting position, different gesture, different facial expression, different body orientation), 3) Altering composition and framing (different character placement in frame, different focal point, different depth of field, different framing style). The previous frame image is for character/setting reference to maintain IDENTICAL appearance - DO NOT copy its composition, camera angle, pose, or framing, but DO copy the exact character appearance (clothing, accessories, physical features). Show a DISTINCT later moment with CLEAR visual progression while maintaining the SAME character. Text changes alone are NOT sufficient - the entire visual composition must be different, but the character must look IDENTICAL. `
         }
       }
-      
-      // Add text/typography instruction
-      const textInstruction = `TEXT ACCURACY: If text is visible, it MUST read exactly: "${storyText}". CHECK SPELLING: Ensure all words are spelled PERFECTLY. `
 
       // Add variation reinforcement
       let variationReinforcement = ''
       if (previousFrameImage && !isTransition) {
-        variationReinforcement = ` FINAL MANDATORY INSTRUCTION: IGNORE the input image composition. You MUST create a visually DISTINCT final frame with a NEW camera angle and pose. Do not copy the previous frame. `
+        variationReinforcement = ` FINAL MANDATORY INSTRUCTION: IGNORE the input image composition, camera angle, and pose. You MUST create a visually DISTINCT final frame with a NEW camera angle and pose. However, you MUST copy the EXACT character appearance from the input image: same clothing, same accessories (glasses/no glasses), same physical features. Do not copy the previous frame's composition, but DO copy the character's appearance exactly. `
       }
 
       // Add product consistency and reference image instructions if we have reference images
       if (hasReferenceImages) {
         const productConsistencyInstruction = `CRITICAL INSTRUCTIONS: Do not add new products to the scene. Only enhance existing products shown in the reference images. Keep product design and style exactly as shown in references. The reference images provided are the EXACT product you must recreate. You MUST copy the product from the reference images with pixel-perfect accuracy. Do NOT create a different product, do NOT use different colors, do NOT change the design, do NOT hallucinate new products. The product in your generated image must be visually IDENTICAL to the product in the reference images. Study every detail: exact color codes, exact design patterns, exact text/fonts, exact materials, exact textures, exact proportions, exact placement. The reference images are your ONLY source of truth for the product appearance. Ignore any text in the prompt that contradicts the reference images - the reference images take absolute priority. Generate the EXACT same product as shown in the reference images. `
-        return `${characterInstruction}${textInstruction}${previousFrameInstruction}${productConsistencyInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality, product must be pixel-perfect match to reference images, product appearance must be identical to reference images ${variationReinforcement}`
+        return `${characterInstruction}${noTextInstruction}${previousFrameInstruction}${productConsistencyInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality, product must be pixel-perfect match to reference images, product appearance must be identical to reference images ${variationReinforcement}`
       } else {
-        return `${characterInstruction}${textInstruction}${previousFrameInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality ${variationReinforcement}`
+        return `${characterInstruction}${noTextInstruction}${previousFrameInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality ${variationReinforcement}`
       }
     }
 
@@ -400,6 +400,8 @@ export default defineEventHandler(async (event) => {
 
     // Frame 2: Hook last frame (uses hook first frame as input)
     let hookLastFrameResult: any = null
+    // For 3-segment format, we only need body1Segment (the single body segment)
+    // For 4-segment format, we need body1Segment to exist
     if (hookSegment && body1Segment && hookFirstFrameResult) {
       console.log('\n[Generate Frames] === FRAME 2: Hook Last Frame ===')
       const nanoPrompt = buildNanoPrompt(
@@ -447,114 +449,163 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Frame 3: Body1 last frame (uses hook last frame as input, which is Body1 first frame)
-    let body1LastFrameResult: any = null
-    if (body1Segment && body2Segment && hookLastFrameResult) {
-      console.log('\n[Generate Frames] === FRAME 3: Body1 Last Frame ===')
-      console.log('[Generate Frames] Note: Body1 first frame = Hook last frame (same image)')
-      const nanoPrompt = buildNanoPrompt(
-        story.bodyOne, 
-        body1Segment.visualPrompt, 
-        true, 
-        story.bodyTwo, 
-        body2Segment.visualPrompt,
-        hookLastFrameResult.imageUrl  // Use hook last frame (= Body1 first frame) as input
-      )
-      body1LastFrameResult = await generateSingleFrame(
-        'body1 last frame', 
-        nanoPrompt, 
-        body1Segment.visualPrompt,
-        hookLastFrameResult.imageUrl,  // Previous frame image (Body1 first = Hook last)
-        story.bodyOne, 
-        true, 
-        story.bodyTwo, 
-        body2Segment.visualPrompt
-      )
-      
-      if (body1LastFrameResult) {
-        body1LastFrameResult.segmentIndex = 1
-        body1LastFrameResult.frameType = 'last'
-        frames.push(body1LastFrameResult)
-        console.log(`[Generate Frames] ✓ Body1 last frame generated (${body1LastFrameResult.modelSource}): ${body1LastFrameResult.imageUrl}`)
-      } else {
-        console.error('[Generate Frames] ✗ Body1 last frame generation failed')
-                      }
-                    }
-                    
-    // Frame 4: Body2 last frame (uses body1 last frame as input, which is Body2 first frame)
-    let body2LastFrameResult: any = null
-    if (body2Segment && ctaSegment && body1LastFrameResult) {
-      console.log('\n[Generate Frames] === FRAME 4: Body2 Last Frame ===')
-      console.log('[Generate Frames] Note: Body2 first frame = Body1 last frame (same image)')
-      const nanoPrompt = buildNanoPrompt(
-        story.bodyTwo, 
-        body2Segment.visualPrompt, 
-        true, 
-        story.callToAction, 
-        ctaSegment.visualPrompt,
-        body1LastFrameResult.imageUrl  // Use body1 last frame (= Body2 first frame) as input
-      )
-      body2LastFrameResult = await generateSingleFrame(
-        'body2 last frame', 
-        nanoPrompt, 
-        body2Segment.visualPrompt,
-        body1LastFrameResult.imageUrl,  // Previous frame image (Body2 first = Body1 last)
-        story.bodyTwo, 
-        true, 
-        story.callToAction, 
-        ctaSegment.visualPrompt
-      )
-      
-      if (body2LastFrameResult) {
-        body2LastFrameResult.segmentIndex = 2
-        body2LastFrameResult.frameType = 'last'
-        frames.push(body2LastFrameResult)
-        console.log(`[Generate Frames] ✓ Body2 last frame generated (${body2LastFrameResult.modelSource}): ${body2LastFrameResult.imageUrl}`)
-      } else {
-        console.error('[Generate Frames] ✗ Body2 last frame generation failed')
+    // Determine format: 3-segment (16s) or 4-segment (24s)
+    const is3SegmentFormat = !body2Segment
+    console.log(`[Generate Frames] Format detected: ${is3SegmentFormat ? '3-segment (16s)' : '4-segment (24s)'}`)
+    
+    // Frame 3: Body last frame (uses hook last frame as input, which is Body first frame)
+    let bodyLastFrameResult: any = null
+    if (is3SegmentFormat) {
+      // 3-segment format: Single body segment (Product Intro)
+      if (body1Segment && ctaSegment && hookLastFrameResult) {
+        console.log('\n[Generate Frames] === FRAME 3: Body Last Frame (3-segment format) ===')
+        console.log('[Generate Frames] Note: Body first frame = Hook last frame (same image)')
+        const nanoPrompt = buildNanoPrompt(
+          story.bodyOne, 
+          body1Segment.visualPrompt, 
+          true, 
+          story.callToAction, 
+          ctaSegment.visualPrompt,
+          hookLastFrameResult.imageUrl  // Use hook last frame (= Body first frame) as input
+        )
+        bodyLastFrameResult = await generateSingleFrame(
+          'body last frame', 
+          nanoPrompt, 
+          body1Segment.visualPrompt,
+          hookLastFrameResult.imageUrl,  // Previous frame image (Body first = Hook last)
+          story.bodyOne, 
+          true, 
+          story.callToAction, 
+          ctaSegment.visualPrompt
+        )
+        
+        if (bodyLastFrameResult) {
+          bodyLastFrameResult.segmentIndex = 1
+          bodyLastFrameResult.frameType = 'last'
+          frames.push(bodyLastFrameResult)
+          console.log(`[Generate Frames] ✓ Body last frame generated (${bodyLastFrameResult.modelSource}): ${bodyLastFrameResult.imageUrl}`)
+        } else {
+          console.error('[Generate Frames] ✗ Body last frame generation failed')
+        }
       }
-                }
+    } else {
+      // 4-segment format: Body1 and Body2 segments
+      // Frame 3: Body1 last frame (uses hook last frame as input, which is Body1 first frame)
+      let body1LastFrameResult: any = null
+      if (body1Segment && body2Segment && hookLastFrameResult) {
+        console.log('\n[Generate Frames] === FRAME 3: Body1 Last Frame (4-segment format) ===')
+        console.log('[Generate Frames] Note: Body1 first frame = Hook last frame (same image)')
+        const nanoPrompt = buildNanoPrompt(
+          story.bodyOne, 
+          body1Segment.visualPrompt, 
+          true, 
+          story.bodyTwo, 
+          body2Segment.visualPrompt,
+          hookLastFrameResult.imageUrl  // Use hook last frame (= Body1 first frame) as input
+        )
+        body1LastFrameResult = await generateSingleFrame(
+          'body1 last frame', 
+          nanoPrompt, 
+          body1Segment.visualPrompt,
+          hookLastFrameResult.imageUrl,  // Previous frame image (Body1 first = Hook last)
+          story.bodyOne, 
+          true, 
+          story.bodyTwo, 
+          body2Segment.visualPrompt
+        )
+        
+        if (body1LastFrameResult) {
+          body1LastFrameResult.segmentIndex = 1
+          body1LastFrameResult.frameType = 'last'
+          frames.push(body1LastFrameResult)
+          console.log(`[Generate Frames] ✓ Body1 last frame generated (${body1LastFrameResult.modelSource}): ${body1LastFrameResult.imageUrl}`)
+        } else {
+          console.error('[Generate Frames] ✗ Body1 last frame generation failed')
+        }
+      }
+      
+      // Frame 4: Body2 last frame (uses body1 last frame as input, which is Body2 first frame)
+      let body2LastFrameResult: any = null
+      if (body2Segment && ctaSegment && body1LastFrameResult) {
+        console.log('\n[Generate Frames] === FRAME 4: Body2 Last Frame (4-segment format) ===')
+        console.log('[Generate Frames] Note: Body2 first frame = Body1 last frame (same image)')
+        const nanoPrompt = buildNanoPrompt(
+          story.bodyTwo, 
+          body2Segment.visualPrompt, 
+          true, 
+          story.callToAction, 
+          ctaSegment.visualPrompt,
+          body1LastFrameResult.imageUrl  // Use body1 last frame (= Body2 first frame) as input
+        )
+        body2LastFrameResult = await generateSingleFrame(
+          'body2 last frame', 
+          nanoPrompt, 
+          body2Segment.visualPrompt,
+          body1LastFrameResult.imageUrl,  // Previous frame image (Body2 first = Body1 last)
+          story.bodyTwo, 
+          true, 
+          story.callToAction, 
+          ctaSegment.visualPrompt
+        )
+        
+        if (body2LastFrameResult) {
+          body2LastFrameResult.segmentIndex = 2
+          body2LastFrameResult.frameType = 'last'
+          frames.push(body2LastFrameResult)
+          bodyLastFrameResult = body2LastFrameResult // Use for CTA generation
+          console.log(`[Generate Frames] ✓ Body2 last frame generated (${body2LastFrameResult.modelSource}): ${body2LastFrameResult.imageUrl}`)
+        } else {
+          console.error('[Generate Frames] ✗ Body2 last frame generation failed')
+        }
+      }
+    }
                 
-    // Frame 5: CTA last frame (uses CTA first frame = body2 last frame as input per spec)
+    // CTA last frame (uses previous body last frame as input)
     let ctaLastFrameResult: any = null
-    if (ctaSegment && body2LastFrameResult) {
-      console.log('\n[Generate Frames] === FRAME 5: CTA Last Frame ===')
-      console.log('[Generate Frames] Note: CTA first frame = Body2 last frame (same image)')
+    const previousFrameForCTA = bodyLastFrameResult || (is3SegmentFormat ? null : (bodySegments.length > 1 ? frames[frames.length - 1] : null))
+    if (ctaSegment && previousFrameForCTA) {
+      const frameNumber = is3SegmentFormat ? 4 : 5
+      const previousFrameUrl = previousFrameForCTA.imageUrl || (typeof previousFrameForCTA === 'string' ? previousFrameForCTA : null)
+      console.log(`\n[Generate Frames] === FRAME ${frameNumber}: CTA Last Frame (${is3SegmentFormat ? '3-segment' : '4-segment'} format) ===`)
+      console.log(`[Generate Frames] Note: CTA first frame = ${is3SegmentFormat ? 'Body' : 'Body2'} last frame (same image)`)
       console.log('[Generate Frames] CTA segment:', {
         type: ctaSegment.type,
         description: ctaSegment.description,
         visualPrompt: ctaSegment.visualPrompt,
       })
-      console.log('[Generate Frames] CTA first frame URL (body2 last):', body2LastFrameResult.imageUrl)
+      console.log(`[Generate Frames] CTA first frame URL (${is3SegmentFormat ? 'body' : 'body2'} last):`, previousFrameUrl)
       console.log('[Generate Frames] CTA story text:', story.callToAction)
       
-      // Per spec: Use CTA first frame (= body2 last frame) as input
+      // CTA last frame should be visually distinct from first frame (hero shot, text overlay, logo)
+      // Use isTransition: false to trigger variation instruction, but include previous frame for character consistency
       const nanoPrompt = buildNanoPrompt(
         story.callToAction, 
         ctaSegment.visualPrompt,
-        false,  // Not a transition (CTA is the final scene)
+        false,  // NOT using transition mode - want visual variation
         undefined,
         undefined,
-        body2LastFrameResult.imageUrl  // Use CTA first frame as input per spec
+        previousFrameUrl  // Use CTA first frame as context reference
       )
       
       console.log('[Generate Frames] CTA nano prompt:', nanoPrompt)
       console.log('[Generate Frames] Starting CTA last frame generation...')
+      console.log('[Generate Frames] CTA last frame will be visually distinct from first frame (hero shot, text/logo overlay)')
+      console.log('[Generate Frames] Previous frame included in inputs for character consistency, but variation instruction will force different composition')
       
       ctaLastFrameResult = await generateSingleFrame(
         'CTA last frame', 
         nanoPrompt, 
         ctaSegment.visualPrompt,
-        body2LastFrameResult.imageUrl,  // Previous frame for visual reference
+        previousFrameUrl,  // Previous frame for visual reference (for character consistency)
         story.callToAction,  // Story text for context
-        false,  // isTransition = false (final scene)
+        false,  // isTransition = false (triggers variation instruction for different composition)
         undefined,  // No transition text
         undefined,  // No transition visual
-        true  // Include previous frame to maintain character consistency across all frames
+        true  // Include previous frame in image inputs for character consistency (variation instruction will still force different composition/pose)
       )
       
       if (ctaLastFrameResult) {
-        ctaLastFrameResult.segmentIndex = 3
+        ctaLastFrameResult.segmentIndex = is3SegmentFormat ? 2 : 3
         ctaLastFrameResult.frameType = 'last'
         frames.push(ctaLastFrameResult)
         console.log(`[Generate Frames] ✓ CTA last frame generated successfully!`)
@@ -569,12 +620,12 @@ export default defineEventHandler(async (event) => {
     } else {
       console.error('[Generate Frames] ✗✗✗ Skipping CTA last frame generation')
       console.error('[Generate Frames] ctaSegment exists:', !!ctaSegment)
-      console.error('[Generate Frames] body2LastFrameResult exists:', !!body2LastFrameResult)
+      console.error('[Generate Frames] previousFrameForCTA exists:', !!previousFrameForCTA)
       if (!ctaSegment) {
         console.error('[Generate Frames] CTA segment not found in storyboard')
       }
-      if (!body2LastFrameResult) {
-        console.error('[Generate Frames] Body2 last frame generation failed - cannot generate CTA frame')
+      if (!previousFrameForCTA) {
+        console.error(`[Generate Frames] ${is3SegmentFormat ? 'Body' : 'Body2'} last frame generation failed - cannot generate CTA frame`)
       }
     }
 
@@ -585,14 +636,22 @@ export default defineEventHandler(async (event) => {
     })
     
     // Verify we have the expected frames in production mode
-    if (generationMode === 'production' && frames.length !== 5) {
-      console.warn(`[Generate Frames] ⚠️ WARNING: Expected 5 frames in production mode, but got ${frames.length}`)
+    const expectedFrameCount = is3SegmentFormat ? 4 : 5
+    if (generationMode === 'production' && frames.length !== expectedFrameCount) {
+      console.warn(`[Generate Frames] ⚠️ WARNING: Expected ${expectedFrameCount} frames in production mode (${is3SegmentFormat ? '3-segment' : '4-segment'} format), but got ${frames.length}`)
       console.warn('[Generate Frames] Expected frames:')
-      console.warn('  1. Hook first (segmentIndex=0, frameType=first)')
-      console.warn('  2. Hook last (segmentIndex=0, frameType=last)')
-      console.warn('  3. Body1 last (segmentIndex=1, frameType=last)')
-      console.warn('  4. Body2 last (segmentIndex=2, frameType=last)')
-      console.warn('  5. CTA last (segmentIndex=3, frameType=last)')
+      if (is3SegmentFormat) {
+        console.warn('  1. Hook first (segmentIndex=0, frameType=first)')
+        console.warn('  2. Hook last (segmentIndex=0, frameType=last)')
+        console.warn('  3. Body last (segmentIndex=1, frameType=last)')
+        console.warn('  4. CTA last (segmentIndex=2, frameType=last)')
+      } else {
+        console.warn('  1. Hook first (segmentIndex=0, frameType=first)')
+        console.warn('  2. Hook last (segmentIndex=0, frameType=last)')
+        console.warn('  3. Body1 last (segmentIndex=1, frameType=last)')
+        console.warn('  4. Body2 last (segmentIndex=2, frameType=last)')
+        console.warn('  5. CTA last (segmentIndex=3, frameType=last)')
+      }
     }
 
     // Track cost (estimate: ~$0.05 per frame with both models)
