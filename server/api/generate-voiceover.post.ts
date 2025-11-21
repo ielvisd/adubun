@@ -69,6 +69,7 @@ Return ONLY valid JSON with this structure:
 
 IMPORTANT: 
 - Format each script as "[Human Character] says: '[dialogue text]'" so it can be used in the audioNotes field as "Dialogue: [Human Character] says: '[dialogue text]'"
+- **CRITICAL FORMAT REQUIREMENT**: Always use the format '[Human Character] says: [dialogue text]'. Do NOT use variations like 'mutters', 'concludes', 'whispers', 'exclaims', 'states', 'speaks', 'remarks', etc. Always use 'says:' for consistency and proper extraction. Examples: ✅ "The woman says: 'Why does it always sound like this?'" ✅ "The same woman says: 'Finally, the clarity I need.'" ❌ "The woman mutters to herself: 'Why does it always sound like this?'" (REJECTED - use 'says:' instead) ❌ "The woman concludes: 'My voice, perfectly clear.'" (REJECTED - use 'says:' instead)
 - Do NOT include music or soundtracks
 - Do NOT have robots or products speak - only humans`
 
@@ -100,10 +101,11 @@ The dialogue should:
 - Be in English ONLY - no exceptions
 - Progress the story naturally from scene to scene
 - Format each segment's script as "[Human character description] says: '[dialogue text]'"
+- **CRITICAL FORMAT REQUIREMENT**: Always use 'says:' in the format. Do NOT use variations like 'mutters', 'concludes', 'whispers', 'exclaims', 'states', 'speaks', 'remarks', etc. Always use 'says:' for consistency and proper extraction. Examples: ✅ "The young woman says: 'How am I going to finish all of this?'" ✅ "The same woman says: 'Finally, the clarity I need.'" ❌ "The woman mutters to herself: 'Why does it always sound like this?'" (REJECTED - use 'says:' instead) ❌ "The woman concludes: 'My voice, perfectly clear.'" (REJECTED - use 'says:' instead)
 - Example: "The young woman says: 'How am I going to finish all of this?'"
 - If the story involves a robot or product, only the human character should speak - the robot/product should be silent
 - **CRITICAL:** Every dialogue must be a complete, grammatically correct sentence - no fragments or incomplete phrases
-- **PRESERVE TONE/EMOTION**: Preserve tone and emotion descriptions from the story context (e.g., if story mentions "soft, concerned voice", include that in the character description: "The woman, in a soft, concerned voice says: '...'"). If story mentions "confident, clear voice", include that: "The same woman, now with a confident, clear voice says: '...'"
+- **PRESERVE TONE/EMOTION**: Preserve tone and emotion descriptions from the story context (e.g., if story mentions "soft, concerned voice", include that in the character description: "The woman, in a soft, concerned voice says: '...'"). If story mentions "confident, clear voice", include that: "The same woman, now with a confident, clear voice says: '...'")
 
 CRITICAL: This is on-camera dialogue, not off-screen narration. Only human characters must be shown speaking in the video. Robots and products do not speak. All dialogue must be in English only and must be complete, grammatically correct sentences.`
 
@@ -139,8 +141,33 @@ CRITICAL: This is on-camera dialogue, not off-screen narration. Only human chara
       data = JSON.parse(voiceoverData.choices[0].message.content)
     }
 
-    // Validate CTA segment word count (must be 5 words or less)
+    // Validate format and content for all segments
     if (data.segments && Array.isArray(data.segments)) {
+      // First, validate format - all segments must use "says:" format
+      for (const segment of data.segments) {
+        if (segment.script) {
+          // Check if script uses "says:" format
+          const saysFormatMatch = segment.script.match(/says:\s*['"](.+?)['"]/i)
+          // Check for invalid verb variations
+          const invalidVerbMatch = segment.script.match(/(mutters|concludes|whispers|exclaims|states|speaks|remarks|adds|responds)(?:\s+(?:to\s+(?:herself|himself|themselves|each\s+other)))?(?:\s+[^:]+)?:\s*['"]/i)
+          
+          if (invalidVerbMatch && !saysFormatMatch) {
+            console.warn(`[Generate Voiceover] Segment ${segment.type} uses invalid verb "${invalidVerbMatch[1]}" instead of "says:". Script: ${segment.script.substring(0, 100)}`)
+            // Try to fix by replacing the invalid verb with "says:"
+            segment.script = segment.script.replace(
+              /(Dialogue:\s*[^:]+?)\s+(mutters|concludes|whispers|exclaims|states|speaks|remarks|adds|responds)(?:\s+(?:to\s+(?:herself|himself|themselves|each\s+other)))?(?:\s+[^:]+)?:\s*['"]/i,
+              '$1 says: \''
+            )
+            console.log(`[Generate Voiceover] Fixed segment ${segment.type} format to use "says:"`)
+          } else if (!saysFormatMatch && segment.script.includes('Dialogue:')) {
+            console.warn(`[Generate Voiceover] Segment ${segment.type} does not match expected "says:" format. Script: ${segment.script.substring(0, 100)}`)
+          } else if (saysFormatMatch) {
+            console.log(`[Generate Voiceover] Segment ${segment.type} format validated: uses "says:" format`)
+          }
+        }
+      }
+      
+      // Validate CTA segment word count (must be 5 words or less)
       const ctaSegment = data.segments.find((seg: any) => seg.type === 'cta')
       if (ctaSegment && ctaSegment.script) {
         // Extract dialogue text from format: "[Character] says: '[dialogue]'"
