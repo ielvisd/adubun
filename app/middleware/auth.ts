@@ -41,9 +41,9 @@ export default defineNuxtRouteMiddleware((to, from) => {
   }
 
   // If not authenticated and not in dev mode, redirect to login
-  if (!user.value && !process.dev) {
-    return navigateTo('/auth/login')
-  }
+  // if (!user.value && !process.dev) {
+  //   return navigateTo('/auth/login')
+  // }
 })
 
 
