@@ -1,0 +1,22 @@
+node_modules
+.git
+.gitignore
+.env
+.env.*
+.output
+.nuxt
+dist
+coverage
+tests
+playwright-report
+test-results
+.DS_Store
+README.md
+# Ignore local data content but keep structure (data/ folder itself will be created by Docker/Volume)
+data/videos/*
+data/assets/*
+data/jobs/*
+data/storyboards/*
+# Keep .keep files if they exist, but ignore actual content
+!data/**/.keep
+
