@@ -58,7 +58,7 @@ class ReplicateMCPServer {
    * @returns Rounded duration
    */
   private roundDurationToValidValue(model: string, duration: number): number {
-    if (model === 'google/veo-3.1' || model === 'google/veo-3-fast') {
+    if (model === 'google/veo-3.1' || model === 'google/veo-3-fast' || model === 'google/veo-3.1-fast') {
       if (duration < 4) {
         return 4
       }
@@ -82,7 +82,7 @@ class ReplicateMCPServer {
       tools: [
         {
           name: 'generate_video',
-          description: 'Generate video using Replicate models (google/veo-3.1, google/veo-3-fast)',
+          description: 'Generate video using Replicate models (google/veo-3.1, google/veo-3-fast, google/veo-3.1-fast)',
           inputSchema: {
             type: 'object',
             properties: {
@@ -493,7 +493,7 @@ class ReplicateMCPServer {
       }
       
       // Only add duration if model supports it
-      if (modelId === 'google/veo-3.1' || modelId === 'google/veo-3-fast') {
+      if (modelId === 'google/veo-3.1' || modelId === 'google/veo-3-fast' || modelId === 'google/veo-3.1-fast') {
         input.duration = roundedDuration
       }
     }
@@ -538,6 +538,30 @@ class ReplicateMCPServer {
         input.image = image
       }
       // Note: Veo 3 Fast does NOT support last_frame or reference_images
+      if (negativePrompt) {
+        input.negative_prompt = negativePrompt
+      }
+      if (resolution) {
+        input.resolution = resolution
+      }
+      if (generateAudio !== undefined) {
+        input.generate_audio = generateAudio
+      }
+      if (seed !== undefined && seed !== null) {
+        input.seed = seed
+      }
+    } else if (modelId === 'google/veo-3.1-fast') {
+      // Veo 3.1 Fast supports: prompt, aspect_ratio, duration, image, negative_prompt, resolution, generate_audio, seed, last_frame
+      if (prompt) {
+        input.prompt = prompt
+      }
+      if (image) {
+        input.image = image
+      }
+      if (lastFrame) {
+        input.last_frame = lastFrame
+      }
+      // Note: Veo 3.1 Fast does NOT support reference_images
       if (negativePrompt) {
         input.negative_prompt = negativePrompt
       }

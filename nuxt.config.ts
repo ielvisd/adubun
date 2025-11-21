@@ -10,7 +10,14 @@ export default defineNuxtConfig({
     '@nuxt/fonts',
     '@nuxt/image',
     '@nuxtjs/color-mode',
+    '@nuxtjs/storybook',
   ],
+
+  storybook: {
+    url: 'http://localhost:6006',
+    storybookRoute: '/__storybook__',
+    port: 6006,
+  },
 
   colorMode: {
     preference: 'system', // default value of $colorMode.preference
@@ -25,7 +32,7 @@ export default defineNuxtConfig({
 
   fonts: {
     families: [
-      { name: 'Poppins', provider: 'google', weights: [400, 500, 600, 700] },
+      { name: 'Nunito Sans', provider: 'google', weights: [400, 500, 600, 700] },
     ],
   },
 

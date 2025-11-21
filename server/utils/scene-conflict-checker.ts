@@ -145,14 +145,23 @@ export async function extractItemInitialLocation(
   try {
     const isBringingAction = actionType === 'bringing'
     
+    // Check if robot/product is in hook segment
+    const hookText = `${hookSegment.description} ${hookSegment.visualPrompt}`.toLowerCase()
+    const robotInHook = /(?:robot|product|humanoid|unitree|g1|device|machine|assistant|helper)/i.test(hookText)
+    
+    // If item is being "brought" and robot is NOT in hook, item should NOT appear in hook
+    if (isBringingAction && !robotInHook) {
+      console.log(`[Scene Conflict Checker] Item "${item}" is being brought but robot not in hook - item should not appear in hook`)
+      return null
+    }
+    
     const systemPrompt = `You are analyzing a video ad hook segment to determine where a specific item is initially located.
 
 Your task is to identify the EXACT initial location of the item in the hook scene. The location should be specific and clear (e.g., "on coffee table", "in robot's hands", "on counter", "on sofa", "in the background").
 
-${isBringingAction ? `CRITICAL STORY FLOW REQUIREMENT: This item is being "brought" or "offered" by a robot or product in the body segment. In the hook segment, this item should NOT be in the person's hands yet. It should be in a neutral location such as:
+${isBringingAction && robotInHook ? `CRITICAL STORY FLOW REQUIREMENT: This item is being "brought" or "offered" by a robot or product in the body segment. Since the robot is already present in the hook scene, this item should be "in robot's hands" or "in robot/product's hands". The item should NOT be in the person's hands yet, and should NOT be on surfaces like tables or counters - it should be held by the robot.` : isBringingAction ? `CRITICAL STORY FLOW REQUIREMENT: This item is being "brought" or "offered" by a robot or product in the body segment. In the hook segment, this item should NOT be in the person's hands yet. It should be in a neutral location such as:
 - "on coffee table" or "on nearby table"
 - "on a surface" or "on a nearby surface"
-- "in robot's hands" (if the robot is already present in the hook scene)
 - "on the counter" or similar neutral surface
 
 DO NOT place items being "brought" in the person's hands in the hook segment. The person will receive the item in the body segment.` : ''}
@@ -173,9 +182,9 @@ Return ONLY the location string or null, no additional text.`
 
 Hook Description: ${hookSegment.description || 'N/A'}
 Hook Visual Prompt: ${hookSegment.visualPrompt || 'N/A'}
-${isBringingAction ? `\nIMPORTANT: This item will be brought/offered by a robot or product in the next segment. It should NOT be in the person's hands in the hook - place it in a neutral location like a table or surface.` : ''}
+${isBringingAction && robotInHook ? `\nIMPORTANT: This item will be brought/offered by a robot or product in the next segment. Since the robot is already present in the hook scene, the item should be "in robot's hands" or "in robot/product's hands". It should NOT be in the person's hands, and should NOT be on surfaces.` : isBringingAction ? `\nIMPORTANT: This item will be brought/offered by a robot or product in the next segment. It should NOT be in the person's hands in the hook - place it in a neutral location like a table or surface.` : ''}
 
-Where is "${item}" located in the hook scene? Return only the location description (e.g., "on coffee table") or null if not found.`
+Where is "${item}" located in the hook scene? Return only the location description (e.g., "on coffee table", "in robot's hands") or null if not found.`
 
     const response = await callOpenAIMCP('chat_completion', {
       model: 'gpt-4o',

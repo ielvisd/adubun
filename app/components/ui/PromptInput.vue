@@ -236,39 +236,17 @@
 
           <!-- 6. Quality & Speed (Model Selection) -->
           <UFormField label="Quality & Speed" name="model" required>
-            <div class="space-y-3">
-              <div
-                v-for="modelOption in VIDEO_MODELS"
-                :key="modelOption.id"
-                @click="form.model = modelOption.id"
-                :class="[
-                  'p-4 rounded-lg border-2 cursor-pointer transition-all',
-                  form.model === modelOption.id
-                    ? 'border-secondary-500 bg-secondary-50 dark:bg-secondary-900/20'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                ]"
-              >
-                <div class="flex items-start justify-between">
-                  <div class="flex-1">
-                    <div class="flex items-center gap-2 mb-1">
-                      <h4 class="font-semibold text-gray-900 dark:text-white">{{ modelOption.name }}</h4>
-                      <span
-                        v-if="modelOption.id === DEFAULT_MODEL_ID"
-                        class="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium rounded-full"
-                      >
-                        Recommended
-                      </span>
-                    </div>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">{{ modelOption.description }}</p>
-                  </div>
-                  <UIcon
-                    v-if="form.model === modelOption.id"
-                    name="i-heroicons-check-circle-solid"
-                    class="w-6 h-6 text-secondary-500 flex-shrink-0 ml-3"
-                  />
-                </div>
-              </div>
-            </div>
+            <USelect
+              v-model="form.model"
+              :items="modelOptions"
+              :disabled="props.loading"
+              @update:model-value="handleModelChange"
+            />
+            <template #description>
+              <span class="text-gray-600 dark:text-gray-400">
+                {{ selectedModel?.description || 'Select a video generation model' }}
+              </span>
+            </template>
           </UFormField>
 
           <!-- 7. Voiceover Toggle -->

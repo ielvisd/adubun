@@ -1,9 +1,9 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
-/* Apply Poppins font globally */
+/* Apply Nunito Sans font globally */
 body {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Nunito Sans', sans-serif;
 }
 
 /* Tailwind v4 Theme Configuration */

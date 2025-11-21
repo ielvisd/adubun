@@ -1,97 +1,18 @@
 <template>
   <div class="overflow-x-hidden bg-mendo-white dark:bg-mendo-black text-mendo-black dark:text-mendo-white">
-    <!-- Hero Section - Split Layout -->
-    <div class="relative overflow-hidden bg-mendo-white dark:bg-mendo-black transition-colors duration-300">
-      <UContainer class="relative max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div class="flex flex-col lg:grid lg:grid-cols-2 gap-8 lg:gap-16 py-12 md:py-20 items-start lg:items-center min-h-[80vh]">
-          <!-- Left Side - Content -->
-          <div class="flex flex-col space-y-6 z-10 order-1 w-full">
-            <!-- Main Headline -->
-            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight tracking-tight text-mendo-black dark:text-mendo-white">
-              <span class="block">Transform Prompts</span>
-              <span class="block">into Professional Ads</span>
-            </h1>
-            
-            <!-- Subheadline -->
-            <p class="text-xl sm:text-2xl text-gray-600 dark:text-gray-300 leading-relaxed max-w-lg">
-              Create stunning, high-converting video content in minutes with our AI-powered platform. No editing skills required.
-            </p>
-            
-            <!-- CTA Buttons -->
-            <div class="flex flex-col sm:flex-row gap-4 pt-4">
-              <UButton
-                size="xl"
-                variant="solid"
-                class="bg-mendo-black text-mendo-white hover:bg-gray-800 dark:bg-mendo-cream dark:text-mendo-black dark:hover:bg-[#d9b592] font-semibold px-8 py-4 rounded-lg transition-all duration-300 text-lg"
-                @click="scrollToPrompt"
-              >
-                Get Started Free
-                <UIcon name="i-heroicons-arrow-right" class="ml-2 w-5 h-5" />
-              </UButton>
-              <UButton
-                size="xl"
-                variant="outline"
-                class="border-2 border-mendo-black text-mendo-black hover:bg-gray-50 dark:border-gray-500 dark:text-gray-300 dark:hover:bg-white/5 font-semibold px-8 py-4 rounded-lg transition-all duration-300 text-lg"
-                @click="scrollToExamples"
-              >
-                View Examples
-              </UButton>
-            </div>
-            
-            <!-- Trust Indicators -->
-            <div class="flex flex-wrap items-center gap-6 pt-4 text-sm font-medium text-gray-500 dark:text-gray-400">
-              <div class="flex items-center gap-2">
-                <UIcon name="i-heroicons-check-circle" class="w-5 h-5 text-mendo-black dark:text-mendo-white" />
-                <span>No credit card required</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <UIcon name="i-heroicons-sparkles" class="w-5 h-5 text-mendo-black dark:text-mendo-white" />
-                <span>AI-Powered Magic</span>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Right Side - Showcase Card -->
-          <div class="relative order-2 w-full">
-            <div class="bg-mendo-cream dark:bg-mendo-cream rounded-3xl p-3 sm:p-4 lg:p-6 shadow-2xl transform rotate-1 hover:rotate-0 transition-transform duration-500">
-              <div class="aspect-video bg-mendo-black rounded-2xl overflow-hidden relative border-4 border-mendo-black">
-                <video 
-                  autoplay 
-                  loop 
-                  muted 
-                  playsinline
-                  class="w-full h-full object-cover"
-                >
-                  <source src="/cameraguy.webm" type="video/webm">
-                  <source src="/cameraguy.MP4" type="video/mp4">
-                </video>
-              </div>
-              
-              <!-- Floating Badge -->
-              <div class="absolute bottom-4 right-4 bg-white text-mendo-black px-4 py-2 rounded-2xl shadow-lg flex items-center gap-2 border-2 border-mendo-black">
-                <div class="flex items-center gap-1">
-                  <div class="w-6 h-6 rounded-full bg-mendo-light-blue border border-mendo-black flex items-center justify-center text-[10px] font-bold">AI</div>
-                  <span class="text-xs">⚡</span>
-                </div>
-                <span class="text-xs font-semibold whitespace-nowrap">Generated in Seconds</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </UContainer>
-    </div>
+    <!-- Hero Section -->
+    <LandingHeroSection
+      :primary-cta="{ label: 'Get Started Free', action: scrollToPrompt }"
+      :secondary-cta="{ label: 'View Examples', action: scrollToExamples }"
+    />
 
     <!-- Create Section -->
     <div id="prompt-section" class="py-20 bg-mendo-light-blue dark:bg-black border-y border-gray-100 dark:border-gray-800">
       <UContainer class="max-w-4xl px-4 sm:px-6">
-        <div class="text-center mb-12">
-          <h2 class="text-4xl md:text-5xl font-bold mb-6 text-mendo-black dark:text-mendo-white">
-            Create Your Video
-          </h2>
-          <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            Just describe your product. We'll handle the rest.
-          </p>
-        </div>
+        <LandingSectionHeader
+          title="Create Your Video"
+          description="Just describe your product. We'll handle the rest."
+        />
         
         <div class="bg-white dark:bg-gray-900 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 p-8 sm:p-10">
           <UiPromptInput :loading="isLoading" @submit="handleSubmit" />
@@ -102,40 +23,18 @@
     <!-- Examples Section -->
     <div id="examples-section" class="py-20 bg-mendo-white dark:bg-black">
       <UContainer class="max-w-7xl px-4 sm:px-6">
-        <div class="text-center mb-16">
-          <h2 class="text-4xl md:text-5xl font-bold mb-6 text-mendo-black dark:text-mendo-white">
-            Try These Examples
-          </h2>
-          <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            Get inspired with these ready-to-use templates.
-          </p>
-        </div>
+        <LandingSectionHeader
+          title="Try These Examples"
+          description="Get inspired with these ready-to-use templates."
+        />
         
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" ref="examplesGrid" v-auto-animate>
-          <div
+          <LandingExampleCard
             v-for="(example, index) in examplePrompts"
             :key="index"
-            class="cursor-pointer group bg-mendo-light-grey dark:bg-gray-900 rounded-2xl p-6 hover:bg-white dark:hover:bg-gray-800 hover:shadow-xl transition-all duration-300 border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
-            @click="useExample(example)"
-          >
-            <div class="flex items-start justify-between mb-4">
-              <div class="w-12 h-12 rounded-xl bg-mendo-white dark:bg-black flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform">
-                {{ example.icon }}
-              </div>
-              <UIcon name="i-heroicons-arrow-up-right" class="w-5 h-5 text-gray-400 group-hover:text-mendo-black dark:group-hover:text-mendo-white transition-colors" />
-            </div>
-            
-            <h3 class="font-bold text-xl text-mendo-black dark:text-mendo-white mb-2">{{ example.title }}</h3>
-            <p class="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-3">
-              {{ example.description }}
-            </p>
-            
-            <div class="flex items-center gap-3 text-xs font-medium text-gray-500 dark:text-gray-500">
-              <span class="bg-white dark:bg-black px-2 py-1 rounded">{{ example.duration }}s</span>
-              <span class="bg-white dark:bg-black px-2 py-1 rounded">{{ example.aspectRatio }}</span>
-              <span class="bg-white dark:bg-black px-2 py-1 rounded">{{ example.style }}</span>
-            </div>
-          </div>
+            :example="example"
+            @click="(ex) => useExample(ex)"
+          />
         </div>
       </UContainer>
     </div>
@@ -143,31 +42,27 @@
     <!-- Features Section -->
     <div class="py-20 bg-mendo-white dark:bg-mendo-black text-mendo-black dark:text-mendo-white transition-colors duration-300">
       <UContainer class="max-w-7xl px-4 sm:px-6">
-        <div class="text-center mb-16">
-          <h2 class="text-4xl md:text-5xl font-bold mb-6 text-mendo-black dark:text-mendo-white">
-            Why Choose AdUbun?
-          </h2>
-          <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            Everything you need to create professional videos at scale.
-          </p>
-        </div>
+        <LandingSectionHeader
+          title="Why Choose AdUbun?"
+          description="Everything you need to create professional videos at scale."
+        />
         
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-8">
-          <div class="bg-mendo-light-grey dark:bg-white/5 rounded-2xl p-8 border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
-            <div class="text-4xl mb-4">⚡</div>
-            <h3 class="text-xl font-bold mb-2 text-mendo-black dark:text-mendo-cream">Fast Generation</h3>
-            <p class="text-gray-600 dark:text-gray-400">Generate professional ad videos with fully automated AI-powered pipeline.</p>
-          </div>
-          <div class="bg-mendo-light-grey dark:bg-white/5 rounded-2xl p-8 border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
-            <div class="text-4xl mb-4">💰</div>
-            <h3 class="text-xl font-bold mb-2 text-mendo-black dark:text-mendo-cream">Cost Effective</h3>
-            <p class="text-gray-600 dark:text-gray-400">Less than $2 per minute of video content. No hidden fees.</p>
-          </div>
-          <div class="bg-mendo-light-grey dark:bg-white/5 rounded-2xl p-8 border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
-            <div class="text-4xl mb-4">🤖</div>
-            <h3 class="text-xl font-bold mb-2 text-mendo-black dark:text-mendo-cream">AI-Powered</h3>
-            <p class="text-gray-600 dark:text-gray-400">Leveraging cutting-edge AI models including GPT-4, Replicate, and ElevenLabs.</p>
-          </div>
+          <LandingFeatureCard
+            icon="⚡"
+            title="Fast Generation"
+            description="Generate professional ad videos with fully automated AI-powered pipeline."
+          />
+          <LandingFeatureCard
+            icon="💰"
+            title="Cost Effective"
+            description="Less than $2 per minute of video content. No hidden fees."
+          />
+          <LandingFeatureCard
+            icon="🤖"
+            title="AI-Powered"
+            description="Leveraging cutting-edge AI models including GPT-4, Replicate, and ElevenLabs."
+          />
         </div>
       </UContainer>
     </div>
@@ -175,6 +70,8 @@
 </template>
 
 <script setup lang="ts">
+import { DEFAULT_MODEL_ID } from '~/config/video-models'
+
 const { user, loading: authLoading } = useAuth()
 const router = useRouter()
 const toast = useToast()
@@ -274,7 +171,7 @@ const scrollToExamples = () => {
   }
 }
 
-const useExample = (example: typeof examplePrompts[0]) => {
+const useExample = (example: { prompt: string; aspectRatio: string; adType?: string; style: string }) => {
   if (process.client) {
     scrollToPrompt()
     setTimeout(() => {
@@ -282,7 +179,7 @@ const useExample = (example: typeof examplePrompts[0]) => {
         prompt: example.prompt,
         productImages: [],
         aspectRatio: example.aspectRatio as '16:9' | '9:16',
-        model: 'google/veo-3.1', // Default model
+        model: DEFAULT_MODEL_ID,
         generateVoiceover: false,
         adType: example.adType || 'lifestyle',
         mood: example.style,
@@ -396,7 +293,7 @@ const handleSubmit = async (formData: any) => {
     toast.add({
       title: 'Error',
       description: errorMessage,
-      color: 'red',
+      color: 'error',
       icon: 'i-heroicons-exclamation-circle',
     })
     isLoading.value = false
