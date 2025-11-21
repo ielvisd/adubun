@@ -386,8 +386,11 @@ const handleSubmit = async (formData: any) => {
       }))
     }
 
-    // Navigate to stories page
-    await navigateTo('/stories')
+    // Navigate to appropriate stories page based on seamlessTransition flag
+    const seamlessTransition = formData.seamlessTransition ?? true
+    const targetPage = seamlessTransition ? '/stories' : '/stories-seam'
+    console.log(`[Index] Navigating to ${targetPage} (seamlessTransition: ${seamlessTransition})`)
+    await navigateTo(targetPage)
   } catch (error: any) {
     const errorMessage = error.data?.message || error.message || 'Failed to upload images'
     toast.add({

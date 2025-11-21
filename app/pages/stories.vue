@@ -537,11 +537,9 @@ const proceedToStoryboards = async () => {
       sessionStorage.setItem('generationMode', isProductionMode.value ? 'production' : 'demo')
     }
 
-    // Navigate to appropriate storyboards page based on seamlessTransition flag
-    const seamlessTransition = promptData.value.seamlessTransition ?? true
-    const targetPage = seamlessTransition ? '/storyboards' : '/storyboards-seam'
-    console.log(`[Stories] Navigating to ${targetPage} (seamlessTransition: ${seamlessTransition})`)
-    await router.push(targetPage)
+    // Navigate to seamless storyboards page
+    console.log(`[Stories] Navigating to /storyboards (seamless mode)`)
+    await router.push('/storyboards')
   } catch (err: any) {
     console.error('Error navigating to storyboards:', err)
     toast.add({

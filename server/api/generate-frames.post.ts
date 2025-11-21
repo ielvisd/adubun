@@ -540,7 +540,12 @@ export default defineEventHandler(async (event) => {
         'hook first frame', 
         nanoPrompt, 
         hookSegment.visualPrompt,
-        undefined  // No previous frame
+        undefined,  // No previous frame
+        undefined,  // No current scene text
+        false,      // Not a transition
+        undefined,  // No transition text
+        undefined,  // No transition visual
+        false       // Do NOT include previous frame in input (first frame, no previous)
       )
       
       if (hookFirstFrameResult) {
@@ -566,7 +571,12 @@ export default defineEventHandler(async (event) => {
           'body first frame', 
           nanoPrompt, 
           body1Segment.visualPrompt,
-          undefined  // No previous frame
+          undefined,  // No previous frame
+          undefined,  // No current scene text
+          false,      // Not a transition
+          undefined,  // No transition text
+          undefined,  // No transition visual
+          false       // Do NOT include previous frame in input (non-seamless)
         )
         
         if (bodyFirstFrameResult) {
@@ -588,7 +598,12 @@ export default defineEventHandler(async (event) => {
           'body2 first frame', 
           nanoPrompt, 
           body2Segment.visualPrompt,
-          undefined  // No previous frame
+          undefined,  // No previous frame
+          undefined,  // No current scene text
+          false,      // Not a transition
+          undefined,  // No transition text
+          undefined,  // No transition visual
+          false       // Do NOT include previous frame in input (non-seamless)
         )
         
         if (body2FirstFrameResult) {
@@ -610,7 +625,12 @@ export default defineEventHandler(async (event) => {
           'cta first frame', 
           nanoPrompt, 
           ctaSegment.visualPrompt,
-          undefined  // No previous frame
+          undefined,  // No previous frame
+          undefined,  // No current scene text
+          false,      // Not a transition
+          undefined,  // No transition text
+          undefined,  // No transition visual
+          false       // Do NOT include previous frame in input (non-seamless)
         )
         
         if (ctaFirstFrameResult) {

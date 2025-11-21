@@ -1751,244 +1751,48 @@ const generateFrames = async () => {
       console.log(`  Segment ${key}: first=${!!value.first}, last=${!!value.last}`)
     })
 
-    // Map frames to segments according to format:
+    // NON-SEAMLESS MODE: Map frames to segments - only first frames, no daisy-chaining
     // 16-second format (3 segments):
-    //   Hook: firstFrameImage = frames[0] (hook first), lastFrameImage = frames[1] (hook last)
-    //   Body: firstFrameImage = frames[1] (hook last), lastFrameImage = frames[2] (body last)
-    //   CTA: firstFrameImage = frames[2] (body last), lastFrameImage = frames[3] (CTA last)
+    //   Hook: firstFrameImage = frames[0] (hook first)
+    //   Body: firstFrameImage = frames[1] (body first)
+    //   CTA: firstFrameImage = frames[2] (cta first)
     // 24-second format (4 segments):
-    //   Hook: firstFrameImage = frames[0] (hook first), lastFrameImage = frames[1] (hook last)
-    //   Body1: firstFrameImage = frames[1] (hook last), lastFrameImage = frames[2] (body1 last)
-    //   Body2: firstFrameImage = frames[2] (body1 last), lastFrameImage = frames[3] (body2 last)
-    //   CTA: firstFrameImage = frames[3] (body2 last), lastFrameImage = frames[4] (CTA)
+    //   Hook: firstFrameImage = frames[0] (hook first)
+    //   Body1: firstFrameImage = frames[1] (body1 first)
+    //   Body2: firstFrameImage = frames[2] (body2 first)
+    //   CTA: firstFrameImage = frames[3] (cta first)
     
     const segmentCount = selectedStoryboard.value?.segments.length || 0
     if (selectedStoryboard.value && (segmentCount === 3 || segmentCount >= 4)) {
-      console.log(`[Storyboards] Assigning frames to segments (${segmentCount}-segment format)...`)
+      console.log(`[Storyboards] NON-SEAMLESS MODE: Assigning first frames only (${segmentCount}-segment format)...`)
       
-      // First, clear any existing frame assignments to prevent stale data
-      selectedStoryboard.value.segments.forEach((seg, idx) => {
-        console.log(`[Storyboards] Clearing existing frames for segment ${idx} (${seg.type})`)
-        // Don't clear - we want to preserve manually uploaded frames
-        // But log what we're about to assign
-      })
-      
-      // Hook segment (index 0) - same for both formats
-      const hookFrames = frameMap.get('0')
-      console.log('[Storyboards] Hook frames:', hookFrames)
-      if (hookFrames?.first) {
-        selectedStoryboard.value.segments[0].firstFrameImage = hookFrames.first
-        frameGenerationStatus.value.set(0, { 
-          ...frameGenerationStatus.value.get(0), 
-          first: true,
-          firstModelSource: hookFrames.firstModelSource,
-          firstNanoImageUrl: hookFrames.firstNanoImageUrl,
-          firstSeedreamImageUrl: hookFrames.firstSeedreamImageUrl
-        })
-        console.log('[Storyboards] Assigned hook first frame:', hookFrames.first)
-      }
-      if (hookFrames?.last) {
-        selectedStoryboard.value.segments[0].lastFrameImage = hookFrames.last
-        frameGenerationStatus.value.set(0, { 
-          ...frameGenerationStatus.value.get(0), 
-          last: true,
-          lastModelSource: hookFrames.lastModelSource,
-          lastNanoImageUrl: hookFrames.lastNanoImageUrl,
-          lastSeedreamImageUrl: hookFrames.lastSeedreamImageUrl
-        })
-        console.log('[Storyboards] Assigned hook last frame:', hookFrames.last)
+      // NON-SEAMLESS: Assign first frames directly from frame map (no daisy-chaining)
+      for (let idx = 0; idx < segmentCount; idx++) {
+        const segmentFrames = frameMap.get(String(idx))
+        console.log(`[Storyboards] Segment ${idx} frames:`, segmentFrames)
+        
+        if (segmentFrames?.first) {
+          selectedStoryboard.value.segments[idx].firstFrameImage = segmentFrames.first
+          frameGenerationStatus.value.set(idx, { 
+            ...frameGenerationStatus.value.get(idx), 
+            first: true,
+            firstModelSource: segmentFrames.firstModelSource,
+            firstNanoImageUrl: segmentFrames.firstNanoImageUrl,
+            firstSeedreamImageUrl: segmentFrames.firstSeedreamImageUrl
+          })
+          console.log(`[Storyboards] ✓ Assigned segment ${idx} (${selectedStoryboard.value.segments[idx].type}) first frame:`, segmentFrames.first.substring(0, 60))
+        } else {
+          console.error(`[Storyboards] ✗ Segment ${idx} (${selectedStoryboard.value.segments[idx].type}) missing first frame in frameMap`)
+        }
+        
+        // NON-SEAMLESS: Clear any existing last frame assignments (shouldn't exist, but clean up)
+        if (selectedStoryboard.value.segments[idx].lastFrameImage) {
+          console.log(`[Storyboards] Clearing last frame for segment ${idx} (non-seamless mode)`)
+          selectedStoryboard.value.segments[idx].lastFrameImage = undefined
+        }
       }
 
-      // Handle 3-segment format (16-second)
-      if (segmentCount === 3) {
-        // Body segment (index 1) - Product Intro
-        // First frame is same as hook's last frame
-        const hookLastFrame = hookFrames?.last
-        const hookLastModelSource = hookFrames?.lastModelSource
-        const hookLastNanoImageUrl = hookFrames?.lastNanoImageUrl
-        const hookLastSeedreamImageUrl = hookFrames?.lastSeedreamImageUrl
-        const bodyFrames = frameMap.get('1')
-        console.log('[Storyboards] Body frames (3-segment format):', bodyFrames)
-        if (hookLastFrame) {
-          selectedStoryboard.value.segments[1].firstFrameImage = hookLastFrame
-          frameGenerationStatus.value.set(1, { 
-            ...frameGenerationStatus.value.get(1), 
-            first: true,
-            firstModelSource: hookLastModelSource,
-            firstNanoImageUrl: hookLastNanoImageUrl,
-            firstSeedreamImageUrl: hookLastSeedreamImageUrl
-          })
-          console.log('[Storyboards] Assigned body first frame (from hook last):', hookLastFrame)
-        }
-        if (bodyFrames?.last) {
-          selectedStoryboard.value.segments[1].lastFrameImage = bodyFrames.last
-          frameGenerationStatus.value.set(1, { 
-            ...frameGenerationStatus.value.get(1), 
-            last: true,
-            lastModelSource: bodyFrames.lastModelSource,
-            lastNanoImageUrl: bodyFrames.lastNanoImageUrl,
-            lastSeedreamImageUrl: bodyFrames.lastSeedreamImageUrl
-          })
-          console.log('[Storyboards] Assigned body last frame:', bodyFrames.last)
-        }
-
-        // CTA segment (index 2)
-        // First frame is same as body's last frame
-        const bodyLastFrame = bodyFrames?.last
-        const bodyLastModelSource = bodyFrames?.lastModelSource
-        const bodyLastNanoImageUrl = bodyFrames?.lastNanoImageUrl
-        const bodyLastSeedreamImageUrl = bodyFrames?.lastSeedreamImageUrl
-        const ctaFrames = frameMap.get('2')
-        
-        console.log('[Storyboards] ========================================')
-        console.log('[Storyboards] Assigning CTA Frames (3-segment format)')
-        console.log('[Storyboards] ========================================')
-        console.log('[Storyboards] CTA frames from map:', ctaFrames)
-        console.log('[Storyboards] CTA has first in map:', !!ctaFrames?.first)
-        console.log('[Storyboards] CTA has last in map:', !!ctaFrames?.last)
-        console.log('[Storyboards] Body last frame (for CTA first):', bodyLastFrame?.substring(0, 60))
-        
-        if (bodyLastFrame) {
-          selectedStoryboard.value.segments[2].firstFrameImage = bodyLastFrame
-          frameGenerationStatus.value.set(2, { 
-            ...frameGenerationStatus.value.get(2), 
-            first: true,
-            firstModelSource: bodyLastModelSource,
-            firstNanoImageUrl: bodyLastNanoImageUrl,
-            firstSeedreamImageUrl: bodyLastSeedreamImageUrl
-          })
-          console.log('[Storyboards] ✓ Assigned CTA first frame (from body last):', bodyLastFrame.substring(0, 60))
-        } else {
-          console.error('[Storyboards] ✗ Could not assign CTA first frame - bodyLastFrame is missing')
-        }
-        
-        if (ctaFrames?.last) {
-          // CTA's last frame is the final frame of the video
-          selectedStoryboard.value.segments[2].lastFrameImage = ctaFrames.last
-          frameGenerationStatus.value.set(2, { 
-            ...frameGenerationStatus.value.get(2), 
-            last: true,
-            lastModelSource: ctaFrames.lastModelSource,
-            lastNanoImageUrl: ctaFrames.lastNanoImageUrl,
-            lastSeedreamImageUrl: ctaFrames.lastSeedreamImageUrl
-          })
-          console.log('[Storyboards] ✓ Assigned CTA last frame:', ctaFrames.last.substring(0, 60))
-        } else {
-          console.error('[Storyboards] ✗✗✗ CTA last frame is MISSING from frameMap!')
-          console.error('[Storyboards] This is the root cause - API did not generate CTA last frame')
-          console.error('[Storyboards] frameMap.get("2"):', ctaFrames)
-        }
-      } else {
-        // Handle 4-segment format (24-second) - original logic
-        // Body1 segment (index 1)
-        // First frame is same as hook's last frame
-        const hookLastFrame = hookFrames?.last
-        const hookLastModelSource = hookFrames?.lastModelSource
-        const hookLastNanoImageUrl = hookFrames?.lastNanoImageUrl
-        const hookLastSeedreamImageUrl = hookFrames?.lastSeedreamImageUrl
-        const body1Frames = frameMap.get('1')
-        console.log('[Storyboards] Body1 frames:', body1Frames)
-        if (hookLastFrame) {
-          selectedStoryboard.value.segments[1].firstFrameImage = hookLastFrame
-          frameGenerationStatus.value.set(1, { 
-            ...frameGenerationStatus.value.get(1), 
-            first: true,
-            firstModelSource: hookLastModelSource,
-            firstNanoImageUrl: hookLastNanoImageUrl,
-            firstSeedreamImageUrl: hookLastSeedreamImageUrl
-          })
-          console.log('[Storyboards] Assigned body1 first frame (from hook last):', hookLastFrame)
-        }
-        if (body1Frames?.last) {
-          selectedStoryboard.value.segments[1].lastFrameImage = body1Frames.last
-          frameGenerationStatus.value.set(1, { 
-            ...frameGenerationStatus.value.get(1), 
-            last: true,
-            lastModelSource: body1Frames.lastModelSource,
-            lastNanoImageUrl: body1Frames.lastNanoImageUrl,
-            lastSeedreamImageUrl: body1Frames.lastSeedreamImageUrl
-          })
-          console.log('[Storyboards] Assigned body1 last frame:', body1Frames.last)
-        }
-
-        // Body2 segment (index 2)
-        // First frame is same as body1's last frame
-        const body1LastFrame = body1Frames?.last
-        const body1LastModelSource = body1Frames?.lastModelSource
-        const body1LastNanoImageUrl = body1Frames?.lastNanoImageUrl
-        const body1LastSeedreamImageUrl = body1Frames?.lastSeedreamImageUrl
-        const body2Frames = frameMap.get('2')
-        console.log('[Storyboards] Body2 frames:', body2Frames)
-        if (body1LastFrame) {
-          selectedStoryboard.value.segments[2].firstFrameImage = body1LastFrame
-          frameGenerationStatus.value.set(2, { 
-            ...frameGenerationStatus.value.get(2), 
-            first: true,
-            firstModelSource: body1LastModelSource,
-            firstNanoImageUrl: body1LastNanoImageUrl,
-            firstSeedreamImageUrl: body1LastSeedreamImageUrl
-          })
-          console.log('[Storyboards] Assigned body2 first frame (from body1 last):', body1LastFrame)
-        }
-        if (body2Frames?.last) {
-          selectedStoryboard.value.segments[2].lastFrameImage = body2Frames.last
-          frameGenerationStatus.value.set(2, { 
-            ...frameGenerationStatus.value.get(2), 
-            last: true,
-            lastModelSource: body2Frames.lastModelSource,
-            lastNanoImageUrl: body2Frames.lastNanoImageUrl,
-            lastSeedreamImageUrl: body2Frames.lastSeedreamImageUrl
-          })
-          console.log('[Storyboards] Assigned body2 last frame:', body2Frames.last)
-        }
-
-        // CTA segment (index 3)
-        // First frame is same as body2's last frame
-        const body2LastFrame = body2Frames?.last
-        const body2LastModelSource = body2Frames?.lastModelSource
-        const body2LastNanoImageUrl = body2Frames?.lastNanoImageUrl
-        const body2LastSeedreamImageUrl = body2Frames?.lastSeedreamImageUrl
-        const ctaFrames = frameMap.get('3')
-        
-        console.log('[Storyboards] ========================================')
-        console.log('[Storyboards] Assigning CTA Frames (4-segment format)')
-        console.log('[Storyboards] ========================================')
-        console.log('[Storyboards] CTA frames from map:', ctaFrames)
-        console.log('[Storyboards] CTA has first in map:', !!ctaFrames?.first)
-        console.log('[Storyboards] CTA has last in map:', !!ctaFrames?.last)
-        console.log('[Storyboards] Body2 last frame (for CTA first):', body2LastFrame?.substring(0, 60))
-        
-        if (body2LastFrame) {
-          selectedStoryboard.value.segments[3].firstFrameImage = body2LastFrame
-          frameGenerationStatus.value.set(3, { 
-            ...frameGenerationStatus.value.get(3), 
-            first: true,
-            firstModelSource: body2LastModelSource,
-            firstNanoImageUrl: body2LastNanoImageUrl,
-            firstSeedreamImageUrl: body2LastSeedreamImageUrl
-          })
-          console.log('[Storyboards] ✓ Assigned CTA first frame (from body2 last):', body2LastFrame.substring(0, 60))
-        } else {
-          console.error('[Storyboards] ✗ Could not assign CTA first frame - body2LastFrame is missing')
-        }
-        
-        if (ctaFrames?.last) {
-          // CTA's last frame is the final frame of the video
-          selectedStoryboard.value.segments[3].lastFrameImage = ctaFrames.last
-          frameGenerationStatus.value.set(3, { 
-            ...frameGenerationStatus.value.get(3), 
-            last: true,
-            lastModelSource: ctaFrames.lastModelSource,
-            lastNanoImageUrl: ctaFrames.lastNanoImageUrl,
-            lastSeedreamImageUrl: ctaFrames.lastSeedreamImageUrl
-          })
-          console.log('[Storyboards] ✓ Assigned CTA last frame:', ctaFrames.last.substring(0, 60))
-        } else {
-          console.error('[Storyboards] ✗✗✗ CTA last frame is MISSING from frameMap!')
-          console.error('[Storyboards] This is the root cause - API did not generate CTA last frame')
-          console.error('[Storyboards] frameMap.get("3"):', ctaFrames)
-        }
-      }
+      // Frame assignment complete for non-seamless mode (only first frames)
       
       // Trigger reactivity to ensure UI updates
       await nextTick()
@@ -2004,43 +1808,21 @@ const generateFrames = async () => {
       }))
       console.log('[Storyboards] Final segment states:', finalStates)
       
-      // Validate frame assignments - ensure no segment has CTA frames unless it's the CTA segment
-      const ctaSegmentIndex = segmentCount === 3 ? 2 : 3
-      const ctaLastFrame = finalStates[ctaSegmentIndex]?.lastFrameImage
+      // NON-SEAMLESS MODE: Validate frame assignments - only check for first frames
       const validationErrors: string[] = []
       finalStates.forEach((state, idx) => {
-        if (idx !== ctaSegmentIndex && state.lastFrameImage === ctaLastFrame && ctaLastFrame) {
-          validationErrors.push(`Segment ${idx} (${state.type}) has CTA last frame assigned`)
+        // Check that each segment has its first frame
+        if (!state.firstFrameImage) {
+          validationErrors.push(`Segment ${idx} (${state.type}) missing first frame`)
         }
-        // Check that Hook has its own first frame (not shared)
-        if (idx === 0 && !state.firstFrameImage) {
-          validationErrors.push(`Hook segment missing first frame`)
-        }
-        // Check that each segment has appropriate frames
-        if (segmentCount === 3) {
-          // 3-segment format: Hook, Body, CTA
-          if (idx < 2 && !state.lastFrameImage) {
-            validationErrors.push(`Segment ${idx} (${state.type}) missing last frame`)
-          }
-          if (idx === 2 && !state.lastFrameImage) {
-            validationErrors.push(`CTA segment missing last frame`)
-          }
-        } else {
-          // 4-segment format: Hook, Body1, Body2, CTA
-          if (idx < 3 && !state.lastFrameImage) {
-            validationErrors.push(`Segment ${idx} (${state.type}) missing last frame`)
-          }
-          if (idx === 3 && !state.lastFrameImage) {
-            validationErrors.push(`CTA segment missing last frame`)
-          }
-        }
+        // NON-SEAMLESS: No last frame checks - they are not required
       })
       
       if (validationErrors.length > 0) {
-        console.error('[Storyboards] Frame assignment validation errors:', validationErrors)
+        console.error('[Storyboards] Frame assignment validation errors (non-seamless):', validationErrors)
         frameGenerationError.value = `Frame assignment errors detected: ${validationErrors.join('; ')}`
       } else {
-        console.log('[Storyboards] ✓ Frame assignment validation passed')
+        console.log('[Storyboards] ✓ Frame assignment validation passed (non-seamless mode - first frames only)')
       }
     }
 

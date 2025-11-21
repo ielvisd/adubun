@@ -114,6 +114,26 @@
             </template>
           </UFormField>
 
+          <!-- 6. Seamless Transition Toggle (Main Option) -->
+          <UFormField label="Transition Style" name="seamlessTransition">
+            <div class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+              <USwitch
+                v-model="form.seamlessTransition"
+                :disabled="props.loading"
+              />
+              <div class="flex-1">
+                <span class="text-sm font-medium text-gray-900 dark:text-white block">
+                  {{ form.seamlessTransition ? 'Seamless Transitions' : 'Creative Transitions' }}
+                </span>
+                <span class="text-xs text-gray-600 dark:text-gray-400">
+                  {{ form.seamlessTransition 
+                    ? 'Smooth, connected scenes with visual continuity' 
+                    : 'Independent scenes with creative freedom' }}
+                </span>
+              </div>
+            </div>
+          </UFormField>
+
           <!-- Advanced Options Toggle -->
           <div class="pt-2">
             <button
@@ -251,20 +271,7 @@
             </div>
           </UFormField>
 
-          <!-- 7. Seamless Transition Toggle -->
-          <UFormField label="Seamless Transition" name="seamlessTransition">
-            <div class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-              <USwitch
-                v-model="form.seamlessTransition"
-                :disabled="props.loading"
-              />
-              <span class="text-sm text-gray-700 dark:text-gray-300">
-                Generate connected scenes (ON) or independent transitions (OFF)
-              </span>
-            </div>
-          </UFormField>
-
-          <!-- 8. Voiceover Toggle -->
+          <!-- 7. Voiceover Toggle -->
           <UFormField label="Generate Voiceover Script" name="generateVoiceover">
             <div class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
               <USwitch
