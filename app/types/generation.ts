@@ -55,6 +55,7 @@ export interface Storyboard {
     subjectReference?: string // Global default subject reference image path/URL
     resolution?: '720p' | '1080p' // Output resolution
     format?: '16s' | '24s' // Video format: '16s' for 16-second format (default), '24s' for legacy 24-second format
+    seamlessTransition?: boolean // Seamless transition: true (default) generates first+last frames for continuity, false generates only first frames
   }
   promptJourney?: {
     userInput: {
@@ -152,6 +153,7 @@ export interface ParsedPrompt {
     firstFrameImage?: string
     subjectReference?: string
     adType?: string // New field for ad type
+    seamlessTransition?: boolean // Seamless transition toggle
   }
 }
 

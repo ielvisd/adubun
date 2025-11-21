@@ -9,6 +9,7 @@ export const parsePromptSchema = z.object({
   mood: z.string().optional(), // New field for video tone
   adType: z.string().optional(), // New field for ad type
   mode: z.enum(['demo', 'production']).optional(),
+  seamlessTransition: z.boolean().optional(), // Seamless transition toggle (default: true)
   // Veo 3.1 fields
   image: z.string().optional().nullable(),
   lastFrame: z.string().optional().nullable(),
@@ -38,6 +39,7 @@ export const planStoryboardSchema = z.object({
       mood: z.string().optional(), // Video tone/mood
       adType: z.string().optional(), // New field for ad type
       mode: z.enum(['demo', 'production']).optional(),
+      seamlessTransition: z.boolean().optional(), // Seamless transition toggle (default: true)
       // Veo 3.1 fields
       image: z.string().optional().nullable(),
       lastFrame: z.string().optional().nullable(),
@@ -89,6 +91,7 @@ export const generateAssetsSchema = z.object({
       adType: z.string().optional(), // Ad type
       mode: z.enum(['demo', 'production']).optional(),
       format: z.enum(['16s', '24s']).optional(), // Video format: '16s' for 16-second format (default), '24s' for legacy 24-second format
+      seamlessTransition: z.boolean().optional(), // Seamless transition toggle (default: true)
       // Veo 3.1 fields
       image: z.string().optional().nullable(),
       lastFrame: z.string().optional().nullable(),

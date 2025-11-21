@@ -251,7 +251,20 @@
             </div>
           </UFormField>
 
-          <!-- 7. Voiceover Toggle -->
+          <!-- 7. Seamless Transition Toggle -->
+          <UFormField label="Seamless Transition" name="seamlessTransition">
+            <div class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+              <USwitch
+                v-model="form.seamlessTransition"
+                :disabled="props.loading"
+              />
+              <span class="text-sm text-gray-700 dark:text-gray-300">
+                Generate connected scenes (ON) or independent transitions (OFF)
+              </span>
+            </div>
+          </UFormField>
+
+          <!-- 8. Voiceover Toggle -->
           <UFormField label="Generate Voiceover Script" name="generateVoiceover">
             <div class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
               <USwitch
@@ -319,6 +332,7 @@ const schema = z.object({
   aspectRatio: z.enum(['16:9', '9:16']),
   mood: z.string().min(1, 'Please select a video tone'),
   model: z.string().min(1, 'Please select a video generation model'),
+  seamlessTransition: z.boolean().optional(),
   generateVoiceover: z.boolean().optional(),
 })
 
@@ -331,6 +345,7 @@ const getInitialFormState = () => ({
   aspectRatio: '16:9' as '16:9' | '9:16' | '1:1',
   mood: 'professional',
   model: DEFAULT_MODEL_ID,
+  seamlessTransition: true, // Default: ON (seamless)
   generateVoiceover: false,
 })
 

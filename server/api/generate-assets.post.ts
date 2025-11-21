@@ -494,15 +494,19 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
 
         // Add image inputs if provided - upload to Replicate and get public URLs
         if (model === 'google/veo-3.1') {
-          // Always use firstFrameImage and lastFrameImage from frames
+          // Always use firstFrameImage
           if (firstFrameImage) {
             videoParams.image = await prepareImageInput(firstFrameImage)
             console.log(`[Segment ${idx}] Using first frame image: ${firstFrameImage}`)
           }
           
-          if (lastFrameImage) {
+          // Only use lastFrameImage if seamlessTransition is enabled (default: true)
+          const seamlessTransition = storyboard.meta.seamlessTransition !== false
+          if (seamlessTransition && lastFrameImage) {
             videoParams.last_frame = await prepareImageInput(lastFrameImage)
-            console.log(`[Segment ${idx}] Using last frame image: ${lastFrameImage}`)
+            console.log(`[Segment ${idx}] Using last frame image (seamless mode): ${lastFrameImage}`)
+          } else if (!seamlessTransition) {
+            console.log(`[Segment ${idx}] Skipping last frame (non-seamless mode)`)
           }
           
           // Add subject reference (person reference) if available

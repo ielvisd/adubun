@@ -22,12 +22,13 @@ const generateStoryboardsSchema = z.object({
   model: z.string().optional(),
   mood: z.string().optional(), // Video tone/mood from homepage
   adType: z.string().optional(), // Ad Type from homepage
+  seamlessTransition: z.boolean().optional(), // Seamless transition toggle (default: true)
 })
 
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
-    const { story, prompt, productImages = [], aspectRatio, model, mood, adType } = generateStoryboardsSchema.parse(body)
+    const { story, prompt, productImages = [], aspectRatio, model, mood, adType, seamlessTransition = true } = generateStoryboardsSchema.parse(body)
 
     // Track cost
     await trackCost('generate-storyboards', 0.002, { storyId: story.id })
@@ -378,6 +379,7 @@ Stay true to the story content. Focus on creating emotionally compelling visuals
         model: model || 'google/veo-3-fast',
         adType: selectedAdType,
         format: '16s', // 16-second format (default)
+        seamlessTransition, // Seamless transition toggle (default: true)
       },
       promptJourney: {
         userInput: {

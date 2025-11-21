@@ -286,6 +286,7 @@ const useExample = (example: typeof examplePrompts[0]) => {
         generateVoiceover: false,
         adType: example.adType || 'lifestyle',
         mood: example.style,
+        seamlessTransition: true, // Examples default to seamless
       })
     }, 500)
   }
@@ -381,6 +382,7 @@ const handleSubmit = async (formData: any) => {
         mood: formData.mood,
         adType: formData.adType,
         generateVoiceover: formData.generateVoiceover || false,
+        seamlessTransition: formData.seamlessTransition ?? true, // Default to true (seamless ON)
       }))
     }
 

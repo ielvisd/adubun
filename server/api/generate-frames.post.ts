@@ -42,6 +42,7 @@ const generateFramesSchema = z.object({
       mode: z.enum(['demo', 'production']).optional(),
       mood: z.string().optional(),
       subjectReference: z.string().optional(),
+      seamlessTransition: z.boolean().optional(), // Seamless transition toggle (default: true)
     }),
   }),
   productImages: z.array(z.string()).optional(),
@@ -145,9 +146,11 @@ export default defineEventHandler(async (event) => {
     const generationMode = mode || storyboard.meta.mode || 'production'
     console.log(`[Generate Frames] Mode: ${generationMode}`)
     
-    // Extract mood from storyboard meta
+    // Extract mood and seamlessTransition from storyboard meta
     const mood = storyboard.meta.mood || 'professional'
+    const seamlessTransition = storyboard.meta.seamlessTransition !== false // Default to true
     console.log(`[Generate Frames] Mood: ${mood}`)
+    console.log(`[Generate Frames] Seamless Transition: ${seamlessTransition}`)
 
     // According to PRD, we need to generate 5 frame images:
     // 1. Hook first frame (using hook paragraph + story description)
@@ -550,6 +553,100 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    // NON-SEAMLESS TRANSITION: Generate only first frames if seamlessTransition is OFF
+    if (!seamlessTransition) {
+      console.log('\n[Generate Frames] === NON-SEAMLESS MODE: Generating only first frames ===')
+      
+      // Frame 2: Body first frame (no previous frame input)
+      if (body1Segment) {
+        console.log('\n[Generate Frames] === FRAME 2: Body First Frame (non-seamless) ===')
+        
+        const nanoPrompt = buildNanoPrompt(story.bodyOne, body1Segment.visualPrompt)
+        const bodyFirstFrameResult = await generateSingleFrame(
+          'body first frame', 
+          nanoPrompt, 
+          body1Segment.visualPrompt,
+          undefined  // No previous frame
+        )
+        
+        if (bodyFirstFrameResult) {
+          bodyFirstFrameResult.segmentIndex = 1
+          bodyFirstFrameResult.frameType = 'first'
+          frames.push(bodyFirstFrameResult)
+          console.log(`[Generate Frames] ✓ Body first frame generated (${bodyFirstFrameResult.modelSource}): ${bodyFirstFrameResult.imageUrl}`)
+        } else {
+          console.error('[Generate Frames] ✗ Body first frame generation failed')
+        }
+      }
+      
+      // Frame 3/4: Body2 first frame (only for 4-segment format)
+      if (body2Segment) {
+        console.log('\n[Generate Frames] === FRAME 3: Body2 First Frame (non-seamless) ===')
+        
+        const nanoPrompt = buildNanoPrompt(story.bodyTwo, body2Segment.visualPrompt)
+        const body2FirstFrameResult = await generateSingleFrame(
+          'body2 first frame', 
+          nanoPrompt, 
+          body2Segment.visualPrompt,
+          undefined  // No previous frame
+        )
+        
+        if (body2FirstFrameResult) {
+          body2FirstFrameResult.segmentIndex = 2
+          body2FirstFrameResult.frameType = 'first'
+          frames.push(body2FirstFrameResult)
+          console.log(`[Generate Frames] ✓ Body2 first frame generated (${body2FirstFrameResult.modelSource}): ${body2FirstFrameResult.imageUrl}`)
+        } else {
+          console.error('[Generate Frames] ✗ Body2 first frame generation failed')
+        }
+      }
+      
+      // Final frame: CTA first frame (no previous frame input)
+      if (ctaSegment) {
+        console.log('\n[Generate Frames] === FRAME ' + (body2Segment ? '4' : '3') + ': CTA First Frame (non-seamless) ===')
+        
+        const nanoPrompt = buildNanoPrompt(story.callToAction, ctaSegment.visualPrompt)
+        const ctaFirstFrameResult = await generateSingleFrame(
+          'cta first frame', 
+          nanoPrompt, 
+          ctaSegment.visualPrompt,
+          undefined  // No previous frame
+        )
+        
+        if (ctaFirstFrameResult) {
+          ctaFirstFrameResult.segmentIndex = body2Segment ? 3 : 2
+          ctaFirstFrameResult.frameType = 'first'
+          frames.push(ctaFirstFrameResult)
+          console.log(`[Generate Frames] ✓ CTA first frame generated (${ctaFirstFrameResult.modelSource}): ${ctaFirstFrameResult.imageUrl}`)
+        } else {
+          console.error('[Generate Frames] ✗ CTA first frame generation failed')
+        }
+      }
+      
+      // Return frames for non-seamless mode
+      const finalFrameCount = frames.length
+      const expectedFrameCount = body2Segment ? 4 : 3  // 4 for 24s, 3 for 16s
+      console.log(`\n[Generate Frames] === NON-SEAMLESS GENERATION COMPLETE ===`)
+      console.log(`[Generate Frames] Generated ${finalFrameCount} frame(s) (expected ${expectedFrameCount} for ${body2Segment ? '24s' : '16s'} format)`)
+      
+      await trackCost('generate-frames', 0.05 * finalFrameCount, {
+        frameCount: finalFrameCount,
+        storyboardId: storyboard.id,
+        mode: 'production',
+        seamless: false,
+      })
+      
+      return {
+        frames,
+        mode: 'production',
+        seamless: false,
+        storyboardId: storyboard.id,
+      }
+    }
+    
+    // SEAMLESS TRANSITION: Generate first AND last frames (original behavior)
+    console.log('\n[Generate Frames] === SEAMLESS MODE: Generating first and last frames ===')
+    
     // Frame 2: Hook last frame (uses hook first frame as input)
     let hookLastFrameResult: any = null
     // For 3-segment format, we only need body1Segment (the single body segment)
@@ -1141,6 +1238,7 @@ export default defineEventHandler(async (event) => {
       frames,
       storyboardId: storyboard.id,
       mode: generationMode,
+      seamless: seamlessTransition, // Include seamless flag
       ...(promptsRefined ? {
         promptsRefined: true,
         storyboard, // Include updated storyboard with refined prompts
