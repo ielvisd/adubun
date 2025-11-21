@@ -245,7 +245,7 @@ Return ONLY valid JSON with this structure:
       {
         "type": "cta",
         "description": "Hero shot + CTA + logo lockup scene",
-        "visualPrompt": "Detailed visual prompt for CTA scene following the 5-part formula. Single continuous shot, no cuts. Freeze on perfect product/after state. Text + logo slam in. One punchy tagline. Ends exactly at 16.000s.",
+        "visualPrompt": "Detailed visual prompt for CTA scene following the 5-part formula. Single continuous shot, no cuts. CRITICAL: Show clear visual progression from start to finish - the final moment must be visually DISTINCT from the starting moment. Use camera movement (zoom, angle change), add text overlay/logo in final moment, change character pose/expression, or adjust composition to create a hero shot. Text + logo slam in during the final moments. One punchy tagline. Ends exactly at 16.000s with a distinct final frame that differs from the opening frame.",
         "audioNotes": "Spoken dialogue or voiceover script for this scene",
         "startTime": 12,
         "endTime": 16
@@ -278,7 +278,9 @@ ${productImages.length > 0 ? `Product images are available for reference.` : ''}
 
 Stay true to the story content. Focus on creating emotionally compelling visuals that evoke emotions through facial expressions, body language, and visual mood. Limit all scenes to 3-4 people maximum and ensure clear, sharp faces through close-ups and medium shots.
 
-🚨 REMEMBER: This is a 16-second format with 3 segments (6s + 6s + 4s). Each segment must be a single continuous shot with zero cuts. Match camera momentum between segments. End each clip on a mini-resolve. The CTA segment must end exactly at 16.000s.`
+🚨 REMEMBER: This is a 16-second format with 3 segments (6s + 6s + 4s). Each segment must be a single continuous shot with zero cuts. Match camera momentum between segments. End each clip on a mini-resolve. The CTA segment must end exactly at 16.000s.
+
+- **CTA VISUAL PROGRESSION**: For CTA segments, the visualPrompt MUST describe clear visual progression from start to finish. The final frame must be visually DISTINCT from the opening frame. Include: 1) Camera movement/angle change (e.g., "slow zoom from medium to close-up", "camera moves from front to side angle"), 2) Text overlay or logo appearing in final moment, 3) Character pose/expression change showing transformation, 4) Composition change creating a hero shot. Do NOT use static descriptions like "freeze" or "hold" - the CTA must show clear visual progression throughout the segment.`
 
     // Use OpenAI chat completion via MCP
     const storyboardsData = await callOpenAIMCP('chat_completion', {
