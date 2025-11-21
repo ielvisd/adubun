@@ -375,7 +375,7 @@ Stay true to the story content. Focus on creating emotionally compelling visuals
       meta: {
         duration: 16,
         aspectRatio,
-        model: model || 'google/veo-3-fast',
+        model: model || 'google/veo-3.1-fast',
         adType: selectedAdType,
         format: '16s', // 16-second format (default)
       },
@@ -385,7 +385,7 @@ Stay true to the story content. Focus on creating emotionally compelling visuals
           adType: selectedAdType,
           mood: selectedMood,
           aspectRatio,
-          model: model || 'google/veo-3-fast',
+          model: model || 'google/veo-3.1-fast',
           productImages: [],
           subjectReference: undefined,
         },

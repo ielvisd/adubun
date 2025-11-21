@@ -195,7 +195,7 @@ export default defineEventHandler(async (event) => {
         aspectRatio,
         mood,
         adType,
-        model: model || 'google/veo-3-fast',
+        model: model || 'google/veo-3.1-fast',
         generateVoiceover: generateVoiceover || false,
       },
     }

@@ -31,9 +31,24 @@ export const VIDEO_MODELS: VideoModel[] = [
     requiredInputs: ['prompt'],
     optionalInputs: ['image', 'duration', 'aspect_ratio', 'negative_prompt', 'resolution', 'generate_audio', 'seed'],
   },
+  {
+    id: 'google/veo-3.1-fast',
+    name: 'Veo 3.1 Fast',
+    description: 'New and improved version of Veo 3 Fast, with higher-fidelity video, context-aware audio and last frame support',
+    supportsTextToVideo: true,
+    supportsImageToVideo: true,
+    supportsCharacterReference: false,
+    supportsFirstFrame: true,
+    supportsCustomDuration: true,
+    defaultDuration: 8,
+    durationOptions: [4, 6, 8],
+    aspectRatioOptions: ['16:9', '9:16'],
+    requiredInputs: ['prompt'],
+    optionalInputs: ['image', 'duration', 'aspect_ratio', 'negative_prompt', 'resolution', 'generate_audio', 'seed', 'last_frame'],
+  },
 ]
 
-export const DEFAULT_MODEL_ID = 'google/veo-3.1'
+export const DEFAULT_MODEL_ID = 'google/veo-3.1-fast'
 
 export function getModelById(id: string): VideoModel | undefined {
   return VIDEO_MODELS.find(model => model.id === id)

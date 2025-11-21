@@ -892,15 +892,16 @@ const showComparison = ref<Map<string, boolean>>(new Map())
 const videoModelOptions = [
   { label: 'Veo 3.1', value: 'google/veo-3.1' },
   { label: 'Veo 3 Fast', value: 'google/veo-3-fast' },
+  { label: 'Veo 3.1 Fast', value: 'google/veo-3.1-fast' },
 ]
 
 const currentModel = computed(() => {
-  return selectedStoryboard.value?.meta?.model || 'google/veo-3.1'
+  return selectedStoryboard.value?.meta?.model || 'google/veo-3.1-fast'
 })
 
 // Get current video model config
 const currentVideoModel = computed(() => {
-  return getModelById(currentModel.value) || getModelById('google/veo-3.1')
+  return getModelById(currentModel.value) || getModelById('google/veo-3.1-fast')
 })
 
 // Duration options for current model
@@ -1625,7 +1626,7 @@ const handleModelChange = async (newModel: string) => {
   
   toast.add({
     title: 'Model Updated',
-    description: `Video generation will use ${newModel === 'google/veo-3.1' ? 'Veo 3.1' : 'Veo 3 Fast'}`,
+    description: `Video generation will use ${newModel === 'google/veo-3.1' ? 'Veo 3.1' : newModel === 'google/veo-3-fast' ? 'Veo 3 Fast' : 'Veo 3.1 Fast'}`,
     color: 'blue',
   })
 }

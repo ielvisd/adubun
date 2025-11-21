@@ -46,6 +46,7 @@ The dialogue should:
 - **CRITICAL:** Characters must speak on-camera - this is dialogue, not off-screen narration
 - **CRITICAL:** Only human characters speak - robots/products do not speak
 - **CRITICAL:** Every dialogue must be a complete, grammatically correct sentence - no fragments or incomplete phrases
+- **CRITICAL: CTA WORD LIMIT**: CTA segments (4 seconds) must have dialogue of exactly 5 words or less. Generate short, punchy phrases that make complete sense. The phrase must be complete and meaningful within this constraint.
 
 Return ONLY valid JSON with this structure:
 {
@@ -61,7 +62,7 @@ Return ONLY valid JSON with this structure:
     },
     {
       "type": "cta",
-      "script": "Dialogue text for CTA scene - HUMAN character speaks on-camera (12-16s). Format: '[Human character description] says: [dialogue text]'"
+      "script": "Dialogue text for CTA scene - HUMAN character speaks on-camera (12-16s). Format: '[Human character description] says: [dialogue text]'. CRITICAL: CTA segments (4 seconds) must have dialogue of exactly 5 words or less. Generate short, punchy phrases that make complete sense."
     }
   ]
 }
@@ -91,6 +92,7 @@ ${storyboard.segments.map((seg, idx) => `${idx + 1}. ${seg.type}: ${seg.descript
 - **NO MUSIC**: Do NOT include any music, background music, or soundtracks. Only dialogue.
 - **3 SEGMENTS**: Generate exactly 3 segments (Hook, Body, CTA) - do NOT create 4 segments.
 - **CRITICAL: COMPLETE SENTENCES**: All dialogue must be complete, grammatically correct English sentences. Do NOT generate incomplete phrases, fragments, or cut-off sentences. Each dialogue must be a full, meaningful sentence that makes sense on its own. Examples: ✅ "Oh, thank you! That's exactly what I needed." ✅ "How am I going to finish all of this?" ❌ "Oh, thank you, that" (incomplete - REJECTED) ❌ "That's exactly..." (cut-off - REJECTED). Before finalizing dialogue, verify that each sentence is complete and grammatically correct. If a sentence feels incomplete, expand it to be a full, meaningful statement.
+- **CRITICAL: CTA WORD LIMIT**: For CTA segment: Generate dialogue with exactly 5 words or less. The phrase must be complete and meaningful. Examples: ✅ "Find your voice today." (5 words) ✅ "It's clearer than you think." (5 words) ❌ "Find your voice... it's clearer than you think." (too long - REJECTED)
 
 The dialogue should:
 - Be engaging, concise, and match the storyboard content
@@ -101,6 +103,7 @@ The dialogue should:
 - Example: "The young woman says: 'How am I going to finish all of this?'"
 - If the story involves a robot or product, only the human character should speak - the robot/product should be silent
 - **CRITICAL:** Every dialogue must be a complete, grammatically correct sentence - no fragments or incomplete phrases
+- **PRESERVE TONE/EMOTION**: Preserve tone and emotion descriptions from the story context (e.g., if story mentions "soft, concerned voice", include that in the character description: "The woman, in a soft, concerned voice says: '...'"). If story mentions "confident, clear voice", include that: "The same woman, now with a confident, clear voice says: '...'"
 
 CRITICAL: This is on-camera dialogue, not off-screen narration. Only human characters must be shown speaking in the video. Robots and products do not speak. All dialogue must be in English only and must be complete, grammatically correct sentences.`
 
@@ -134,6 +137,33 @@ CRITICAL: This is on-camera dialogue, not off-screen narration. Only human chara
       data = JSON.parse(voiceoverData)
     } else if (voiceoverData.choices && voiceoverData.choices[0]?.message?.content) {
       data = JSON.parse(voiceoverData.choices[0].message.content)
+    }
+
+    // Validate CTA segment word count (must be 5 words or less)
+    if (data.segments && Array.isArray(data.segments)) {
+      const ctaSegment = data.segments.find((seg: any) => seg.type === 'cta')
+      if (ctaSegment && ctaSegment.script) {
+        // Extract dialogue text from format: "[Character] says: '[dialogue]'"
+        const dialogueMatch = ctaSegment.script.match(/says:\s*['"](.+?)['"]/i)
+        if (dialogueMatch) {
+          const dialogueText = dialogueMatch[1].trim()
+          const wordCount = dialogueText.split(/\s+/).filter(word => word.length > 0).length
+          
+          if (wordCount > 5) {
+            console.warn(`[Generate Voiceover] CTA dialogue has ${wordCount} words (exceeds 5-word limit): "${dialogueText}"`)
+            // Truncate to first 5 words
+            const words = dialogueText.split(/\s+/).filter(word => word.length > 0)
+            const truncatedDialogue = words.slice(0, 5).join(' ')
+            ctaSegment.script = ctaSegment.script.replace(
+              /(says:\s*['"])(.+?)(['"])/i,
+              `$1${truncatedDialogue}$3`
+            )
+            console.log(`[Generate Voiceover] Truncated CTA dialogue to 5 words: "${truncatedDialogue}"`)
+          } else {
+            console.log(`[Generate Voiceover] CTA dialogue word count validated: ${wordCount} words - "${dialogueText}"`)
+          }
+        }
+      }
     }
 
     // Track cost

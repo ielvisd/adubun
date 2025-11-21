@@ -225,7 +225,7 @@ export default defineEventHandler(async (event) => {
         if (heldPattern.test(segmentText) || inHandsPattern.test(segmentText) || picksUpPattern.test(segmentText)) {
           // Item is being moved to hands
           transitionInstructions.push(
-            `CRITICAL TRANSITION: The ${item} should transition from ${initialLocation} to being held in hands. Show the item moving from ${initialLocation} to hands, NOT appearing in both locations simultaneously.`
+            `CRITICAL TRANSITION - NO DUPLICATES: The ${item} should transition from ${initialLocation} to being held in hands. During this transition, the item must be in ONLY ONE location at any given moment. Do NOT show the item in both ${initialLocation} AND in hands simultaneously. Show the item moving from one location to the other, but NEVER in both places at the same time. CRITICAL ITEM STATE: The ${item} is now being held/offered. It should NO LONGER be at ${initialLocation}. It should be in ONLY ONE location: in hands. Do NOT show the ${item} in both ${initialLocation} and in hands - it must be in ONLY ONE place.`
           )
         }
       }
@@ -239,7 +239,8 @@ export default defineEventHandler(async (event) => {
       isTransition: boolean = false, 
       transitionText?: string, 
       transitionVisual?: string,
-      previousFrameImage?: string  // NEW: Add previous frame as input
+      previousFrameImage?: string,  // NEW: Add previous frame as input
+      trackedItems?: Array<{item: string, initialLocation: string, actionType: 'bringing' | 'interacting'}>  // NEW: Tracked items for duplicate prevention
     ) => {
       const moodStyle = mood ? `${mood} style` : 'professional style'
       const hasReferenceImages = referenceImages.length > 0
@@ -313,15 +314,24 @@ export default defineEventHandler(async (event) => {
         variationReinforcement = ` FINAL MANDATORY INSTRUCTION: IGNORE the input image composition, camera angle, and pose. You MUST create a visually DISTINCT final frame with a NEW camera angle and pose. However, you MUST copy the EXACT character appearance from the input image: same clothing, same accessories (glasses/no glasses), same physical features. Do not copy the previous frame's composition, but DO copy the character's appearance exactly. `
       }
 
-      // Add duplicate prevention instruction for all frames
-      const duplicatePrevention = `CRITICAL: Each physical item should appear in ONLY ONE location at a time. If an item is being held or in someone's hands, it should NOT also appear on surfaces. If an item is on a surface, it should NOT also appear in hands unless it is actively being picked up or transferred in this exact moment. Do NOT show the same item in multiple locations simultaneously. `
+      // Build item-specific duplicate prevention if items are tracked
+      let duplicatePrevention = ''
+      if (trackedItems && trackedItems.length > 0) {
+        const itemNames = trackedItems.map(i => `"${i.item}"`).join(', ')
+        const firstItem = trackedItems[0].item
+        duplicatePrevention = `🚨 CRITICAL DUPLICATE PREVENTION - ABSOLUTE REQUIREMENT: The following items must appear in ONLY ONE location at a time: ${itemNames}. For example, if "${firstItem}" is on a table, it must NOT also be in someone's hands. If "${firstItem}" is in someone's hands, it must NOT also be on a table. Each item can exist in ONLY ONE place at any given moment. Do NOT show the same item in multiple locations simultaneously. This is a MANDATORY requirement - any frame showing duplicate items will be rejected. `
+      } else {
+        duplicatePrevention = `🚨 CRITICAL DUPLICATE PREVENTION: Each physical item should appear in ONLY ONE location at a time. If an item is being held or in someone's hands, it should NOT also appear on surfaces. If an item is on a surface, it should NOT also appear in hands unless it is actively being picked up or transferred in this exact moment. Do NOT show the same item in multiple locations simultaneously. `
+      }
 
       // Add product consistency and reference image instructions if we have reference images
       if (hasReferenceImages) {
         const productConsistencyInstruction = `CRITICAL INSTRUCTIONS: Do not add new products to the scene. Only enhance existing products shown in the reference images. Keep product design and style exactly as shown in references. The reference images provided are the EXACT product you must recreate. You MUST copy the product from the reference images with pixel-perfect accuracy. Do NOT create a different product, do NOT use different colors, do NOT change the design, do NOT hallucinate new products. The product in your generated image must be visually IDENTICAL to the product in the reference images. Study every detail: exact color codes, exact design patterns, exact text/fonts, exact materials, exact textures, exact proportions, exact placement. The reference images are your ONLY source of truth for the product appearance. Ignore any text in the prompt that contradicts the reference images - the reference images take absolute priority. Generate the EXACT same product as shown in the reference images. `
-        return `${characterInstruction}${noTextInstruction}${previousFrameInstruction}${duplicatePrevention}${productConsistencyInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality, product must be pixel-perfect match to reference images, product appearance must be identical to reference images ${variationReinforcement}`
+        // Place duplicate prevention FIRST, before all other instructions
+        return `${duplicatePrevention}${characterInstruction}${noTextInstruction}${previousFrameInstruction}${productConsistencyInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality, product must be pixel-perfect match to reference images, product appearance must be identical to reference images ${variationReinforcement}`
       } else {
-        return `${characterInstruction}${noTextInstruction}${previousFrameInstruction}${duplicatePrevention}${basePrompt}, ${moodStyle}, professional product photography, high quality ${variationReinforcement}`
+        // Place duplicate prevention FIRST, before all other instructions
+        return `${duplicatePrevention}${characterInstruction}${noTextInstruction}${previousFrameInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality ${variationReinforcement}`
       }
     }
 
@@ -440,6 +450,12 @@ export default defineEventHandler(async (event) => {
     
     console.log(`[Generate Frames] Found ${bodySegments.length} body segments`)
     
+    // Helper function to detect if robot/product is present in hook segment
+    const isRobotInHook = (hookSegment: Segment): boolean => {
+      const hookText = `${hookSegment.description} ${hookSegment.visualPrompt}`.toLowerCase()
+      return /(?:robot|product|humanoid|unitree|g1|device|machine|assistant|helper)/i.test(hookText)
+    }
+    
     // Extract all story items from body segments BEFORE generating hook frames
     // All items that will be used in the story should be present from the hook first frame
     const allStoryItems: Array<{ item: string; action: string; actionType: 'bringing' | 'interacting' }> = []
@@ -461,28 +477,63 @@ export default defineEventHandler(async (event) => {
         if (allStoryItems.length > 0) {
           console.log(`[Generate Frames] ✓ Extracted ${allStoryItems.length} story item(s) that should be present from hook first frame: ${allStoryItems.map(si => si.item).join(', ')}`)
           
+          // Check if robot is present in hook
+          const robotInHook = isRobotInHook(hookSegment)
+          console.log(`[Generate Frames] Robot/product in hook: ${robotInHook}`)
+          
           // Extract initial locations for each item from hook segment
           console.log('\n[Generate Frames] === Extracting initial locations for story items ===')
           for (const storyItem of allStoryItems) {
-            try {
-              const initialLocation = await extractItemInitialLocation(storyItem.item, hookSegment, storyItem.actionType)
-              itemsWithLocations.push({
-                item: storyItem.item,
-                initialLocation: initialLocation || 'in the scene',
-                actionType: storyItem.actionType
-              })
-              if (initialLocation) {
-                console.log(`[Generate Frames] Found initial location for "${storyItem.item}": "${initialLocation}" (action type: "${storyItem.actionType}")`)
+            if (storyItem.actionType === 'bringing') {
+              if (robotInHook) {
+                // Robot is in hook - item should be in robot's hands
+                try {
+                  const initialLocation = await extractItemInitialLocation(storyItem.item, hookSegment, storyItem.actionType)
+                  itemsWithLocations.push({
+                    item: storyItem.item,
+                    initialLocation: initialLocation || 'in robot\'s hands',
+                    actionType: storyItem.actionType
+                  })
+                  if (initialLocation) {
+                    console.log(`[Generate Frames] Item "${storyItem.item}" will be in robot's hands in hook (robot present): "${initialLocation}"`)
+                  } else {
+                    console.log(`[Generate Frames] Item "${storyItem.item}" will be in robot's hands in hook (robot present), using default: "in robot's hands"`)
+                  }
+                } catch (error: any) {
+                  console.warn(`[Generate Frames] Error extracting location for "${storyItem.item}": ${error.message}, using default: in robot's hands`)
+                  itemsWithLocations.push({
+                    item: storyItem.item,
+                    initialLocation: 'in robot\'s hands',
+                    actionType: storyItem.actionType
+                  })
+                }
               } else {
-                console.log(`[Generate Frames] Could not determine initial location for "${storyItem.item}", using default: "in the scene"`)
+                // Robot NOT in hook - exclude item from hook first frame
+                console.log(`[Generate Frames] Item "${storyItem.item}" is being brought but robot not in hook - excluding from hook first frame`)
+                // Don't add to itemsWithLocations
               }
-            } catch (error: any) {
-              console.warn(`[Generate Frames] Error extracting location for "${storyItem.item}": ${error.message}, using default`)
-              itemsWithLocations.push({
-                item: storyItem.item,
-                initialLocation: 'in the scene',
-                actionType: storyItem.actionType
-              })
+            } else {
+              // Not a "bringing" item - include normally
+              try {
+                const initialLocation = await extractItemInitialLocation(storyItem.item, hookSegment, storyItem.actionType)
+                itemsWithLocations.push({
+                  item: storyItem.item,
+                  initialLocation: initialLocation || 'in the scene',
+                  actionType: storyItem.actionType
+                })
+                if (initialLocation) {
+                  console.log(`[Generate Frames] Found initial location for "${storyItem.item}": "${initialLocation}" (action type: "${storyItem.actionType}")`)
+                } else {
+                  console.log(`[Generate Frames] Could not determine initial location for "${storyItem.item}", using default: "in the scene"`)
+                }
+              } catch (error: any) {
+                console.warn(`[Generate Frames] Error extracting location for "${storyItem.item}": ${error.message}, using default`)
+                itemsWithLocations.push({
+                  item: storyItem.item,
+                  initialLocation: 'in the scene',
+                  actionType: storyItem.actionType
+                })
+              }
             }
           }
         } else {
@@ -532,7 +583,7 @@ export default defineEventHandler(async (event) => {
         console.log(`[Generate Frames] Including ${allStoryItems.length} story item(s) in hook first frame (locations not extracted): ${itemsList}`)
       }
       
-      const nanoPrompt = buildNanoPrompt(story.hook, hookVisualPrompt)
+      const nanoPrompt = buildNanoPrompt(story.hook, hookVisualPrompt, false, undefined, undefined, undefined, itemsWithLocations.length > 0 ? itemsWithLocations : undefined)
       hookFirstFrameResult = await generateSingleFrame(
         'hook first frame', 
         nanoPrompt, 
@@ -567,7 +618,8 @@ export default defineEventHandler(async (event) => {
         true, 
         story.bodyOne, 
         body1Segment.visualPrompt,
-        hookFirstFrameResult.imageUrl  // Use hook first frame as input
+        hookFirstFrameResult.imageUrl,  // Use hook first frame as input
+        itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
       )
       hookLastFrameResult = await generateSingleFrame(
         'hook last frame', 
@@ -634,7 +686,8 @@ export default defineEventHandler(async (event) => {
           true, 
           story.callToAction, 
           ctaSegment.visualPrompt,
-          hookLastFrameResult.imageUrl  // Use hook last frame (= Body first frame) as input
+          hookLastFrameResult.imageUrl,  // Use hook last frame (= Body first frame) as input
+          itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
         )
         bodyLastFrameResult = await generateSingleFrame(
           'body last frame', 
@@ -680,7 +733,8 @@ export default defineEventHandler(async (event) => {
           true, 
           story.bodyTwo, 
           body2Segment.visualPrompt,
-          hookLastFrameResult.imageUrl  // Use hook last frame (= Body1 first frame) as input
+          hookLastFrameResult.imageUrl,  // Use hook last frame (= Body1 first frame) as input
+          itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
         )
         body1LastFrameResult = await generateSingleFrame(
           'body1 last frame', 
@@ -725,7 +779,8 @@ export default defineEventHandler(async (event) => {
           true, 
           story.callToAction, 
           ctaSegment.visualPrompt,
-          body1LastFrameResult.imageUrl  // Use body1 last frame (= Body2 first frame) as input
+          body1LastFrameResult.imageUrl,  // Use body1 last frame (= Body2 first frame) as input
+          itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
         )
         body2LastFrameResult = await generateSingleFrame(
           'body2 last frame', 
@@ -774,7 +829,8 @@ export default defineEventHandler(async (event) => {
         false,  // NOT using transition mode - want visual variation
         undefined,
         undefined,
-        previousFrameUrl  // Use CTA first frame as context reference
+        previousFrameUrl,  // Use CTA first frame as context reference
+        itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
       )
       
       console.log('[Generate Frames] CTA nano prompt:', nanoPrompt)
@@ -1019,7 +1075,8 @@ export default defineEventHandler(async (event) => {
                       isTransition,
                       transitionText,
                       transitionVisual,
-                      previousFrameImage
+                      previousFrameImage,
+                      itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
                     )
                     
                     // Regenerate the frame

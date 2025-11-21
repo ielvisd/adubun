@@ -1690,6 +1690,16 @@ PRIMARY TASK: Select the frame where any product (can, bottle, package, label, e
         throw new Error('OPENAI_API_KEY environment variable is not set')
       }
 
+      // Detect if product is a robot/humanoid based on prompt
+      const detectRobotProduct = (prompt: string): boolean => {
+        const promptLower = prompt.toLowerCase()
+        const robotKeywords = ['robot', 'humanoid', 'unitree', 'g1', 'robotic', 'android', 'automaton', 'mechanical assistant', 'ai robot']
+        return robotKeywords.some(keyword => promptLower.includes(keyword))
+      }
+      
+      const productIsRobot = detectRobotProduct(prompt)
+      console.log(`[Generate Stories] Product is robot: ${productIsRobot}`)
+
       // Build ad-type-specific narrative guidance
       let adTypeGuidance = ''
       if (adType) {
@@ -1783,13 +1793,18 @@ Generate exactly 3 cohesive story options for a ${duration}-second ad. Each stor
 
 ${adTypeGuidance ? `${adTypeGuidance}\n` : ''}
 
-🚨 16-SECOND FORMAT REQUIREMENT - ULTRA-SIMPLE & SNAPPY:
-For ${duration}-second ads, stories MUST be ULTRA-SIMPLE and SNAPPY. The entire story should be: Hook (problem visible) → Body (robot/product does ONE simple action) → CTA (gratitude/resolution). No complex sequences, no multi-step actions, no elaborate setups.
+${productIsRobot ? '**CRITICAL: This product IS a robot/humanoid. Stories should feature the robot as the main character helping people.**' : '**CRITICAL: This product is NOT a robot. Stories should focus on people using the product directly. DO NOT include robots, humanoids, or mechanical assistants in the story unless the product itself is a robot.**'}
 
-GOOD SIMPLE STORIES (✅ APPROVED):
+🚨 16-SECOND FORMAT REQUIREMENT - ULTRA-SIMPLE & SNAPPY:
+For ${duration}-second ads, stories MUST be ULTRA-SIMPLE and SNAPPY. The entire story should be: Hook (problem visible) → Body (product/person does ONE simple action) → CTA (gratitude/resolution). No complex sequences, no multi-step actions, no elaborate setups.
+
+${productIsRobot ? `GOOD SIMPLE STORIES FOR ROBOT PRODUCTS (✅ APPROVED):
 - "Person looks tired → Robot brings coffee → Person smiles"
 - "Person struggles with task → Robot offers help → Person shows gratitude"
-- "Person looks stressed → Robot brings tea → Person relaxes"
+- "Person looks stressed → Robot brings tea → Person relaxes"` : `GOOD SIMPLE STORIES FOR PRODUCTS (✅ APPROVED):
+- "Person struggles with task → Person uses product → Person succeeds"
+- "Person has problem → Product solves it → Person shows gratitude"
+- "Person needs solution → Person uses product → Problem solved"`}
 
 BAD COMPLEX STORIES (❌ REJECTED - TOO COMPLICATED):
 - ❌ "Person prepares for party, realizes forgotten item, robot retrieves item from shelf, hands it over, person finishes setup" (multiple steps - REJECTED)
@@ -1799,14 +1814,14 @@ BAD COMPLEX STORIES (❌ REJECTED - TOO COMPLICATED):
 The story must:
 - Be a cohesive, complete narrative that flows from Hook → Body → CTA
 - **CRITICAL: Only ONE action should happen in the entire story. The product/character should do ONE thing, not multiple things. Structure: Hook (setup/problem visible) → Body (ONE simple action happens) → CTA (gratitude/resolution). The body action must be achievable in 6 seconds - think one gesture, one movement, one simple act. NOT multiple steps, sequences, or complex tasks.**
-- **Examples of ONE simple action: ✅ "Robot offers a cup of tea" ✅ "Robot brings coffee" ✅ "Robot hands over an item"**
-- **Examples of MULTIPLE actions (REJECTED): ❌ "Robot brews coffee AND places cup" ❌ "Robot retrieves item AND hands it over" ❌ "Robot adjusts mat AND person finds balance"**
+- **Examples of ONE simple action: ${productIsRobot ? '✅ "Robot offers a cup of tea" ✅ "Robot brings coffee" ✅ "Robot hands over an item"' : '✅ "Person uses the product" ✅ "Product solves the problem" ✅ "Person records with product"'}**
+- **Examples of MULTIPLE actions (REJECTED): ${productIsRobot ? '❌ "Robot brews coffee AND places cup" ❌ "Robot retrieves item AND hands it over" ❌ "Robot adjusts mat AND person finds balance"' : '❌ "Person sets up product AND uses it" ❌ "Person prepares AND records" ❌ "Product activates AND solves problem"'}**
 - **CRITICAL: Maintain the SAME location/setting throughout ALL scenes (Hook, Body, CTA). NO location changes, NO scene changes, NO environment changes. The entire story must take place in ONE continuous location (e.g., same room, same outdoor space, same office, same kitchen, same park bench, etc.). All action must happen in the exact same place with the same background, same environment, same surroundings. This is essential for creating a continuous video with no cuts or transitions.**
 - **HARD REJECTION RULE: Any story that mentions mirrors, reflections, reflective surfaces, bathroom mirrors, or people looking at their reflection will be automatically rejected. DO NOT generate stories with these elements.**
 - **CRITICAL: DO NOT include children in any scenes. No children visible in any part of the story. All characters must be adults.**
 - **CRITICAL: DO NOT use laptops, phones, tablets, computers, screens, monitors, or ANY electronic devices in scenes. ABSOLUTELY NO technology interfaces, NO devices, NO screens of any kind. This is a hard requirement - if you include any electronic device, the story will be rejected.**
 - **CRITICAL: Focus on what the product is solving - make the problem clear and the solution obvious. Use humor when appropriate to make the story engaging and memorable.**
-- **CRITICAL: Keep tasks SIMPLE and SNAPPY - achievable in 6 seconds. The body scene should show ONE simple action that moves the story forward, not complex multi-step tasks. Think: one gesture, one movement, one simple act. Examples: ✅ "Robot brings coffee" ✅ "Robot offers tea" ✅ "Robot hands over item" ❌ "Robot brews coffee, places cup, person reacts" (too many steps) ❌ "Robot retrieves item from shelf, glides over, hands it to person" (multi-step - REJECTED).**
+- **CRITICAL: Keep tasks SIMPLE and SNAPPY - achievable in 6 seconds. The body scene should show ONE simple action that moves the story forward, not complex multi-step tasks. Think: one gesture, one movement, one simple act. Examples: ${productIsRobot ? '✅ "Robot brings coffee" ✅ "Robot offers tea" ✅ "Robot hands over item" ❌ "Robot brews coffee, places cup, person reacts" (too many steps) ❌ "Robot retrieves item from shelf, glides over, hands it to person" (multi-step - REJECTED)' : '✅ "Person uses product" ✅ "Product solves problem" ✅ "Person records with product" ❌ "Person sets up product, uses it, shows result" (too many steps) ❌ "Person prepares, uses product, demonstrates success" (multi-step - REJECTED)'}.**
 - **CRITICAL: Only one character should speak per segment. Different characters can speak in different segments, but within a single segment, only one character speaks.**
 - Be emotionally captivating and create a strong emotional connection between the viewer and the product/story
 - Evoke specific emotions (joy, aspiration, relief, excitement, inspiration, trust, etc.) through relatable moments and emotional triggers
@@ -1819,7 +1834,7 @@ The story must:
 
 EMOTIONAL STORYTELLING REQUIREMENTS:
 - Hook: Create an emotional opening that immediately captures attention and establishes an emotional connection (curiosity, surprise, relatability, aspiration). **Must establish the single location that will be used throughout the entire story. Keep it SIMPLE - just show the problem or situation.**
-- Body: Build emotional investment through ONE SIMPLE action that demonstrates the product solving a problem. This must be a SINGLE, CLEAR action (not multiple actions, not a sequence). Think: Person has problem → Robot does ONE thing → Problem solved. **Must continue in the exact same location established in the Hook. No location changes, no scene changes.**
+- Body: Build emotional investment through ONE SIMPLE action that demonstrates the product solving a problem. This must be a SINGLE, CLEAR action (not multiple actions, not a sequence). Think: ${productIsRobot ? 'Person has problem → Robot does ONE thing → Problem solved' : 'Person has problem → Person uses product/Product solves problem → Problem solved'}. **Must continue in the exact same location established in the Hook. No location changes, no scene changes.**
 - CTA: Deliver an emotional payoff that connects the emotional journey to the product, creating a memorable and compelling call to action. **Must remain in the exact same location as all previous scenes.**
 
 IMPORTANT: 
@@ -1874,17 +1889,17 @@ ${imageUrls.length > 0 ? `Reference images are available to inform the visual st
 
 **CRITICAL RESTRICTIONS:**
 - **NO MIRRORS/REFLECTIONS**: HARD REJECTION RULE - DO NOT use mirrors, reflections, reflective surfaces, bathroom mirrors, or people looking at their reflection. Any story containing these elements will be automatically rejected.
-- **ONE ACTION ONLY - ULTRA-SIMPLE**: CRITICAL - Only ONE simple action should happen in the entire story. The product/character should do ONE thing in the body scene, not multiple things, not a sequence. The body should be: Person has problem → Robot does ONE simple thing → Person shows gratitude. That's it. Examples: ✅ "Robot offers a cup of tea" (single action) ✅ "Robot brings coffee" (single action) ❌ "Robot brews coffee AND places cup" (multiple actions - REJECTED) ❌ "Robot retrieves item from shelf AND glides over AND hands it to person" (sequence - REJECTED) ❌ "Robot tidies magazine AND offers tea AND helps zip dress" (multiple actions - REJECTED).
+- **ONE ACTION ONLY - ULTRA-SIMPLE**: CRITICAL - Only ONE simple action should happen in the entire story. The product/character should do ONE thing in the body scene, not multiple things, not a sequence. The body should be: ${productIsRobot ? 'Person has problem → Robot does ONE simple thing → Person shows gratitude' : 'Person has problem → Person uses product/Product solves problem → Person shows gratitude'}. That's it. Examples: ${productIsRobot ? '✅ "Robot offers a cup of tea" (single action) ✅ "Robot brings coffee" (single action) ❌ "Robot brews coffee AND places cup" (multiple actions - REJECTED) ❌ "Robot retrieves item from shelf AND glides over AND hands it to person" (sequence - REJECTED) ❌ "Robot tidies magazine AND offers tea AND helps zip dress" (multiple actions - REJECTED)' : '✅ "Person uses product" (single action) ✅ "Product solves problem" (single action) ❌ "Person sets up product AND uses it" (multiple actions - REJECTED) ❌ "Person prepares AND uses product AND shows result" (sequence - REJECTED) ❌ "Person activates product AND demonstrates AND celebrates" (multiple actions - REJECTED)'}.
 - **16-SECOND FORMAT - KEEP IT SNAPPY**: For ${duration}-second ads, stories must be ULTRA-SIMPLE. Avoid complex setups, multi-step sequences, or elaborate actions. Think: problem → solution (one action) → gratitude. The body action must be achievable in 6 seconds with a single gesture or movement.
 - **NO CHILDREN**: DO NOT include children in any scenes. No children visible in any part of the story. All characters must be adults.
 - **NO ELECTRONIC DEVICES**: DO NOT use laptops, phones, tablets, computers, screens, monitors, or ANY electronic devices in scenes. ABSOLUTELY NO technology interfaces, NO devices, NO screens of any kind. This is a hard requirement - if you include any electronic device, the story will be rejected.
-- **SIMPLE TASKS**: Keep the body action SIMPLE and SNAPPY. The body scene should show ONE simple action that moves the story forward, not complex multi-step tasks. Examples: ✅ "Robot brings coffee" ✅ "Robot offers tea" ✅ "Robot hands over item" ❌ "Robot brews coffee, places cup, person reacts" (too many steps - REJECTED) ❌ "Person prepares for party, realizes forgotten item, robot retrieves item, hands it over" (complex sequence - REJECTED).
+- **SIMPLE TASKS**: Keep the body action SIMPLE and SNAPPY. The body scene should show ONE simple action that moves the story forward, not complex multi-step tasks. Examples: ${productIsRobot ? '✅ "Robot brings coffee" ✅ "Robot offers tea" ✅ "Robot hands over item" ❌ "Robot brews coffee, places cup, person reacts" (too many steps - REJECTED) ❌ "Person prepares for party, realizes forgotten item, robot retrieves item, hands it over" (complex sequence - REJECTED)' : '✅ "Person uses product" ✅ "Product solves problem" ✅ "Person records with product" ❌ "Person sets up product, uses it, shows result" (too many steps - REJECTED) ❌ "Person prepares, uses product, demonstrates success" (complex sequence - REJECTED)'}.
 - **ONE CHARACTER SPEAKING**: Only one character should speak per segment. Different characters can speak in different segments, but within a single segment, only one character speaks.
 - **PROBLEM-SOLVING FOCUS**: Focus on what the product is solving - make the problem clear and the solution obvious. Use humor when appropriate to make the story engaging and memorable.
 - **MINIMAL BACKGROUND**: Keep scenes clean and focused. Avoid cluttered backgrounds with lots of objects, furniture, or visual distractions. Minimize background elements to keep focus on the product and characters. Simple, uncluttered environments work best.
 - **NO MESSY SURFACES**: DO NOT use "messy", "cluttered", "disorganized", or "chaotic" to describe surfaces, countertops, tables, desks, or any surfaces. Keep all surfaces clean, organized, and minimal. Examples to avoid: ❌ "messy countertop", ❌ "cluttered table", ❌ "disorganized workspace". Instead use: ✅ "clean countertop", ✅ "minimal table", ✅ "organized workspace". Messy surfaces lead to duplicate or weird items appearing in scenes.
 
-Focus on creating a story that evokes strong emotions and creates a deep connection with viewers through relatable moments, emotional triggers, and compelling narratives - all while maintaining a single continuous location throughout with minimal background clutter and clean, organized surfaces. Remember: For ${duration}-second format, KEEP IT SIMPLE AND SNAPPY. Problem → Robot does ONE thing → Gratitude. That's the formula.`
+Focus on creating a story that evokes strong emotions and creates a deep connection with viewers through relatable moments, emotional triggers, and compelling narratives - all while maintaining a single continuous location throughout with minimal background clutter and clean, organized surfaces. Remember: For ${duration}-second format, KEEP IT SIMPLE AND SNAPPY. ${productIsRobot ? 'Problem → Robot does ONE thing → Gratitude' : 'Problem → Person uses product/Product solves problem → Gratitude'}. That's the formula.`
 
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o',
