@@ -170,12 +170,8 @@
                   <span class="text-gray-600 dark:text-gray-400 ml-2">{{ story.hook }}</span>
                 </div>
                 <div class="text-xs sm:text-sm">
-                  <span class="font-semibold text-gray-900 dark:text-white">Body 1:</span>
-                  <span class="text-gray-600 dark:text-gray-400 ml-2">{{ story.bodyOne }}</span>
-                </div>
-                <div class="text-xs sm:text-sm">
-                  <span class="font-semibold text-gray-900 dark:text-white">Body 2:</span>
-                  <span class="text-gray-600 dark:text-gray-400 ml-2">{{ story.bodyTwo }}</span>
+                  <span class="font-semibold text-gray-900 dark:text-white">Body:</span>
+                  <span class="text-gray-600 dark:text-gray-400 ml-2">{{ story.body || (story.bodyOne && story.bodyTwo ? `${story.bodyOne} ${story.bodyTwo}` : story.bodyOne || story.bodyTwo || '') }}</span>
                 </div>
                 <div class="text-xs sm:text-sm">
                   <span class="font-semibold text-gray-900 dark:text-white">CTA:</span>

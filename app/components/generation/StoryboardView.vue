@@ -45,7 +45,7 @@
           </div>
         </div>
 
-        <!-- Video Preview Section -->
+          <!-- Video Preview Section -->
         <div v-if="getAssetForSegment(idx)" class="mb-6">
           <div class="aspect-video bg-black rounded-lg overflow-hidden">
             <!-- Skeleton while generating -->
@@ -62,6 +62,9 @@
               @loadedmetadata="onVideoLoaded(idx)"
             />
           </div>
+
+          <!-- Music Player (for entire video, shown on first segment only) -->
+          <MusicPlayer v-if="idx === 0" :music-url="props.musicUrl" />
 
           <!-- Audio Player -->
           <div v-if="getVoiceUrl(idx)" class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg mt-3">
@@ -338,6 +341,7 @@
 
 <script setup lang="ts">
 import type { Storyboard, Segment } from '~/app/types/generation'
+import MusicPlayer from '~/components/ui/MusicPlayer.vue'
 
 const props = defineProps<{
   storyboard: Storyboard
@@ -353,6 +357,7 @@ const props = defineProps<{
     }
   }>
   retrySegment?: (segmentId: number) => Promise<void>
+  musicUrl?: string | null
 }>()
 
 const emit = defineEmits<{

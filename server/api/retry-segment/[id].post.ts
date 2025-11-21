@@ -105,8 +105,8 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    // Get model from storyboard meta, default to google/veo-3.1
-    const model = storyboard.meta.model || 'google/veo-3.1'
+    // Get model from storyboard meta, default to google/veo-3.1-fast
+    const model = storyboard.meta.model || 'google/veo-3.1-fast'
     
     // Determine which images to use (segment-specific or global fallback)
     const firstFrameImage = segment.firstFrameImage || storyboard.meta.firstFrameImage
@@ -126,7 +126,7 @@ export default defineEventHandler(async (event) => {
     const sanitizedPrompt = sanitizeVideoPrompt(selectedPrompt)
 
     // Retry video generation with hold-final-frame instruction for smooth transitions
-    const videoPrompt = `${sanitizedPrompt} The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene. TYPOGRAPHY & TEXT: If displaying any text, brand names, or product names: Use clean, elegant, modern typeface (sans-serif like Helvetica, Futura, Gotham for contemporary brands OR serif like Didot, Bodoni for luxury brands). High contrast for maximum legibility: crisp white text on dark background OR bold black text on light background. Large, bold, professional font size with generous spacing. Centered or elegantly positioned with balanced composition. Spell exactly as mentioned in prompt with perfect accuracy. Professional kerning, leading, and letter spacing. Sharp, crisp edges - no blurry or distorted text. Text should be perfectly readable at any resolution with cinema-quality typography.`
+    const videoPrompt = `${sanitizedPrompt} CRITICAL CONTINUOUS SHOT REQUIREMENT: This must be a SINGLE CONTINUOUS SHOT in ONE LOCATION. NO scene changes, NO location changes, NO background changes, NO room changes. The entire segment must take place in the exact same location with the same background, same environment, same surroundings from start to finish. Maintain the same camera perspective and same setting throughout. The video should feel like ONE unbroken moment in ONE place - do NOT change locations, rooms, backgrounds, or environments during this segment. ONE continuous shot, ONE location, ONE background. The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene. AUDIO: 🚨 CRITICAL LANGUAGE REQUIREMENT - ENGLISH ONLY: All spoken dialogue in this video MUST be in English ONLY. ABSOLUTELY NO exceptions. NO foreign languages, NO non-English speech, NO other languages whatsoever. If any character speaks, they must speak ONLY in English. This is a MANDATORY requirement - any non-English speech will result in video rejection. CRITICAL AUDIO REQUIREMENTS - ONLY on-camera characters visible in the scene may speak. ABSOLUTELY NO narration, NO voiceover, NO off-screen announcer, NO background voices. If no character is speaking in a scene, there should be NO speech at all - complete silence. Only characters shown on-camera speaking directly to the camera or to other visible characters may have dialogue, and they must speak ONLY in English. Generate dialogue-only audio - no background music, ambient sounds, or other audio. If dialogue is present, it must end at least 2 seconds before the scene ends to ensure smooth transitions. TYPOGRAPHY & TEXT: If displaying any text, brand names, or product names: Use clean, elegant, modern typeface (sans-serif like Helvetica, Futura, Gotham for contemporary brands OR serif like Didot, Bodoni for luxury brands). High contrast for maximum legibility: crisp white text on dark background OR bold black text on light background. Large, bold, professional font size with generous spacing. Centered or elegantly positioned with balanced composition. Spell exactly as mentioned in prompt with perfect accuracy. Professional kerning, leading, and letter spacing. Sharp, crisp edges - no blurry or distorted text. Text should be perfectly readable at any resolution with cinema-quality typography.`
     
     const videoParams: any = {
       model,
@@ -153,12 +153,17 @@ export default defineEventHandler(async (event) => {
         videoParams.subject_reference = await prepareImageInput(subjectReference)
       }
       
-      // Priority: segment.negativePrompt > storyboard.meta.negativePrompt
+      // Build default negative prompt with language exclusions
+      const defaultNegativePrompt = 'blurry faces, distorted faces, crowds, large groups, more than 4 people, deformed faces, bad anatomy, scene changes, location changes, background changes, different rooms, different locations, multiple settings, changing environments, narration, voiceover, off-screen voices, foreign languages, non-English speech, non-English dialogue, foreign dialogue, foreign speech, background narration, announcer, other languages, background music, soundtrack, instrumental music, background score, music, musical score, musical audio'
+      
+      // Priority: segment.negativePrompt > storyboard.meta.negativePrompt > default
       if ((segment as any).negativePrompt) {
-        videoParams.negative_prompt = (segment as any).negativePrompt
+        videoParams.negative_prompt = `${(segment as any).negativePrompt}, ${defaultNegativePrompt}`
         console.log(`[Retry Segment ${segmentId}] Using segment-specific negative prompt`)
       } else if (storyboard.meta.negativePrompt) {
-        videoParams.negative_prompt = storyboard.meta.negativePrompt
+        videoParams.negative_prompt = `${storyboard.meta.negativePrompt}, ${defaultNegativePrompt}`
+      } else {
+        videoParams.negative_prompt = defaultNegativePrompt
       }
       
       // Priority: segment.resolution > storyboard.meta.resolution
@@ -191,13 +196,30 @@ export default defineEventHandler(async (event) => {
         videoParams.image = await prepareImageInput(firstFrameImage)
         console.log(`[Retry Segment ${segmentId}] Using first frame image: ${firstFrameImage}`)
       }
+    } else if (model === 'google/veo-3.1-fast') {
+      // Veo 3.1 Fast supports: prompt, aspect_ratio, duration, image, last_frame, negative_prompt, resolution, generate_audio, seed
+      // Note: Does NOT support reference_images (subject_reference)
+      if (firstFrameImage) {
+        videoParams.image = await prepareImageInput(firstFrameImage)
+        console.log(`[Retry Segment ${segmentId}] Using first frame image: ${firstFrameImage}`)
+      }
       
-      // Priority: segment.negativePrompt > storyboard.meta.negativePrompt
+      if (lastFrameImage) {
+        videoParams.last_frame = await prepareImageInput(lastFrameImage)
+        console.log(`[Retry Segment ${segmentId}] Using last frame image: ${lastFrameImage}`)
+      }
+      
+      // Build default negative prompt with language exclusions
+      const defaultNegativePrompt = 'blurry faces, distorted faces, crowds, large groups, more than 4 people, deformed faces, bad anatomy, scene changes, location changes, background changes, different rooms, different locations, multiple settings, changing environments, narration, voiceover, off-screen voices, foreign languages, non-English speech, non-English dialogue, foreign dialogue, foreign speech, background narration, announcer, other languages, background music, soundtrack, instrumental music, background score, music, musical score, musical audio'
+      
+      // Priority: segment.negativePrompt > storyboard.meta.negativePrompt > default
       if ((segment as any).negativePrompt) {
-        videoParams.negative_prompt = (segment as any).negativePrompt
+        videoParams.negative_prompt = `${(segment as any).negativePrompt}, ${defaultNegativePrompt}`
         console.log(`[Retry Segment ${segmentId}] Using segment-specific negative prompt`)
       } else if (storyboard.meta.negativePrompt) {
-        videoParams.negative_prompt = storyboard.meta.negativePrompt
+        videoParams.negative_prompt = `${storyboard.meta.negativePrompt}, ${defaultNegativePrompt}`
+      } else {
+        videoParams.negative_prompt = defaultNegativePrompt
       }
       
       // Priority: segment.resolution > storyboard.meta.resolution

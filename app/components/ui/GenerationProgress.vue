@@ -137,45 +137,6 @@
               </div>
             </div>
 
-            <!-- Audio Preview -->
-            <div v-if="getVoiceUrl(segment)" class="space-y-2">
-              <p class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Audio Preview</p>
-              <div class="flex items-center gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                <UButton
-                  :icon="getAudioPlayingState(idx) ? 'i-heroicons-pause' : 'i-heroicons-play'"
-                  color="primary"
-                  variant="solid"
-                  size="md"
-                  square
-                  @click="toggleAudioPlay(idx, getVoiceUrl(segment))"
-                />
-                <div class="flex-1">
-                  <audio
-                    :ref="el => setAudioRef(el, idx)"
-                    :src="getAudioUrl(getVoiceUrl(segment))"
-                    class="hidden"
-                    @timeupdate="onAudioTimeUpdate(idx, $event)"
-                    @ended="onAudioEnded(idx)"
-                  />
-                  <div class="flex items-center gap-3">
-                    <USlider
-                      :model-value="getAudioProgress(idx)"
-                      :min="0"
-                      :max="100"
-                      :step="0.1"
-                      color="primary"
-                      size="sm"
-                      class="flex-1"
-                      @update:model-value="onAudioSeek(idx, $event)"
-                    />
-                    <span class="text-xs font-medium text-gray-700 dark:text-gray-300 min-w-[80px] text-right">
-                      {{ formatAudioTime(idx) }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             <!-- Metadata Details (Collapsible) -->
             <div v-if="segment.metadata" class="pt-2 border-t border-gray-200 dark:border-gray-700">
               <UButton
@@ -253,115 +214,12 @@ const props = defineProps<{
   storyboard?: any
 }>()
 
-// Audio player state
-const audioRefs = ref<Record<number, HTMLAudioElement>>({})
-const audioPlaying = ref<Record<number, boolean>>({})
-const audioProgress = ref<Record<number, number>>({})
-const audioCurrentTime = ref<Record<number, number>>({})
-const audioDuration = ref<Record<number, number>>({})
 const metadataExpanded = ref<Record<number, boolean>>({})
 const regeneratingSegments = ref<Record<number, boolean>>({})
 
-// Helper functions to get video/voice URLs
+// Helper function to get video URL
 const getVideoUrl = (segment: any): string | null => {
   return segment.videoUrl || segment.metadata?.videoUrl || segment.metadata?.replicateVideoUrl || null
-}
-
-const getVoiceUrl = (segment: any): string | null => {
-  return segment.voiceUrl || segment.metadata?.voiceUrl || null
-}
-
-// Get audio URL from voiceUrl path
-const getAudioUrl = (voiceUrl: string | null): string => {
-  if (!voiceUrl) return ''
-  if (voiceUrl.startsWith('http')) return voiceUrl
-  if (voiceUrl.startsWith('/api/')) return voiceUrl
-  const filename = voiceUrl.split('/').pop() || voiceUrl
-  return `/api/assets/${filename}`
-}
-
-// Set audio element ref
-const setAudioRef = (el: any, segmentIdx: number) => {
-  if (el) {
-    audioRefs.value[segmentIdx] = el
-    el.addEventListener('loadedmetadata', () => {
-      audioDuration.value[segmentIdx] = el.duration
-    })
-  }
-}
-
-// Audio player functions
-const getAudioPlayingState = (segmentIdx: number): boolean => {
-  return audioPlaying.value[segmentIdx] || false
-}
-
-const getAudioProgress = (segmentIdx: number): number => {
-  return audioProgress.value[segmentIdx] || 0
-}
-
-const formatAudioTime = (segmentIdx: number): string => {
-  const current = audioCurrentTime.value[segmentIdx] || 0
-  const duration = audioDuration.value[segmentIdx] || 0
-  return `${formatTime(current)} / ${formatTime(duration)}`
-}
-
-const formatTime = (seconds: number): string => {
-  if (!isFinite(seconds) || isNaN(seconds)) return '0:00'
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins}:${secs.toString().padStart(2, '0')}`
-}
-
-const toggleAudioPlay = (segmentIdx: number, voiceUrl: string | null) => {
-  if (!voiceUrl) return
-  const audio = audioRefs.value[segmentIdx]
-  if (!audio) return
-
-  // Pause all other audio players
-  Object.keys(audioRefs.value).forEach((id) => {
-    const otherId = Number(id)
-    if (otherId !== segmentIdx && audioRefs.value[otherId]) {
-      audioRefs.value[otherId].pause()
-      audioPlaying.value[otherId] = false
-    }
-  })
-
-  if (audio.paused) {
-    audio.play().then(() => {
-      audioPlaying.value[segmentIdx] = true
-    }).catch((error) => {
-      console.error('Error playing audio:', error)
-    })
-  } else {
-    audio.pause()
-    audioPlaying.value[segmentIdx] = false
-  }
-}
-
-const onAudioTimeUpdate = (segmentIdx: number, event: Event) => {
-  const audio = event.target as HTMLAudioElement
-  if (audio) {
-    audioCurrentTime.value[segmentIdx] = audio.currentTime
-    const duration = audio.duration || 0
-    if (duration > 0) {
-      audioProgress.value[segmentIdx] = (audio.currentTime / duration) * 100
-    }
-  }
-}
-
-const onAudioEnded = (segmentIdx: number) => {
-  audioPlaying.value[segmentIdx] = false
-  audioProgress.value[segmentIdx] = 0
-  audioCurrentTime.value[segmentIdx] = 0
-}
-
-const onAudioSeek = (segmentIdx: number, value: number) => {
-  const audio = audioRefs.value[segmentIdx]
-  if (audio && audio.duration) {
-    audio.currentTime = (value / 100) * audio.duration
-    audioProgress.value[segmentIdx] = value
-    audioCurrentTime.value[segmentIdx] = audio.currentTime
-  }
 }
 
 // Metadata expansion

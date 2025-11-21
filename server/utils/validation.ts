@@ -82,12 +82,13 @@ export const generateAssetsSchema = z.object({
       }).passthrough() // Allow additional fields to pass through
     ),
     meta: z.object({
-      duration: z.number(),
+      duration: z.number(), // Default: 16 for new format, 24 for legacy format
       aspectRatio: z.enum(['16:9', '9:16']),
       style: z.string().optional(), // Legacy field, use mood instead
       mood: z.string().optional(), // Video tone/mood
       adType: z.string().optional(), // Ad type
       mode: z.enum(['demo', 'production']).optional(),
+      format: z.enum(['16s', '24s']).optional(), // Video format: '16s' for 16-second format (default), '24s' for legacy 24-second format
       // Veo 3.1 fields
       image: z.string().optional().nullable(),
       lastFrame: z.string().optional().nullable(),
@@ -117,6 +118,13 @@ export const composeVideoSchema = z.object({
       startTime: z.number(),
       endTime: z.number(),
       type: z.string(),
+      timingHints: z.array(
+        z.object({
+          startTime: z.number(),
+          endTime: z.number(),
+          text: z.string(),
+        })
+      ).optional(),
     })
   ),
   options: z.object({

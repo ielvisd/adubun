@@ -2,43 +2,65 @@ import { z } from 'zod'
 import { callOpenAIMCP } from '../utils/mcp-client'
 import { trackCost } from '../utils/cost-tracker'
 import { nanoid } from 'nanoid'
-import { saveStoryboard } from '../utils/storage'
+import { saveStoryboard, readStoryboard } from '../utils/storage'
 import { extractCharacters, createCharacterConsistencyInstruction } from '../utils/character-extractor'
+import { extractItemsFromFrames } from '../utils/scene-conflict-checker'
 import type { Storyboard, Segment } from '~/types/generation'
 
-const generateStoryboardsSchema = z.object({
-  story: z.object({
+const regenerateStoryboardConflictSchema = z.object({
+  storyboardId: z.string(),
+  conflictDetails: z.object({
+    item: z.string(),
+    detectedInFrames: z.array(z.string()).optional(),
+    confidence: z.number().optional(),
+  }),
+  originalStory: z.object({
     id: z.string(),
     description: z.string(),
     hook: z.string(),
-    body: z.string().optional(), // New format - single body field
-    bodyOne: z.string().optional(), // Old format - for backward compatibility
-    bodyTwo: z.string().optional(), // Old format - for backward compatibility
+    body: z.string().optional(),
+    bodyOne: z.string().optional(),
+    bodyTwo: z.string().optional(),
     callToAction: z.string(),
   }),
-  prompt: z.string(),
+  originalPrompt: z.string(),
   productImages: z.array(z.string()).optional(),
-  aspectRatio: z.enum(['16:9', '9:16']),
-  model: z.string().optional(),
-  mood: z.string().optional(), // Video tone/mood from homepage
-  adType: z.string().optional(), // Ad Type from homepage
 })
 
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
-    const { story, prompt, productImages = [], aspectRatio, model, mood, adType } = generateStoryboardsSchema.parse(body)
+    const {
+      storyboardId,
+      conflictDetails,
+      originalStory,
+      originalPrompt,
+      productImages = [],
+    } = regenerateStoryboardConflictSchema.parse(body)
+
+    console.log(`[Regenerate Storyboard Conflict] Regenerating storyboard ${storyboardId} due to conflict: ${conflictDetails.item}`)
+
+    // Read original storyboard to get metadata
+    let originalStoryboard: Storyboard | null = null
+    try {
+      originalStoryboard = await readStoryboard(storyboardId)
+    } catch (error: any) {
+      console.warn(`[Regenerate Storyboard Conflict] Could not read original storyboard: ${error.message}`)
+    }
 
     // Track cost
-    await trackCost('generate-storyboards', 0.002, { storyId: story.id })
+    await trackCost('regenerate-storyboard-conflict', 0.002, {
+      storyboardId,
+      conflictItem: conflictDetails.item,
+    })
 
-    // Generate 1 storyboard using OpenAI directly
-    // Use chat completion to generate a single storyboard
-    // Use mood (Video Tone) from homepage, default to 'professional' if not provided
-    const selectedMood = mood || 'professional'
-    const selectedAdType = adType || 'lifestyle'
-    
-    // Construct system prompt with Ad Type logic
+    // Use metadata from original storyboard or defaults
+    const aspectRatio = originalStoryboard?.meta.aspectRatio || '16:9'
+    const model = originalStoryboard?.meta.model || 'google/veo-3.1-fast'
+    const selectedMood = originalStoryboard?.meta.mood || 'professional'
+    const selectedAdType = originalStoryboard?.meta.adType || 'lifestyle'
+
+    // Construct system prompt with Ad Type logic (same as generate-storyboards)
     let adTypeInstruction = ''
     
     switch (selectedAdType) {
@@ -120,9 +142,69 @@ export default defineEventHandler(async (event) => {
         adTypeInstruction = `Create a professional, high-quality ad that showcases the product effectively.`
     }
 
+    // Extract available items from hook frames for frame-aware regeneration
+    let availableItems: string[] = []
+    if (conflictDetails.detectedInFrames && conflictDetails.detectedInFrames.length > 0) {
+      try {
+        console.log(`[Regenerate Storyboard Conflict] Extracting available items from ${conflictDetails.detectedInFrames.length} hook frame(s)...`)
+        availableItems = await extractItemsFromFrames(conflictDetails.detectedInFrames)
+        if (availableItems.length > 0) {
+          console.log(`[Regenerate Storyboard Conflict] Found ${availableItems.length} available items in hook frames:`, availableItems)
+        } else {
+          console.warn('[Regenerate Storyboard Conflict] No items extracted from hook frames, proceeding without frame-aware constraints')
+        }
+      } catch (error: any) {
+        console.warn(`[Regenerate Storyboard Conflict] Error extracting items from frames: ${error.message}, proceeding without frame-aware constraints`)
+      }
+    }
+
+    // Build conflict-specific instruction with frame-aware guidance
+    let conflictInstruction = `🚨 CRITICAL CONFLICT RESOLUTION REQUIREMENT:
+The solution item "${conflictDetails.item}" is ALREADY PRESENT in the hook scene. You MUST generate a DIFFERENT solution that:
+1. Solves the SAME problem or addresses the SAME need
+2. Uses a DIFFERENT item, approach, or method (NOT "${conflictDetails.item}")
+3. Maintains the same emotional arc and story flow
+4. Feels natural and logical as an alternative solution
+
+DO NOT use "${conflictDetails.item}" in the body segment. Generate a creative alternative solution.`
+
+    // Add frame-aware constraint if we have available items
+    if (availableItems.length > 0) {
+      const itemsList = availableItems.map(item => `"${item}"`).join(', ')
+      conflictInstruction += `\n\n🚨 FRAME-AWARE CONSTRAINT - STRICTLY ENFORCED:
+The following items are ALREADY VISIBLE in the hook scene frames: ${itemsList}
+
+🚨 ABSOLUTE REQUIREMENT: Your new solution MUST use ONLY items from this list above. 
+
+CRITICAL RULES:
+1. DO NOT introduce ANY new items that aren't in the available items list above
+2. DO NOT mention items like "orange juice", "toast", "bread", or any other item unless it appears in the list above
+3. If you cannot create a solution using ONLY the items in the list above, you MUST choose a different approach that uses items from the list
+4. DO NOT invent new items - any solution that introduces an item not in the available items list will be REJECTED
+5. Before finalizing your solution, verify that EVERY item mentioned in your body segment is in the available items list above
+
+VALIDATION CHECK: Before submitting your storyboard, review your body segment description and visualPrompt. If you mention ANY item that is NOT in the list above, you MUST revise your solution to use only items from the list.
+
+Examples of valid solutions using available items:
+- If "coffee cup" is in the list, you could have the robot "refill the coffee cup" or "bring the coffee cup closer"
+- If "plate" is in the list, you could have the robot "organize items on the plate" or "bring the plate to the table"
+- If "kitchen counter" is in the list, you could have the robot "help organize items on the counter"
+
+Examples of INVALID solutions (will be rejected):
+- ❌ If "orange juice" is NOT in the list, do NOT suggest "robot brings orange juice"
+- ❌ If "toast" is NOT in the list, do NOT suggest "robot brings toast"
+- ❌ If "bread" is NOT in the list, do NOT suggest "robot brings bread"
+
+The solution MUST interact with or use items that are already present in the hook frames, not introduce completely new items.`
+    } else {
+      conflictInstruction += `\n\n⚠️ NOTE: Frame analysis was not available. When generating the solution, try to use items that would logically already be present in the hook scene based on the story context.`
+    }
+
     const systemPrompt = `You are an expert at creating emotionally captivating video storyboards for ad content.
     
 ${adTypeInstruction}
+
+${conflictInstruction}
 
 🚨 FORMAT: 16-Second "Lego Block" Structure (Default)
 Generate a single storyboard for a 16-second ad. The storyboard must have 3 segments with ZERO cuts inside each clip:
@@ -141,7 +223,7 @@ Generate a single storyboard for a 16-second ad. The storyboard must have 3 segm
 - **CRITICAL: MINIMAL BACKGROUND**: Keep scenes clean and focused. Avoid cluttered backgrounds with lots of objects, furniture, or visual distractions. Minimize background elements to keep focus on the product and characters. Simple, uncluttered environments work best. Use shallow depth of field or selective focus to blur background distractions when needed.
 - **CRITICAL: NO MESSY SURFACES**: DO NOT use "messy", "cluttered", "disorganized", or "chaotic" to describe surfaces, countertops, tables, desks, or any surfaces. Keep all surfaces clean, organized, and minimal. Examples to avoid: ❌ "messy countertop", ❌ "cluttered table", ❌ "disorganized workspace". Instead use: ✅ "clean countertop", ✅ "minimal table", ✅ "organized workspace". Messy surfaces lead to duplicate or weird items appearing in scenes.
 - **CRITICAL: ONE ACTION ONLY**: The body segment should show ONLY ONE action happening. The product/character should do ONE thing, not multiple things. For example: ✅ "Robot offers a cup of tea" (single action) ❌ "Robot tidies magazine AND offers tea AND helps zip dress" (multiple actions - REJECTED). Keep the action simple and achievable within the segment duration. Focus on what the product is solving - make the problem clear and the solution obvious. Use humor when appropriate.
-- **CRITICAL: ITEM VISIBILITY IN PRODUCT HANDS**: When a product/robot offers, gives, or brings an item (e.g., coffee cup, tea, food), the visualPrompt MUST explicitly describe:
+- **CRITICAL: ITEM VISIBILITY IN PRODUCT HANDS**: When regenerating a solution where the product/robot offers, gives, or brings an item, the visualPrompt MUST explicitly describe:
   - The product/robot HOLDING the item in its hands (e.g., "the robot holds a coffee cup in its hands", "the robot's hands grasp a steaming coffee cup")
   - The product/robot EXTENDING or OFFERING the item toward the character (e.g., "the robot extends the coffee cup toward the person", "the robot offers the coffee cup with its hands outstretched")
   - The item being VISIBLE in the product's hands BEFORE it transitions to the character
@@ -236,7 +318,7 @@ Return ONLY valid JSON with this structure:
       {
         "type": "body",
         "description": "Product introduction + transformation scene - delivers 'oh shit' moment",
-        "visualPrompt": "Detailed visual prompt for product intro scene following the 5-part formula. Single continuous shot, no cuts. Camera matches momentum from hook. Slow-motion reveal at 4-5s of this clip. End on mini-resolve.",
+        "visualPrompt": "Detailed visual prompt for product intro scene following the 5-part formula. Single continuous shot, no cuts. Camera matches momentum from hook. Slow-motion reveal at 4-5s of this clip. End on mini-resolve. CRITICAL: Do NOT use '${conflictDetails.item}' - use a DIFFERENT solution.",
         "audioNotes": "Spoken dialogue or voiceover script for this scene",
         "startTime": 6,
         "endTime": 12
@@ -254,19 +336,21 @@ Return ONLY valid JSON with this structure:
 }`
 
     // Support both new format (body) and old format (bodyOne/bodyTwo) for backward compatibility
-    const bodyContent = story.body || story.bodyOne || ''
-    const bodyTwoContent = story.bodyTwo || ''
+    const bodyContent = originalStory.body || originalStory.bodyOne || ''
+    const bodyTwoContent = originalStory.bodyTwo || ''
     
-    const userPrompt = `Create an emotionally captivating storyboard based on this story:
+    const userPrompt = `Create an emotionally captivating storyboard based on this story, but with a DIFFERENT solution in the body segment (avoid using "${conflictDetails.item}"):
 
-Story Description: ${story.description}
-Hook: ${story.hook}
+Story Description: ${originalStory.description}
+Hook: ${originalStory.hook}
 Body: ${bodyContent}${bodyTwoContent ? `\n(Note: Legacy format detected. Body 2 content: ${bodyTwoContent} - incorporate into CTA if needed)` : ''}
-CTA: ${story.callToAction}
+CTA: ${originalStory.callToAction}
 
-Original Prompt: ${prompt}
+Original Prompt: ${originalPrompt}
 Ad Type: ${selectedAdType}
 ${productImages.length > 0 ? `Product images are available for reference.` : ''}
+
+🚨 CRITICAL: The body segment must provide a DIFFERENT solution that does NOT use "${conflictDetails.item}". The solution should solve the same problem but use a different approach, item, or method.
 
 🚨 CHARACTER CONSISTENCY REQUIREMENT:
 - Extract all characters from the hook scene and ensure they maintain IDENTICAL appearance (gender, age, physical features, clothing) across all segments
@@ -329,13 +413,13 @@ Stay true to the story content. Focus on creating emotionally compelling visuals
     // Ensure we have exactly 3 segments for 16-second format
     if (segments.length !== 3) {
       // Fill in missing segments from story - support both new format (body) and old format (bodyOne/bodyTwo)
-      const bodyContent = story.body || story.bodyOne || ''
-      const ctaContent = story.body ? story.callToAction : `${story.bodyTwo || ''} ${story.callToAction}`.trim()
-      const bodyDescription = story.body || story.bodyOne || ''
+      const bodyContent = originalStory.body || originalStory.bodyOne || ''
+      const ctaContent = originalStory.body ? originalStory.callToAction : `${originalStory.bodyTwo || ''} ${originalStory.callToAction}`.trim()
+      const bodyDescription = originalStory.body || originalStory.bodyOne || ''
       
       const baseSegments: Segment[] = [
-        { type: 'hook', description: story.hook, startTime: 0, endTime: 6, visualPrompt: `${story.hook}, professional ad quality, single continuous shot, no cuts`, status: 'pending', audioNotes: '' },
-        { type: 'body', description: bodyDescription, startTime: 6, endTime: 12, visualPrompt: `${bodyContent}, professional ad quality, single continuous shot, no cuts, slow-motion reveal at 4-5s`, status: 'pending', audioNotes: '' },
+        { type: 'hook', description: originalStory.hook, startTime: 0, endTime: 6, visualPrompt: `${originalStory.hook}, professional ad quality, single continuous shot, no cuts`, status: 'pending', audioNotes: '' },
+        { type: 'body', description: bodyDescription, startTime: 6, endTime: 12, visualPrompt: `${bodyContent}, professional ad quality, single continuous shot, no cuts, slow-motion reveal at 4-5s, DO NOT use ${conflictDetails.item}`, status: 'pending', audioNotes: '' },
         { type: 'cta', description: ctaContent, startTime: 12, endTime: 16, visualPrompt: `${ctaContent}, professional ad quality, single continuous shot, no cuts, ends at exactly 16.000s`, status: 'pending', audioNotes: '' },
       ]
       segments.splice(0, segments.length, ...baseSegments)
@@ -343,7 +427,7 @@ Stay true to the story content. Focus on creating emotionally compelling visuals
 
     // Extract characters from the story
     const hookSegment = segments.find(s => s.type === 'hook')
-    const characters = await extractCharacters(story.description, hookSegment?.description || story.hook)
+    const characters = await extractCharacters(originalStory.description, hookSegment?.description || originalStory.hook)
 
     // Enhance visual prompts with character consistency instructions
     if (characters.length > 0) {
@@ -378,27 +462,28 @@ Stay true to the story content. Focus on creating emotionally compelling visuals
         model: model || 'google/veo-3.1-fast',
         adType: selectedAdType,
         format: '16s', // 16-second format (default)
+        mood: selectedMood,
       },
       promptJourney: {
         userInput: {
-          prompt,
+          prompt: originalPrompt,
           adType: selectedAdType,
           mood: selectedMood,
           aspectRatio,
           model: model || 'google/veo-3.1-fast',
           productImages: [],
-          subjectReference: undefined,
+          subjectReference: originalStoryboard?.meta.subjectReference,
         },
-        storyGeneration: story ? {
+        storyGeneration: originalStory ? {
           systemPrompt: 'Story generation handled by MCP server',
-          userPrompt: prompt,
+          userPrompt: originalPrompt,
           output: {
-            hook: story.hook,
-            body: story.body || story.bodyOne || '',
-            bodyOne: story.bodyOne || '', // Keep for backward compatibility
-            bodyTwo: story.bodyTwo || '', // Keep for backward compatibility
-            callToAction: story.callToAction,
-            description: story.description,
+            hook: originalStory.hook,
+            body: originalStory.body || originalStory.bodyOne || '',
+            bodyOne: originalStory.bodyOne || '', // Keep for backward compatibility
+            bodyTwo: originalStory.bodyTwo || '', // Keep for backward compatibility
+            callToAction: originalStory.callToAction,
+            description: originalStory.description,
           },
         } : undefined,
         storyboardGeneration: {
@@ -413,14 +498,19 @@ Stay true to the story content. Focus on creating emotionally compelling visuals
     // Save storyboard
     await saveStoryboard(storyboard)
 
+    console.log(`[Regenerate Storyboard Conflict] Successfully regenerated storyboard ${storyboard.id}`)
+
     return {
       storyboard,
+      regenerated: true,
+      conflictItem: conflictDetails.item,
     }
   } catch (error: any) {
-    console.error('[Generate Storyboards] Error:', error)
+    console.error('[Regenerate Storyboard Conflict] Error:', error)
     throw createError({
       statusCode: 500,
-      message: error.message || 'Failed to generate storyboards',
+      message: error.message || 'Failed to regenerate storyboard',
     })
   }
 })
+

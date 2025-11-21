@@ -539,7 +539,7 @@
                     :nano-image-url="frameGenerationStatus.get(index)?.firstNanoImageUrl"
                     :seedream-image-url="frameGenerationStatus.get(index)?.firstSeedreamImageUrl"
                     :show-comparison="showComparison.get(`${index}-first`) || false"
-                    :frame-label="`${segment.type === 'hook' ? 'Hook' : segment.type === 'body' ? (index === 1 ? 'Body 1' : 'Body 2') : 'CTA'} First Frame`"
+                    :frame-label="`${segment.type === 'hook' ? 'Hook' : segment.type === 'body' ? 'Body' : 'CTA'} First Frame`"
                     @show="showComparison.set(`${index}-first`, true)"
                     @close="showComparison.set(`${index}-first`, false)"
                   />
@@ -661,7 +661,7 @@
                     :nano-image-url="frameGenerationStatus.get(index)?.lastNanoImageUrl"
                     :seedream-image-url="frameGenerationStatus.get(index)?.lastSeedreamImageUrl"
                     :show-comparison="showComparison.get(`${index}-last`) || false"
-                    :frame-label="`${segment.type === 'hook' ? 'Hook' : segment.type === 'body' ? (index === 1 ? 'Body 1' : 'Body 2') : 'CTA'} Last Frame`"
+                    :frame-label="`${segment.type === 'hook' ? 'Hook' : segment.type === 'body' ? 'Body' : 'CTA'} Last Frame`"
                     @show="showComparison.set(`${index}-last`, true)"
                     @close="showComparison.set(`${index}-last`, false)"
                   />
@@ -831,7 +831,7 @@ const getSegmentLabel = (type: string) => {
   if (viewMode.value === 'admin') {
     return type === 'hook' ? 'Hook' : 
            type === 'cta' ? 'Call to Action' : 
-           type === 'body1' ? 'Body 1' : 'Body 2'
+           'Body'
   }
   // User mode - friendlier labels
   return type === 'hook' ? 'Intro' : 
@@ -943,15 +943,16 @@ const showComparison = ref<Map<string, boolean>>(new Map())
 const videoModelOptions = [
   { label: 'Veo 3.1', value: 'google/veo-3.1' },
   { label: 'Veo 3 Fast', value: 'google/veo-3-fast' },
+  { label: 'Veo 3.1 Fast', value: 'google/veo-3.1-fast' },
 ]
 
 const currentModel = computed(() => {
-  return selectedStoryboard.value?.meta?.model || 'google/veo-3.1'
+  return selectedStoryboard.value?.meta?.model || 'google/veo-3.1-fast'
 })
 
 // Get current video model config
 const currentVideoModel = computed(() => {
-  return getModelById(currentModel.value) || getModelById('google/veo-3.1')
+  return getModelById(currentModel.value) || getModelById('google/veo-3.1-fast')
 })
 
 // Duration options for current model
@@ -1738,7 +1739,7 @@ const handleModelChange = async (newModel: string) => {
   
   toast.add({
     title: 'Model Updated',
-    description: `Video generation will use ${newModel === 'google/veo-3.1' ? 'Veo 3.1' : 'Veo 3 Fast'}`,
+    description: `Video generation will use ${newModel === 'google/veo-3.1' ? 'Veo 3.1' : newModel === 'google/veo-3-fast' ? 'Veo 3 Fast' : 'Veo 3.1 Fast'}`,
     color: 'blue',
   })
 }
@@ -1817,6 +1818,33 @@ const generateFrames = async () => {
     console.log('[Storyboards] ========================================')
     console.log('[Storyboards] API response:', result)
 
+    // Check if prompts were refined and update storyboard
+    if (result.promptsRefined && result.storyboard) {
+      console.log('[Storyboards] Prompts were refined, updating storyboard with refined prompts')
+      // Update segments with refined visual prompts
+      if (result.storyboard.segments && selectedStoryboard.value) {
+        result.storyboard.segments.forEach((refinedSegment: any, index: number) => {
+          if (selectedStoryboard.value.segments[index] && refinedSegment.visualPrompt) {
+            const originalPrompt = selectedStoryboard.value.segments[index].visualPrompt
+            const refinedPrompt = refinedSegment.visualPrompt
+            if (originalPrompt !== refinedPrompt) {
+              selectedStoryboard.value.segments[index].visualPrompt = refinedPrompt
+              console.log(`[Storyboards] Updated visual prompt for segment ${index} (${refinedSegment.type})`)
+            }
+          }
+        })
+        // Save updated storyboard
+        debouncedSave()
+        
+        // Show notification that prompts were refined
+        toast.add({
+          title: 'Prompts Refined',
+          description: 'Visual prompts have been automatically refined to match the generated frames.',
+          color: 'blue',
+        })
+      }
+    }
+
     // Map frames to segments
     // Frames structure: [{ segmentIndex: 0, frameType: 'first', imageUrl: '...' }, ...]
     const frames = result.frames || []
@@ -1882,14 +1910,20 @@ const generateFrames = async () => {
       console.log(`  Segment ${key}: first=${!!value.first}, last=${!!value.last}`)
     })
 
-    // Map frames to segments according to PRD:
-    // Hook: firstFrameImage = frames[0] (hook first), lastFrameImage = frames[1] (hook last)
-    // Body1: firstFrameImage = frames[1] (hook last), lastFrameImage = frames[2] (body1 last)
-    // Body2: firstFrameImage = frames[2] (body1 last), lastFrameImage = frames[3] (body2 last)
-    // CTA: firstFrameImage = frames[3] (body2 last), lastFrameImage = frames[4] (CTA)
+    // Map frames to segments according to format:
+    // 16-second format (3 segments):
+    //   Hook: firstFrameImage = frames[0] (hook first), lastFrameImage = frames[1] (hook last)
+    //   Body: firstFrameImage = frames[1] (hook last), lastFrameImage = frames[2] (body last)
+    //   CTA: firstFrameImage = frames[2] (body last), lastFrameImage = frames[3] (CTA last)
+    // 24-second format (4 segments):
+    //   Hook: firstFrameImage = frames[0] (hook first), lastFrameImage = frames[1] (hook last)
+    //   Body1: firstFrameImage = frames[1] (hook last), lastFrameImage = frames[2] (body1 last)
+    //   Body2: firstFrameImage = frames[2] (body1 last), lastFrameImage = frames[3] (body2 last)
+    //   CTA: firstFrameImage = frames[3] (body2 last), lastFrameImage = frames[4] (CTA)
     
-    if (selectedStoryboard.value && selectedStoryboard.value.segments.length >= 4) {
-      console.log('[Storyboards] Assigning frames to segments...')
+    const segmentCount = selectedStoryboard.value?.segments.length || 0
+    if (selectedStoryboard.value && (segmentCount === 3 || segmentCount >= 4)) {
+      console.log(`[Storyboards] Assigning frames to segments (${segmentCount}-segment format)...`)
       
       // First, clear any existing frame assignments to prevent stale data
       selectedStoryboard.value.segments.forEach((seg, idx) => {
@@ -1898,7 +1932,7 @@ const generateFrames = async () => {
         // But log what we're about to assign
       })
       
-      // Hook segment (index 0)
+      // Hook segment (index 0) - same for both formats
       const hookFrames = frameMap.get('0')
       console.log('[Storyboards] Hook frames:', hookFrames)
       if (hookFrames?.first) {
@@ -1924,113 +1958,195 @@ const generateFrames = async () => {
         console.log('[Storyboards] Assigned hook last frame:', hookFrames.last)
       }
 
-      // Body1 segment (index 1)
-      // First frame is same as hook's last frame
-      const hookLastFrame = hookFrames?.last
-      const hookLastModelSource = hookFrames?.lastModelSource
-      const hookLastNanoImageUrl = hookFrames?.lastNanoImageUrl
-      const hookLastSeedreamImageUrl = hookFrames?.lastSeedreamImageUrl
-      const body1Frames = frameMap.get('1')
-      console.log('[Storyboards] Body1 frames:', body1Frames)
-      if (hookLastFrame) {
-        selectedStoryboard.value.segments[1].firstFrameImage = hookLastFrame
-        frameGenerationStatus.value.set(1, { 
-          ...frameGenerationStatus.value.get(1), 
-          first: true,
-          firstModelSource: hookLastModelSource,
-          firstNanoImageUrl: hookLastNanoImageUrl,
-          firstSeedreamImageUrl: hookLastSeedreamImageUrl
-        })
-        console.log('[Storyboards] Assigned body1 first frame (from hook last):', hookLastFrame)
-      }
-      if (body1Frames?.last) {
-        selectedStoryboard.value.segments[1].lastFrameImage = body1Frames.last
-        frameGenerationStatus.value.set(1, { 
-          ...frameGenerationStatus.value.get(1), 
-          last: true,
-          lastModelSource: body1Frames.lastModelSource,
-          lastNanoImageUrl: body1Frames.lastNanoImageUrl,
-          lastSeedreamImageUrl: body1Frames.lastSeedreamImageUrl
-        })
-        console.log('[Storyboards] Assigned body1 last frame:', body1Frames.last)
-      }
+      // Handle 3-segment format (16-second)
+      if (segmentCount === 3) {
+        // Body segment (index 1) - Product Intro
+        // First frame is same as hook's last frame
+        const hookLastFrame = hookFrames?.last
+        const hookLastModelSource = hookFrames?.lastModelSource
+        const hookLastNanoImageUrl = hookFrames?.lastNanoImageUrl
+        const hookLastSeedreamImageUrl = hookFrames?.lastSeedreamImageUrl
+        const bodyFrames = frameMap.get('1')
+        console.log('[Storyboards] Body frames (3-segment format):', bodyFrames)
+        if (hookLastFrame) {
+          selectedStoryboard.value.segments[1].firstFrameImage = hookLastFrame
+          frameGenerationStatus.value.set(1, { 
+            ...frameGenerationStatus.value.get(1), 
+            first: true,
+            firstModelSource: hookLastModelSource,
+            firstNanoImageUrl: hookLastNanoImageUrl,
+            firstSeedreamImageUrl: hookLastSeedreamImageUrl
+          })
+          console.log('[Storyboards] Assigned body first frame (from hook last):', hookLastFrame)
+        }
+        if (bodyFrames?.last) {
+          selectedStoryboard.value.segments[1].lastFrameImage = bodyFrames.last
+          frameGenerationStatus.value.set(1, { 
+            ...frameGenerationStatus.value.get(1), 
+            last: true,
+            lastModelSource: bodyFrames.lastModelSource,
+            lastNanoImageUrl: bodyFrames.lastNanoImageUrl,
+            lastSeedreamImageUrl: bodyFrames.lastSeedreamImageUrl
+          })
+          console.log('[Storyboards] Assigned body last frame:', bodyFrames.last)
+        }
 
-      // Body2 segment (index 2)
-      // First frame is same as body1's last frame
-      const body1LastFrame = body1Frames?.last
-      const body1LastModelSource = body1Frames?.lastModelSource
-      const body1LastNanoImageUrl = body1Frames?.lastNanoImageUrl
-      const body1LastSeedreamImageUrl = body1Frames?.lastSeedreamImageUrl
-      const body2Frames = frameMap.get('2')
-      console.log('[Storyboards] Body2 frames:', body2Frames)
-      if (body1LastFrame) {
-        selectedStoryboard.value.segments[2].firstFrameImage = body1LastFrame
-        frameGenerationStatus.value.set(2, { 
-          ...frameGenerationStatus.value.get(2), 
-          first: true,
-          firstModelSource: body1LastModelSource,
-          firstNanoImageUrl: body1LastNanoImageUrl,
-          firstSeedreamImageUrl: body1LastSeedreamImageUrl
-        })
-        console.log('[Storyboards] Assigned body2 first frame (from body1 last):', body1LastFrame)
-      }
-      if (body2Frames?.last) {
-        selectedStoryboard.value.segments[2].lastFrameImage = body2Frames.last
-        frameGenerationStatus.value.set(2, { 
-          ...frameGenerationStatus.value.get(2), 
-          last: true,
-          lastModelSource: body2Frames.lastModelSource,
-          lastNanoImageUrl: body2Frames.lastNanoImageUrl,
-          lastSeedreamImageUrl: body2Frames.lastSeedreamImageUrl
-        })
-        console.log('[Storyboards] Assigned body2 last frame:', body2Frames.last)
-      }
+        // CTA segment (index 2)
+        // First frame is same as body's last frame
+        const bodyLastFrame = bodyFrames?.last
+        const bodyLastModelSource = bodyFrames?.lastModelSource
+        const bodyLastNanoImageUrl = bodyFrames?.lastNanoImageUrl
+        const bodyLastSeedreamImageUrl = bodyFrames?.lastSeedreamImageUrl
+        const ctaFrames = frameMap.get('2')
+        
+        console.log('[Storyboards] ========================================')
+        console.log('[Storyboards] Assigning CTA Frames (3-segment format)')
+        console.log('[Storyboards] ========================================')
+        console.log('[Storyboards] CTA frames from map:', ctaFrames)
+        console.log('[Storyboards] CTA has first in map:', !!ctaFrames?.first)
+        console.log('[Storyboards] CTA has last in map:', !!ctaFrames?.last)
+        console.log('[Storyboards] Body last frame (for CTA first):', bodyLastFrame?.substring(0, 60))
+        
+        if (bodyLastFrame) {
+          selectedStoryboard.value.segments[2].firstFrameImage = bodyLastFrame
+          frameGenerationStatus.value.set(2, { 
+            ...frameGenerationStatus.value.get(2), 
+            first: true,
+            firstModelSource: bodyLastModelSource,
+            firstNanoImageUrl: bodyLastNanoImageUrl,
+            firstSeedreamImageUrl: bodyLastSeedreamImageUrl
+          })
+          console.log('[Storyboards] ✓ Assigned CTA first frame (from body last):', bodyLastFrame.substring(0, 60))
+        } else {
+          console.error('[Storyboards] ✗ Could not assign CTA first frame - bodyLastFrame is missing')
+        }
+        
+        if (ctaFrames?.last) {
+          // CTA's last frame is the final frame of the video
+          selectedStoryboard.value.segments[2].lastFrameImage = ctaFrames.last
+          frameGenerationStatus.value.set(2, { 
+            ...frameGenerationStatus.value.get(2), 
+            last: true,
+            lastModelSource: ctaFrames.lastModelSource,
+            lastNanoImageUrl: ctaFrames.lastNanoImageUrl,
+            lastSeedreamImageUrl: ctaFrames.lastSeedreamImageUrl
+          })
+          console.log('[Storyboards] ✓ Assigned CTA last frame:', ctaFrames.last.substring(0, 60))
+        } else {
+          console.error('[Storyboards] ✗✗✗ CTA last frame is MISSING from frameMap!')
+          console.error('[Storyboards] This is the root cause - API did not generate CTA last frame')
+          console.error('[Storyboards] frameMap.get("2"):', ctaFrames)
+        }
+      } else {
+        // Handle 4-segment format (24-second) - original logic
+        // Body1 segment (index 1)
+        // First frame is same as hook's last frame
+        const hookLastFrame = hookFrames?.last
+        const hookLastModelSource = hookFrames?.lastModelSource
+        const hookLastNanoImageUrl = hookFrames?.lastNanoImageUrl
+        const hookLastSeedreamImageUrl = hookFrames?.lastSeedreamImageUrl
+        const body1Frames = frameMap.get('1')
+        console.log('[Storyboards] Body1 frames:', body1Frames)
+        if (hookLastFrame) {
+          selectedStoryboard.value.segments[1].firstFrameImage = hookLastFrame
+          frameGenerationStatus.value.set(1, { 
+            ...frameGenerationStatus.value.get(1), 
+            first: true,
+            firstModelSource: hookLastModelSource,
+            firstNanoImageUrl: hookLastNanoImageUrl,
+            firstSeedreamImageUrl: hookLastSeedreamImageUrl
+          })
+          console.log('[Storyboards] Assigned body1 first frame (from hook last):', hookLastFrame)
+        }
+        if (body1Frames?.last) {
+          selectedStoryboard.value.segments[1].lastFrameImage = body1Frames.last
+          frameGenerationStatus.value.set(1, { 
+            ...frameGenerationStatus.value.get(1), 
+            last: true,
+            lastModelSource: body1Frames.lastModelSource,
+            lastNanoImageUrl: body1Frames.lastNanoImageUrl,
+            lastSeedreamImageUrl: body1Frames.lastSeedreamImageUrl
+          })
+          console.log('[Storyboards] Assigned body1 last frame:', body1Frames.last)
+        }
 
-      // CTA segment (index 3)
-      // First frame is same as body2's last frame
-      const body2LastFrame = body2Frames?.last
-      const body2LastModelSource = body2Frames?.lastModelSource
-      const body2LastNanoImageUrl = body2Frames?.lastNanoImageUrl
-      const body2LastSeedreamImageUrl = body2Frames?.lastSeedreamImageUrl
-      const ctaFrames = frameMap.get('3')
-      
-      console.log('[Storyboards] ========================================')
-      console.log('[Storyboards] Assigning CTA Frames')
-      console.log('[Storyboards] ========================================')
-      console.log('[Storyboards] CTA frames from map:', ctaFrames)
-      console.log('[Storyboards] CTA has first in map:', !!ctaFrames?.first)
-      console.log('[Storyboards] CTA has last in map:', !!ctaFrames?.last)
-      console.log('[Storyboards] Body2 last frame (for CTA first):', body2LastFrame?.substring(0, 60))
-      
-      if (body2LastFrame) {
-        selectedStoryboard.value.segments[3].firstFrameImage = body2LastFrame
-        frameGenerationStatus.value.set(3, { 
-          ...frameGenerationStatus.value.get(3), 
-          first: true,
-          firstModelSource: body2LastModelSource,
-          firstNanoImageUrl: body2LastNanoImageUrl,
-          firstSeedreamImageUrl: body2LastSeedreamImageUrl
-        })
-        console.log('[Storyboards] ✓ Assigned CTA first frame (from body2 last):', body2LastFrame.substring(0, 60))
-      } else {
-        console.error('[Storyboards] ✗ Could not assign CTA first frame - body2LastFrame is missing')
-      }
-      
-      if (ctaFrames?.last) {
-        // CTA's last frame is the final frame of the video
-        selectedStoryboard.value.segments[3].lastFrameImage = ctaFrames.last
-        frameGenerationStatus.value.set(3, { 
-          ...frameGenerationStatus.value.get(3), 
-          last: true,
-          lastModelSource: ctaFrames.lastModelSource,
-          lastNanoImageUrl: ctaFrames.lastNanoImageUrl,
-          lastSeedreamImageUrl: ctaFrames.lastSeedreamImageUrl
-        })
-        console.log('[Storyboards] ✓ Assigned CTA last frame:', ctaFrames.last.substring(0, 60))
-      } else {
-        console.error('[Storyboards] ✗✗✗ CTA last frame is MISSING from frameMap!')
-        console.error('[Storyboards] This is the root cause - API did not generate CTA last frame')
-        console.error('[Storyboards] frameMap.get("3"):', ctaFrames)
+        // Body2 segment (index 2)
+        // First frame is same as body1's last frame
+        const body1LastFrame = body1Frames?.last
+        const body1LastModelSource = body1Frames?.lastModelSource
+        const body1LastNanoImageUrl = body1Frames?.lastNanoImageUrl
+        const body1LastSeedreamImageUrl = body1Frames?.lastSeedreamImageUrl
+        const body2Frames = frameMap.get('2')
+        console.log('[Storyboards] Body2 frames:', body2Frames)
+        if (body1LastFrame) {
+          selectedStoryboard.value.segments[2].firstFrameImage = body1LastFrame
+          frameGenerationStatus.value.set(2, { 
+            ...frameGenerationStatus.value.get(2), 
+            first: true,
+            firstModelSource: body1LastModelSource,
+            firstNanoImageUrl: body1LastNanoImageUrl,
+            firstSeedreamImageUrl: body1LastSeedreamImageUrl
+          })
+          console.log('[Storyboards] Assigned body2 first frame (from body1 last):', body1LastFrame)
+        }
+        if (body2Frames?.last) {
+          selectedStoryboard.value.segments[2].lastFrameImage = body2Frames.last
+          frameGenerationStatus.value.set(2, { 
+            ...frameGenerationStatus.value.get(2), 
+            last: true,
+            lastModelSource: body2Frames.lastModelSource,
+            lastNanoImageUrl: body2Frames.lastNanoImageUrl,
+            lastSeedreamImageUrl: body2Frames.lastSeedreamImageUrl
+          })
+          console.log('[Storyboards] Assigned body2 last frame:', body2Frames.last)
+        }
+
+        // CTA segment (index 3)
+        // First frame is same as body2's last frame
+        const body2LastFrame = body2Frames?.last
+        const body2LastModelSource = body2Frames?.lastModelSource
+        const body2LastNanoImageUrl = body2Frames?.lastNanoImageUrl
+        const body2LastSeedreamImageUrl = body2Frames?.lastSeedreamImageUrl
+        const ctaFrames = frameMap.get('3')
+        
+        console.log('[Storyboards] ========================================')
+        console.log('[Storyboards] Assigning CTA Frames (4-segment format)')
+        console.log('[Storyboards] ========================================')
+        console.log('[Storyboards] CTA frames from map:', ctaFrames)
+        console.log('[Storyboards] CTA has first in map:', !!ctaFrames?.first)
+        console.log('[Storyboards] CTA has last in map:', !!ctaFrames?.last)
+        console.log('[Storyboards] Body2 last frame (for CTA first):', body2LastFrame?.substring(0, 60))
+        
+        if (body2LastFrame) {
+          selectedStoryboard.value.segments[3].firstFrameImage = body2LastFrame
+          frameGenerationStatus.value.set(3, { 
+            ...frameGenerationStatus.value.get(3), 
+            first: true,
+            firstModelSource: body2LastModelSource,
+            firstNanoImageUrl: body2LastNanoImageUrl,
+            firstSeedreamImageUrl: body2LastSeedreamImageUrl
+          })
+          console.log('[Storyboards] ✓ Assigned CTA first frame (from body2 last):', body2LastFrame.substring(0, 60))
+        } else {
+          console.error('[Storyboards] ✗ Could not assign CTA first frame - body2LastFrame is missing')
+        }
+        
+        if (ctaFrames?.last) {
+          // CTA's last frame is the final frame of the video
+          selectedStoryboard.value.segments[3].lastFrameImage = ctaFrames.last
+          frameGenerationStatus.value.set(3, { 
+            ...frameGenerationStatus.value.get(3), 
+            last: true,
+            lastModelSource: ctaFrames.lastModelSource,
+            lastNanoImageUrl: ctaFrames.lastNanoImageUrl,
+            lastSeedreamImageUrl: ctaFrames.lastSeedreamImageUrl
+          })
+          console.log('[Storyboards] ✓ Assigned CTA last frame:', ctaFrames.last.substring(0, 60))
+        } else {
+          console.error('[Storyboards] ✗✗✗ CTA last frame is MISSING from frameMap!')
+          console.error('[Storyboards] This is the root cause - API did not generate CTA last frame')
+          console.error('[Storyboards] frameMap.get("3"):', ctaFrames)
+        }
       }
       
       // Trigger reactivity to ensure UI updates
@@ -2048,10 +2164,11 @@ const generateFrames = async () => {
       console.log('[Storyboards] Final segment states:', finalStates)
       
       // Validate frame assignments - ensure no segment has CTA frames unless it's the CTA segment
-      const ctaLastFrame = finalStates[3]?.lastFrameImage
+      const ctaSegmentIndex = segmentCount === 3 ? 2 : 3
+      const ctaLastFrame = finalStates[ctaSegmentIndex]?.lastFrameImage
       const validationErrors: string[] = []
       finalStates.forEach((state, idx) => {
-        if (idx !== 3 && state.lastFrameImage === ctaLastFrame && ctaLastFrame) {
+        if (idx !== ctaSegmentIndex && state.lastFrameImage === ctaLastFrame && ctaLastFrame) {
           validationErrors.push(`Segment ${idx} (${state.type}) has CTA last frame assigned`)
         }
         // Check that Hook has its own first frame (not shared)
@@ -2059,11 +2176,22 @@ const generateFrames = async () => {
           validationErrors.push(`Hook segment missing first frame`)
         }
         // Check that each segment has appropriate frames
-        if (idx < 3 && !state.lastFrameImage) {
-          validationErrors.push(`Segment ${idx} (${state.type}) missing last frame`)
-        }
-        if (idx === 3 && !state.lastFrameImage) {
-          validationErrors.push(`CTA segment missing last frame`)
+        if (segmentCount === 3) {
+          // 3-segment format: Hook, Body, CTA
+          if (idx < 2 && !state.lastFrameImage) {
+            validationErrors.push(`Segment ${idx} (${state.type}) missing last frame`)
+          }
+          if (idx === 2 && !state.lastFrameImage) {
+            validationErrors.push(`CTA segment missing last frame`)
+          }
+        } else {
+          // 4-segment format: Hook, Body1, Body2, CTA
+          if (idx < 3 && !state.lastFrameImage) {
+            validationErrors.push(`Segment ${idx} (${state.type}) missing last frame`)
+          }
+          if (idx === 3 && !state.lastFrameImage) {
+            validationErrors.push(`CTA segment missing last frame`)
+          }
         }
       })
       
@@ -2081,14 +2209,96 @@ const generateFrames = async () => {
     // Save storyboard state including frameGenerationStatus
     saveStoryboardState()
     
-    toast.add({
-      title: 'Frames Generated',
-      description: mode === 'demo' 
-        ? `Generated ${frameCount} frame(s) for first scene (demo mode)`
-        : `Frame images have been generated for all scenes`,
-      color: 'green',
-    })
-    console.log('[Storyboards] Frame generation completed successfully')
+    // Check if frames were regenerated due to conflicts
+    if (result.framesRegenerated && result.storyboard) {
+      console.log('[Storyboards] Frames were regenerated to resolve conflicts')
+      selectedStoryboard.value = result.storyboard
+      
+      const conflictItem = result.conflictDetails?.item || 'conflicting item'
+      const conflictResolved = !result.conflictDetected
+      
+      if (conflictResolved) {
+        toast.add({
+          title: 'Frames Regenerated',
+          description: `Conflicting frames regenerated to remove ${conflictItem}. Conflict resolved.`,
+          color: 'success',
+          timeout: 5000,
+        })
+      } else {
+        toast.add({
+          title: 'Frames Regenerated',
+          description: `Conflicting frames regenerated to remove ${conflictItem}, but conflict may still exist.`,
+          color: 'warning',
+          timeout: 5000,
+        })
+      }
+      
+      // Refresh frame display
+      debouncedSave()
+    } else if (result.conflictDetected && result.conflictDetails) {
+      // Check for unresolved scene conflicts (no regeneration attempted or regeneration failed)
+      console.warn('[Storyboards] ⚠️ Scene conflict detected:', result.conflictDetails)
+      const conflictItem = result.conflictDetails.item || 'an item'
+      
+      // Legacy fallback: Regenerate storyboard with different solution
+      toast.add({
+        title: 'Scene Conflict Detected',
+        description: `We detected that ${conflictItem} is already in the scene. Regenerating storyboard with a different solution...`,
+        color: 'warning',
+        timeout: 5000,
+      })
+
+      try {
+        // Regenerate storyboard with different solution (fallback)
+        console.log('[Storyboards] Falling back to storyboard regeneration due to conflict...')
+        const regenerateResult = await $fetch('/api/regenerate-storyboard-conflict', {
+          method: 'POST',
+          body: {
+            storyboardId: selectedStoryboard.value.id,
+            conflictDetails: result.conflictDetails,
+            originalStory: selectedStory.value,
+            originalPrompt: promptData.value.prompt || '',
+            productImages: promptData.value.productImages || [],
+          },
+        }) as any
+
+        if (regenerateResult.storyboard) {
+          // Replace current storyboard with regenerated one
+          console.log('[Storyboards] Storyboard regenerated successfully:', regenerateResult.storyboard.id)
+          selectedStoryboard.value = regenerateResult.storyboard
+
+          toast.add({
+            title: 'Storyboard Regenerated',
+            description: `New storyboard created with a different solution (avoiding ${result.conflictDetails.item}). Please regenerate frames.`,
+            color: 'success',
+            timeout: 8000,
+          })
+
+          // Note: User will need to regenerate frames for the new storyboard
+          console.log('[Storyboards] User should regenerate frames for the new storyboard')
+        } else {
+          throw new Error('Regenerated storyboard not returned')
+        }
+      } catch (regenerateError: any) {
+        console.error('[Storyboards] Error regenerating storyboard:', regenerateError)
+        toast.add({
+          title: 'Regeneration Failed',
+          description: `Failed to regenerate storyboard: ${regenerateError.data?.message || regenerateError.message || 'Unknown error'}. You may need to manually adjust the storyboard.`,
+          color: 'error',
+          timeout: 10000,
+        })
+      }
+    } else {
+      // No conflict - show success message
+      toast.add({
+        title: 'Frames Generated',
+        description: mode === 'demo' 
+          ? `Generated ${frameCount} frame(s) for first scene (demo mode)`
+          : `Frame images have been generated for all scenes`,
+        color: 'green',
+      })
+      console.log('[Storyboards] Frame generation completed successfully')
+    }
   } catch (err: any) {
     console.error('[Storyboards] Error generating frames:', err)
     frameGenerationError.value = err.data?.message || err.message || 'Failed to generate frame images'

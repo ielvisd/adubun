@@ -55,6 +55,11 @@
               <p>Video not available</p>
             </div>
           </div>
+          
+          <!-- Music Player -->
+          <div class="p-4">
+            <MusicPlayer :music-url="videoData.musicUrl" />
+          </div>
         </UCard>
 
         <!-- Download Button -->
@@ -95,7 +100,7 @@
             >
               <div class="flex items-center justify-between mb-1">
                 <span class="text-sm font-semibold text-gray-900 dark:text-white uppercase">
-                  {{ segment.type === 'hook' ? 'Hook' : segment.type === 'cta' ? 'Call to Action' : `Body ${index === 1 ? '1' : '2'}` }}
+                  {{ segment.type === 'hook' ? 'Hook' : segment.type === 'cta' ? 'Call to Action' : 'Body' }}
                 </span>
                 <span class="text-xs text-gray-500 dark:text-gray-400">
                   {{ segment.startTime }}s - {{ segment.endTime }}s
@@ -131,7 +136,7 @@
                 class="text-xs"
               >
                 <span class="font-semibold text-gray-900 dark:text-white">
-                  {{ seg.type === 'hook' ? 'Hook' : seg.type === 'cta' ? 'CTA' : `Body ${index === 1 ? '1' : '2'}` }}:
+                  {{ seg.type === 'hook' ? 'Hook' : seg.type === 'cta' ? 'CTA' : 'Body' }}:
                 </span>
                 <span class="text-gray-600 dark:text-gray-400 ml-2">{{ seg.script }}</span>
               </div>
@@ -145,6 +150,7 @@
 
 <script setup lang="ts">
 import type { Storyboard } from '~/types/generation'
+import MusicPlayer from '~/components/ui/MusicPlayer.vue'
 
 definePageMeta({
   middleware: 'auth',
@@ -163,6 +169,7 @@ const videoData = ref<{
   voiceoverSegments?: Array<{ type: string; script: string }>
   duration?: number
   cost?: number
+  musicUrl?: string | null
 } | null>(null)
 
 onMounted(async () => {
@@ -179,6 +186,7 @@ onMounted(async () => {
           voiceoverSegments: data.voiceoverSegments || data.segments,
           duration: data.duration,
           cost: data.cost,
+          musicUrl: data.musicUrl || null,
         }
         sessionStorage.removeItem('videoResult')
       } else if (route.query.videoId) {
@@ -192,6 +200,7 @@ onMounted(async () => {
             voiceoverSegments: result.voiceoverSegments,
             duration: result.duration,
             cost: result.generationCost,
+            musicUrl: result.musicUrl || null,
           }
         } catch (err: any) {
           error.value = err.data?.message || err.message || 'Failed to load video'

@@ -101,8 +101,7 @@
               </h4>
               <div class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
                 <div><strong class="text-green-900 dark:text-green-100">Hook:</strong> {{ storyGeneration.output.hook }}</div>
-                <div><strong class="text-green-900 dark:text-green-100">Body 1:</strong> {{ storyGeneration.output.bodyOne }}</div>
-                <div><strong class="text-green-900 dark:text-green-100">Body 2:</strong> {{ storyGeneration.output.bodyTwo }}</div>
+                <div><strong class="text-green-900 dark:text-green-100">Body:</strong> {{ storyGeneration.output.body || (storyGeneration.output.bodyOne && storyGeneration.output.bodyTwo ? `${storyGeneration.output.bodyOne} ${storyGeneration.output.bodyTwo}` : storyGeneration.output.bodyOne || storyGeneration.output.bodyTwo || '') }}</div>
                 <div><strong class="text-green-900 dark:text-green-100">CTA:</strong> {{ storyGeneration.output.callToAction }}</div>
               </div>
             </div>

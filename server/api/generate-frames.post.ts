@@ -6,6 +6,7 @@ import { trackCost } from '../utils/cost-tracker'
 import { saveAsset, deleteFile } from '../utils/storage'
 import { uploadFileToS3 } from '../utils/s3-upload'
 import { createCharacterConsistencyInstruction, formatCharactersForPrompt } from '../utils/character-extractor'
+import { detectSceneConflict, extractSolutionItem, extractItemInitialLocation } from '../utils/scene-conflict-checker'
 import type { Storyboard, Segment, Character } from '~/types/generation'
 
 const generateFramesSchema = z.object({
@@ -200,24 +201,92 @@ export default defineEventHandler(async (event) => {
     const characters: Character[] = storyboard.characters || []
 
     // Helper function to build prompts that emphasize matching reference images
+    // Helper function to generate transition instructions for items
+    const generateItemTransitionInstructions = (
+      bodySegment: Segment,
+      itemsWithLocations: Array<{ item: string; initialLocation: string; actionType: 'bringing' | 'interacting' }>
+    ): string => {
+      if (itemsWithLocations.length === 0) {
+        return ''
+      }
+
+      const transitionInstructions: string[] = []
+      
+      for (const { item, initialLocation, actionType } of itemsWithLocations) {
+        // Check if the body segment mentions the item being moved/offered/held
+        const segmentText = `${bodySegment.description} ${bodySegment.visualPrompt}`.toLowerCase()
+        const itemLower = item.toLowerCase()
+        
+        // Check for patterns indicating item is being held/offered/moved
+        const heldPattern = new RegExp(`(?:holds?|holding|grasps?|grasping|carries?|carrying|offers?|offering|extends?|extending|gives?|giving|hands?|handing).*?${itemLower}`, 'i')
+        const inHandsPattern = new RegExp(`(?:in|with|using).*?(?:hands?|hand|grip|grasp).*?${itemLower}`, 'i')
+        const picksUpPattern = new RegExp(`(?:picks?|picking|takes?|taking|grabs?|grabbing|retrieves?|retrieving).*?(?:up|from).*?${itemLower}`, 'i')
+        
+        if (heldPattern.test(segmentText) || inHandsPattern.test(segmentText) || picksUpPattern.test(segmentText)) {
+          // Item is being moved to hands
+          transitionInstructions.push(
+            `CRITICAL TRANSITION - NO DUPLICATES: The ${item} should transition from ${initialLocation} to being held in hands. During this transition, the item must be in ONLY ONE location at any given moment. Do NOT show the item in both ${initialLocation} AND in hands simultaneously. Show the item moving from one location to the other, but NEVER in both places at the same time. CRITICAL ITEM STATE: The ${item} is now being held/offered. It should NO LONGER be at ${initialLocation}. It should be in ONLY ONE location: in hands. Do NOT show the ${item} in both ${initialLocation} and in hands - it must be in ONLY ONE place.`
+          )
+        }
+      }
+      
+      return transitionInstructions.length > 0 ? ` ${transitionInstructions.join(' ')}` : ''
+    }
+
     const buildNanoPrompt = (
       storyText: string, 
       visualPrompt: string, 
       isTransition: boolean = false, 
       transitionText?: string, 
       transitionVisual?: string,
-      previousFrameImage?: string  // NEW: Add previous frame as input
+      previousFrameImage?: string,  // NEW: Add previous frame as input
+      trackedItems?: Array<{item: string, initialLocation: string, actionType: 'bringing' | 'interacting'}>  // NEW: Tracked items for duplicate prevention
     ) => {
       const moodStyle = mood ? `${mood} style` : 'professional style'
       const hasReferenceImages = referenceImages.length > 0
       
+      // Add instruction to prevent story text from appearing as visible text
+      const noTextInstruction = `CRITICAL: The story description ("${storyText}") is for scene understanding ONLY. DO NOT display this text as visible text, overlays, or dialogue. DO NOT have characters speak these words. The story text describes what happens in the scene, not what text to display. Only render text if explicitly mentioned in the visualPrompt. `
+      
       // Build the base prompt parts with full scene context for continuity
+      // Note: storyText is used for context, not for literal text rendering
       let basePrompt = ''
+      let transitionItemInstruction = ''
+      
       if (isTransition && transitionText && transitionVisual) {
-        // Include both current scene AND full next scene for continuity
-        basePrompt = `Current scene: ${storyText}, ${visualPrompt}. Transitioning to next scene: ${transitionText}, ${transitionVisual}`
+        // Detect if next segment introduces products/items/characters that should be visible in transition frame
+        const nextSegmentText = `${transitionText} ${transitionVisual}`.toLowerCase()
+        
+        // Generic patterns to detect products/robots/characters bringing/offering items or approaching
+        // Pattern 1: Product/robot/character + action verb + item (e.g., "robot approaches with cup of tea")
+        const productItemPattern = /(?:robot|product|humanoid|character|person|individual|device|machine|assistant|helper)[\w\s]*?(?:approaches?|brings?|offers?|gives?|hands?|delivers?|presents?|extends?|carries?|holds?)[\w\s]*?(?:with|holding|carrying)[\w\s]*?(?:cup|tea|coffee|beverage|item|object|food|drink|tool|product|herbal|steaming|hot|fresh)/i
+        // Pattern 2: Product/robot/character approaching/entering (without specific item)
+        const productApproachPattern = /(?:robot|product|humanoid|character|device|machine|assistant|helper)[\w\s]*?(?:approaches?|enters?|arrives?|comes?|walks?|moves?)/i
+        // Pattern 3: Item being brought/offered (e.g., "cup of tea", "coffee", "herbal tea")
+        const itemBeingBroughtPattern = /(?:cup|mug|glass|bottle|plate|bowl|container)[\w\s]*(?:of|with)?[\w\s]*(?:tea|coffee|herbal|beverage|food|drink|hot|steaming|fresh)/i
+        
+        const hasProductAction = productItemPattern.test(nextSegmentText) || productApproachPattern.test(nextSegmentText)
+        const hasItem = itemBeingBroughtPattern.test(nextSegmentText)
+        
+        if (hasProductAction || hasItem) {
+          // Extract the product/robot/character
+          const productMatch = nextSegmentText.match(/(?:robot|product|humanoid|character|person|individual|device|machine|assistant|helper|unitree|g1)[\w\s]*?(?=\s+(?:approaches?|brings?|offers?|gives?|hands?|delivers?|presents?|extends?|enters?|arrives?|comes?|walks?|moves?|softly|gently))/i)
+          // Extract the item being brought/offered
+          const itemMatch = nextSegmentText.match(/(?:cup|mug|glass|bottle|plate|bowl|container)[\w\s]*(?:of|with)?[\w\s]*(?:tea|coffee|herbal|beverage|food|drink|hot|steaming|fresh)|(?:tea|coffee|herbal tea|coffee cup|beverage|food|drink|item|object|tool|product)[\w\s]*(?:cup|mug|glass|bottle)?/i)
+          
+          const product = productMatch ? productMatch[0].trim() : 'the product/robot/character'
+          const item = itemMatch ? itemMatch[0].trim() : null
+          
+          if (item) {
+            transitionItemInstruction = ` CRITICAL TRANSITION FRAME REQUIREMENT: The next segment shows ${product} bringing/offering ${item}. This transition frame (hook last = body first) MUST show ${product} holding ${item} in its hands, approaching with ${item} clearly visible. The ${product} and ${item} must be VISIBLE in this frame to ensure smooth continuity into the next segment. Do NOT wait until the next segment to show ${product} with ${item} - both must appear in this transition frame.`
+          } else if (hasProductAction) {
+            transitionItemInstruction = ` CRITICAL TRANSITION FRAME REQUIREMENT: The next segment shows ${product} approaching or entering. This transition frame (hook last = body first) MUST show ${product} approaching or entering the scene. The ${product} must be VISIBLE in this frame to ensure smooth continuity into the next segment. Do NOT wait until the next segment to show ${product} - it must appear in this transition frame.`
+          }
+        }
+        
+        basePrompt = `Scene context: ${storyText}. Visual: ${visualPrompt}. Continuing seamlessly in the same continuous flow. Next moment context: ${transitionText}. Next visual: ${transitionVisual}${transitionItemInstruction}`
       } else {
-        basePrompt = `${storyText}, ${visualPrompt}`
+        basePrompt = `Scene context: ${storyText}. Visual: ${visualPrompt}`
       }
       
       // Add character consistency instructions if we have characters
@@ -231,29 +300,38 @@ export default defineEventHandler(async (event) => {
       let previousFrameInstruction = ''
       if (previousFrameImage) {
         if (isTransition) {
-          // For transitions between scenes: maintain strong continuity
-        previousFrameInstruction = `CRITICAL VISUAL CONTINUITY: Use the previous frame image as a visual reference to maintain continuity. Keep the same characters, same environment, same lighting style, and same overall composition. The scene should flow naturally from the previous frame. `
+          // For transitions between scenes: maintain continuous flow with NO transitions
+        previousFrameInstruction = `CRITICAL CONTINUOUS FLOW - ZERO TRANSITIONS: Use the previous frame image as a visual reference to maintain CONTINUOUS story flow. This is NOT a transition - it's the SAME continuous moment flowing forward. Keep the same characters, same environment, same lighting style, same camera angle, and same overall composition. The scene should feel like ONE continuous shot with NO cuts, jumps, or scene changes. Maintain the exact same moment in time flowing seamlessly forward. `
         } else {
-          // For progression within same scene: FORCE different angle/composition
-          previousFrameInstruction = `CRITICAL SCENE PROGRESSION - MANDATORY VISUAL VARIATION: This final frame MUST be SIGNIFICANTLY visually different from the previous frame. DO NOT just change text or minor details. You MUST create a DISTINCT visual composition by: 1) Using a DIFFERENT camera angle (switch from medium to close-up, or wide to over-shoulder, or front to side/three-quarter angle), 2) Changing character pose and body language (different standing/sitting position, different gesture, different facial expression, different body orientation), 3) Altering composition and framing (different character placement in frame, different focal point, different depth of field, different framing style). The previous frame is ONLY for character/setting reference to maintain consistency - DO NOT copy its composition, camera angle, pose, or framing. Show a DISTINCT later moment with CLEAR visual progression. Text changes alone are NOT sufficient - the entire visual composition must be different. `
+          // For progression within same scene: FORCE different angle/composition while maintaining character consistency
+          previousFrameInstruction = `CRITICAL SCENE PROGRESSION - MANDATORY VISUAL VARIATION WITH CHARACTER CONSISTENCY: This final frame MUST be SIGNIFICANTLY visually different from the previous frame in composition, camera angle, and pose. However, you MUST maintain IDENTICAL character appearance from the previous frame: EXACT same clothing (same shirt, same pants, same colors, same style), EXACT same physical features (same hair, same build, same facial features), NO glasses if previous frame had no glasses, SAME glasses if previous frame had glasses. DO NOT change character clothing, accessories, or physical appearance. You MUST create a DISTINCT visual composition by: 1) Using a DIFFERENT camera angle (switch from medium to close-up, or wide to over-shoulder, or front to side/three-quarter angle), 2) Changing character pose and body language (different standing/sitting position, different gesture, different facial expression, different body orientation), 3) Altering composition and framing (different character placement in frame, different focal point, different depth of field, different framing style). The previous frame image is for character/setting reference to maintain IDENTICAL appearance - DO NOT copy its composition, camera angle, pose, or framing, but DO copy the exact character appearance (clothing, accessories, physical features). Show a DISTINCT later moment with CLEAR visual progression while maintaining the SAME character. Text changes alone are NOT sufficient - the entire visual composition must be different, but the character must look IDENTICAL. `
         }
       }
-      
-      // Add text/typography instruction
-      const textInstruction = `TEXT ACCURACY: If text is visible, it MUST read exactly: "${storyText}". CHECK SPELLING: Ensure all words are spelled PERFECTLY. `
 
       // Add variation reinforcement
       let variationReinforcement = ''
       if (previousFrameImage && !isTransition) {
-        variationReinforcement = ` FINAL MANDATORY INSTRUCTION: IGNORE the input image composition. You MUST create a visually DISTINCT final frame with a NEW camera angle and pose. Do not copy the previous frame. `
+        variationReinforcement = ` FINAL MANDATORY INSTRUCTION: IGNORE the input image composition, camera angle, and pose. You MUST create a visually DISTINCT final frame with a NEW camera angle and pose. However, you MUST copy the EXACT character appearance from the input image: same clothing, same accessories (glasses/no glasses), same physical features. Do not copy the previous frame's composition, but DO copy the character's appearance exactly. `
+      }
+
+      // Build item-specific duplicate prevention if items are tracked
+      let duplicatePrevention = ''
+      if (trackedItems && trackedItems.length > 0) {
+        const itemNames = trackedItems.map(i => `"${i.item}"`).join(', ')
+        const firstItem = trackedItems[0].item
+        duplicatePrevention = `🚨 CRITICAL DUPLICATE PREVENTION - ABSOLUTE REQUIREMENT: The following items must appear in ONLY ONE location at a time: ${itemNames}. For example, if "${firstItem}" is on a table, it must NOT also be in someone's hands. If "${firstItem}" is in someone's hands, it must NOT also be on a table. Each item can exist in ONLY ONE place at any given moment. Do NOT show the same item in multiple locations simultaneously. This is a MANDATORY requirement - any frame showing duplicate items will be rejected. `
+      } else {
+        duplicatePrevention = `🚨 CRITICAL DUPLICATE PREVENTION: Each physical item should appear in ONLY ONE location at a time. If an item is being held or in someone's hands, it should NOT also appear on surfaces. If an item is on a surface, it should NOT also appear in hands unless it is actively being picked up or transferred in this exact moment. Do NOT show the same item in multiple locations simultaneously. `
       }
 
       // Add product consistency and reference image instructions if we have reference images
       if (hasReferenceImages) {
         const productConsistencyInstruction = `CRITICAL INSTRUCTIONS: Do not add new products to the scene. Only enhance existing products shown in the reference images. Keep product design and style exactly as shown in references. The reference images provided are the EXACT product you must recreate. You MUST copy the product from the reference images with pixel-perfect accuracy. Do NOT create a different product, do NOT use different colors, do NOT change the design, do NOT hallucinate new products. The product in your generated image must be visually IDENTICAL to the product in the reference images. Study every detail: exact color codes, exact design patterns, exact text/fonts, exact materials, exact textures, exact proportions, exact placement. The reference images are your ONLY source of truth for the product appearance. Ignore any text in the prompt that contradicts the reference images - the reference images take absolute priority. Generate the EXACT same product as shown in the reference images. `
-        return `${characterInstruction}${textInstruction}${previousFrameInstruction}${productConsistencyInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality, product must be pixel-perfect match to reference images, product appearance must be identical to reference images ${variationReinforcement}`
+        // Place duplicate prevention FIRST, before all other instructions
+        return `${duplicatePrevention}${characterInstruction}${noTextInstruction}${previousFrameInstruction}${productConsistencyInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality, product must be pixel-perfect match to reference images, product appearance must be identical to reference images ${variationReinforcement}`
       } else {
-        return `${characterInstruction}${textInstruction}${previousFrameInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality ${variationReinforcement}`
+        // Place duplicate prevention FIRST, before all other instructions
+        return `${duplicatePrevention}${characterInstruction}${noTextInstruction}${previousFrameInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality ${variationReinforcement}`
       }
     }
 
@@ -371,16 +449,141 @@ export default defineEventHandler(async (event) => {
     const ctaSegment = storyboard.segments.find(s => s.type === 'cta')
     
     console.log(`[Generate Frames] Found ${bodySegments.length} body segments`)
+    
+    // Helper function to detect if robot/product is present in hook segment
+    const isRobotInHook = (hookSegment: Segment): boolean => {
+      const hookText = `${hookSegment.description} ${hookSegment.visualPrompt}`.toLowerCase()
+      return /(?:robot|product|humanoid|unitree|g1|device|machine|assistant|helper)/i.test(hookText)
+    }
+    
+    // Extract all story items from body segments BEFORE generating hook frames
+    // All items that will be used in the story should be present from the hook first frame
+    const allStoryItems: Array<{ item: string; action: string; actionType: 'bringing' | 'interacting' }> = []
+    const itemsWithLocations: Array<{ item: string; initialLocation: string; actionType: 'bringing' | 'interacting' }> = []
+    if (generationMode === 'production' && bodySegments.length > 0 && hookSegment) {
+      try {
+        console.log('\n[Generate Frames] === Extracting story items from body segments ===')
+        for (const bodySegment of bodySegments) {
+          const solutionItem = await extractSolutionItem(bodySegment, story)
+          if (solutionItem && solutionItem.actionType === 'bringing' && solutionItem.item) {
+            allStoryItems.push({
+              item: solutionItem.item,
+              action: solutionItem.action,
+              actionType: solutionItem.actionType
+            })
+            console.log(`[Generate Frames] Found story item: "${solutionItem.item}" (action: "${solutionItem.action}", type: "${solutionItem.actionType}")`)
+          }
+        }
+        if (allStoryItems.length > 0) {
+          console.log(`[Generate Frames] ✓ Extracted ${allStoryItems.length} story item(s) that should be present from hook first frame: ${allStoryItems.map(si => si.item).join(', ')}`)
+          
+          // Check if robot is present in hook
+          const robotInHook = isRobotInHook(hookSegment)
+          console.log(`[Generate Frames] Robot/product in hook: ${robotInHook}`)
+          
+          // Extract initial locations for each item from hook segment
+          console.log('\n[Generate Frames] === Extracting initial locations for story items ===')
+          for (const storyItem of allStoryItems) {
+            if (storyItem.actionType === 'bringing') {
+              if (robotInHook) {
+                // Robot is in hook - item should be in robot's hands
+                try {
+                  const initialLocation = await extractItemInitialLocation(storyItem.item, hookSegment, storyItem.actionType)
+                  itemsWithLocations.push({
+                    item: storyItem.item,
+                    initialLocation: initialLocation || 'in robot\'s hands',
+                    actionType: storyItem.actionType
+                  })
+                  if (initialLocation) {
+                    console.log(`[Generate Frames] Item "${storyItem.item}" will be in robot's hands in hook (robot present): "${initialLocation}"`)
+                  } else {
+                    console.log(`[Generate Frames] Item "${storyItem.item}" will be in robot's hands in hook (robot present), using default: "in robot's hands"`)
+                  }
+                } catch (error: any) {
+                  console.warn(`[Generate Frames] Error extracting location for "${storyItem.item}": ${error.message}, using default: in robot's hands`)
+                  itemsWithLocations.push({
+                    item: storyItem.item,
+                    initialLocation: 'in robot\'s hands',
+                    actionType: storyItem.actionType
+                  })
+                }
+              } else {
+                // Robot NOT in hook - exclude item from hook first frame
+                console.log(`[Generate Frames] Item "${storyItem.item}" is being brought but robot not in hook - excluding from hook first frame`)
+                // Don't add to itemsWithLocations
+              }
+            } else {
+              // Not a "bringing" item - include normally
+              try {
+                const initialLocation = await extractItemInitialLocation(storyItem.item, hookSegment, storyItem.actionType)
+                itemsWithLocations.push({
+                  item: storyItem.item,
+                  initialLocation: initialLocation || 'in the scene',
+                  actionType: storyItem.actionType
+                })
+                if (initialLocation) {
+                  console.log(`[Generate Frames] Found initial location for "${storyItem.item}": "${initialLocation}" (action type: "${storyItem.actionType}")`)
+                } else {
+                  console.log(`[Generate Frames] Could not determine initial location for "${storyItem.item}", using default: "in the scene"`)
+                }
+              } catch (error: any) {
+                console.warn(`[Generate Frames] Error extracting location for "${storyItem.item}": ${error.message}, using default`)
+                itemsWithLocations.push({
+                  item: storyItem.item,
+                  initialLocation: 'in the scene',
+                  actionType: storyItem.actionType
+                })
+              }
+            }
+          }
+        } else {
+          console.log(`[Generate Frames] No "bringing" action items found in body segments`)
+        }
+      } catch (error: any) {
+        console.warn(`[Generate Frames] Error extracting story items: ${error.message}, continuing without item requirements`)
+      }
+    }
+    
     console.log(`[Generate Frames] Starting SEQUENTIAL frame generation (each frame uses previous frame as input)...`)
 
     // SEQUENTIAL GENERATION: Each frame uses the previous frame as input
     // This follows the EXACT pipeline specification from the PRD
     
     // Frame 1: Hook first frame (no previous frame)
+    // Include all story items in the hook first frame prompt
     let hookFirstFrameResult: any = null
     if (hookSegment) {
       console.log('\n[Generate Frames] === FRAME 1: Hook First Frame ===')
-      const nanoPrompt = buildNanoPrompt(story.hook, hookSegment.visualPrompt)
+      
+      // Build prompt with story items requirement and specific locations
+      let hookVisualPrompt = hookSegment.visualPrompt
+      if (itemsWithLocations.length > 0) {
+        const locationsList = itemsWithLocations
+          .map(i => {
+            if (i.actionType === 'bringing') {
+              return `${i.item} (${i.initialLocation} - NOT in person's hands yet, robot/product will bring it in the next segment)`
+            }
+            return `${i.item} (${i.initialLocation})`
+          })
+          .join(', ')
+        
+        const bringingItems = itemsWithLocations.filter(i => i.actionType === 'bringing')
+        const bringingItemsInstruction = bringingItems.length > 0
+          ? `CRITICAL STORY FLOW: The following items are being brought/offered by the robot/product in the body segment: ${bringingItems.map(i => i.item).join(', ')}. These items should be visible ${bringingItems.map(i => i.initialLocation).join(' or ')} in this initial hook frame, but they should NOT be in the person's hands yet. The robot/product will bring/offer them in the next segment. `
+          : ''
+        
+        const itemsInstruction = `CRITICAL ITEM REQUIREMENT: The following items must be visible in this initial hook frame at their specified locations: ${locationsList}. These items are part of the story and should be present from the start at these exact locations. Do NOT show items in multiple locations - each item should be in only one place. ${bringingItemsInstruction}`
+        hookVisualPrompt = itemsInstruction + hookVisualPrompt
+        console.log(`[Generate Frames] Including ${itemsWithLocations.length} story item(s) with locations in hook first frame: ${locationsList}`)
+      } else if (allStoryItems.length > 0) {
+        // Fallback if location extraction failed
+        const itemsList = allStoryItems.map(si => si.item).join(', ')
+        const itemsInstruction = `CRITICAL ITEM REQUIREMENT: The following items must be visible in this initial hook frame: ${itemsList}. These items are part of the story and should be present from the start. They should be visible in the scene, not being brought or introduced - they are already part of the environment. Do NOT show items in multiple locations - each item should be in only one place. `
+        hookVisualPrompt = itemsInstruction + hookVisualPrompt
+        console.log(`[Generate Frames] Including ${allStoryItems.length} story item(s) in hook first frame (locations not extracted): ${itemsList}`)
+      }
+      
+      const nanoPrompt = buildNanoPrompt(story.hook, hookVisualPrompt, false, undefined, undefined, undefined, itemsWithLocations.length > 0 ? itemsWithLocations : undefined)
       hookFirstFrameResult = await generateSingleFrame(
         'hook first frame', 
         nanoPrompt, 
@@ -400,20 +603,28 @@ export default defineEventHandler(async (event) => {
 
     // Frame 2: Hook last frame (uses hook first frame as input)
     let hookLastFrameResult: any = null
+    // For 3-segment format, we only need body1Segment (the single body segment)
+    // For 4-segment format, we need body1Segment to exist
     if (hookSegment && body1Segment && hookFirstFrameResult) {
       console.log('\n[Generate Frames] === FRAME 2: Hook Last Frame ===')
+      
+      // Add hook progression instruction to ensure visual progression from hook first to hook last
+      const hookProgressionInstruction = `CRITICAL HOOK PROGRESSION: This hook last frame should show subtle visual progression from the hook first frame. Show a slightly different moment - camera may have moved slightly, character expression may have evolved, or lighting may have shifted. However, maintain the same scene, same characters, and same overall composition. The progression should be subtle but noticeable. `
+      let hookLastVisualPrompt = hookProgressionInstruction + hookSegment.visualPrompt
+      
       const nanoPrompt = buildNanoPrompt(
         story.hook, 
-        hookSegment.visualPrompt, 
+        hookLastVisualPrompt, 
         true, 
         story.bodyOne, 
         body1Segment.visualPrompt,
-        hookFirstFrameResult.imageUrl  // Use hook first frame as input
+        hookFirstFrameResult.imageUrl,  // Use hook first frame as input
+        itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
       )
       hookLastFrameResult = await generateSingleFrame(
         'hook last frame', 
         nanoPrompt, 
-        hookSegment.visualPrompt,
+        hookLastVisualPrompt,
         hookFirstFrameResult.imageUrl,  // Previous frame image
         story.hook, 
         true, 
@@ -447,114 +658,200 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Frame 3: Body1 last frame (uses hook last frame as input, which is Body1 first frame)
-    let body1LastFrameResult: any = null
-    if (body1Segment && body2Segment && hookLastFrameResult) {
-      console.log('\n[Generate Frames] === FRAME 3: Body1 Last Frame ===')
-      console.log('[Generate Frames] Note: Body1 first frame = Hook last frame (same image)')
-      const nanoPrompt = buildNanoPrompt(
-        story.bodyOne, 
-        body1Segment.visualPrompt, 
-        true, 
-        story.bodyTwo, 
-        body2Segment.visualPrompt,
-        hookLastFrameResult.imageUrl  // Use hook last frame (= Body1 first frame) as input
-      )
-      body1LastFrameResult = await generateSingleFrame(
-        'body1 last frame', 
-        nanoPrompt, 
-        body1Segment.visualPrompt,
-        hookLastFrameResult.imageUrl,  // Previous frame image (Body1 first = Hook last)
-        story.bodyOne, 
-        true, 
-        story.bodyTwo, 
-        body2Segment.visualPrompt
-      )
-      
-      if (body1LastFrameResult) {
-        body1LastFrameResult.segmentIndex = 1
-        body1LastFrameResult.frameType = 'last'
-        frames.push(body1LastFrameResult)
-        console.log(`[Generate Frames] ✓ Body1 last frame generated (${body1LastFrameResult.modelSource}): ${body1LastFrameResult.imageUrl}`)
-      } else {
-        console.error('[Generate Frames] ✗ Body1 last frame generation failed')
-                      }
-                    }
-                    
-    // Frame 4: Body2 last frame (uses body1 last frame as input, which is Body2 first frame)
-    let body2LastFrameResult: any = null
-    if (body2Segment && ctaSegment && body1LastFrameResult) {
-      console.log('\n[Generate Frames] === FRAME 4: Body2 Last Frame ===')
-      console.log('[Generate Frames] Note: Body2 first frame = Body1 last frame (same image)')
-      const nanoPrompt = buildNanoPrompt(
-        story.bodyTwo, 
-        body2Segment.visualPrompt, 
-        true, 
-        story.callToAction, 
-        ctaSegment.visualPrompt,
-        body1LastFrameResult.imageUrl  // Use body1 last frame (= Body2 first frame) as input
-      )
-      body2LastFrameResult = await generateSingleFrame(
-        'body2 last frame', 
-        nanoPrompt, 
-        body2Segment.visualPrompt,
-        body1LastFrameResult.imageUrl,  // Previous frame image (Body2 first = Body1 last)
-        story.bodyTwo, 
-        true, 
-        story.callToAction, 
-        ctaSegment.visualPrompt
-      )
-      
-      if (body2LastFrameResult) {
-        body2LastFrameResult.segmentIndex = 2
-        body2LastFrameResult.frameType = 'last'
-        frames.push(body2LastFrameResult)
-        console.log(`[Generate Frames] ✓ Body2 last frame generated (${body2LastFrameResult.modelSource}): ${body2LastFrameResult.imageUrl}`)
-      } else {
-        console.error('[Generate Frames] ✗ Body2 last frame generation failed')
+    // Determine format: 3-segment (16s) or 4-segment (24s)
+    const is3SegmentFormat = !body2Segment
+    console.log(`[Generate Frames] Format detected: ${is3SegmentFormat ? '3-segment (16s)' : '4-segment (24s)'}`)
+    
+    // Frame 3: Body last frame (uses hook last frame as input, which is Body first frame)
+    let bodyLastFrameResult: any = null
+    if (is3SegmentFormat) {
+      // 3-segment format: Single body segment (Product Intro)
+      if (body1Segment && ctaSegment && hookLastFrameResult) {
+        console.log('\n[Generate Frames] === FRAME 3: Body Last Frame (3-segment format) ===')
+        console.log('[Generate Frames] Note: Body first frame = Hook last frame (same image)')
+        
+        // Add item transition instructions to body segment visual prompt
+        let body1VisualPrompt = body1Segment.visualPrompt
+        if (itemsWithLocations.length > 0) {
+          const transitionInstructions = generateItemTransitionInstructions(body1Segment, itemsWithLocations)
+          if (transitionInstructions) {
+            body1VisualPrompt = body1VisualPrompt + transitionInstructions
+            console.log(`[Generate Frames] Added item transition instructions to body segment`)
+          }
+        }
+        
+        const nanoPrompt = buildNanoPrompt(
+          story.bodyOne, 
+          body1VisualPrompt, 
+          true, 
+          story.callToAction, 
+          ctaSegment.visualPrompt,
+          hookLastFrameResult.imageUrl,  // Use hook last frame (= Body first frame) as input
+          itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
+        )
+        bodyLastFrameResult = await generateSingleFrame(
+          'body last frame', 
+          nanoPrompt, 
+          body1VisualPrompt,
+          hookLastFrameResult.imageUrl,  // Previous frame image (Body first = Hook last)
+          story.bodyOne, 
+          true, 
+          story.callToAction, 
+          ctaSegment.visualPrompt
+        )
+        
+        if (bodyLastFrameResult) {
+          bodyLastFrameResult.segmentIndex = 1
+          bodyLastFrameResult.frameType = 'last'
+          frames.push(bodyLastFrameResult)
+          console.log(`[Generate Frames] ✓ Body last frame generated (${bodyLastFrameResult.modelSource}): ${bodyLastFrameResult.imageUrl}`)
+        } else {
+          console.error('[Generate Frames] ✗ Body last frame generation failed')
+        }
       }
-                }
+    } else {
+      // 4-segment format: Body1 and Body2 segments
+      // Frame 3: Body1 last frame (uses hook last frame as input, which is Body1 first frame)
+      let body1LastFrameResult: any = null
+      if (body1Segment && body2Segment && hookLastFrameResult) {
+        console.log('\n[Generate Frames] === FRAME 3: Body1 Last Frame (4-segment format) ===')
+        console.log('[Generate Frames] Note: Body1 first frame = Hook last frame (same image)')
+        
+        // Add item transition instructions to body1 segment visual prompt
+        let body1VisualPrompt = body1Segment.visualPrompt
+        if (itemsWithLocations.length > 0) {
+          const transitionInstructions = generateItemTransitionInstructions(body1Segment, itemsWithLocations)
+          if (transitionInstructions) {
+            body1VisualPrompt = body1VisualPrompt + transitionInstructions
+            console.log(`[Generate Frames] Added item transition instructions to body1 segment`)
+          }
+        }
+        
+        const nanoPrompt = buildNanoPrompt(
+          story.bodyOne, 
+          body1VisualPrompt, 
+          true, 
+          story.bodyTwo, 
+          body2Segment.visualPrompt,
+          hookLastFrameResult.imageUrl,  // Use hook last frame (= Body1 first frame) as input
+          itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
+        )
+        body1LastFrameResult = await generateSingleFrame(
+          'body1 last frame', 
+          nanoPrompt, 
+          body1VisualPrompt,
+          hookLastFrameResult.imageUrl,  // Previous frame image (Body1 first = Hook last)
+          story.bodyOne, 
+          true, 
+          story.bodyTwo, 
+          body2Segment.visualPrompt
+        )
+        
+        if (body1LastFrameResult) {
+          body1LastFrameResult.segmentIndex = 1
+          body1LastFrameResult.frameType = 'last'
+          frames.push(body1LastFrameResult)
+          console.log(`[Generate Frames] ✓ Body1 last frame generated (${body1LastFrameResult.modelSource}): ${body1LastFrameResult.imageUrl}`)
+        } else {
+          console.error('[Generate Frames] ✗ Body1 last frame generation failed')
+        }
+      }
+      
+      // Frame 4: Body2 last frame (uses body1 last frame as input, which is Body2 first frame)
+      let body2LastFrameResult: any = null
+      if (body2Segment && ctaSegment && body1LastFrameResult) {
+        console.log('\n[Generate Frames] === FRAME 4: Body2 Last Frame (4-segment format) ===')
+        console.log('[Generate Frames] Note: Body2 first frame = Body1 last frame (same image)')
+        
+        // Add item transition instructions to body2 segment visual prompt
+        let body2VisualPrompt = body2Segment.visualPrompt
+        if (itemsWithLocations.length > 0) {
+          const transitionInstructions = generateItemTransitionInstructions(body2Segment, itemsWithLocations)
+          if (transitionInstructions) {
+            body2VisualPrompt = body2VisualPrompt + transitionInstructions
+            console.log(`[Generate Frames] Added item transition instructions to body2 segment`)
+          }
+        }
+        
+        const nanoPrompt = buildNanoPrompt(
+          story.bodyTwo, 
+          body2VisualPrompt, 
+          true, 
+          story.callToAction, 
+          ctaSegment.visualPrompt,
+          body1LastFrameResult.imageUrl,  // Use body1 last frame (= Body2 first frame) as input
+          itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
+        )
+        body2LastFrameResult = await generateSingleFrame(
+          'body2 last frame', 
+          nanoPrompt, 
+          body2VisualPrompt,
+          body1LastFrameResult.imageUrl,  // Previous frame image (Body2 first = Body1 last)
+          story.bodyTwo, 
+          true, 
+          story.callToAction, 
+          ctaSegment.visualPrompt
+        )
+        
+        if (body2LastFrameResult) {
+          body2LastFrameResult.segmentIndex = 2
+          body2LastFrameResult.frameType = 'last'
+          frames.push(body2LastFrameResult)
+          bodyLastFrameResult = body2LastFrameResult // Use for CTA generation
+          console.log(`[Generate Frames] ✓ Body2 last frame generated (${body2LastFrameResult.modelSource}): ${body2LastFrameResult.imageUrl}`)
+        } else {
+          console.error('[Generate Frames] ✗ Body2 last frame generation failed')
+        }
+      }
+    }
                 
-    // Frame 5: CTA last frame (uses CTA first frame = body2 last frame as input per spec)
+    // CTA last frame (uses previous body last frame as input)
     let ctaLastFrameResult: any = null
-    if (ctaSegment && body2LastFrameResult) {
-      console.log('\n[Generate Frames] === FRAME 5: CTA Last Frame ===')
-      console.log('[Generate Frames] Note: CTA first frame = Body2 last frame (same image)')
+    const previousFrameForCTA = bodyLastFrameResult || (is3SegmentFormat ? null : (bodySegments.length > 1 ? frames[frames.length - 1] : null))
+    if (ctaSegment && previousFrameForCTA) {
+      const frameNumber = is3SegmentFormat ? 4 : 5
+      const previousFrameUrl = previousFrameForCTA.imageUrl || (typeof previousFrameForCTA === 'string' ? previousFrameForCTA : null)
+      console.log(`\n[Generate Frames] === FRAME ${frameNumber}: CTA Last Frame (${is3SegmentFormat ? '3-segment' : '4-segment'} format) ===`)
+      console.log(`[Generate Frames] Note: CTA first frame = ${is3SegmentFormat ? 'Body' : 'Body2'} last frame (same image)`)
       console.log('[Generate Frames] CTA segment:', {
         type: ctaSegment.type,
         description: ctaSegment.description,
         visualPrompt: ctaSegment.visualPrompt,
       })
-      console.log('[Generate Frames] CTA first frame URL (body2 last):', body2LastFrameResult.imageUrl)
+      console.log(`[Generate Frames] CTA first frame URL (${is3SegmentFormat ? 'body' : 'body2'} last):`, previousFrameUrl)
       console.log('[Generate Frames] CTA story text:', story.callToAction)
       
-      // Per spec: Use CTA first frame (= body2 last frame) as input
+      // CTA last frame should be visually distinct from first frame (hero shot, text overlay, logo)
+      // Use isTransition: false to trigger variation instruction, but include previous frame for character consistency
       const nanoPrompt = buildNanoPrompt(
         story.callToAction, 
         ctaSegment.visualPrompt,
-        false,  // Not a transition (CTA is the final scene)
+        false,  // NOT using transition mode - want visual variation
         undefined,
         undefined,
-        body2LastFrameResult.imageUrl  // Use CTA first frame as input per spec
+        previousFrameUrl,  // Use CTA first frame as context reference
+        itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
       )
       
       console.log('[Generate Frames] CTA nano prompt:', nanoPrompt)
       console.log('[Generate Frames] Starting CTA last frame generation...')
+      console.log('[Generate Frames] CTA last frame will be visually distinct from first frame (hero shot, text/logo overlay)')
+      console.log('[Generate Frames] Previous frame included in inputs for character consistency, but variation instruction will force different composition')
       
       ctaLastFrameResult = await generateSingleFrame(
         'CTA last frame', 
         nanoPrompt, 
         ctaSegment.visualPrompt,
-        body2LastFrameResult.imageUrl,  // Previous frame for visual reference
+        previousFrameUrl,  // Previous frame for visual reference (for character consistency)
         story.callToAction,  // Story text for context
-        false,  // isTransition = false (final scene)
+        false,  // isTransition = false (triggers variation instruction for different composition)
         undefined,  // No transition text
         undefined,  // No transition visual
-        true  // Include previous frame to maintain character consistency across all frames
+        true  // Include previous frame in image inputs for character consistency (variation instruction will still force different composition/pose)
       )
       
       if (ctaLastFrameResult) {
-        ctaLastFrameResult.segmentIndex = 3
+        ctaLastFrameResult.segmentIndex = is3SegmentFormat ? 2 : 3
         ctaLastFrameResult.frameType = 'last'
         frames.push(ctaLastFrameResult)
         console.log(`[Generate Frames] ✓ CTA last frame generated successfully!`)
@@ -569,12 +866,12 @@ export default defineEventHandler(async (event) => {
     } else {
       console.error('[Generate Frames] ✗✗✗ Skipping CTA last frame generation')
       console.error('[Generate Frames] ctaSegment exists:', !!ctaSegment)
-      console.error('[Generate Frames] body2LastFrameResult exists:', !!body2LastFrameResult)
+      console.error('[Generate Frames] previousFrameForCTA exists:', !!previousFrameForCTA)
       if (!ctaSegment) {
         console.error('[Generate Frames] CTA segment not found in storyboard')
       }
-      if (!body2LastFrameResult) {
-        console.error('[Generate Frames] Body2 last frame generation failed - cannot generate CTA frame')
+      if (!previousFrameForCTA) {
+        console.error(`[Generate Frames] ${is3SegmentFormat ? 'Body' : 'Body2'} last frame generation failed - cannot generate CTA frame`)
       }
     }
 
@@ -584,15 +881,42 @@ export default defineEventHandler(async (event) => {
       console.log(`  Frame ${index + 1}: segmentIndex=${frame.segmentIndex}, frameType=${frame.frameType}, url=${frame.imageUrl.substring(0, 50)}...`)
     })
     
+    // Validate hook last frame exists (critical for frame assignment)
+    const hookLastFrame = frames.find(f => f.segmentIndex === 0 && f.frameType === 'last')
+    if (!hookLastFrame && generationMode === 'production') {
+      console.error('[Generate Frames] ✗✗✗ CRITICAL ERROR: Hook last frame is missing!')
+      console.error('[Generate Frames] This will cause "Segment 0 (hook) missing last frame" error')
+      // Attempt to use hookLastFrameResult if it exists
+      if (hookLastFrameResult) {
+        console.log('[Generate Frames] Attempting to recover using hookLastFrameResult...')
+        hookLastFrameResult.segmentIndex = 0
+        hookLastFrameResult.frameType = 'last'
+        frames.push(hookLastFrameResult)
+        console.log('[Generate Frames] ✓ Recovered hook last frame from hookLastFrameResult')
+      } else {
+        console.error('[Generate Frames] ✗ Cannot recover - hookLastFrameResult is also null')
+      }
+    } else if (hookLastFrame) {
+      console.log('[Generate Frames] ✓ Hook last frame validated: present in frames array')
+    }
+    
     // Verify we have the expected frames in production mode
-    if (generationMode === 'production' && frames.length !== 5) {
-      console.warn(`[Generate Frames] ⚠️ WARNING: Expected 5 frames in production mode, but got ${frames.length}`)
+    const expectedFrameCount = is3SegmentFormat ? 4 : 5
+    if (generationMode === 'production' && frames.length !== expectedFrameCount) {
+      console.warn(`[Generate Frames] ⚠️ WARNING: Expected ${expectedFrameCount} frames in production mode (${is3SegmentFormat ? '3-segment' : '4-segment'} format), but got ${frames.length}`)
       console.warn('[Generate Frames] Expected frames:')
-      console.warn('  1. Hook first (segmentIndex=0, frameType=first)')
-      console.warn('  2. Hook last (segmentIndex=0, frameType=last)')
-      console.warn('  3. Body1 last (segmentIndex=1, frameType=last)')
-      console.warn('  4. Body2 last (segmentIndex=2, frameType=last)')
-      console.warn('  5. CTA last (segmentIndex=3, frameType=last)')
+      if (is3SegmentFormat) {
+        console.warn('  1. Hook first (segmentIndex=0, frameType=first)')
+        console.warn('  2. Hook last (segmentIndex=0, frameType=last)')
+        console.warn('  3. Body last (segmentIndex=1, frameType=last)')
+        console.warn('  4. CTA last (segmentIndex=2, frameType=last)')
+      } else {
+        console.warn('  1. Hook first (segmentIndex=0, frameType=first)')
+        console.warn('  2. Hook last (segmentIndex=0, frameType=last)')
+        console.warn('  3. Body1 last (segmentIndex=1, frameType=last)')
+        console.warn('  4. Body2 last (segmentIndex=2, frameType=last)')
+        console.warn('  5. CTA last (segmentIndex=3, frameType=last)')
+      }
     }
 
     // Track cost (estimate: ~$0.05 per frame with both models)
@@ -601,10 +925,291 @@ export default defineEventHandler(async (event) => {
       storyboardId: storyboard.id,
     })
 
+    // Perform prompt refinement after frames are generated
+    let promptsRefined = false
+    if (generationMode === 'production' && frames.length > 0) {
+      try {
+        console.log('\n[Generate Frames] === Refining visual prompts based on generated frames ===')
+        
+        const { refineVisualPromptFromFrames } = await import('../utils/scene-conflict-checker')
+        
+        // Refine prompts for each segment
+        for (let segmentIndex = 0; segmentIndex < storyboard.segments.length; segmentIndex++) {
+          const segment = storyboard.segments[segmentIndex]
+          
+          // Get first and last frames for this segment
+          const firstFrame = frames.find(f => f.segmentIndex === segmentIndex && f.frameType === 'first')
+          const lastFrame = frames.find(f => f.segmentIndex === segmentIndex && f.frameType === 'last')
+          
+          // Collect frame images (first and last if available)
+          const segmentFrameImages: string[] = []
+          if (firstFrame?.imageUrl) {
+            segmentFrameImages.push(firstFrame.imageUrl)
+          }
+          if (lastFrame?.imageUrl && lastFrame.imageUrl !== firstFrame?.imageUrl) {
+            segmentFrameImages.push(lastFrame.imageUrl)
+          }
+          
+          if (segmentFrameImages.length > 0 && segment.visualPrompt) {
+            try {
+              console.log(`[Generate Frames] Refining prompt for segment ${segmentIndex} (${segment.type})...`)
+              const refinedPrompt = await refineVisualPromptFromFrames(
+                segment,
+                segmentFrameImages,
+                segment.visualPrompt,
+                story
+              )
+              
+              if (refinedPrompt && refinedPrompt !== segment.visualPrompt) {
+                segment.visualPrompt = refinedPrompt
+                promptsRefined = true
+                console.log(`[Generate Frames] ✓ Refined prompt for segment ${segmentIndex} (${segment.type})`)
+              } else {
+                console.log(`[Generate Frames] Prompt unchanged for segment ${segmentIndex} (${segment.type})`)
+              }
+            } catch (error: any) {
+              console.error(`[Generate Frames] Error refining prompt for segment ${segmentIndex}:`, error.message)
+              // Continue with other segments even if one fails
+            }
+          } else {
+            console.log(`[Generate Frames] Skipping refinement for segment ${segmentIndex}: missing frames or visual prompt`)
+          }
+        }
+        
+        // Save updated storyboard with refined prompts
+        if (promptsRefined) {
+          const { saveStoryboard } = await import('../utils/storage')
+          await saveStoryboard(storyboard)
+          console.log('[Generate Frames] ✓ Saved storyboard with refined prompts')
+        }
+      } catch (error: any) {
+        console.error('[Generate Frames] Error during prompt refinement:', error.message)
+        // Don't fail the entire request if refinement fails
+      }
+    }
+
+    // Perform scene conflict detection after frames are generated
+    let conflictDetected = false
+    let conflictDetails: { hasConflict: boolean; item?: string; detectedInFrames?: string[]; confidence?: number; actionType?: 'bringing' | 'interacting' } | null = null
+    let framesRegenerated = false
+    const maxRegenerationAttempts = 2
+    let regenerationAttempts = 0
+
+    if (generationMode === 'production' && frames.length > 0) {
+      try {
+        console.log('\n[Generate Frames] === Checking for scene conflicts ===')
+        
+        // Get hook first and last frames
+        const hookFirstFrame = frames.find(f => f.segmentIndex === 0 && f.frameType === 'first')
+        const hookLastFrame = frames.find(f => f.segmentIndex === 0 && f.frameType === 'last')
+        
+        // Get first body segment
+        const body1Segment = storyboard.segments.find(s => s.type === 'body')
+        
+        if (hookFirstFrame && hookLastFrame && body1Segment) {
+          const hookFrameUrls = [hookFirstFrame.imageUrl, hookLastFrame.imageUrl].filter(Boolean) as string[]
+          
+          if (hookFrameUrls.length > 0) {
+            console.log(`[Generate Frames] Checking ${hookFrameUrls.length} hook frame(s) for conflicts with body segment solution...`)
+            conflictDetails = await detectSceneConflict(hookFrameUrls, body1Segment, story)
+            conflictDetected = conflictDetails.hasConflict
+            
+            if (conflictDetected && conflictDetails.item && regenerationAttempts < maxRegenerationAttempts) {
+              const actionTypeInfo = conflictDetails.actionType ? ` (action type: ${conflictDetails.actionType})` : ''
+              console.warn(`[Generate Frames] ⚠️ SCENE CONFLICT DETECTED: ${conflictDetails.item} is MISSING from hook scene${actionTypeInfo}`)
+              console.log(`[Generate Frames] Item should be present from the hook first frame but was not detected`)
+              
+              // Regenerate frames to include missing items
+              regenerationAttempts++
+              console.log(`\n[Generate Frames] === Regenerating hook frames to include missing item (attempt ${regenerationAttempts}/${maxRegenerationAttempts}) ===`)
+              
+              const hookSegment = storyboard.segments.find(s => s.type === 'hook')
+              if (!hookSegment) {
+                console.error('[Generate Frames] Hook segment not found, cannot regenerate frames')
+              } else {
+                // Identify which frames need regeneration (all hook frames should include the item)
+                const framesToRegenerate: Array<{ frame: typeof hookFirstFrame | typeof hookLastFrame; frameType: 'first' | 'last'; segmentIndex: number }> = []
+                
+                // Always regenerate hook first frame if item is missing (item should be present from the start)
+                framesToRegenerate.push({ frame: hookFirstFrame, frameType: 'first', segmentIndex: 0 })
+                // Also regenerate hook last frame to maintain consistency
+                framesToRegenerate.push({ frame: hookLastFrame, frameType: 'last', segmentIndex: 0 })
+                
+                console.log(`[Generate Frames] Regenerating ${framesToRegenerate.length} hook frame(s) to include "${conflictDetails.item}"`)
+                
+                // Regenerate each frame to include the missing item
+                for (const { frame, frameType, segmentIndex } of framesToRegenerate) {
+                  try {
+                    console.log(`[Generate Frames] Regenerating hook ${frameType} frame to include "${conflictDetails.item}"...`)
+                    
+                    // Modify visual prompt to include the missing item
+                    // Add instruction to ensure item is visible
+                    const itemInstruction = `CRITICAL ITEM REQUIREMENT: The item "${conflictDetails.item}" must be visible in this frame. It should be present in the scene, not being brought or introduced - it is already part of the environment. `
+                    const modifiedVisualPrompt = itemInstruction + hookSegment.visualPrompt
+                    
+                    console.log(`[Generate Frames] ✓ Visual prompt modified to include "${conflictDetails.item}"`)
+                    
+                    // Determine previous frame for continuity
+                    let previousFrameImage: string | undefined = undefined
+                    let currentSceneText: string | undefined = undefined
+                    let isTransition = false
+                    let transitionText: string | undefined = undefined
+                    let transitionVisual: string | undefined = undefined
+                    
+                    if (frameType === 'first') {
+                      // Hook first frame: no previous frame
+                      currentSceneText = story.hook
+                    } else {
+                      // Hook last frame: uses hook first as previous, transitions to body1
+                      previousFrameImage = hookFirstFrame.imageUrl
+                      currentSceneText = story.hook
+                      isTransition = true
+                      transitionText = story.bodyOne
+                      transitionVisual = body1Segment.visualPrompt
+                    }
+                    
+                    // Build nano prompt with modified visual prompt
+                    const nanoPrompt = buildNanoPrompt(
+                      currentSceneText || story.hook,
+                      modifiedVisualPrompt,
+                      isTransition,
+                      transitionText,
+                      transitionVisual,
+                      previousFrameImage,
+                      itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
+                    )
+                    
+                    // Regenerate the frame
+                    const regeneratedFrame = await generateSingleFrame(
+                      `hook ${frameType} frame (regenerated)`,
+                      nanoPrompt,
+                      modifiedVisualPrompt,
+                      previousFrameImage,
+                      currentSceneText,
+                      isTransition,
+                      transitionText,
+                      transitionVisual,
+                      true
+                    )
+                    
+                    if (regeneratedFrame) {
+                      // Ensure segmentIndex and frameType are set correctly
+                      regeneratedFrame.segmentIndex = segmentIndex
+                      regeneratedFrame.frameType = frameType
+                      
+                      // Update the frame in the frames array
+                      const frameIndex = frames.findIndex(f => f.segmentIndex === segmentIndex && f.frameType === frameType)
+                      if (frameIndex >= 0) {
+                        frames[frameIndex] = regeneratedFrame
+                        console.log(`[Generate Frames] ✓ Frame regenerated: ${regeneratedFrame.imageUrl}`)
+                      } else {
+                        // Frame not found in array - add it (this fixes missing hook last frame issue)
+                        frames.push(regeneratedFrame)
+                        console.log(`[Generate Frames] ✓ Frame regenerated and added to frames array: ${regeneratedFrame.imageUrl}`)
+                      }
+                      
+                      // Handle frame continuity: if hook last is regenerated, update body1 first frame
+                      if (frameType === 'last' && segmentIndex === 0) {
+                        const body1SegmentIndex = storyboard.segments.findIndex(s => s.type === 'body')
+                        if (body1SegmentIndex >= 0) {
+                          storyboard.segments[body1SegmentIndex].firstFrameImage = regeneratedFrame.imageUrl
+                          console.log(`[Generate Frames] ✓ Updated body1 first frame to match regenerated hook last frame`)
+                        }
+                      }
+                      
+                      // Update segment's frame image
+                      if (frameType === 'first') {
+                        hookSegment.firstFrameImage = regeneratedFrame.imageUrl
+                      } else {
+                        hookSegment.lastFrameImage = regeneratedFrame.imageUrl
+                      }
+                      
+                      framesRegenerated = true
+                    } else {
+                      console.error(`[Generate Frames] Failed to regenerate hook ${frameType} frame`)
+                    }
+                  } catch (error: any) {
+                    console.error(`[Generate Frames] Error regenerating hook ${frameType} frame:`, error.message)
+                    // Continue with other frames even if one fails
+                  }
+                }
+                
+                // Re-analyze regenerated frames to verify conflict is resolved
+                if (framesRegenerated) {
+                  console.log(`\n[Generate Frames] === Re-analyzing regenerated frames for conflicts ===`)
+                  const updatedHookFirstFrame = frames.find(f => f.segmentIndex === 0 && f.frameType === 'first')
+                  const updatedHookLastFrame = frames.find(f => f.segmentIndex === 0 && f.frameType === 'last')
+                  
+                  if (updatedHookFirstFrame && updatedHookLastFrame && body1Segment) {
+                    const updatedHookFrameUrls = [updatedHookFirstFrame.imageUrl, updatedHookLastFrame.imageUrl].filter(Boolean) as string[]
+                    const reanalysisResult = await detectSceneConflict(updatedHookFrameUrls, body1Segment, story)
+                    
+                    if (reanalysisResult.hasConflict) {
+                      console.warn(`[Generate Frames] ⚠️ Conflict still detected after regeneration: ${reanalysisResult.item} is still missing from hook frames`)
+                      conflictDetected = true
+                      conflictDetails = reanalysisResult
+                      
+                      // Try one more time if we haven't exceeded max attempts
+                      if (regenerationAttempts < maxRegenerationAttempts) {
+                        console.log(`[Generate Frames] Will attempt regeneration again (attempt ${regenerationAttempts + 1}/${maxRegenerationAttempts})`)
+                        // Note: This will be handled in the next iteration if needed
+                      } else {
+                        console.warn(`[Generate Frames] Max regeneration attempts reached, proceeding with conflict`)
+                      }
+                    } else {
+                      console.log(`[Generate Frames] ✓ Conflict resolved after frame regeneration: ${reanalysisResult.item} is now present in hook frames`)
+                      conflictDetected = false
+                      conflictDetails = reanalysisResult
+                    }
+                  }
+                  
+                  // Save updated storyboard with new frame URLs
+                  const { saveStoryboard } = await import('../utils/storage')
+                  await saveStoryboard(storyboard)
+                  console.log('[Generate Frames] ✓ Saved storyboard with regenerated frames')
+                }
+              }
+            } else if (conflictDetected) {
+              const actionTypeInfo = conflictDetails.actionType ? ` (action type: ${conflictDetails.actionType})` : ''
+              console.warn(`[Generate Frames] ⚠️ SCENE CONFLICT DETECTED: ${conflictDetails.item} is MISSING from hook scene${actionTypeInfo}`)
+              if (regenerationAttempts >= maxRegenerationAttempts) {
+                console.warn(`[Generate Frames] Max regeneration attempts (${maxRegenerationAttempts}) reached, proceeding with conflict`)
+              }
+            } else {
+              const actionTypeInfo = conflictDetails?.actionType ? ` (action type: ${conflictDetails.actionType})` : ''
+              if (conflictDetails?.item) {
+                console.log(`[Generate Frames] ✓ No scene conflicts detected: ${conflictDetails.item} is correctly present in hook frames${actionTypeInfo}`)
+              } else {
+                console.log(`[Generate Frames] ✓ No scene conflicts detected${actionTypeInfo}`)
+              }
+            }
+          }
+        } else {
+          console.log('[Generate Frames] Skipping conflict detection: missing required frames or body segment')
+        }
+      } catch (error: any) {
+        console.error('[Generate Frames] Error during conflict detection:', error.message)
+        // Don't fail the entire request if conflict detection fails
+        conflictDetected = false
+      }
+    }
+
     return {
       frames,
       storyboardId: storyboard.id,
       mode: generationMode,
+      ...(promptsRefined ? {
+        promptsRefined: true,
+        storyboard, // Include updated storyboard with refined prompts
+      } : {}),
+      ...(framesRegenerated ? {
+        framesRegenerated: true,
+        storyboard, // Include updated storyboard with regenerated frames
+      } : {}),
+      ...(conflictDetected && conflictDetails ? {
+        conflictDetected: true,
+        conflictDetails,
+      } : {}),
     }
   } catch (error: any) {
     console.error('[Generate Frames] Error:', error)

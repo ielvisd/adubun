@@ -6,6 +6,7 @@ import { uploadFileToReplicate } from '../utils/replicate-upload'
 import { extractFramesFromVideo } from '../utils/ffmpeg'
 import { sanitizeVideoPrompt } from '../utils/prompt-sanitizer'
 import { checkFrameForChildren } from '../utils/frame-content-checker'
+import { detectSceneConflict } from '../utils/scene-conflict-checker'
 import { nanoid } from 'nanoid'
 import type { GenerationJob, Asset } from '../../app/types/generation'
 import { promises as fs } from 'fs'
@@ -91,98 +92,6 @@ async function prepareImageInput(filePath: string | undefined | null): Promise<s
 }
 
 
-// Helper function to extract VO script from audioNotes
-// Filters out descriptive notes and music cues, returning only the actual script text
-function extractVOScript(audioNotes: string): string | null {
-  if (!audioNotes || !audioNotes.trim()) {
-    return null
-  }
-  
-  // Remove leading/trailing whitespace
-  const trimmed = audioNotes.trim()
-  const lowerTrimmed = trimmed.toLowerCase()
-  
-  // Pattern 1: "Music: [description]. Voiceover: [script]" - extract voiceover part
-  const musicAndVoiceoverMatch = trimmed.match(/music:\s*[^.]*\.\s*voiceover:\s*(.+)/i)
-  if (musicAndVoiceoverMatch) {
-    const voText = musicAndVoiceoverMatch[1].trim()
-    // Remove trailing period if it's at the end
-    return voText.replace(/\.$/, '').trim()
-  }
-  
-  // Pattern 2: "Voiceover: [text]" or "VO: [text]" (standalone or with music prefix)
-  const voiceoverMatch = trimmed.match(/(?:voiceover|vo):\s*(.+?)(?:\.\s*$|$)/i)
-  if (voiceoverMatch) {
-    let voText = voiceoverMatch[1].trim()
-    // If there's a "Music:" prefix before this, we already handled it above
-    // Otherwise, check if this is descriptive text
-    const isDescriptive = voText.toLowerCase().match(/^(a |an |the )?(narrator|voiceover|voice|speaker|announcer)/i) ||
-                         voText.toLowerCase().match(/(describes|explains|discusses|talks about|says|tells)/i)
-    
-    if (!isDescriptive && voText.length > 5) {
-      return voText
-    }
-  }
-  
-  // Pattern 3: Text in quotes after "Voiceover:" or "VO:"
-  const quotedMatch = trimmed.match(/(?:voiceover|vo):\s*['"](.+?)['"]/i)
-  if (quotedMatch) {
-    return quotedMatch[1].trim()
-  }
-  
-  // Pattern 4: Text in quotes (standalone) - only if no music/sound keywords
-  const standaloneQuoted = trimmed.match(/['"](.+?)['"]/)
-  if (standaloneQuoted && !lowerTrimmed.includes('music') && !lowerTrimmed.includes('sound')) {
-    const quotedText = standaloneQuoted[1].trim()
-    // Check if it's descriptive
-    const isDescriptive = quotedText.toLowerCase().match(/^(a |an |the )?(narrator|voiceover|voice|speaker)/i)
-    if (!isDescriptive && quotedText.length > 5) {
-      return quotedText
-    }
-  }
-  
-  // Pattern 5: If it contains "Music:" or "Sound:", extract only the voiceover part
-  if (lowerTrimmed.includes('voiceover') || lowerTrimmed.includes('vo:')) {
-    // Split by common separators and find voiceover section
-    const parts = trimmed.split(/[.;]/)
-    for (const part of parts) {
-      const partLower = part.toLowerCase()
-      if (partLower.includes('voiceover') || partLower.includes('vo:')) {
-        let voText = part.replace(/^(?:voiceover|vo):\s*/i, '').trim()
-        // Check if it's descriptive
-        const isDescriptive = voText.toLowerCase().match(/^(a |an |the )?(narrator|voiceover|voice|speaker|announcer)/i) ||
-                             voText.toLowerCase().match(/(describes|explains|discusses|talks about|says|tells)/i)
-        
-        if (!isDescriptive && voText && !voText.toLowerCase().startsWith('music') && !voText.toLowerCase().startsWith('sound') && voText.length > 5) {
-          return voText
-        }
-      }
-    }
-  }
-  
-  // Pattern 6: Check for descriptive indicators and reject if found
-  const descriptiveIndicators = [
-    'a narrator', 'an announcer', 'the voiceover', 'the voice', 'the speaker',
-    'describes', 'explains', 'discusses', 'talks about', 'says that', 'tells',
-    'music begins', 'music plays', 'music reaches', 'music fades',
-    'sound of', 'ambient music', 'instrumental music'
-  ]
-  
-  const isDescriptiveNote = descriptiveIndicators.some(indicator => lowerTrimmed.includes(indicator))
-  
-  if (!isDescriptiveNote && trimmed.length > 10) {
-    // Additional check: if it starts with common descriptive phrases, reject it
-    const startsWithDescriptive = /^(a |an |the )?(narrator|voiceover|voice|speaker|announcer|professional)/i.test(trimmed)
-    if (!startsWithDescriptive) {
-      // Likely actual script text, return as-is
-      return trimmed
-    }
-  }
-  
-  // No valid VO script found
-  return null
-}
-
 const JOBS_FILE = path.join(process.env.MCP_FILESYSTEM_ROOT || './data', 'jobs.json')
 
 export async function saveJob(job: GenerationJob) {
@@ -211,6 +120,130 @@ export async function getJob(jobId: string): Promise<GenerationJob | null> {
     const jobs: GenerationJob[] = JSON.parse(content)
     return jobs.find(j => j.id === jobId) || null
   } catch {
+    return null
+  }
+}
+
+// Helper function to generate background music
+// Analyzes both story content and storyboard content to infer mood/style
+async function generateBackgroundMusic(
+  storyboard: any,
+  totalDuration: number
+): Promise<string | null> {
+  try {
+    console.log('[Music Generation] Starting background music generation')
+    
+    // Extract story content
+    const storyContent = storyboard.promptJourney?.storyGeneration?.output
+    const storyText = storyContent
+      ? `${storyContent.hook} ${storyContent.bodyOne} ${storyContent.bodyTwo} ${storyContent.callToAction} ${storyContent.description || ''}`
+      : ''
+    
+    // Extract storyboard content
+    const storyboardText = storyboard.segments
+      .map((seg: any) => `${seg.description} ${seg.visualPrompt || ''}`)
+      .join(' ')
+    
+    // Combine both sources for mood analysis
+    const combinedContent = `${storyText} ${storyboardText}`.trim()
+    
+    if (!combinedContent) {
+      console.warn('[Music Generation] No content available for mood analysis')
+      return null
+    }
+    
+    // Use OpenAI to analyze mood and generate music prompt
+    const moodAnalysisPrompt = `Analyze the following video ad content and determine the appropriate background music style, mood, and genre.
+
+Story Content: ${storyText.substring(0, 500)}
+Storyboard Content: ${storyboardText.substring(0, 500)}
+
+Based on the content, provide a concise music prompt (2-3 sentences) that describes:
+- The mood/emotion (e.g., energetic, calm, dramatic, playful, professional)
+- The music style/genre (e.g., upbeat electronic, calm piano, corporate professional, acoustic folk, dramatic orchestral, ambient soundscape)
+- The tempo and energy level
+
+Return ONLY the music description prompt, nothing else.`
+
+    const moodResult = await callOpenAIMCP('chat_completion', {
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'You are an expert at analyzing video content and determining appropriate background music.' },
+        { role: 'user', content: moodAnalysisPrompt },
+      ],
+      max_tokens: 150,
+    })
+    
+    let musicPrompt = ''
+    if (moodResult && typeof moodResult === 'object') {
+      if (moodResult.content && typeof moodResult.content === 'string') {
+        musicPrompt = moodResult.content.trim()
+      } else if (moodResult.choices && moodResult.choices[0]?.message?.content) {
+        musicPrompt = moodResult.choices[0].message.content.trim()
+      } else if (typeof moodResult === 'string') {
+        musicPrompt = moodResult.trim()
+      }
+    }
+    
+    if (!musicPrompt) {
+      // Fallback to generic prompt based on ad type or mood
+      const adType = storyboard.meta.adType || 'general'
+      const mood = storyboard.meta.mood || 'professional'
+      musicPrompt = `Background music for ${adType} ad with ${mood} mood, professional quality, suitable for video advertisement`
+    }
+    
+    console.log('[Music Generation] Music prompt:', musicPrompt)
+    
+    // Generate music via Replicate
+    const musicResult = await callReplicateMCP('generate_music', {
+      prompt: musicPrompt,
+      duration: totalDuration,
+      model: 'google/lyria-2',
+    })
+    
+    if (!musicResult?.predictionId) {
+      throw new Error('Failed to create music generation prediction')
+    }
+    
+    // Poll for completion
+    let predictionStatus = musicResult
+    while (predictionStatus.status === 'starting' || predictionStatus.status === 'processing') {
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      predictionStatus = await callReplicateMCP('check_prediction_status', {
+        predictionId: musicResult.predictionId,
+      })
+    }
+    
+    if (predictionStatus.status !== 'succeeded') {
+      throw new Error(`Music generation failed: ${predictionStatus.error || 'Unknown error'}`)
+    }
+    
+    // Get result URL
+    const musicUrlResult = await callReplicateMCP('get_prediction_result', {
+      predictionId: musicResult.predictionId,
+    })
+    
+    // Replicate may return audio as videoUrl or audioUrl - check both
+    const musicUrl = musicUrlResult?.videoUrl || musicUrlResult?.audioUrl || musicUrlResult?.url
+    
+    if (!musicUrl) {
+      throw new Error('Music generation succeeded but no URL returned')
+    }
+    
+    // Download and save music file
+    const musicBuffer = Buffer.from(await (await fetch(musicUrl)).arrayBuffer())
+    const musicPath = await saveAsset(musicBuffer, 'mp3')
+    
+    await trackCost('music-generation', 0.20, {
+      duration: totalDuration,
+      model: 'google/lyria-2',
+    })
+    
+    console.log('[Music Generation] Background music generated:', musicPath)
+    return musicPath
+  } catch (error: any) {
+    console.error('[Music Generation] Error:', error.message)
+    console.warn('[Music Generation] Continuing without background music')
     return null
   }
 }
@@ -307,8 +340,35 @@ export default defineEventHandler(async (event) => {
           }
         }
 
-        // Get model from storyboard meta, default to google/veo-3.1
-        const model = storyboard.meta.model || 'google/veo-3.1'
+        // Optional safety check: Detect scene conflicts for body segments (log warning only, don't block)
+        if (segment.type === 'body' && firstFrameImage) {
+          try {
+            // Get hook first frame for conflict detection
+            const hookSegment = storyboard.segments.find(s => s.type === 'hook')
+            const hookFirstFrame = hookSegment?.firstFrameImage
+            const hookLastFrame = hookSegment?.lastFrameImage
+            
+            if (hookFirstFrame || hookLastFrame) {
+              const hookFrames = [hookFirstFrame, hookLastFrame].filter(Boolean) as string[]
+              if (hookFrames.length > 0 && story) {
+                const conflictCheck = await detectSceneConflict(hookFrames, segment, story)
+                if (conflictCheck.hasConflict) {
+                  const actionTypeInfo = conflictCheck.actionType ? ` (action type: ${conflictCheck.actionType})` : ''
+                  console.warn(`[Segment ${idx}] ⚠️ SCENE CONFLICT DETECTED (safety check): ${conflictCheck.item} is already present in hook scene${actionTypeInfo}`)
+                  console.warn(`[Segment ${idx}] This is a warning only - video generation will proceed. Consider regenerating the storyboard.`)
+                } else if (conflictCheck.actionType === 'interacting') {
+                  console.log(`[Segment ${idx}] ✓ No conflict: Action type is "interacting" - item interaction is expected`)
+                }
+              }
+            }
+          } catch (conflictError: any) {
+            // Don't fail video generation if conflict check fails
+            console.warn(`[Segment ${idx}] Conflict check failed (non-blocking):`, conflictError.message)
+          }
+        }
+
+        // Get model from storyboard meta, default to google/veo-3.1-fast
+        const model = storyboard.meta.model || 'google/veo-3.1-fast'
 
         // Video Generation (Replicate MCP) - use model from storyboard
         // Get the selected prompt (primary or alternative)
@@ -321,14 +381,159 @@ export default defineEventHandler(async (event) => {
         }
         
         // Sanitize prompt to avoid content moderation flags
-        const sanitizedPrompt = sanitizeVideoPrompt(selectedPrompt)
+        let sanitizedPrompt = sanitizeVideoPrompt(selectedPrompt)
         
         // Extract mood from storyboard meta
         const mood = storyboard.meta.mood || 'professional'
         const moodInstruction = mood ? ` ${mood.charAt(0).toUpperCase() + mood.slice(1)} tone and mood.` : ''
         
-        // Add hold-final-frame instruction, face quality, and people count limits
-        const videoPrompt = `${sanitizedPrompt}${moodInstruction} The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene. TYPOGRAPHY & TEXT: If displaying any text, brand names, or product names: Use clean, elegant, modern typeface (sans-serif like Helvetica, Futura, Gotham for contemporary brands OR serif like Didot, Bodoni for luxury brands). High contrast for maximum legibility: crisp white text on dark background OR bold black text on light background. Large, bold, professional font size with generous spacing. Centered or elegantly positioned with balanced composition. Spell exactly as mentioned in prompt with perfect accuracy. Professional kerning, leading, and letter spacing. Sharp, crisp edges - no blurry or distorted text. Minimize decorative or script fonts unless specifically luxury brand requirement. Text should be perfectly readable at any resolution with cinema-quality typography. FACE QUALITY: Limit scene to 3-4 people maximum. Use close-ups and medium shots to ensure sharp faces, clear facial features, detailed faces, professional portrait quality. Avoid large groups, crowds, or more than 4 people.`
+        // Extract dialogue from audioNotes and build speaking instructions
+        let dialogueInstructions = ''
+        let dialogueTextForPrompt = ''
+        if (segment.audioNotes) {
+          // Check if audioNotes contains dialogue format: "Dialogue: [Character description] says: '[text]'"
+          // Handle formats like:
+          // - "Dialogue: The man says: 'text'"
+          // - "Dialogue: The man with a thoughtful voice says: 'text'"
+          // - "Dialogue: The same man says: 'text'"
+          const dialogueMatch = segment.audioNotes.match(/Dialogue:\s*(.+?)\s+says:\s*['"](.+?)['"]/i)
+          if (dialogueMatch) {
+            let characterDescription = dialogueMatch[1].trim()
+            let dialogueText = dialogueMatch[2].trim()
+            
+            // Validate CTA segment word count (must be 5 words or less)
+            if (segment.type === 'cta') {
+              const wordCount = dialogueText.split(/\s+/).filter(word => word.length > 0).length
+              if (wordCount > 5) {
+                console.warn(`[Segment ${idx}] CTA dialogue has ${wordCount} words (exceeds 5-word limit): "${dialogueText}"`)
+                // Truncate to first 5 words
+                const words = dialogueText.split(/\s+/).filter(word => word.length > 0)
+                dialogueText = words.slice(0, 5).join(' ')
+                console.log(`[Segment ${idx}] Truncated CTA dialogue to 5 words: "${dialogueText}"`)
+              } else {
+                console.log(`[Segment ${idx}] CTA dialogue word count validated: ${wordCount} words - "${dialogueText}"`)
+              }
+            }
+            
+            // Extract tone/voice descriptions before cleaning (e.g., "soft, concerned voice", "confident, clear voice")
+            let toneDescription = ''
+            const toneMatch = characterDescription.match(/(?:,\s*)?(?:in\s+a\s+)?([^,]+(?:,\s*[^,]+)*\s+voice)/i)
+            if (toneMatch) {
+              toneDescription = toneMatch[1].trim()
+            }
+            
+            // Clean up character description - keep character identifier but preserve tone separately
+            // Keep the character identifier (e.g., "The man", "The same man", "The young woman")
+            let cleanCharacterDescription = characterDescription.replace(/\s+with\s+[^,]+(?:,\s*[^,]+)*\s+voice/gi, '')
+            cleanCharacterDescription = cleanCharacterDescription.replace(/\s+in\s+a\s+[^,]+(?:,\s*[^,]+)*\s+voice/gi, '')
+            cleanCharacterDescription = cleanCharacterDescription.replace(/\s+voice$/gi, '')
+            cleanCharacterDescription = cleanCharacterDescription.trim()
+            
+            // If character description is too long, simplify it but keep tone info
+            if (cleanCharacterDescription.length > 50) {
+              // Extract just the main character identifier
+              const simpleMatch = cleanCharacterDescription.match(/(?:the\s+)?(?:same\s+)?(?:young\s+|elderly\s+|middle-aged\s+)?(man|woman|person|character)/i)
+              if (simpleMatch) {
+                const baseChar = simpleMatch[1].toLowerCase()
+                cleanCharacterDescription = cleanCharacterDescription.includes('same') ? `the same ${baseChar}` : `the ${baseChar}`
+              }
+            }
+            
+            // Use clean character description for visual prompts, but preserve tone for dialogue instructions
+            characterDescription = cleanCharacterDescription
+            
+            const segmentDuration = segment.endTime - segment.startTime
+            // Dialogue should end 2 seconds before segment ends
+            const dialogueEndTime = Math.max(0, segmentDuration - 2)
+            // Estimate dialogue duration (roughly 2-3 words per second for natural speech)
+            const estimatedWords = dialogueText.split(/\s+/).length
+            const estimatedDuration = Math.min(dialogueEndTime, Math.max(2, estimatedWords / 2.5))
+            const dialogueStartTime = 0
+            const dialogueEndTimeFormatted = dialogueStartTime + estimatedDuration
+            
+            // Format timecodes as [00:00-00:04] for Veo 3.1
+            const formatTimecode = (seconds: number): string => {
+              const mins = Math.floor(seconds / 60)
+              const secs = Math.floor(seconds % 60)
+              return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+            }
+            
+            const startTimecode = formatTimecode(dialogueStartTime)
+            const endTimecode = formatTimecode(dialogueEndTimeFormatted)
+            
+            // Build explicit speaking instructions with timecodes
+            const toneInstruction = toneDescription ? ` CRITICAL: TONE MATCHING - The character must speak with the tone/emotion: "${toneDescription}". Match the intended delivery style (e.g., "soft, concerned voice" means speak softly with concern, "confident, clear voice" means speak with confidence). Preserve the emotional delivery style specified.` : ''
+            
+            dialogueInstructions = ` CRITICAL LANGUAGE REQUIREMENT: The dialogue "${dialogueText}" must be spoken in English ONLY. NO other languages allowed. CRITICAL ON-CAMERA SPOKEN DIALOGUE REQUIREMENT - NOT VOICEOVER, NOT THOUGHTS: [${startTimecode}-${endTimecode}] The ${characterDescription} SPEAKS ALOUD directly on-camera: "${dialogueText}". 
+
+CRITICAL: EXACT DIALOGUE MATCHING - The character must speak the EXACT words: "${dialogueText}". Do not paraphrase, do not change words, do not add words, do not remove words. Speak each word clearly and precisely. The character must say exactly: "${dialogueText}" - no substitutions, no variations, no gibberish, no made-up words.${toneInstruction}
+
+ABSOLUTELY NO VOICEOVER OR INTERNAL THOUGHTS:
+- This is SPOKEN DIALOGUE, not internal thoughts, not voiceover, not narration
+- The character's voice must come from their MOUTH, not from off-screen or as thoughts
+- The dialogue "${dialogueText}" must be SPOKEN ALOUD by the character on-camera
+- Do NOT generate this as internal monologue, thoughts, or voiceover narration
+- The character must be HEARD speaking these words with their voice coming from their mouth
+
+MANDATORY VISUAL REQUIREMENTS:
+- The character's MOUTH MUST MOVE clearly and naturally as they SPEAK each word ALOUD
+- The character's LIPS MUST SYNC with the spoken words "${dialogueText}"
+- The character MUST be shown SPEAKING on-camera, not just reacting, thinking, or expressing
+- Use CLOSE-UP or MEDIUM SHOT to clearly show the character's face and mouth movements
+- The character's FACE must be clearly visible with mouth movements matching the dialogue
+- Show the character actively SPEAKING with visible speaking gestures, mouth movements, and facial expressions
+- The character must be looking at the camera or at other visible characters while SPEAKING
+- Do NOT show the character silent or with closed mouth during this dialogue timecode
+- The character's voice must be AUDIBLE and come from their MOUTH, not as thoughts or narration
+
+The character's mouth movements must match the words being SPOKEN ALOUD: "${dialogueText}". This is SPOKEN DIALOGUE, not thoughts or voiceover.`
+            
+            // Add the actual dialogue text in Veo format so it generates the spoken audio
+            // Include tone description if available
+            const toneSuffix = toneDescription ? `, ${toneDescription}` : ''
+            dialogueTextForPrompt = ` [${startTimecode}-${endTimecode}] The ${characterDescription} says: "${dialogueText}"${toneSuffix}`
+            
+            // Enhance visual prompt to explicitly include dialogue text and state character is SPEAKING
+            if (!sanitizedPrompt.includes(`"${dialogueText}"`) && !sanitizedPrompt.includes(`'${dialogueText}'`)) {
+              // Add explicit dialogue to visual prompt at the appropriate timecode with exact matching emphasis
+              const toneContext = toneDescription ? ` with ${toneDescription}` : ''
+              const dialogueInVisualPrompt = ` [${startTimecode}-${endTimecode}] The ${characterDescription} speaks directly on-camera in English only, saying the EXACT words "${dialogueText}"${toneContext} with clear mouth movements. The character's lips move in sync with each word: "${dialogueText}". The character must speak these exact words precisely - no substitutions, no variations.`
+              
+              // Insert dialogue description into the visual prompt (before other instructions)
+              // We'll prepend it to sanitizedPrompt so it appears early in the prompt
+              sanitizedPrompt = `${sanitizedPrompt}${dialogueInVisualPrompt}`
+              
+              console.log(`[Segment ${idx}] Added dialogue to visual prompt: "${dialogueText}"${toneDescription ? ` with tone: ${toneDescription}` : ''}`)
+            }
+            
+            console.log(`[Segment ${idx}] Extracted dialogue: "${dialogueText}" from character: ${characterDescription}`)
+            console.log(`[Segment ${idx}] Dialogue timing: ${startTimecode} to ${endTimecode} (${estimatedDuration.toFixed(1)}s)`)
+          } else {
+            console.log(`[Segment ${idx}] No dialogue found in audioNotes: ${segment.audioNotes?.substring(0, 100)}`)
+          }
+        }
+        
+        // Build segment-specific instructions based on segment type
+        // CTA segments need visual progression (end of video), hook/body need smooth transitions
+        let segmentSpecificInstructions = ''
+        let holdFinalFrameInstruction = ''
+        let cameraPerspectiveInstruction = ''
+        
+        if (segment.type === 'cta') {
+          // CTA is the end of the video, not a transition - need visual progression
+          cameraPerspectiveInstruction = 'Allow camera movement and angle changes to show progression, ending with a distinct final composition. The video should progress naturally with clear visual changes from start to finish.'
+          segmentSpecificInstructions = `CTA VISUAL PROGRESSION REQUIREMENT: This CTA segment is the FINAL segment of the video (not a transition to another segment). It must show clear visual progression from start to finish. The final moment must be visually DISTINCT from the starting moment. Use one or more of these techniques: 1) Change camera angle (switch from medium to close-up, or front to side/three-quarter angle), 2) Add text overlay or logo lockup in the final moment, 3) Change character pose or expression to show transformation, 4) Adjust composition to create a hero shot. The video should progress naturally from the starting frame to a visually distinct final frame. Do NOT hold the final frame static - this is the end of the video, not a transition, so show clear visual progression throughout the segment ending with a distinct hero shot. The final moment should be visually distinct from the starting moment - use different camera angle, composition, or add text/logo overlay. This is the end of the video, not a transition, so show clear visual progression.`
+          console.log(`[Segment ${idx}] CTA segment: Applying visual progression instructions (no hold final frame)`)
+        } else {
+          // Hook and body segments need smooth transitions - hold final frame for next segment
+          cameraPerspectiveInstruction = 'Maintain the same camera perspective and same setting throughout.'
+          holdFinalFrameInstruction = 'The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene.'
+          console.log(`[Segment ${idx}] ${segment.type} segment: Applying transition instructions (hold final frame for smooth transition)`)
+        }
+        
+        // Add hold-final-frame instruction (conditional), face quality, people count limits, dialogue-only audio instructions, and clothing/jewelry stability
+        // Insert dialogue text and instructions BEFORE other instructions so they take priority
+        const videoPrompt = `${sanitizedPrompt}${moodInstruction}${dialogueTextForPrompt}${dialogueInstructions} CRITICAL CONTINUOUS SHOT REQUIREMENT: This must be a SINGLE CONTINUOUS SHOT in ONE LOCATION. NO scene changes, NO location changes, NO background changes, NO room changes. The entire segment must take place in the exact same location with the same background, same environment, same surroundings from start to finish. ${cameraPerspectiveInstruction} The video should feel like ONE unbroken moment in ONE place - do NOT change locations, rooms, backgrounds, or environments during this segment. ONE continuous shot, ONE location, ONE background. ${holdFinalFrameInstruction}${segmentSpecificInstructions} AUDIO: 🚨 CRITICAL LANGUAGE REQUIREMENT - ENGLISH ONLY: All spoken dialogue in this video MUST be in English ONLY. ABSOLUTELY NO exceptions. NO foreign languages, NO non-English speech, NO other languages whatsoever. If any character speaks, they must speak ONLY in English. This is a MANDATORY requirement - any non-English speech will result in video rejection. CRITICAL AUDIO REQUIREMENTS - SPOKEN DIALOGUE ONLY: Characters must SPEAK their dialogue ALOUD on-camera - this is SPOKEN DIALOGUE, not voiceover, not thoughts, not narration. Dialogue must come from the character's MOUTH as they speak on-camera. CRITICAL: EXACT DIALOGUE MATCHING - Characters must speak the EXACT words specified in the dialogue text. Do not paraphrase, do not change words, do not add words, do not remove words. Speak each word clearly and precisely. No substitutions, no variations, no gibberish, no made-up words. ABSOLUTELY NO MUSIC: Do NOT generate any background music, soundtrack, instrumental music, background score, or any musical audio whatsoever. Sound effects (SFX) and SPOKEN DIALOGUE are allowed, but NO music of any kind. ONLY on-camera characters visible in the scene may speak - their dialogue must be SPOKEN ALOUD, not heard as thoughts or voiceover. ABSOLUTELY NO narration, NO voiceover, NO off-screen announcer, NO background voices. ABSOLUTELY NO internal thoughts, NO internal monologue, NO thought bubbles, NO voiceover narration. If no character is speaking in a scene, there should be NO speech at all - complete silence. Only characters shown on-camera SPEAKING DIRECTLY to the camera or to other visible characters may have dialogue, and they must SPEAK ONLY in English. All dialogue must be SPOKEN ALOUD by the character on-camera - do NOT generate dialogue as thoughts, voiceover, or narration. If dialogue is present, it must end at least 2 seconds before the scene ends to ensure smooth transitions. CLOTHING & JEWELRY: Characters should already be wearing their clothes and jewelry from the start of the scene. Do NOT show characters putting on or taking off items. Items should be worn consistently throughout the scene. No wardrobe changes during the scene. TYPOGRAPHY & TEXT: If displaying any text, brand names, or product names: Use clean, elegant, modern typeface (sans-serif like Helvetica, Futura, Gotham for contemporary brands OR serif like Didot, Bodoni for luxury brands). High contrast for maximum legibility: crisp white text on dark background OR bold black text on light background. Large, bold, professional font size with generous spacing. Centered or elegantly positioned with balanced composition. Spell exactly as mentioned in prompt with perfect accuracy. Professional kerning, leading, and letter spacing. Sharp, crisp edges - no blurry or distorted text. Minimize decorative or script fonts unless specifically luxury brand requirement. Text should be perfectly readable at any resolution with cinema-quality typography. FACE QUALITY: Limit scene to 3-4 people maximum. Use close-ups and medium shots to ensure sharp faces, clear facial features, detailed faces, professional portrait quality. Avoid large groups, crowds, or more than 4 people.`
         
         const videoParams: any = {
           model,
@@ -339,15 +544,20 @@ export default defineEventHandler(async (event) => {
 
         // Add image inputs if provided - upload to Replicate and get public URLs
         if (model === 'google/veo-3.1') {
-          // Always use firstFrameImage and lastFrameImage from frames
+          // Always use firstFrameImage
           if (firstFrameImage) {
             videoParams.image = await prepareImageInput(firstFrameImage)
             console.log(`[Segment ${idx}] Using first frame image: ${firstFrameImage}`)
           }
           
-          if (lastFrameImage) {
+          // Only use last_frame for non-CTA segments (needed for transitions)
+          if (lastFrameImage && segment.type !== 'cta') {
             videoParams.last_frame = await prepareImageInput(lastFrameImage)
             console.log(`[Segment ${idx}] Using last frame image: ${lastFrameImage}`)
+          } else if (segment.type === 'cta') {
+            // For CTA, don't anchor to last frame - allow visual progression
+            // CTA is the end of the video, not a transition, so no need for dual anchoring
+            console.log(`[Segment ${idx}] CTA segment: Using only first frame anchor (no last_frame) to allow visual progression`)
           }
           
           // Add subject reference (person reference) if available
@@ -357,8 +567,8 @@ export default defineEventHandler(async (event) => {
             console.log(`[Segment ${idx}] Using subject reference (person): ${subjectReference}`)
           }
           
-          // Build negative prompt - add children-related terms if detected in frames, and default face quality terms
-          const defaultFaceQualityNegative = 'blurry faces, distorted faces, crowds, large groups, more than 4 people, deformed faces, bad anatomy'
+          // Build negative prompt - add children-related terms if detected in frames, scene change terms, language/narration terms, music terms, and default face quality terms
+          const defaultFaceQualityNegative = 'blurry faces, distorted faces, crowds, large groups, more than 4 people, deformed faces, bad anatomy, scene changes, location changes, background changes, different rooms, different locations, multiple settings, changing environments, narration, voiceover, off-screen voices, foreign languages, non-English speech, non-English dialogue, foreign dialogue, foreign speech, background narration, announcer, other languages, background music, soundtrack, instrumental music, background score, music, musical score, musical audio'
           let negativePrompt = defaultFaceQualityNegative
           
           if (childrenDetected) {
@@ -388,17 +598,9 @@ export default defineEventHandler(async (event) => {
             videoParams.resolution = storyboard.meta.resolution
           }
           
-          // Priority: segment.generateAudio > storyboard.meta.generateAudio
-          if ((segment as any).generateAudio !== undefined) {
-            videoParams.generate_audio = (segment as any).generateAudio
-            console.log(`[Segment ${idx}] Using segment-specific generateAudio: ${(segment as any).generateAudio}`)
-          } else if (storyboard.meta.generateAudio !== undefined) {
-            videoParams.generate_audio = storyboard.meta.generateAudio
-          } else {
-            // Default to true for Veo 3.1 to enable native audio
-            videoParams.generate_audio = true
-            console.log(`[Segment ${idx}] Defaulting generateAudio to true for Veo 3.1`)
-          }
+          // Enable Veo native audio generation for dialogue-only audio
+          videoParams.generate_audio = true
+          console.log(`[Segment ${idx}] Audio generation enabled (Veo will generate dialogue-only audio)`)
           
           // Priority: segment.seed > storyboard.meta.seed
           if ((segment as any).seed !== undefined && (segment as any).seed !== null) {
@@ -414,6 +616,24 @@ export default defineEventHandler(async (event) => {
           if (firstFrameImage) {
             videoParams.image = await prepareImageInput(firstFrameImage)
             console.log(`[Segment ${idx}] Using first frame image: ${firstFrameImage}`)
+          }
+        } else if (model === 'google/veo-3.1-fast') {
+          // Veo 3.1 Fast supports: prompt, aspect_ratio, duration, image, last_frame, negative_prompt, resolution, generate_audio, seed
+          // Note: Does NOT support reference_images (subject_reference)
+          // Always use firstFrameImage
+          if (firstFrameImage) {
+            videoParams.image = await prepareImageInput(firstFrameImage)
+            console.log(`[Segment ${idx}] Using first frame image: ${firstFrameImage}`)
+          }
+          
+          // Only use last_frame for non-CTA segments (needed for transitions)
+          if (lastFrameImage && segment.type !== 'cta') {
+            videoParams.last_frame = await prepareImageInput(lastFrameImage)
+            console.log(`[Segment ${idx}] Using last frame image: ${lastFrameImage}`)
+          } else if (segment.type === 'cta') {
+            // For CTA, don't anchor to last frame - allow visual progression
+            // CTA is the end of the video, not a transition, so no need for dual anchoring
+            console.log(`[Segment ${idx}] CTA segment: Using only first frame anchor (no last_frame) to allow visual progression`)
           }
           
           // Build negative prompt with default face quality terms
@@ -437,13 +657,9 @@ export default defineEventHandler(async (event) => {
             videoParams.resolution = storyboard.meta.resolution
           }
           
-          // Priority: segment.generateAudio > storyboard.meta.generateAudio
-          if ((segment as any).generateAudio !== undefined) {
-            videoParams.generate_audio = (segment as any).generateAudio
-            console.log(`[Segment ${idx}] Using segment-specific generateAudio: ${(segment as any).generateAudio}`)
-          } else if (storyboard.meta.generateAudio !== undefined) {
-            videoParams.generate_audio = storyboard.meta.generateAudio
-          }
+          // Enable Veo native audio generation for dialogue-only audio
+          videoParams.generate_audio = true
+          console.log(`[Segment ${idx}] Audio generation enabled (Veo will generate dialogue-only audio)`)
           
           // Priority: segment.seed > storyboard.meta.seed
           if ((segment as any).seed !== undefined && (segment as any).seed !== null) {
@@ -673,8 +889,7 @@ export default defineEventHandler(async (event) => {
         console.log(`[Segment ${idx}] Final video URL:`, finalVideoUrl)
         console.log(`[Segment ${idx}] Prediction ID:`, predictionId)
 
-        // Voice synthesis will be done in parallel after all videos complete
-        // Store audioNotes for later processing
+        // Audio is embedded in Veo-generated video - no separate audio generation needed
 
         // Store metadata including prediction ID and video URL for frontend access
         const metadata = {
@@ -682,7 +897,6 @@ export default defineEventHandler(async (event) => {
           videoUrl: finalVideoUrl, // S3 URL or Replicate URL (fallback)
           replicateVideoUrl: videoUrl, // Original Replicate URL
           s3VideoUrl: finalVideoUrl !== videoUrl ? finalVideoUrl : undefined, // S3 URL if uploaded
-          voiceUrl: undefined, // Will be set after parallel voice synthesis completes
           segmentIndex: idx,
           segmentType: segment.type,
           startTime: segment.startTime,
@@ -696,13 +910,9 @@ export default defineEventHandler(async (event) => {
 
         return {
           segmentId: idx,
-          videoUrl: finalVideoUrl, // Use S3 URL or Replicate fallback
-          voiceUrl: undefined, // Will be set after parallel voice synthesis
+          videoUrl: finalVideoUrl, // Use S3 URL or Replicate fallback (contains embedded audio)
           status: 'completed',
-          metadata: {
-            ...metadata,
-            audioNotes: segment.audioNotes, // Store for voice synthesis
-          }, // Include metadata for frontend access
+          metadata, // Include metadata for frontend access
         } as Asset
       } catch (error: any) {
         const errorMessage = error.message || 'Unknown error occurred'
@@ -770,84 +980,27 @@ export default defineEventHandler(async (event) => {
     console.log(`[Generate Assets] All segments processed. Total assets: ${assets.length}`)
     console.log(`[Generate Assets] Completed: ${assets.filter(a => a.status === 'completed').length}, Failed: ${assets.filter(a => a.status === 'failed').length}`)
 
-    // Generate all voiceovers in parallel after videos complete
-    console.log(`[Generate Assets] Starting parallel voice synthesis for completed segments...`)
-    const voicePromises = assets
-      .filter(asset => asset.status === 'completed' && asset.metadata?.audioNotes)
-      .map(async (asset) => {
-        const idx = asset.segmentId
-        
-        // Skip voice synthesis for Veo 3.1 as it has native audio
-        if (storyboard.meta.model === 'google/veo-3.1') {
-          console.log(`[Segment ${idx}] Skipping TTS voice synthesis for Veo 3.1 (using native audio)`)
-          return { idx, voiceUrl: undefined }
-        }
-
-        const audioNotes = asset.metadata?.audioNotes as string | undefined
-        
-        if (!audioNotes) {
-          return { idx, voiceUrl: undefined }
-        }
-        
-        try {
-          // Extract actual VO script from audioNotes, filtering out descriptive notes
-          const voScript = extractVOScript(audioNotes)
-          
-          if (!voScript) {
-            console.log(`[Segment ${idx}] No valid VO script found in audioNotes: "${audioNotes}"`)
-            return { idx, voiceUrl: undefined }
-          }
-          
-          console.log(`[Segment ${idx}] Extracted VO script: "${voScript}" (from: "${audioNotes}")`)
-          
-          const voiceResult = await callOpenAIMCP('text_to_speech', {
-            text: voScript,
-            voice: 'alloy',
-            model: 'tts-1',
-          })
-
-          // Save audio file
-          if (!voiceResult?.audioBase64) {
-            console.error(`[Segment ${idx}] No audioBase64 in voice result`)
-            console.warn(`[Segment ${idx}] Voice synthesis failed, continuing without audio`)
-            return { idx, voiceUrl: undefined }
-          }
-          
-          const audioBuffer = Buffer.from(voiceResult.audioBase64, 'base64')
-          const audioPath = await saveAsset(audioBuffer, 'mp3')
-          
-          await trackCost('voice-synthesis', 0.05, {
-            segmentId: idx,
-            textLength: voScript.length,
-          })
-          
-          console.log(`[Segment ${idx}] Voice synthesis completed: ${audioPath}`)
-          return { idx, voiceUrl: audioPath }
-        } catch (voiceError: any) {
-          console.error(`[Segment ${idx}] Voice synthesis error:`, voiceError.message)
-          console.warn(`[Segment ${idx}] Continuing without audio due to voice synthesis failure`)
-          return { idx, voiceUrl: undefined }
-        }
-      })
-    
-    const voiceResults = await Promise.allSettled(voicePromises)
-    
-    // Update assets with voice URLs
-    for (const result of voiceResults) {
-      if (result.status === 'fulfilled') {
-        const { idx, voiceUrl } = result.value
-        const asset = assets.find(a => a.segmentId === idx)
-        if (asset && voiceUrl) {
-          asset.voiceUrl = voiceUrl
-          if (asset.metadata) {
-            asset.metadata.voiceUrl = voiceUrl
-          }
-          console.log(`[Segment ${idx}] Voice URL updated: ${voiceUrl}`)
-        }
-      }
+    // Generate background music (single continuous track for entire video)
+    const totalDuration = Math.max(...storyboard.segments.map((s: any) => s.endTime), 0)
+    console.log(`[Generate Assets] Generating background music for ${totalDuration}s duration...`)
+    const musicUrl = await generateBackgroundMusic(storyboard, totalDuration)
+    if (musicUrl) {
+      console.log(`[Generate Assets] Background music generated: ${musicUrl}`)
+      // Store music URL in job metadata for later use in composition
+      if (!job.assets) job.assets = []
+      // We'll store this in a special way or pass it through to composition
+    } else {
+      console.warn(`[Generate Assets] Background music generation failed or skipped`)
     }
     
-    console.log(`[Generate Assets] Parallel voice synthesis completed`)
+    // Store music URL in job for composition
+    if (musicUrl) {
+      job.musicUrl = musicUrl
+      console.log(`[Generate Assets] Music URL stored in job: ${musicUrl}`)
+    }
+    
+    // Audio is embedded in Veo-generated videos - no separate audio generation needed
+    console.log(`[Generate Assets] Audio generation completed (embedded in video files)`)
 
     // Update job
     job.assets = assets
@@ -855,7 +1008,7 @@ export default defineEventHandler(async (event) => {
     job.endTime = Date.now()
     await saveJob(job)
 
-    return { jobId, assets }
+    return { jobId, assets, musicUrl }
   } catch (error: any) {
     const errorMessage = error.message || 'Unknown error occurred'
     console.error('[Generation Job] Overall failure:', errorMessage)

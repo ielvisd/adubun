@@ -45,7 +45,7 @@ export interface Storyboard {
   segments: Segment[]
   characters?: Character[] // Character descriptions extracted from the story
   meta: {
-    duration: number
+    duration: number // Default: 16 for new format, 24 for legacy format
     aspectRatio: '16:9' | '9:16'
     mood?: string // Video tone/mood from homepage (e.g., 'professional', 'playful', 'inspirational')
     adType?: string // Ad Type from homepage
@@ -54,6 +54,7 @@ export interface Storyboard {
     firstFrameImage?: string // Global default first frame image path/URL
     subjectReference?: string // Global default subject reference image path/URL
     resolution?: '720p' | '1080p' // Output resolution
+    format?: '16s' | '24s' // Video format: '16s' for 16-second format (default), '24s' for legacy 24-second format
   }
   promptJourney?: {
     userInput: {
@@ -132,6 +133,7 @@ export interface GenerationJob {
   assets?: Asset[]
   error?: string
   storyboardId: string
+  musicUrl?: string // Background music URL for the entire video
 }
 
 export interface ParsedPrompt {

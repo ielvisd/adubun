@@ -37,6 +37,7 @@ export default defineEventHandler(async (event) => {
       voiceUrl: asset.voiceUrl, // Include voice URL
     })) || [],
     error: job.error,
+    musicUrl: job.musicUrl, // Include music URL for the entire video
   }
 })
 

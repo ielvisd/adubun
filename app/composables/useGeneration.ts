@@ -6,6 +6,7 @@ export const useGeneration = () => {
   const status = ref<'idle' | 'processing' | 'completed' | 'failed'>('idle')
   const jobId = ref<string | null>(null)
   const overallError = ref<string | undefined>(undefined)
+  const musicUrl = ref<string | null>(null)
 
   const startGeneration = async (storyboard: any) => {
     status.value = 'processing'
@@ -100,6 +101,7 @@ export const useGeneration = () => {
         })
         overallProgress.value = progress.overallProgress
         overallError.value = progress.error
+        musicUrl.value = progress.musicUrl || null
         
         // Log errors for failed segments
         progress.segments.forEach((seg: any) => {
@@ -168,6 +170,7 @@ export const useGeneration = () => {
     status,
     jobId,
     overallError,
+    musicUrl,
     startGeneration,
     retrySegment,
     reset,

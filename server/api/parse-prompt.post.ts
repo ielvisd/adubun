@@ -192,7 +192,7 @@ export default defineEventHandler(async (event) => {
         aspectRatio: validated.aspectRatio,
         style: validated.style,
         mode: validated.mode || 'demo',
-        model: validated.model || 'google/veo-3.1', // Default to google/veo-3.1
+        model: validated.model || 'google/veo-3.1-fast', // Default to google/veo-3.1-fast
         adType: validated.adType || 'lifestyle', // Default to lifestyle,
         mood: validated.mood, // Pass through mood
         // Veo 3.1 fields

@@ -61,6 +61,7 @@
           :status="status"
           :current-cost="currentCost"
           :estimated-total="estimatedTotal"
+          :music-url="musicUrl"
           @version-selected="handleVersionSelected"
         />
 
@@ -88,7 +89,7 @@ const generationStarted = ref(false)
 const assetsReady = ref(false)
 const planningStoryboard = ref(false)
 
-const { segments, overallProgress, status, overallError, jobId, startGeneration: startGen, pollProgress: pollGenProgress, reset, retrySegment: retrySegmentGen } = useGeneration()
+const { segments, overallProgress, status, overallError, jobId, musicUrl, startGeneration: startGen, pollProgress: pollGenProgress, reset, retrySegment: retrySegmentGen } = useGeneration()
 const { currentCost, estimatedTotal, startPolling } = useCostTracking()
 const toast = useToast()
 
@@ -165,7 +166,7 @@ const restoreGenerationState = async () => {
           console.log(`[Generate] Restored ${segments.value.length} segments`)
         }
         
-        // Restore status, progress, and error for immediate UI update
+        // Restore status, progress, error, and musicUrl for immediate UI update
         if (jobState.status) {
           status.value = jobState.status
         }
@@ -174,6 +175,9 @@ const restoreGenerationState = async () => {
         }
         if (jobState.overallError !== undefined) {
           overallError.value = jobState.overallError
+        }
+        if (jobState.musicUrl !== undefined) {
+          musicUrl.value = jobState.musicUrl
         }
         
         // Resume polling if job is still active
@@ -248,8 +252,7 @@ onMounted(async () => {
                 visualPrompt: clip.description,
                 visualPromptAlternatives: [],
                 audioNotes: index === 0 ? selectedStory.hook : 
-                           index === 1 ? selectedStory.bodyOne :
-                           index === 2 ? selectedStory.bodyTwo :
+                           index === 1 ? (selectedStory.body || selectedStory.bodyOne || selectedStory.bodyTwo || '') :
                            selectedStory.callToAction,
               }
             })
@@ -429,6 +432,7 @@ const saveGenerationState = () => {
         status: status.value,
         overallProgress: overallProgress.value,
         overallError: overallError.value,
+        musicUrl: musicUrl.value,
         timestamp: Date.now(),
       }
       sessionStorage.setItem('generateJobState', JSON.stringify(state))

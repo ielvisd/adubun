@@ -58,7 +58,7 @@ class ReplicateMCPServer {
    * @returns Rounded duration
    */
   private roundDurationToValidValue(model: string, duration: number): number {
-    if (model === 'google/veo-3.1' || model === 'google/veo-3-fast') {
+    if (model === 'google/veo-3.1' || model === 'google/veo-3-fast' || model === 'google/veo-3.1-fast') {
       if (duration < 4) {
         return 4
       }
@@ -82,7 +82,7 @@ class ReplicateMCPServer {
       tools: [
         {
           name: 'generate_video',
-          description: 'Generate video using Replicate models (google/veo-3.1, google/veo-3-fast)',
+          description: 'Generate video using Replicate models (google/veo-3.1, google/veo-3-fast, google/veo-3.1-fast)',
           inputSchema: {
             type: 'object',
             properties: {
@@ -308,6 +308,56 @@ class ReplicateMCPServer {
             required: ['video', 'prompt'],
           },
         },
+        {
+          name: 'generate_music',
+          description: 'Generate music using Replicate models (google/lyria-2)',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              prompt: {
+                type: 'string',
+                description: 'Text description of desired music (mood, style, genre)',
+              },
+              duration: {
+                type: 'number',
+                description: 'Duration in seconds (default: match video length)',
+              },
+              model: {
+                type: 'string',
+                description: 'Model ID (default: google/lyria-2)',
+                default: 'google/lyria-2',
+              },
+            },
+            required: ['prompt'],
+          },
+        },
+        {
+          name: 'generate_speech',
+          description: 'Generate speech using Replicate TTS models (minimax/speech-02-hd)',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              text: {
+                type: 'string',
+                description: 'Text to convert to speech',
+              },
+              voice: {
+                type: 'string',
+                description: 'Voice ID/name (default: professional voice)',
+              },
+              model: {
+                type: 'string',
+                description: 'Model ID (default: minimax/speech-02-hd)',
+                default: 'minimax/speech-02-hd',
+              },
+              speed: {
+                type: 'number',
+                description: 'Optional speech speed adjustment (0.5-2.0)',
+              },
+            },
+            required: ['text'],
+          },
+        },
       ],
     }))
 
@@ -372,6 +422,21 @@ class ReplicateMCPServer {
               args.output_format || 'jpg'
             )
           
+          case 'generate_music':
+            return await this.generateMusic(
+              args.prompt,
+              args.duration,
+              args.model || 'google/lyria-2'
+            )
+          
+          case 'generate_speech':
+            return await this.generateSpeech(
+              args.text,
+              args.voice,
+              args.model || 'minimax/speech-02-hd',
+              args.speed
+            )
+          
           default:
             throw new Error(`Unknown tool: ${name}`)
         }
@@ -428,7 +493,7 @@ class ReplicateMCPServer {
       }
       
       // Only add duration if model supports it
-      if (modelId === 'google/veo-3.1' || modelId === 'google/veo-3-fast') {
+      if (modelId === 'google/veo-3.1' || modelId === 'google/veo-3-fast' || modelId === 'google/veo-3.1-fast') {
         input.duration = roundedDuration
       }
     }
@@ -473,6 +538,30 @@ class ReplicateMCPServer {
         input.image = image
       }
       // Note: Veo 3 Fast does NOT support last_frame or reference_images
+      if (negativePrompt) {
+        input.negative_prompt = negativePrompt
+      }
+      if (resolution) {
+        input.resolution = resolution
+      }
+      if (generateAudio !== undefined) {
+        input.generate_audio = generateAudio
+      }
+      if (seed !== undefined && seed !== null) {
+        input.seed = seed
+      }
+    } else if (modelId === 'google/veo-3.1-fast') {
+      // Veo 3.1 Fast supports: prompt, aspect_ratio, duration, image, negative_prompt, resolution, generate_audio, seed, last_frame
+      if (prompt) {
+        input.prompt = prompt
+      }
+      if (image) {
+        input.image = image
+      }
+      if (lastFrame) {
+        input.last_frame = lastFrame
+      }
+      // Note: Veo 3.1 Fast does NOT support reference_images
       if (negativePrompt) {
         input.negative_prompt = negativePrompt
       }
@@ -886,6 +975,127 @@ class ReplicateMCPServer {
     }
   }
 
+  private async generateMusic(
+    prompt: string,
+    duration?: number,
+    model: string = 'google/lyria-2'
+  ) {
+    if (!prompt) {
+      throw new Error('Prompt is required for music generation')
+    }
+
+    const input: any = {
+      prompt: prompt,
+    }
+
+    if (duration !== undefined && duration > 0) {
+      input.duration = duration
+    }
+
+    console.error(`[Replicate MCP] Creating music prediction with model: ${model}`)
+    console.error('[Replicate MCP] Input params:', JSON.stringify(input, null, 2))
+
+    let prediction
+    try {
+      prediction = await replicate.predictions.create({
+        model: model,
+        input,
+      })
+    } catch (error: any) {
+      if (error.status === 404 || error.message?.includes('404') || error.message?.includes('not found')) {
+        console.error(`[Replicate MCP] Model not found: ${model}`)
+        throw new Error(`Model "${model}" is not available on Replicate. This model may have been removed or is not accessible.`)
+      }
+      throw error
+    }
+
+    console.error('[Replicate MCP] Music prediction created:', JSON.stringify({
+      id: prediction.id,
+      status: prediction.status,
+      createdAt: prediction.created_at,
+      urls: prediction.urls,
+      model: prediction.model,
+      version: prediction.version,
+    }, null, 2))
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            predictionId: prediction.id,
+            id: prediction.id,
+            status: prediction.status,
+            createdAt: prediction.created_at,
+          }),
+        },
+      ],
+    }
+  }
+
+  private async generateSpeech(
+    text: string,
+    voice?: string,
+    model: string = 'minimax/speech-02-hd',
+    speed?: number
+  ) {
+    if (!text || text.trim().length === 0) {
+      throw new Error('Text is required for speech generation')
+    }
+
+    const input: any = {
+      text: text.trim(),
+    }
+
+    if (voice) {
+      input.voice = voice
+    }
+
+    if (speed !== undefined && speed > 0) {
+      input.speed = speed
+    }
+
+    console.error(`[Replicate MCP] Creating speech prediction with model: ${model}`)
+    console.error('[Replicate MCP] Input params:', JSON.stringify(input, null, 2))
+
+    let prediction
+    try {
+      prediction = await replicate.predictions.create({
+        model: model,
+        input,
+      })
+    } catch (error: any) {
+      if (error.status === 404 || error.message?.includes('404') || error.message?.includes('not found')) {
+        console.error(`[Replicate MCP] Model not found: ${model}`)
+        throw new Error(`Model "${model}" is not available on Replicate. This model may have been removed or is not accessible.`)
+      }
+      throw error
+    }
+
+    console.error('[Replicate MCP] Speech prediction created:', JSON.stringify({
+      id: prediction.id,
+      status: prediction.status,
+      createdAt: prediction.created_at,
+      urls: prediction.urls,
+      model: prediction.model,
+      version: prediction.version,
+    }, null, 2))
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            predictionId: prediction.id,
+            id: prediction.id,
+            status: prediction.status,
+            createdAt: prediction.created_at,
+          }),
+        },
+      ],
+    }
+  }
+
   private async getPredictionResult(predictionId: string) {
     const prediction = await replicate.predictions.get(predictionId)
 
@@ -893,25 +1103,27 @@ class ReplicateMCPServer {
       throw new Error(`Prediction not completed. Status: ${prediction.status}`)
     }
 
-    // Handle different output formats
-    let videoUrl: string | null = null
+    // Handle different output formats (video, audio, or other media)
+    let mediaUrl: string | null = null
     
     if (prediction.output) {
       if (Array.isArray(prediction.output)) {
-        videoUrl = prediction.output[0] || null
+        mediaUrl = prediction.output[0] || null
       } else if (typeof prediction.output === 'string') {
-        videoUrl = prediction.output
+        mediaUrl = prediction.output
       } else if (typeof prediction.output === 'object' && prediction.output !== null) {
-        // Try common property names
-        videoUrl = (prediction.output as any).url || 
+        // Try common property names for both video and audio
+        mediaUrl = (prediction.output as any).url || 
                    (prediction.output as any).videoUrl || 
                    (prediction.output as any).video_url ||
+                   (prediction.output as any).audioUrl ||
+                   (prediction.output as any).audio_url ||
                    (prediction.output as any).output ||
                    null
       }
     }
 
-    if (!videoUrl) {
+    if (!mediaUrl) {
       console.error('[Replicate MCP] Prediction output structure:', JSON.stringify({
         output: prediction.output,
         outputType: typeof prediction.output,
@@ -927,7 +1139,9 @@ class ReplicateMCPServer {
         {
           type: 'text',
           text: JSON.stringify({
-            videoUrl,
+            videoUrl: mediaUrl, // Keep for backward compatibility
+            audioUrl: mediaUrl, // Also include as audioUrl
+            url: mediaUrl, // Generic URL field
             predictionId: prediction.id,
           }),
         },
