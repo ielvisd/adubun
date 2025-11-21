@@ -23,7 +23,7 @@ export default defineNuxtRouteMiddleware((to, from) => {
         if (!isLoading) {
           unwatch()
           if (!user.value && !process.dev) {
-            return navigateTo('/auth/login')
+            // return navigateTo('/auth/login')
           }
           resolve(undefined)
         }
@@ -33,7 +33,7 @@ export default defineNuxtRouteMiddleware((to, from) => {
       setTimeout(() => {
         unwatch()
         if (!user.value && !process.dev) {
-          return navigateTo('/auth/login')
+          // return navigateTo('/auth/login')
         }
         resolve(undefined)
       }, 2000)
