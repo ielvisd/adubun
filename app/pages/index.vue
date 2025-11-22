@@ -17,6 +17,20 @@
         <div class="bg-white dark:bg-gray-900 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 p-8 sm:p-10">
           <UiPromptInput :loading="isLoading" @submit="handleSubmit" />
         </div>
+
+        <!-- Long Form / Scene Builder CTA -->
+        <div class="mt-8 text-center">
+          <p class="text-gray-600 dark:text-gray-400 mb-4">Want more control? Build scene by scene.</p>
+          <UButton
+            to="/manual"
+            variant="outline"
+            color="primary"
+            size="lg"
+            icon="i-heroicons-film"
+          >
+            Open Scene Builder
+          </UButton>
+        </div>
       </UContainer>
     </div>
 
