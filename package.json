@@ -19,6 +19,7 @@
     "@nuxt/ui": "^4.1.0",
     "@nuxtjs/color-mode": "^4.0.0",
     "@nuxtjs/storybook": "9.0.1",
+    "@vite-pwa/nuxt": "^1.0.7",
     "@vueuse/nuxt": "^14.0.0",
     "axios": "^1.13.2",
     "date-fns": "^4.1.0",

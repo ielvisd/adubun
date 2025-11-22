@@ -6,6 +6,12 @@
 .cache
 dist
 
+# PWA service worker files
+sw.js
+sw.js.map
+workbox-*.js
+workbox-*.js.map
+
 # Node dependencies
 node_modules
 
