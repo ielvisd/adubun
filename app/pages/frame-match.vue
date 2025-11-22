@@ -4,90 +4,122 @@
       <div class="mb-8">
         <h1 class="text-3xl font-bold mb-2">Frame Matching Tool</h1>
         <p class="text-gray-600 dark:text-gray-400">
-          Upload 4 video clips and automatically stitch them with intelligent frame matching for seamless transitions.
+          Upload 2 or more video clips and automatically stitch them with intelligent frame matching for seamless transitions.
         </p>
       </div>
 
       <!-- Upload Section -->
       <UCard class="mb-8">
         <template #header>
-          <h2 class="text-xl font-semibold">Upload Video Clips</h2>
+          <div class="flex items-center justify-between">
+            <h2 class="text-xl font-semibold">Upload Video Clips ({{ clips.length }} clips)</h2>
+            <UButton
+              icon="i-heroicons-plus"
+              size="sm"
+              color="primary"
+              variant="outline"
+              :disabled="clips.length >= maxClips"
+              @click="addClip"
+            >
+              Add Clip
+            </UButton>
+          </div>
         </template>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div v-for="(clip, index) in clips" :key="index" class="space-y-3">
+        <div class="space-y-6">
+          <div v-for="(clip, index) in clips" :key="clip.id" class="space-y-3">
             <div class="flex items-center justify-between">
-              <h3 class="font-medium">Clip {{ index + 1 }}</h3>
-              <UBadge v-if="clip.file" color="green" variant="subtle">
-                {{ formatFileSize(clip.file.size) }}
-              </UBadge>
-            </div>
-
-            <!-- Upload Area -->
-            <div
-              v-if="!clip.file"
-              class="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center cursor-pointer hover:border-primary-500 transition-colors"
-              @click="triggerFileInput(index)"
-              @dragover.prevent="handleDragOver(index)"
-              @dragleave.prevent="handleDragLeave(index)"
-              @drop.prevent="handleDrop($event, index)"
-            >
-              <UIcon name="i-heroicons-arrow-up-tray" class="w-12 h-12 mx-auto mb-3 text-gray-400" />
-              <p class="text-sm text-gray-600 dark:text-gray-400">
-                Click to upload or drag and drop
-              </p>
-              <p class="text-xs text-gray-500 mt-1">MP4, WebM up to 500MB</p>
-            </div>
-
-            <!-- Preview -->
-            <div v-else class="space-y-2">
-              <div class="aspect-video bg-black rounded-lg overflow-hidden">
-                <video
-                  :ref="el => videoRefs[index] = el"
-                  :src="clip.previewUrl"
-                  class="w-full h-full object-contain"
-                  controls
-                />
+              <div class="flex items-center gap-3">
+                <UBadge color="gray" variant="subtle">{{ index + 1 }}</UBadge>
+                <h3 class="font-medium">Clip {{ index + 1 }}</h3>
+                <UBadge v-if="clip.file" color="green" variant="subtle">
+                  {{ formatFileSize(clip.file.size) }}
+                </UBadge>
               </div>
-              <div class="flex items-center justify-between text-sm">
-                <span class="text-gray-600 dark:text-gray-400 truncate flex-1">
-                  {{ clip.file.name }}
-                </span>
-                <UButton
-                  icon="i-heroicons-x-mark"
-                  size="xs"
-                  color="red"
-                  variant="ghost"
-                  @click="removeClip(index)"
-                />
-              </div>
+              <UButton
+                v-if="clips.length > minClips"
+                icon="i-heroicons-trash"
+                size="xs"
+                color="red"
+                variant="ghost"
+                @click="deleteClip(index)"
+              >
+                Remove
+              </UButton>
             </div>
 
-            <!-- Hidden file input -->
-            <input
-              :ref="el => fileInputRefs[index] = el"
-              type="file"
-              accept="video/mp4,video/webm"
-              class="hidden"
-              @change="handleFileSelect($event, index)"
-            />
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <!-- Upload Area (takes 1/3 width on desktop) -->
+              <div
+                v-if="!clip.file"
+                class="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center cursor-pointer hover:border-primary-500 transition-colors"
+                @click="triggerFileInput(index)"
+                @dragover.prevent="handleDragOver(index)"
+                @dragleave.prevent="handleDragLeave(index)"
+                @drop.prevent="handleDrop($event, index)"
+              >
+                <UIcon name="i-heroicons-arrow-up-tray" class="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                  Click to upload or drag and drop
+                </p>
+                <p class="text-xs text-gray-500 mt-1">MP4, WebM up to 500MB</p>
+              </div>
+
+              <!-- Preview (takes full width when uploaded) -->
+              <div v-else class="md:col-span-3 space-y-2">
+                <div class="aspect-video bg-black rounded-lg overflow-hidden">
+                  <video
+                    :ref="el => videoRefs[index] = el"
+                    :src="clip.previewUrl"
+                    class="w-full h-full object-contain"
+                    controls
+                  />
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-gray-600 dark:text-gray-400 truncate flex-1">
+                    {{ clip.file.name }}
+                  </span>
+                  <UButton
+                    icon="i-heroicons-x-mark"
+                    size="xs"
+                    color="red"
+                    variant="ghost"
+                    @click="removeClipFile(index)"
+                  >
+                    Clear
+                  </UButton>
+                </div>
+              </div>
+
+              <!-- Hidden file input -->
+              <input
+                :ref="el => fileInputRefs[index] = el"
+                type="file"
+                accept="video/mp4,video/webm"
+                class="hidden"
+                @change="handleFileSelect($event, index)"
+              />
+            </div>
           </div>
         </div>
 
         <!-- Process Button -->
-        <div class="mt-8 flex justify-center">
+        <div class="mt-8 flex flex-col items-center gap-4">
           <UButton
             size="xl"
             color="primary"
-            :disabled="!allClipsUploaded || processing"
+            :disabled="!hasMinimumClips || processing"
             :loading="processing"
             @click="processFrameMatching"
           >
             <template #leading>
               <UIcon name="i-heroicons-sparkles" />
             </template>
-            {{ processing ? 'Processing...' : 'Generate Frame-Matched Video' }}
+            {{ processing ? 'Processing...' : `Stitch ${uploadedClipsCount} Clips with Frame Matching` }}
           </UButton>
+          <p v-if="!hasMinimumClips" class="text-sm text-gray-500">
+            Upload at least {{ minClips }} clips to continue
+          </p>
         </div>
       </UCard>
 
@@ -212,6 +244,7 @@
           <div class="space-y-2 text-sm">
             <p class="font-semibold text-blue-900 dark:text-blue-100">How Frame Matching Works</p>
             <ul class="list-disc list-inside space-y-1 text-blue-800 dark:text-blue-200">
+              <li>Works with any number of clips (minimum {{ minClips }}, maximum {{ maxClips }})</li>
               <li>Analyzes the last 30 frames of each clip (1 second at 30fps)</li>
               <li>Compares each frame to the first frame of the next clip using SSIM</li>
               <li>SSIM (Structural Similarity Index) provides accurate perceptual matching</li>
@@ -228,6 +261,7 @@
 
 <script setup lang="ts">
 interface Clip {
+  id: string
   file: File | null
   previewUrl: string | null
 }
@@ -243,12 +277,18 @@ interface StitchAdjustment {
 
 const toast = useToast()
 
-// Clips state
+// Configuration
+const minClips = 2
+const maxClips = 10
+
+// Helper to generate unique IDs
+let clipIdCounter = 0
+const generateClipId = () => `clip-${Date.now()}-${clipIdCounter++}`
+
+// Clips state - start with 2 empty clips
 const clips = ref<Clip[]>([
-  { file: null, previewUrl: null },
-  { file: null, previewUrl: null },
-  { file: null, previewUrl: null },
-  { file: null, previewUrl: null },
+  { id: generateClipId(), file: null, previewUrl: null },
+  { id: generateClipId(), file: null, previewUrl: null },
 ])
 
 // Refs
@@ -264,9 +304,67 @@ const originalVideoId = ref<string | null>(null)
 const smartVideoId = ref<string | null>(null)
 const adjustments = ref<StitchAdjustment[]>([])
 
+// Computed properties
+const uploadedClipsCount = computed(() => {
+  return clips.value.filter(clip => clip.file !== null).length
+})
+
+const hasMinimumClips = computed(() => {
+  return uploadedClipsCount.value >= minClips
+})
+
 const allClipsUploaded = computed(() => {
   return clips.value.every(clip => clip.file !== null)
 })
+
+// Add a new clip slot
+const addClip = () => {
+  if (clips.value.length >= maxClips) {
+    toast.add({
+      title: 'Maximum Clips Reached',
+      description: `You can add up to ${maxClips} clips.`,
+      color: 'warning',
+    })
+    return
+  }
+  
+  clips.value.push({ 
+    id: generateClipId(), 
+    file: null, 
+    previewUrl: null 
+  })
+  
+  toast.add({
+    title: 'Clip Slot Added',
+    description: `Clip ${clips.value.length} added. Upload a video to use it.`,
+    color: 'success',
+  })
+}
+
+// Delete a clip slot entirely
+const deleteClip = (index: number) => {
+  if (clips.value.length <= minClips) {
+    toast.add({
+      title: 'Minimum Clips Required',
+      description: `You need at least ${minClips} clips for stitching.`,
+      color: 'warning',
+    })
+    return
+  }
+  
+  // Revoke preview URL if exists
+  if (clips.value[index].previewUrl) {
+    URL.revokeObjectURL(clips.value[index].previewUrl!)
+  }
+  
+  clips.value.splice(index, 1)
+  
+  toast.add({
+    title: 'Clip Removed',
+    description: 'Clip slot has been removed.',
+    color: 'success',
+  })
+}
 
 const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes'
@@ -328,7 +426,9 @@ const processFile = (file: File, index: number) => {
     URL.revokeObjectURL(clips.value[index].previewUrl!)
   }
 
+  // Update clip while preserving ID
   clips.value[index] = {
+    ...clips.value[index],
     file,
     previewUrl,
   }
@@ -340,18 +440,24 @@ const processFile = (file: File, index: number) => {
   })
 }
 
-const removeClip = (index: number) => {
+// Clear a clip's file but keep the slot
+const removeClipFile = (index: number) => {
   if (clips.value[index].previewUrl) {
     URL.revokeObjectURL(clips.value[index].previewUrl!)
   }
-  clips.value[index] = {
-    file: null,
-    previewUrl: null,
-  }
+  clips.value[index].file = null
+  clips.value[index].previewUrl = null
 }
 
 const processFrameMatching = async () => {
-  if (!allClipsUploaded.value) return
+  if (!hasMinimumClips.value) {
+    toast.add({
+      title: 'Not Enough Clips',
+      description: `Please upload at least ${minClips} clips to continue.`,
+      color: 'warning',
+    })
+    return
+  }
 
   processing.value = true
   error.value = null
@@ -360,14 +466,18 @@ const processFrameMatching = async () => {
   adjustments.value = []
 
   try {
-    // Create FormData with all clips
+    // Create FormData with only uploaded clips
     const formData = new FormData()
     
+    let clipCount = 0
     clips.value.forEach((clip, index) => {
       if (clip.file) {
-        formData.append(`clip${index}`, clip.file)
+        formData.append(`clip${clipCount}`, clip.file)
+        clipCount++
       }
     })
+
+    console.log(`[FrameMatch] Sending ${clipCount} clips for processing`)
 
     // Call API endpoint
     const result = await $fetch<{
@@ -389,7 +499,7 @@ const processFrameMatching = async () => {
 
     toast.add({
       title: 'Processing Complete',
-      description: 'Frame-matched video generated successfully!',
+      description: `Successfully stitched ${clipCount} clips with frame matching!`,
       color: 'success',
     })
 

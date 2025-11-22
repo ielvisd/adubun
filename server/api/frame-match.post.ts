@@ -61,18 +61,18 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Validate we have 4 clips
-    if (uploadedClips.length !== 4) {
+    // Validate we have at least 2 clips
+    if (uploadedClips.length < 2) {
       throw createError({
         statusCode: 400,
-        message: `Expected 4 clips, received ${uploadedClips.length}`,
+        message: `Expected at least 2 clips, received ${uploadedClips.length}`,
       })
     }
 
-    // Sort clips by index
+    // Sort clips by index to ensure correct order
     uploadedClips.sort((a, b) => a.index - b.index)
 
-    console.log('[Frame Match] All clips uploaded and sorted')
+    console.log(`[Frame Match] ${uploadedClips.length} clips uploaded and sorted`)
 
     // Get durations for each clip
     const clipDurations = await Promise.all(
@@ -197,11 +197,15 @@ export default defineEventHandler(async (event) => {
     }
     await saveVideoMetadata(smartVideo)
 
-    // Track cost
-    await trackCost('frame-matching', 0.20, {
+    // Track cost (base cost + per-clip cost)
+    const baseCost = 0.10
+    const perClipCost = 0.05
+    const totalCost = baseCost + (uploadedClips.length * perClipCost)
+    
+    await trackCost('frame-matching', totalCost, {
       originalVideoId,
       smartVideoId,
-      clipsCount: 4,
+      clipsCount: uploadedClips.length,
       adjustmentsCount: smartResult.adjustments.length,
     })
 
