@@ -678,6 +678,7 @@ export async function composeVideoWithSmartStitching(
   
   const adjustments: StitchAdjustment[] = []
   const adjustedClips: Clip[] = []
+  const trimmedVideoPaths: string[] = []  // Track trimmed files for cleanup
   
   // Process each clip transition
   for (let i = 0; i < clips.length; i++) {
@@ -722,20 +723,33 @@ export async function composeVideoWithSmartStitching(
         console.log(`[FFmpeg] ${transitionName}: Similarity score: ${bestMatch.similarity.toFixed(4)}`)
         console.log(`[FFmpeg] ${transitionName}: Trimming ${trimmedSeconds.toFixed(3)}s from end`)
         
-        // Adjust clip end time
-        const clipDuration = currentClip.endTime - currentClip.startTime
-        const adjustmentRatio = bestMatch.timestamp / currentDuration
-        const newEndTime = currentClip.startTime + (clipDuration * adjustmentRatio)
-        
-        adjustedClip = {
-          ...currentClip,
-          endTime: newEndTime
+        // **CRITICAL FIX: Pre-trim the actual video file (including audio)**
+        // This ensures both video AND audio are trimmed at the source
+        if (trimmedSeconds > 0.01) {  // Only trim if meaningful amount (> 10ms)
+          console.log(`[FFmpeg] ${transitionName}: Pre-trimming video+audio file to ${bestMatch.timestamp.toFixed(3)}s`)
+          const trimmedVideoPath = await trimVideoAtTimestamp(currentClip.localPath, bestMatch.timestamp)
+          trimmedVideoPaths.push(trimmedVideoPath)
+          
+          // Update adjusted clip to use the trimmed video
+          // Adjust timing: since we trimmed the file itself, reset startTime to 0
+          const newDuration = bestMatch.timestamp
+          adjustedClip = {
+            ...currentClip,
+            localPath: trimmedVideoPath,  // Use trimmed file
+            startTime: 0,  // Reset to 0 since we're using a new file
+            endTime: newDuration  // Duration of the trimmed file
+          }
+          
+          console.log(`[FFmpeg] ${transitionName}: ✓ Using pre-trimmed video (${newDuration.toFixed(3)}s)`)
+        } else {
+          console.log(`[FFmpeg] ${transitionName}: Trim amount too small (${trimmedSeconds.toFixed(3)}s), using original`)
+          adjustedClip = { ...currentClip }
         }
         
         adjustments.push({
           clipIndex: i,
           originalEndTime: currentClip.endTime,
-          adjustedEndTime: newEndTime,
+          adjustedEndTime: adjustedClip.endTime,
           trimmedSeconds,
           similarity: bestMatch.similarity,
           transitionName
@@ -759,9 +773,24 @@ export async function composeVideoWithSmartStitching(
           transitionName
         })
       }
+    } else {
+      // Last clip - no trimming needed
+      console.log(`\n[FFmpeg] Last clip (${currentClip.type}): No trimming needed`)
+      adjustedClip = { ...currentClip }
     }
     
     adjustedClips.push(adjustedClip)
+  }
+  
+  // Recalculate timeline positions for adjusted clips
+  console.log('\n[FFmpeg] Recalculating timeline positions...')
+  let cumulativeTime = 0
+  for (let i = 0; i < adjustedClips.length; i++) {
+    const clipDuration = adjustedClips[i].endTime - adjustedClips[i].startTime
+    adjustedClips[i].startTime = cumulativeTime
+    adjustedClips[i].endTime = cumulativeTime + clipDuration
+    console.log(`[FFmpeg] Clip ${i}: ${adjustedClips[i].startTime.toFixed(3)}s - ${adjustedClips[i].endTime.toFixed(3)}s (${clipDuration.toFixed(3)}s)`)
+    cumulativeTime += clipDuration
   }
   
   // Log summary of adjustments
@@ -777,14 +806,25 @@ export async function composeVideoWithSmartStitching(
   })
   console.log('[FFmpeg] ========================================\n')
   
-  // Compose video with adjusted clips using existing function
-  console.log('[FFmpeg] Composing video with adjusted clips...')
-  await composeVideo(adjustedClips, options)
-  console.log('[FFmpeg] Video composition complete!')
-  
-  return {
-    outputPath: options.outputPath,
-    adjustments
+  try {
+    // Compose video with adjusted clips using existing function
+    console.log('[FFmpeg] Composing video with adjusted clips...')
+    await composeVideo(adjustedClips, options)
+    console.log('[FFmpeg] Video composition complete!')
+    
+    return {
+      outputPath: options.outputPath,
+      adjustments
+    }
+  } finally {
+    // Clean up trimmed video files
+    console.log('[FFmpeg] Cleaning up', trimmedVideoPaths.length, 'trimmed video files...')
+    for (const path of trimmedVideoPaths) {
+      await fs.unlink(path).catch((err) => {
+        console.warn(`[FFmpeg] Failed to cleanup trimmed file ${path}:`, err.message)
+      })
+    }
+    console.log('[FFmpeg] Cleanup complete')
   }
 }
 
@@ -833,6 +873,7 @@ export async function extractAllFramesFromEnd(
 
 /**
  * Trim video at a specific timestamp (keeping content before timestamp)
+ * IMPORTANT: This trims BOTH video and audio streams
  */
 export async function trimVideoAtTimestamp(
   videoPath: string,
@@ -845,15 +886,39 @@ export async function trimVideoAtTimestamp(
       `trimmed_${Date.now()}_${path.basename(videoPath)}`
     )
     
+    console.log(`[FFmpeg] Trimming video AND audio to ${timestamp}s`)
+    
     ffmpeg(videoPath)
-      .setDuration(timestamp)
+      .seekInput(0)  // Start from beginning
+      .setDuration(timestamp)  // Trim to this duration (affects both video and audio)
+      .outputOptions([
+        '-c:v libx264',  // Re-encode video for clean cut
+        '-preset fast',
+        '-crf 18',
+        '-pix_fmt yuv420p',
+        '-g 30',  // GOP size for keyframes
+        '-keyint_min 30',
+        '-sc_threshold 0',
+        '-force_key_frames expr:gte(t,0)',  // Force keyframe at start
+        '-c:a aac',  // Re-encode audio for clean cut
+        '-b:a 192k',
+        '-ar 48000',
+        '-movflags +faststart',
+        '-avoid_negative_ts make_zero',
+      ])
       .output(tempOutputPath)
+      .on('start', (commandLine) => {
+        console.log(`[FFmpeg] Trim command:`, commandLine)
+      })
       .on('end', () => {
-        console.log(`[FFmpeg] Trimmed video at ${timestamp}s`)
+        console.log(`[FFmpeg] ✓ Trimmed video+audio to ${timestamp}s: ${tempOutputPath}`)
         resolve(tempOutputPath)
       })
-      .on('error', (err) => {
-        console.error(`[FFmpeg] Error trimming video:`, err.message)
+      .on('error', (err, stdout, stderr) => {
+        console.error(`[FFmpeg] ✗ Error trimming video:`, err.message)
+        if (stderr) {
+          console.error(`[FFmpeg] Stderr:`, stderr.substring(0, 500))
+        }
         reject(err)
       })
       .run()
