@@ -133,6 +133,29 @@
           </div>
         </div>
 
+        <!-- Save Changes Button -->
+        <UCard v-if="selectedStoryboard && hasUnsavedChanges" class="mb-6">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <UIcon name="i-heroicons-exclamation-triangle" class="w-5 h-5 text-amber-500" />
+              <div>
+                <div class="font-medium text-gray-900 dark:text-white">You have unsaved changes</div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">Save your edits before regenerating frames</div>
+              </div>
+            </div>
+            <UButton
+              :loading="isSaving"
+              :disabled="isSaving || generatingFrames"
+              @click="saveStoryboardChanges"
+              color="primary"
+              size="sm"
+            >
+              <UIcon name="i-heroicons-check" class="mr-2" />
+              Save Changes
+            </UButton>
+          </div>
+        </UCard>
+
         <!-- Manual Frame Generation Button -->
         <UCard v-if="selectedStoryboard" class="mb-6">
           <template #header>
@@ -150,7 +173,7 @@
               </div>
               <UButton
                 :loading="generatingFrames"
-                :disabled="generatingFrames"
+                :disabled="generatingFrames || isSaving"
                 @click="generateFrames"
                 color="primary"
                 size="sm"
@@ -875,6 +898,10 @@ const hasGeneratedVideos = computed(() => {
 // Debounce timer for auto-save
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
+// Track unsaved changes
+const hasUnsavedChanges = ref(false)
+const isSaving = ref(false)
+
 // Save storyboard state to localStorage
 const saveStoryboardState = () => {
   if (!process.client || !selectedStoryboard.value) return
@@ -910,18 +937,60 @@ const saveStoryboardState = () => {
     const storageKey = `storyboard-state-${selectedStoryboard.value.id}`
     localStorage.setItem(storageKey, JSON.stringify(stateToSave))
     console.log('[Storyboards] Saved storyboard state to localStorage:', storageKey)
+    return true
   } catch (error) {
     console.error('[Storyboards] Failed to save storyboard state:', error)
+    return false
+  }
+}
+
+// Immediate save function (bypasses debounce)
+const saveStoryboardChanges = async () => {
+  if (!selectedStoryboard.value) return
+  
+  // Clear any pending debounced save
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    saveTimer = null
+  }
+  
+  isSaving.value = true
+  
+  try {
+    const success = saveStoryboardState()
+    if (success) {
+      hasUnsavedChanges.value = false
+      toast.add({
+        title: 'Changes Saved',
+        description: 'Your storyboard edits have been saved successfully.',
+        color: 'green',
+        timeout: 2000,
+      })
+    } else {
+      throw new Error('Failed to save changes')
+    }
+  } catch (error: any) {
+    console.error('[Storyboards] Error saving changes:', error)
+    toast.add({
+      title: 'Save Failed',
+      description: error.message || 'Failed to save your changes. Please try again.',
+      color: 'red',
+      timeout: 3000,
+    })
+  } finally {
+    isSaving.value = false
   }
 }
 
 // Debounced save function
 const debouncedSave = () => {
+  hasUnsavedChanges.value = true
   if (saveTimer) {
     clearTimeout(saveTimer)
   }
   saveTimer = setTimeout(() => {
     saveStoryboardState()
+    hasUnsavedChanges.value = false
   }, 500)
 }
 
@@ -1173,6 +1242,11 @@ const getFrameWarning = (segmentIndex: number, frameType: 'first' | 'last'): str
 // Regenerate single frame
 const regenerateSingleFrame = async (segmentIndex: number, field: 'firstFrameImage' | 'lastFrameImage') => {
   if (!selectedStoryboard.value || !selectedStory.value) return
+  
+  // Save any unsaved changes before regenerating
+  if (hasUnsavedChanges.value) {
+    await saveStoryboardChanges()
+  }
   
   const key = `${segmentIndex}-${field === 'firstFrameImage' ? 'first' : 'last'}`
   regeneratingFrames.value.set(key, true)
@@ -1730,6 +1804,8 @@ const generateStoryboards = async (mode?: 'demo' | 'production') => {
         }
         console.log('[Storyboards] Restored storyboard state from localStorage')
       }
+      // Reset unsaved changes flag after loading
+      hasUnsavedChanges.value = false
     }
     loading.value = false
     
@@ -1791,6 +1867,11 @@ const generateFrames = async () => {
   if (generatingFrames.value) {
     console.warn('[Storyboards] Frame generation already in progress, ignoring duplicate call')
     return
+  }
+
+  // Save any unsaved changes before generating frames
+  if (hasUnsavedChanges.value) {
+    await saveStoryboardChanges()
   }
 
   generatingFrames.value = true
