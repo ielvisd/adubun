@@ -24,7 +24,7 @@
         </video>
       </div>
       
-      <AIGeneratedBadge v-if="showBadge" />
+      <LandingAIGeneratedBadge v-if="showBadge" />
     </div>
   </div>
 </template>
@@ -45,4 +45,6 @@ const props = withDefaults(defineProps<Props>(), {
 const videoSrcWebm = computed(() => `${props.videoSrc}.webm`)
 const videoSrcMp4 = computed(() => `${props.videoSrc}.MP4`)
 </script>
+
+
 

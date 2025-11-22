@@ -12,3 +12,5 @@
 // AIGeneratedBadge component - displays the floating badge on video showcases
 </script>
 
+
+

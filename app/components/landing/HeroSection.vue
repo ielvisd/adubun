@@ -16,7 +16,7 @@
           </p>
           
           <!-- Mobile Video - Only visible on mobile -->
-          <VideoShowcase variant="mobile" :show-badge="showVideoBadge" />
+          <LandingVideoShowcase variant="mobile" :show-badge="showVideoBadge" />
           
           <!-- CTA Buttons -->
           <div class="flex flex-col sm:flex-row gap-4 pt-4">
@@ -42,12 +42,12 @@
           </div>
           
           <!-- Trust Indicators -->
-          <TrustIndicators />
+          <LandingTrustIndicators />
         </div>
         
         <!-- Right Side - Showcase Card (Desktop only) -->
         <div class="relative order-2 w-full">
-          <VideoShowcase variant="desktop" :show-badge="showVideoBadge" />
+          <LandingVideoShowcase variant="desktop" :show-badge="showVideoBadge" />
         </div>
       </div>
     </UContainer>
@@ -76,4 +76,6 @@ withDefaults(defineProps<Props>(), {
   showVideoBadge: true,
 })
 </script>
+
+
 
