@@ -400,6 +400,21 @@
                 />
               </UFormField>
 
+              <!-- Audio Notes -->
+              <UFormField 
+                label="Audio Notes" 
+                :name="`segment-${index}-audio`"
+              >
+                <UTextarea
+                  v-model="segment.audioNotes"
+                  :rows="3"
+                  placeholder="Dialogue: The man says: 'I spent $400 on a microphone so my voice would finally sound professional.'"
+                  class="w-full"
+                  :disabled="generatingFrames || isFrameRegenerating(index)"
+                  @input="debouncedSave"
+                />
+              </UFormField>
+
               <!-- USER MODE: Side-by-Side Frames -->
               <div v-if="viewMode === 'user'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- Opening Shot (First Frame) -->
@@ -875,6 +890,7 @@ const saveStoryboardState = () => {
       segments: selectedStoryboard.value.segments.map(seg => ({
         description: seg.description,
         visualPrompt: seg.visualPrompt,
+        audioNotes: seg.audioNotes,
         firstFrameImage: seg.firstFrameImage,
         lastFrameImage: seg.lastFrameImage,
         type: seg.type,
@@ -1686,6 +1702,9 @@ const generateStoryboards = async (mode?: 'demo' | 'production') => {
             }
             if (savedSeg.visualPrompt) {
               currentSeg.visualPrompt = savedSeg.visualPrompt
+            }
+            if (savedSeg.audioNotes) {
+              currentSeg.audioNotes = savedSeg.audioNotes
             }
             if (savedSeg.firstFrameImage) {
               currentSeg.firstFrameImage = savedSeg.firstFrameImage

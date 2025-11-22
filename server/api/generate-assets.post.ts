@@ -396,10 +396,25 @@ export default defineEventHandler(async (event) => {
           // - "Dialogue: The man says: 'text'"
           // - "Dialogue: The man with a thoughtful voice says: 'text'"
           // - "Dialogue: The same man says: 'text'"
-          const dialogueMatch = segment.audioNotes.match(/Dialogue:\s*(.+?)\s+says:\s*['"](.+?)['"]/i)
+          // - "Dialogue: The man says with a deadpan tone: 'text'" (tone between says and colon)
+          // - "Dialogue: The man says in a soft voice: 'text'" (tone between says and colon)
+          const dialogueMatch = segment.audioNotes.match(/Dialogue:\s*(.+?)\s+says(?:[^:]+)?:\s*['"](.+?)['"]/i)
           if (dialogueMatch) {
             let characterDescription = dialogueMatch[1].trim()
             let dialogueText = dialogueMatch[2].trim()
+            
+            // Extract tone description from between "says" and ":" if present
+            // Example: "says with a deadpan tone:" or "says in a soft voice:"
+            let toneFromSays = ''
+            const saysMatch = segment.audioNotes.match(/says\s+([^:]+):/i)
+            if (saysMatch) {
+              const saysText = saysMatch[1].trim()
+              // Check if it's a tone description (contains words like "with", "in", "tone", "voice")
+              if (/\b(with|in|tone|voice|emotion|manner|way)\b/i.test(saysText)) {
+                toneFromSays = saysText
+                console.log(`[Segment ${idx}] Extracted tone from "says" clause: "${toneFromSays}"`)
+              }
+            }
             
             // Validate CTA segment word count (must be 5 words or less)
             if (segment.type === 'cta') {
@@ -416,10 +431,17 @@ export default defineEventHandler(async (event) => {
             }
             
             // Extract tone/voice descriptions before cleaning (e.g., "soft, concerned voice", "confident, clear voice")
+            // Priority: tone from "says" clause > tone from character description
             let toneDescription = ''
-            const toneMatch = characterDescription.match(/(?:,\s*)?(?:in\s+a\s+)?([^,]+(?:,\s*[^,]+)*\s+voice)/i)
-            if (toneMatch) {
-              toneDescription = toneMatch[1].trim()
+            if (toneFromSays) {
+              // Use tone from "says" clause if found
+              toneDescription = toneFromSays
+            } else {
+              // Fall back to extracting from character description
+              const toneMatch = characterDescription.match(/(?:,\s*)?(?:in\s+a\s+)?([^,]+(?:,\s*[^,]+)*\s+voice)/i)
+              if (toneMatch) {
+                toneDescription = toneMatch[1].trim()
+              }
             }
             
             // Clean up character description - keep character identifier but preserve tone separately

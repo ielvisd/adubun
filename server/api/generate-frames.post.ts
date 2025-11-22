@@ -303,8 +303,8 @@ export default defineEventHandler(async (event) => {
       let previousFrameInstruction = ''
       if (previousFrameImage) {
         if (isTransition) {
-          // For transitions between scenes: maintain continuous flow with NO transitions
-        previousFrameInstruction = `CRITICAL CONTINUOUS FLOW - ZERO TRANSITIONS: Use the previous frame image as a visual reference to maintain CONTINUOUS story flow. This is NOT a transition - it's the SAME continuous moment flowing forward. Keep the same characters, same environment, same lighting style, same camera angle, and same overall composition. The scene should feel like ONE continuous shot with NO cuts, jumps, or scene changes. Maintain the exact same moment in time flowing seamlessly forward. `
+          // For transitions between scenes: maintain continuous flow but ALLOW pose changes
+        previousFrameInstruction = `CRITICAL CONTINUOUS FLOW - ALLOW POSE CHANGES: Use the previous frame image as a visual reference to maintain CONTINUOUS story flow. Keep the same characters (IDENTICAL appearance - same clothing, same physical features), same environment, same lighting style, and same camera angle. However, ALLOW pose changes, expression changes, and subtle body language changes - the character can move, change gestures, or adjust position while maintaining the same scene and composition. The scene should feel like ONE continuous shot with NO cuts, jumps, or scene changes, but the character can naturally progress through different poses or actions. `
         } else {
           // For progression within same scene: FORCE different angle/composition while maintaining character consistency
           previousFrameInstruction = `CRITICAL SCENE PROGRESSION - MANDATORY VISUAL VARIATION WITH CHARACTER CONSISTENCY: This final frame MUST be SIGNIFICANTLY visually different from the previous frame in composition, camera angle, and pose. However, you MUST maintain IDENTICAL character appearance from the previous frame: EXACT same clothing (same shirt, same pants, same colors, same style), EXACT same physical features (same hair, same build, same facial features), NO glasses if previous frame had no glasses, SAME glasses if previous frame had glasses. DO NOT change character clothing, accessories, or physical appearance. You MUST create a DISTINCT visual composition by: 1) Using a DIFFERENT camera angle (switch from medium to close-up, or wide to over-shoulder, or front to side/three-quarter angle), 2) Changing character pose and body language (different standing/sitting position, different gesture, different facial expression, different body orientation), 3) Altering composition and framing (different character placement in frame, different focal point, different depth of field, different framing style). The previous frame image is for character/setting reference to maintain IDENTICAL appearance - DO NOT copy its composition, camera angle, pose, or framing, but DO copy the exact character appearance (clothing, accessories, physical features). Show a DISTINCT later moment with CLEAR visual progression while maintaining the SAME character. Text changes alone are NOT sufficient - the entire visual composition must be different, but the character must look IDENTICAL. `
@@ -939,32 +939,38 @@ export default defineEventHandler(async (event) => {
       console.log('[Generate Frames] CTA story text:', story.callToAction)
       
       // CTA last frame should be visually distinct from first frame (hero shot, text overlay, logo)
-      // Use isTransition: false to trigger variation instruction, but include previous frame for character consistency
+      // Use isTransition: false to trigger variation instruction
+      // Include previous frame in image inputs to maintain character and scene continuity (like body segments)
+      // Strong variation instructions will ensure visual differences while maintaining continuity
+      // Enhance visual prompt with CTA-specific variation instructions
+      const ctaVariationInstruction = ` 🚨 CTA FINAL FRAME - MANDATORY VISUAL DISTINCTION: This is the FINAL frame of the CTA segment and must be SIGNIFICANTLY visually different from the opening shot. While maintaining the SAME character (identical appearance, clothing, physical features) and SAME general setting/environment, you MUST create a DISTINCT final composition by: 1) Using a DIFFERENT camera angle (switch from close-up to medium/wide, or front to side/three-quarter, or change elevation), 2) Changing character pose and body language (different standing/sitting position, different gesture like pointing, different facial expression, different body orientation), 3) Altering composition and framing (different character placement in frame, different focal point, different depth of field), 4) Adding or modifying text overlays/logo lockups if specified in the visual prompt. The final frame should feel like a natural progression or hero shot moment while maintaining character and scene continuity. DO NOT create an identical frame - the composition, camera angle, and pose must be clearly different. `
+      const enhancedCtaVisualPrompt = ctaSegment.visualPrompt + ctaVariationInstruction
+      
       const nanoPrompt = buildNanoPrompt(
         story.callToAction, 
-        ctaSegment.visualPrompt,
+        enhancedCtaVisualPrompt,
         false,  // NOT using transition mode - want visual variation
         undefined,
         undefined,
-        previousFrameUrl,  // Use CTA first frame as context reference
+        previousFrameUrl,  // Use CTA first frame as context reference (for both image input and prompt instructions)
         itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
       )
       
       console.log('[Generate Frames] CTA nano prompt:', nanoPrompt)
       console.log('[Generate Frames] Starting CTA last frame generation...')
       console.log('[Generate Frames] CTA last frame will be visually distinct from first frame (hero shot, text/logo overlay)')
-      console.log('[Generate Frames] Previous frame included in inputs for character consistency, but variation instruction will force different composition')
+      console.log('[Generate Frames] Previous frame included in image inputs for character/scene continuity - strong variation instructions will ensure visual differences')
       
       ctaLastFrameResult = await generateSingleFrame(
         'CTA last frame', 
         nanoPrompt, 
-        ctaSegment.visualPrompt,
-        previousFrameUrl,  // Previous frame for visual reference (for character consistency)
+        enhancedCtaVisualPrompt,  // Use enhanced visual prompt with CTA-specific variation instructions
+        previousFrameUrl,  // Previous frame for visual reference (for character and scene continuity)
         story.callToAction,  // Story text for context
         false,  // isTransition = false (triggers variation instruction for different composition)
         undefined,  // No transition text
         undefined,  // No transition visual
-        true  // Include previous frame in image inputs for character consistency (variation instruction will still force different composition/pose)
+        true  // Include previous frame in image inputs to maintain character and scene continuity (like body segments)
       )
       
       if (ctaLastFrameResult) {
