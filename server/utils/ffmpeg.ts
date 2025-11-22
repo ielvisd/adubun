@@ -764,6 +764,23 @@ export async function composeVideoWithSmartStitching(
     adjustedClips.push(adjustedClip)
   }
   
+  // CRITICAL FIX: Recalculate timeline after all adjustments
+  // After trimming clips, subsequent clips need their start/end times recalculated
+  // to maintain a continuous timeline for proper audio synchronization
+  console.log('\n[FFmpeg] Recalculating timeline after adjustments...')
+  let currentTime = 0
+  const recalculatedClips = adjustedClips.map((clip, idx) => {
+    const clipDuration = clip.endTime - clip.startTime
+    const recalculated = {
+      ...clip,
+      startTime: currentTime,
+      endTime: currentTime + clipDuration
+    }
+    console.log(`[FFmpeg] Clip ${idx}: ${clip.startTime.toFixed(3)}s-${clip.endTime.toFixed(3)}s → ${recalculated.startTime.toFixed(3)}s-${recalculated.endTime.toFixed(3)}s`)
+    currentTime += clipDuration
+    return recalculated
+  })
+  
   // Log summary of adjustments
   console.log('\n[FFmpeg] ========================================')
   console.log('[FFmpeg] SMART STITCHING ANALYSIS COMPLETE')
@@ -777,9 +794,9 @@ export async function composeVideoWithSmartStitching(
   })
   console.log('[FFmpeg] ========================================\n')
   
-  // Compose video with adjusted clips using existing function
-  console.log('[FFmpeg] Composing video with adjusted clips...')
-  await composeVideo(adjustedClips, options)
+  // Compose video with recalculated clips using existing function
+  console.log('[FFmpeg] Composing video with recalculated clips...')
+  await composeVideo(recalculatedClips, options)
   console.log('[FFmpeg] Video composition complete!')
   
   return {

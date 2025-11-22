@@ -306,38 +306,15 @@ export default defineEventHandler(async (event) => {
           // For transitions between scenes: maintain continuous flow with NO transitions
         previousFrameInstruction = `CRITICAL CONTINUOUS FLOW - ZERO TRANSITIONS: Use the previous frame image as a visual reference to maintain CONTINUOUS story flow. This is NOT a transition - it's the SAME continuous moment flowing forward. Keep the same characters, same environment, same lighting style, same camera angle, and same overall composition. The scene should feel like ONE continuous shot with NO cuts, jumps, or scene changes. Maintain the exact same moment in time flowing seamlessly forward. `
         } else {
-          // Check if this is a CTA segment by examining visualPrompt or storyText
-          const isCTASegment = visualPrompt.toLowerCase().includes('cta') || 
-                               visualPrompt.toLowerCase().includes('final') ||
-                               visualPrompt.toLowerCase().includes('call to action') ||
-                               storyText.toLowerCase().includes('cta') ||
-                               storyText.toLowerCase().includes('final')
-          
-          if (isCTASegment) {
-            // For CTA segments: MAXIMUM visual variation - this is the final frame of the entire video
-            previousFrameInstruction = `🚨🚨🚨 CRITICAL CTA FINAL FRAME REQUIREMENT - MAXIMUM VISUAL VARIATION: This is the FINAL frame of the CTA segment and the ENTIRE video. The previous frame image shows the OPENING moment. You MUST create a COMPLETELY DIFFERENT final moment. IGNORE the previous frame's composition, camera angle, pose, framing, and text placement COMPLETELY. The previous frame is ONLY for character/setting reference - DO NOT copy its visual composition. You MUST create a DRAMATICALLY different visual composition by: 1) Using a DRAMATICALLY different camera angle (e.g., if opening is front-facing medium shot, use side/three-quarter close-up, or if opening is close-up, use wide hero shot), 2) Changing character pose SIGNIFICANTLY (different body orientation, different gesture, different expression), 3) Adding text overlay or logo in the final moment (if text is already in opening, move it to different position or add more text), 4) Creating a DISTINCT hero shot composition. The final frame must look like a DIFFERENT moment, DIFFERENT angle, DIFFERENT composition - only the character appearance (clothing, features) should match. DO NOT replicate the opening frame composition. However, you MUST maintain IDENTICAL character appearance from the previous frame: EXACT same clothing (same shirt, same pants, same colors, same style), EXACT same physical features (same hair, same build, same facial features), NO glasses if previous frame had no glasses, SAME glasses if previous frame had glasses. DO NOT change character clothing, accessories, or physical appearance. `
-          } else {
-            // For progression within same scene: FORCE different angle/composition while maintaining character consistency
-            previousFrameInstruction = `CRITICAL SCENE PROGRESSION - MANDATORY VISUAL VARIATION WITH CHARACTER CONSISTENCY: This final frame MUST be SIGNIFICANTLY visually different from the previous frame in composition, camera angle, and pose. However, you MUST maintain IDENTICAL character appearance from the previous frame: EXACT same clothing (same shirt, same pants, same colors, same style), EXACT same physical features (same hair, same build, same facial features), NO glasses if previous frame had no glasses, SAME glasses if previous frame had glasses. DO NOT change character clothing, accessories, or physical appearance. You MUST create a DISTINCT visual composition by: 1) Using a DIFFERENT camera angle (switch from medium to close-up, or wide to over-shoulder, or front to side/three-quarter angle), 2) Changing character pose and body language (different standing/sitting position, different gesture, different facial expression, different body orientation), 3) Altering composition and framing (different character placement in frame, different focal point, different depth of field, different framing style). The previous frame image is for character/setting reference to maintain IDENTICAL appearance - DO NOT copy its composition, camera angle, pose, or framing, but DO copy the exact character appearance (clothing, accessories, physical features). Show a DISTINCT later moment with CLEAR visual progression while maintaining the SAME character. Text changes alone are NOT sufficient - the entire visual composition must be different, but the character must look IDENTICAL. `
-          }
+          // For progression within same scene: FORCE different angle/composition while maintaining character consistency
+          previousFrameInstruction = `CRITICAL SCENE PROGRESSION - MANDATORY VISUAL VARIATION WITH CHARACTER CONSISTENCY: This final frame MUST be SIGNIFICANTLY visually different from the previous frame in composition, camera angle, and pose. However, you MUST maintain IDENTICAL character appearance from the previous frame: EXACT same clothing (same shirt, same pants, same colors, same style), EXACT same physical features (same hair, same build, same facial features), NO glasses if previous frame had no glasses, SAME glasses if previous frame had glasses. DO NOT change character clothing, accessories, or physical appearance. You MUST create a DISTINCT visual composition by: 1) Using a DIFFERENT camera angle (switch from medium to close-up, or wide to over-shoulder, or front to side/three-quarter angle), 2) Changing character pose and body language (different standing/sitting position, different gesture, different facial expression, different body orientation), 3) Altering composition and framing (different character placement in frame, different focal point, different depth of field, different framing style). The previous frame image is for character/setting reference to maintain IDENTICAL appearance - DO NOT copy its composition, camera angle, pose, or framing, but DO copy the exact character appearance (clothing, accessories, physical features). Show a DISTINCT later moment with CLEAR visual progression while maintaining the SAME character. Text changes alone are NOT sufficient - the entire visual composition must be different, but the character must look IDENTICAL. `
         }
       }
 
       // Add variation reinforcement
       let variationReinforcement = ''
       if (previousFrameImage && !isTransition) {
-        // Check if this is a CTA segment for stronger reinforcement
-        const isCTASegment = visualPrompt.toLowerCase().includes('cta') || 
-                             visualPrompt.toLowerCase().includes('final') ||
-                             visualPrompt.toLowerCase().includes('call to action') ||
-                             storyText.toLowerCase().includes('cta') ||
-                             storyText.toLowerCase().includes('final')
-        
-        if (isCTASegment) {
-          variationReinforcement = ` 🚨🚨🚨 FINAL CTA FRAME - MANDATORY DISTINCTION: This is the FINAL frame of the entire video. The input image shows the OPENING moment. IGNORE the input image composition, camera angle, pose, framing, and text placement COMPLETELY. You MUST create a DRAMATICALLY visually DISTINCT final frame with a COMPLETELY NEW camera angle, NEW composition, and NEW pose. The opening and final frames must NOT look identical. The input image is ONLY for character/setting reference - DO NOT copy its visual composition. However, you MUST copy the EXACT character appearance from the input image: same clothing, same accessories (glasses/no glasses), same physical features. Show clear visual progression: different camera angle, different composition, different pose, or add text/logo overlay. `
-        } else {
-          variationReinforcement = ` FINAL MANDATORY INSTRUCTION: IGNORE the input image composition, camera angle, and pose. You MUST create a visually DISTINCT final frame with a NEW camera angle and pose. However, you MUST copy the EXACT character appearance from the input image: same clothing, same accessories (glasses/no glasses), same physical features. Do not copy the previous frame's composition, but DO copy the character's appearance exactly. `
-        }
+        variationReinforcement = ` FINAL MANDATORY INSTRUCTION: IGNORE the input image composition, camera angle, and pose. You MUST create a visually DISTINCT final frame with a NEW camera angle and pose. However, you MUST copy the EXACT character appearance from the input image: same clothing, same accessories (glasses/no glasses), same physical features. Do not copy the previous frame's composition, but DO copy the character's appearance exactly. `
       }
 
       // Build item-specific duplicate prevention if items are tracked
@@ -963,47 +940,9 @@ export default defineEventHandler(async (event) => {
       
       // CTA last frame should be visually distinct from first frame (hero shot, text overlay, logo)
       // Use isTransition: false to trigger variation instruction, but include previous frame for character consistency
-      
-      // For CTA last frame, aggressively rewrite visual prompt to describe distinct final frame
-      let enhancedCtaVisualPrompt = ctaSegment.visualPrompt
-      
-      // Check if prompt describes a static scene (text already present, no movement)
-      const hasStaticText = /text|tagline|logo|overlay/i.test(enhancedCtaVisualPrompt) && 
-                            !/(appears?|slams?|enters?|shows? up|comes? in|during|final moment)/i.test(enhancedCtaVisualPrompt)
-      const hasStaticPose = !/(changes?|transforms?|moves?|shifts?|adjusts?)/i.test(enhancedCtaVisualPrompt)
-      const hasStaticCamera = !/(zoom|push|pull|move|angle|change|dolly|tracking)/i.test(enhancedCtaVisualPrompt)
-      
-      // If prompt is static, completely rewrite it to describe progression
-      if (hasStaticText || hasStaticPose || hasStaticCamera) {
-        // Extract camera type from opening
-        const cameraMatch = enhancedCtaVisualPrompt.match(/(close-up|medium|wide|dolly|tracking|push|pull|zoom|slow|pan)/i)
-        const openingCamera = cameraMatch ? cameraMatch[0] : 'medium shot'
-        
-        // Determine final camera (different from opening)
-        const finalCamera = openingCamera.toLowerCase().includes('close') ? 'wide hero shot' :
-                           openingCamera.toLowerCase().includes('wide') ? 'close-up' :
-                           openingCamera.toLowerCase().includes('medium') ? 'side angle close-up' :
-                           'dramatic angle change to close-up'
-        
-        // Clean up the prompt by removing cinematography brackets if present
-        let cleanedPrompt = enhancedCtaVisualPrompt
-          .replace(/\[Cinematography\][^\]]*\]/gi, '')
-          .replace(/\[Cinematography:[^\]]*\]/gi, '')
-          .trim()
-        
-        // Rewrite prompt to explicitly describe progression
-        enhancedCtaVisualPrompt = `Starting with ${openingCamera}: ${cleanedPrompt}. The camera then ${finalCamera.includes('angle') ? 'changes to a ' + finalCamera : 'moves to a ' + finalCamera}, the character's pose and expression transform to show confidence and satisfaction, and text overlay with tagline and logo SLAM IN during the final moment (not present at start). The final frame is a distinct hero shot with different composition, different camera angle, and text/logo appearing in the final moment.`
-        
-        console.log(`[Generate Frames] Aggressively rewrote CTA visual prompt to force distinct final frame (detected static scene)`)
-      } else {
-        // Even if not static, reinforce progression
-        enhancedCtaVisualPrompt = `CRITICAL: This CTA final frame MUST be visually DISTINCT from the opening frame. ${enhancedCtaVisualPrompt} Show clear progression: different camera angle, different composition, different pose, or add text/logo overlay.`
-        console.log(`[Generate Frames] Reinforced CTA visual prompt with progression requirement`)
-      }
-      
       const nanoPrompt = buildNanoPrompt(
         story.callToAction, 
-        enhancedCtaVisualPrompt,
+        ctaSegment.visualPrompt,
         false,  // NOT using transition mode - want visual variation
         undefined,
         undefined,
@@ -1011,18 +950,14 @@ export default defineEventHandler(async (event) => {
         itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
       )
       
-      // For CTA last frame, add extra progression instruction to nanoPrompt
-      const ctaProgressionInstruction = ` 🚨🚨🚨 FINAL CTA FRAME - MANDATORY DISTINCTION: This is the FINAL frame of the entire video. It MUST be visually DISTINCT from the opening frame. Show clear progression: different camera angle, different composition, different pose, or add text/logo overlay. The opening and final frames must NOT look identical.`
-      const enhancedNanoPrompt = `${nanoPrompt}${ctaProgressionInstruction}`
-      
-      console.log('[Generate Frames] CTA nano prompt:', enhancedNanoPrompt)
+      console.log('[Generate Frames] CTA nano prompt:', nanoPrompt)
       console.log('[Generate Frames] Starting CTA last frame generation...')
       console.log('[Generate Frames] CTA last frame will be visually distinct from first frame (hero shot, text/logo overlay)')
       console.log('[Generate Frames] Previous frame included in inputs for character consistency, but variation instruction will force different composition')
       
       ctaLastFrameResult = await generateSingleFrame(
         'CTA last frame', 
-        enhancedNanoPrompt, 
+        nanoPrompt, 
         ctaSegment.visualPrompt,
         previousFrameUrl,  // Previous frame for visual reference (for character consistency)
         story.callToAction,  // Story text for context

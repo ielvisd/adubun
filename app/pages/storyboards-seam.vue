@@ -1635,7 +1635,7 @@ const generateFrames = async () => {
     if (selectedStoryboard.value.meta) {
       selectedStoryboard.value.meta.seamlessTransition = false
     }
-    
+
     const requestBody = {
       storyboard: selectedStoryboard.value,
       productImages: promptData.value.productImages || [],
@@ -1775,7 +1775,7 @@ const generateFrames = async () => {
           selectedStoryboard.value.segments[idx].firstFrameImage = segmentFrames.first
           frameGenerationStatus.value.set(idx, { 
             ...frameGenerationStatus.value.get(idx), 
-            first: true,
+          first: true,
             firstModelSource: segmentFrames.firstModelSource,
             firstNanoImageUrl: segmentFrames.firstNanoImageUrl,
             firstSeedreamImageUrl: segmentFrames.firstSeedreamImageUrl
@@ -1814,7 +1814,7 @@ const generateFrames = async () => {
         // Check that each segment has its first frame
         if (!state.firstFrameImage) {
           validationErrors.push(`Segment ${idx} (${state.type}) missing first frame`)
-        }
+          }
         // NON-SEAMLESS: No last frame checks - they are not required
       })
       
