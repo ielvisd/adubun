@@ -21,14 +21,24 @@
       <UButton variant="outline" color="primary" size="sm" @click.stop="fileInput?.click()">
         Select File
       </UButton>
-      <div class="mt-3">
+      <div class="mt-3 relative">
         <UInput
+          ref="urlInputRef"
           v-model="urlInput"
           placeholder="Or enter image URL"
           size="sm"
+          class="pr-10"
           @blur="handleUrlInput"
           @keyup.enter="handleUrlInput"
         />
+        <div class="absolute right-2 top-1/2 -translate-y-1/2">
+          <UiVoiceInputButton
+            :is-supported="urlVoiceInput.isSupported.value"
+            :is-listening="urlVoiceInput.isListening.value"
+            :error="urlVoiceInput.error.value"
+            @click="handleUrlVoiceInput"
+          />
+        </div>
       </div>
       <div v-if="preview" class="mt-4">
         <NuxtImg :src="preview" alt="Image preview" class="max-h-40 mx-auto rounded shadow-sm" />
@@ -59,6 +69,51 @@ const emit = defineEmits<{
 const fileInput = ref<HTMLInputElement>()
 const preview = ref<string>()
 const urlInput = ref<string>('')
+const urlInputRef = ref<HTMLInputElement | null>(null)
+
+// Voice input for URL
+const urlVoiceInput = useVoiceInput((text: string) => {
+  urlInput.value = urlInput.value.trim() ? `${urlInput.value} ${text}` : text
+})
+
+const handleUrlVoiceInput = async () => {
+  if (urlVoiceInput.isListening.value) {
+    urlVoiceInput.stopListening()
+  } else {
+    try {
+      await urlVoiceInput.startListening()
+    } catch (err) {
+      // Error is handled by the composable
+    }
+  }
+}
+
+// Keyboard shortcut handler
+const handleKeyDown = (event: KeyboardEvent) => {
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+  const modifier = isMac ? event.metaKey : event.ctrlKey
+  
+  if (modifier && event.shiftKey && event.key === 'V') {
+    const activeElement = document.activeElement
+    if (activeElement === urlInputRef.value) {
+      event.preventDefault()
+      handleUrlVoiceInput()
+    }
+  }
+}
+
+onMounted(() => {
+  if (process.client) {
+    window.addEventListener('keydown', handleKeyDown)
+  }
+})
+
+onUnmounted(() => {
+  if (process.client) {
+    window.removeEventListener('keydown', handleKeyDown)
+    urlVoiceInput.stopListening()
+  }
+})
 
 // Watch for external value changes
 watch(() => props.modelValue, (newValue) => {

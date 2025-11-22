@@ -29,6 +29,7 @@ data/storyboards/
 data/jobs/
 data/jobs.json
 data/costs.json
+data/videos.json
 
 # Video files - all formats
 data/videos/

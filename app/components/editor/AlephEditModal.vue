@@ -10,12 +10,24 @@
         </div>
 
         <UFormField label="Edit Instructions" name="prompt" required>
-          <UTextarea
-            v-model="editPrompt"
-            placeholder="e.g., 'add rain and thunder', 'change to sunset lighting', 'remove background people'"
-            :rows="4"
-            :maxlength="500"
-          />
+          <div class="relative">
+            <UTextarea
+              ref="editPromptTextareaRef"
+              v-model="editPrompt"
+              placeholder="e.g., 'add rain and thunder', 'change to sunset lighting', 'remove background people'"
+              :rows="4"
+              :maxlength="500"
+              class="pr-10"
+            />
+            <div class="absolute top-3 right-3">
+              <UiVoiceInputButton
+                :is-supported="editPromptVoiceInput.isSupported.value"
+                :is-listening="editPromptVoiceInput.isListening.value"
+                :error="editPromptVoiceInput.error.value"
+                @click="handleEditPromptVoiceInput"
+              />
+            </div>
+          </div>
           <template #description>
             <span class="text-xs text-gray-500">
               {{ editPrompt.length }} / 500
@@ -151,6 +163,51 @@ const referenceImageFile = ref<File | null>(null)
 const referenceImagePreview = ref<string>('')
 const isDragging = ref(false)
 const fileInput = ref<HTMLInputElement>()
+const editPromptTextareaRef = ref<HTMLTextAreaElement | null>(null)
+
+// Voice input for edit prompt
+const editPromptVoiceInput = useVoiceInput((text: string) => {
+  editPrompt.value = editPrompt.value.trim() ? `${editPrompt.value} ${text}` : text
+})
+
+const handleEditPromptVoiceInput = async () => {
+  if (editPromptVoiceInput.isListening.value) {
+    editPromptVoiceInput.stopListening()
+  } else {
+    try {
+      await editPromptVoiceInput.startListening()
+    } catch (err) {
+      // Error is handled by the composable
+    }
+  }
+}
+
+// Keyboard shortcut handler
+const handleKeyDown = (event: KeyboardEvent) => {
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+  const modifier = isMac ? event.metaKey : event.ctrlKey
+  
+  if (modifier && event.shiftKey && event.key === 'V') {
+    const activeElement = document.activeElement
+    if (activeElement === editPromptTextareaRef.value) {
+      event.preventDefault()
+      handleEditPromptVoiceInput()
+    }
+  }
+}
+
+onMounted(() => {
+  if (process.client) {
+    window.addEventListener('keydown', handleKeyDown)
+  }
+})
+
+onUnmounted(() => {
+  if (process.client) {
+    window.removeEventListener('keydown', handleKeyDown)
+    editPromptVoiceInput.stopListening()
+  }
+})
 
 const examplePrompts = [
   'add dramatic rain and lightning',

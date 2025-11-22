@@ -397,14 +397,26 @@
                 :label="viewMode === 'user' ? 'What happens?' : 'Scene Description'" 
                 :name="`segment-${index}-description`"
               >
-                <UTextarea
-                  v-model="segment.description"
-                  :rows="4"
-                  placeholder="Describe what happens in this scene"
-                  class="w-full"
-                  :disabled="generatingFrames || isFrameRegenerating(index)"
-                  @input="debouncedSave"
-                />
+                <div class="relative">
+                  <UTextarea
+                    :ref="el => setTextareaRef(el, index, 'description')"
+                    v-model="segment.description"
+                    :rows="4"
+                    placeholder="Describe what happens in this scene"
+                    class="w-full"
+                    :disabled="generatingFrames || isFrameRegenerating(index)"
+                    @input="debouncedSave"
+                  />
+                  <div class="absolute top-3 right-3">
+                    <UiVoiceInputButton
+                      :is-supported="voiceInputs[`${index}-description`]?.isSupported ?? false"
+                      :is-listening="voiceInputs[`${index}-description`]?.isListening ?? false"
+                      :error="voiceInputs[`${index}-description`]?.error ?? null"
+                      :disabled="generatingFrames || isFrameRegenerating(index)"
+                      @click="handleVoiceInput(index, 'description')"
+                    />
+                  </div>
+                </div>
               </UFormField>
 
               <!-- Visual Prompt (Admin only) -->
@@ -413,14 +425,26 @@
                 label="Visual Prompt" 
                 :name="`segment-${index}-visual`"
               >
-                <UTextarea
-                  v-model="segment.visualPrompt"
-                  :rows="6"
-                  placeholder="Describe the visual style and composition"
-                  class="w-full"
-                  :disabled="generatingFrames || isFrameRegenerating(index)"
-                  @input="debouncedSave"
-                />
+                <div class="relative">
+                  <UTextarea
+                    :ref="el => setTextareaRef(el, index, 'visual')"
+                    v-model="segment.visualPrompt"
+                    :rows="6"
+                    placeholder="Describe the visual style and composition"
+                    class="w-full"
+                    :disabled="generatingFrames || isFrameRegenerating(index)"
+                    @input="debouncedSave"
+                  />
+                  <div class="absolute top-3 right-3">
+                    <UiVoiceInputButton
+                      :is-supported="voiceInputs[`${index}-visual`]?.isSupported ?? false"
+                      :is-listening="voiceInputs[`${index}-visual`]?.isListening ?? false"
+                      :error="voiceInputs[`${index}-visual`]?.error ?? null"
+                      :disabled="generatingFrames || isFrameRegenerating(index)"
+                      @click="handleVoiceInput(index, 'visual')"
+                    />
+                  </div>
+                </div>
               </UFormField>
 
               <!-- Audio Notes -->
@@ -428,14 +452,26 @@
                 label="Audio Notes" 
                 :name="`segment-${index}-audio`"
               >
-                <UTextarea
-                  v-model="segment.audioNotes"
-                  :rows="3"
-                  placeholder="Dialogue: The man says: 'I spent $400 on a microphone so my voice would finally sound professional.'"
-                  class="w-full"
-                  :disabled="generatingFrames || isFrameRegenerating(index)"
-                  @input="debouncedSave"
-                />
+                <div class="relative">
+                  <UTextarea
+                    :ref="el => setTextareaRef(el, index, 'audio')"
+                    v-model="segment.audioNotes"
+                    :rows="3"
+                    placeholder="Dialogue: The man says: 'I spent $400 on a microphone so my voice would finally sound professional.'"
+                    class="w-full"
+                    :disabled="generatingFrames || isFrameRegenerating(index)"
+                    @input="debouncedSave"
+                  />
+                  <div class="absolute top-3 right-3">
+                    <UiVoiceInputButton
+                      :is-supported="voiceInputs[`${index}-audio`]?.isSupported ?? false"
+                      :is-listening="voiceInputs[`${index}-audio`]?.isListening ?? false"
+                      :error="voiceInputs[`${index}-audio`]?.error ?? null"
+                      :disabled="generatingFrames || isFrameRegenerating(index)"
+                      @click="handleVoiceInput(index, 'audio')"
+                    />
+                  </div>
+                </div>
               </UFormField>
 
               <!-- USER MODE: Side-by-Side Frames -->
@@ -733,6 +769,85 @@ const frameImageDimensions = ref<Map<string, { width: number; height: number; as
 
 // File input refs
 const fileInputRefs = ref<Record<string, HTMLInputElement>>({})
+
+// Textarea refs for voice input
+const textareaRefs = ref<Record<string, HTMLTextAreaElement>>({})
+
+// Voice input instances for each textarea
+const voiceInputs = ref<Record<string, ReturnType<typeof useVoiceInput>>>({})
+
+// Set textarea ref
+const setTextareaRef = (el: HTMLTextAreaElement | null, index: number, field: 'description' | 'visual' | 'audio') => {
+  if (el) {
+    const key = `${index}-${field}`
+    textareaRefs.value[key] = el
+    
+    // Initialize voice input for this field if not already done
+    if (!voiceInputs.value[key]) {
+      const handleTranscript = (text: string) => {
+        const segment = selectedStoryboard.value?.segments[index]
+        if (!segment) return
+        
+        const currentValue = (segment as any)[field === 'description' ? 'description' : field === 'visual' ? 'visualPrompt' : 'audioNotes']?.trim() || ''
+        const newValue = currentValue ? `${currentValue} ${text}` : text
+        
+        if (field === 'description') {
+          segment.description = newValue
+        } else if (field === 'visual') {
+          segment.visualPrompt = newValue
+        } else if (field === 'audio') {
+          segment.audioNotes = newValue
+        }
+        
+        debouncedSave()
+      }
+      
+      voiceInputs.value[key] = useVoiceInput(handleTranscript)
+    }
+  }
+}
+
+// Handle voice input toggle
+const handleVoiceInput = async (index: number, field: 'description' | 'visual' | 'audio') => {
+  const key = `${index}-${field}`
+  const voiceInput = voiceInputs.value[key]
+  
+  if (!voiceInput) return
+  
+  if (voiceInput.isListening.value) {
+    voiceInput.stopListening()
+  } else {
+    try {
+      await voiceInput.startListening()
+    } catch (err) {
+      // Error is handled by the composable
+    }
+  }
+}
+
+// Keyboard shortcut handler (Ctrl/Cmd+Shift+V)
+const handleKeyDown = (event: KeyboardEvent) => {
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+  const modifier = isMac ? event.metaKey : event.ctrlKey
+  
+  if (modifier && event.shiftKey && event.key === 'V') {
+    const activeElement = document.activeElement as HTMLTextAreaElement
+    if (activeElement && activeElement.tagName === 'TEXTAREA') {
+      // Find which textarea is focused
+      for (const [key, textarea] of Object.entries(textareaRefs.value)) {
+        if (textarea === activeElement) {
+          event.preventDefault()
+          const [indexStr, field] = key.split('-')
+          const index = parseInt(indexStr)
+          if (!isNaN(index) && (field === 'description' || field === 'visual' || field === 'audio')) {
+            handleVoiceInput(index, field)
+          }
+          break
+        }
+      }
+    }
+  }
+}
 
 // Image load error tracking
 const imageLoadError = ref<Record<string, boolean>>({})
@@ -1494,6 +1609,11 @@ const retryImageLoad = (index: number, type: 'first' | 'last') => {
 }
 
 onMounted(async () => {
+  // Add keyboard shortcut listener
+  if (process.client) {
+    window.addEventListener('keydown', handleKeyDown)
+  }
+  
   // Get selected story and prompt data from sessionStorage
   if (process.client) {
     const storedStory = sessionStorage.getItem('selectedStory')
@@ -1555,6 +1675,16 @@ onMounted(async () => {
 
 // Cleanup timer on unmount
 onBeforeUnmount(() => {
+  // Remove keyboard shortcut listener
+  if (process.client) {
+    window.removeEventListener('keydown', handleKeyDown)
+  }
+  
+  // Stop all voice inputs
+  Object.values(voiceInputs.value).forEach(voiceInput => {
+    voiceInput.stopListening()
+  })
+  
   if (saveTimer) {
     clearTimeout(saveTimer)
   }

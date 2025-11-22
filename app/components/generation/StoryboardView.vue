@@ -125,12 +125,24 @@
           <!-- Story Description -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Story Description</label>
-            <UTextarea
-              v-model="editForm[idx].description"
-              placeholder="Describe what happens in this segment..."
-              :rows="2"
-              :maxlength="1000"
-            />
+            <div class="relative">
+              <UTextarea
+                :ref="el => setTextareaRef(el, idx, 'description')"
+                v-model="editForm[idx].description"
+                placeholder="Describe what happens in this segment..."
+                :rows="2"
+                :maxlength="1000"
+                class="pr-10"
+              />
+              <div class="absolute top-3 right-3">
+                <UiVoiceInputButton
+                  :is-supported="voiceInputs[`${idx}-description`]?.isSupported ?? false"
+                  :is-listening="voiceInputs[`${idx}-description`]?.isListening ?? false"
+                  :error="voiceInputs[`${idx}-description`]?.error ?? null"
+                  @click="handleVoiceInput(idx, 'description')"
+                />
+              </div>
+            </div>
             <div class="flex justify-end mt-1">
               <span 
                 class="text-xs font-medium"
@@ -144,12 +156,24 @@
           <!-- Visual Prompt -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Visual Prompt</label>
-            <UTextarea
-              v-model="editForm[idx].visualPrompt"
-              placeholder="Detailed visual description for video generation..."
-              :rows="3"
-              :maxlength="1000"
-            />
+            <div class="relative">
+              <UTextarea
+                :ref="el => setTextareaRef(el, idx, 'visualPrompt')"
+                v-model="editForm[idx].visualPrompt"
+                placeholder="Detailed visual description for video generation..."
+                :rows="3"
+                :maxlength="1000"
+                class="pr-10"
+              />
+              <div class="absolute top-3 right-3">
+                <UiVoiceInputButton
+                  :is-supported="voiceInputs[`${idx}-visualPrompt`]?.isSupported ?? false"
+                  :is-listening="voiceInputs[`${idx}-visualPrompt`]?.isListening ?? false"
+                  :error="voiceInputs[`${idx}-visualPrompt`]?.error ?? null"
+                  @click="handleVoiceInput(idx, 'visualPrompt')"
+                />
+              </div>
+            </div>
             <div class="flex justify-end mt-1">
               <span 
                 class="text-xs font-medium"
@@ -163,12 +187,24 @@
           <!-- Negative Prompt -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Negative Prompt (Optional)</label>
-            <UTextarea
-              v-model="editForm[idx].negativePrompt"
-              placeholder="What to exclude from the video..."
-              :rows="2"
-              :maxlength="500"
-            />
+            <div class="relative">
+              <UTextarea
+                :ref="el => setTextareaRef(el, idx, 'negativePrompt')"
+                v-model="editForm[idx].negativePrompt"
+                placeholder="What to exclude from the video..."
+                :rows="2"
+                :maxlength="500"
+                class="pr-10"
+              />
+              <div class="absolute top-3 right-3">
+                <UiVoiceInputButton
+                  :is-supported="voiceInputs[`${idx}-negativePrompt`]?.isSupported ?? false"
+                  :is-listening="voiceInputs[`${idx}-negativePrompt`]?.isListening ?? false"
+                  :error="voiceInputs[`${idx}-negativePrompt`]?.error ?? null"
+                  @click="handleVoiceInput(idx, 'negativePrompt')"
+                />
+              </div>
+            </div>
             <div class="flex justify-end mt-1">
               <span 
                 class="text-xs font-medium"
@@ -372,6 +408,91 @@ const toast = useToast()
 const editingSegment = ref<number | null>(null)
 const savingSegment = ref<number | null>(null)
 const editForm = ref<Record<number, any>>({})
+
+// Textarea refs for voice input
+const textareaRefs = ref<Record<string, HTMLTextAreaElement>>({})
+
+// Voice input instances for each textarea
+const voiceInputs = ref<Record<string, ReturnType<typeof useVoiceInput>>>({})
+
+// Set textarea ref
+const setTextareaRef = (el: HTMLTextAreaElement | null, idx: number, field: 'description' | 'visualPrompt' | 'negativePrompt') => {
+  if (el) {
+    const key = `${idx}-${field}`
+    textareaRefs.value[key] = el
+    
+    // Initialize voice input for this field if not already done
+    if (!voiceInputs.value[key]) {
+      const handleTranscript = (text: string) => {
+        if (!editForm.value[idx]) {
+          editForm.value[idx] = {}
+        }
+        const currentValue = editForm.value[idx][field]?.trim() || ''
+        const newValue = currentValue ? `${currentValue} ${text}` : text
+        editForm.value[idx][field] = newValue
+      }
+      
+      voiceInputs.value[key] = useVoiceInput(handleTranscript)
+    }
+  }
+}
+
+// Handle voice input toggle
+const handleVoiceInput = async (idx: number, field: 'description' | 'visualPrompt' | 'negativePrompt') => {
+  const key = `${idx}-${field}`
+  const voiceInput = voiceInputs.value[key]
+  
+  if (!voiceInput) return
+  
+  if (voiceInput.isListening.value) {
+    voiceInput.stopListening()
+  } else {
+    try {
+      await voiceInput.startListening()
+    } catch (err) {
+      // Error is handled by the composable
+    }
+  }
+}
+
+// Keyboard shortcut handler
+const handleKeyDown = (event: KeyboardEvent) => {
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+  const modifier = isMac ? event.metaKey : event.ctrlKey
+  
+  if (modifier && event.shiftKey && event.key === 'V') {
+    const activeElement = document.activeElement as HTMLTextAreaElement
+    if (activeElement && activeElement.tagName === 'TEXTAREA') {
+      // Find which textarea is focused
+      for (const [key, textarea] of Object.entries(textareaRefs.value)) {
+        if (textarea === activeElement) {
+          event.preventDefault()
+          const [idxStr, field] = key.split('-')
+          const idx = parseInt(idxStr)
+          if (!isNaN(idx) && (field === 'description' || field === 'visualPrompt' || field === 'negativePrompt')) {
+            handleVoiceInput(idx, field as 'description' | 'visualPrompt' | 'negativePrompt')
+          }
+          break
+        }
+      }
+    }
+  }
+}
+
+onMounted(() => {
+  if (process.client) {
+    window.addEventListener('keydown', handleKeyDown)
+  }
+})
+
+onUnmounted(() => {
+  if (process.client) {
+    window.removeEventListener('keydown', handleKeyDown)
+    Object.values(voiceInputs.value).forEach(voiceInput => {
+      voiceInput.stopListening()
+    })
+  }
+})
 const fileInputRefs = ref<Record<string, HTMLInputElement>>({})
 
 // Audio player state

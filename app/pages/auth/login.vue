@@ -10,25 +10,49 @@
 
         <UForm :state="form" @submit="handleSubmit" class="space-y-4">
           <UFormField label="Email" name="email" required>
-            <UInput
-              v-model="form.email"
-              type="email"
-              placeholder="you@example.com"
-              autocomplete="email"
-              :disabled="loading"
-              class="w-full"
-            />
+            <div class="relative">
+              <UInput
+                ref="emailInputRef"
+                v-model="form.email"
+                type="email"
+                placeholder="you@example.com"
+                autocomplete="email"
+                :disabled="loading"
+                class="w-full pr-10"
+              />
+              <div class="absolute right-3 top-1/2 -translate-y-1/2">
+                <UiVoiceInputButton
+                  :is-supported="emailVoiceInput.isSupported.value"
+                  :is-listening="emailVoiceInput.isListening.value"
+                  :error="emailVoiceInput.error.value"
+                  :disabled="loading"
+                  @click="handleEmailVoiceInput"
+                />
+              </div>
+            </div>
           </UFormField>
 
           <UFormField label="Password" name="password" required>
-            <UInput
-              v-model="form.password"
-              type="password"
-              placeholder="••••••••"
-              autocomplete="current-password"
-              :disabled="loading"
-              class="w-full"
-            />
+            <div class="relative">
+              <UInput
+                ref="passwordInputRef"
+                v-model="form.password"
+                type="password"
+                placeholder="••••••••"
+                autocomplete="current-password"
+                :disabled="loading"
+                class="w-full pr-10"
+              />
+              <div class="absolute right-3 top-1/2 -translate-y-1/2">
+                <UiVoiceInputButton
+                  :is-supported="passwordVoiceInput.isSupported.value"
+                  :is-listening="passwordVoiceInput.isListening.value"
+                  :error="passwordVoiceInput.error.value"
+                  :disabled="loading"
+                  @click="handlePasswordVoiceInput"
+                />
+              </div>
+            </div>
           </UFormField>
 
           <UAlert
@@ -91,6 +115,74 @@ const isDev = process.dev
 const form = reactive({
   email: '',
   password: '',
+})
+
+const emailInputRef = ref<HTMLInputElement | null>(null)
+const passwordInputRef = ref<HTMLInputElement | null>(null)
+
+// Voice input for email
+const emailVoiceInput = useVoiceInput((text: string) => {
+  form.email = form.email.trim() ? `${form.email} ${text}` : text
+})
+
+// Voice input for password
+const passwordVoiceInput = useVoiceInput((text: string) => {
+  form.password = form.password.trim() ? `${form.password} ${text}` : text
+})
+
+const handleEmailVoiceInput = async () => {
+  if (emailVoiceInput.isListening.value) {
+    emailVoiceInput.stopListening()
+  } else {
+    try {
+      await emailVoiceInput.startListening()
+    } catch (err) {
+      // Error is handled by the composable
+    }
+  }
+}
+
+const handlePasswordVoiceInput = async () => {
+  if (passwordVoiceInput.isListening.value) {
+    passwordVoiceInput.stopListening()
+  } else {
+    try {
+      await passwordVoiceInput.startListening()
+    } catch (err) {
+      // Error is handled by the composable
+    }
+  }
+}
+
+// Keyboard shortcut handler
+const handleKeyDown = (event: KeyboardEvent) => {
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+  const modifier = isMac ? event.metaKey : event.ctrlKey
+  
+  if (modifier && event.shiftKey && event.key === 'V') {
+    const activeElement = document.activeElement
+    if (activeElement === emailInputRef.value) {
+      event.preventDefault()
+      handleEmailVoiceInput()
+    } else if (activeElement === passwordInputRef.value) {
+      event.preventDefault()
+      handlePasswordVoiceInput()
+    }
+  }
+}
+
+onMounted(() => {
+  if (process.client) {
+    window.addEventListener('keydown', handleKeyDown)
+  }
+})
+
+onUnmounted(() => {
+  if (process.client) {
+    window.removeEventListener('keydown', handleKeyDown)
+    emailVoiceInput.stopListening()
+    passwordVoiceInput.stopListening()
+  }
 })
 
 const loading = computed(() => authLoading.value)
