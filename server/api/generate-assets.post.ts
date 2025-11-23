@@ -153,10 +153,20 @@ async function generateBackgroundMusic(
     }
     
     // Use OpenAI to analyze mood and generate music prompt
+    let additionalMusicInstructions = ''
+    const adType = storyboard.meta.adType?.toLowerCase() || ''
+    
+    if (adType.includes('skincare') || adType.includes('skin care') || adType.includes('beauty')) {
+      additionalMusicInstructions = 'IMPORTANT: For Skincare ads, music MUST be "upbeat but soft". Not too loud. Spa-like, clean, minimal, refreshing, high-end background music. Avoid heavy bass or aggressive beats. Think "luxury spa" or "morning routine".'
+    }
+
     const moodAnalysisPrompt = `Analyze the following video ad content and determine the appropriate background music style, mood, and genre.
 
 Story Content: ${storyText.substring(0, 500)}
 Storyboard Content: ${storyboardText.substring(0, 500)}
+Ad Type: ${adType}
+
+${additionalMusicInstructions}
 
 Based on the content, provide a concise music prompt (2-3 sentences) that describes:
 - The mood/emotion (e.g., energetic, calm, dramatic, playful, professional)

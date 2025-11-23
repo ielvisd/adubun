@@ -1317,7 +1317,7 @@ const composeOriginalVideo = async () => {
   try {
     const composeOptions = {
       transition: 'none',
-      musicVolume: 70,
+      musicVolume: 30,
       aspectRatio: storyboard.value.meta.aspectRatio || '9:16',
     }
     
@@ -1367,7 +1367,7 @@ const composeFinalVideos = async () => {
   try {
     const composeOptions = {
       transition: 'none',
-      musicVolume: 70,
+      musicVolume: 30,
       aspectRatio: storyboard.value.meta.aspectRatio || '9:16',
     }
     

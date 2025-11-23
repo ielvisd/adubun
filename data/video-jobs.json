@@ -1162,5 +1162,185 @@
       }
     ],
     "error": "Asset generation failed"
+  },
+  {
+    "id": "N6tnZVlZqEavRnxvax0Gg",
+    "status": "completed",
+    "startTime": 1763939194373,
+    "assetJobId": "83vkIgfuTHPKLl2iewyQ5",
+    "storyboardId": "yz2bjwj5GbJzwup19Bml9",
+    "progress": 100,
+    "step": "completed",
+    "storyboard": {
+      "id": "yz2bjwj5GbJzwup19Bml9",
+      "segments": [
+        {
+          "type": "hook",
+          "description": "A close-up shot of a young woman in her mid-20s with wavy brown hair, looking frustrated at her reflection. She touches her face, showing visible signs of aging. The camera slowly pushes in, capturing the emotion in her eyes as she sighs deeply, emphasizing her disappointment.",
+          "startTime": 0,
+          "endTime": 6,
+          "visualPrompt": "Close-up shot + a young woman in her mid-20s with wavy brown hair + looking frustrated at her reflection + in a well-lit bathroom with a large mirror + dynamic and engaging lighting.",
+          "visualPromptAlternatives": [
+            "Extreme close-up + the same young woman with wavy brown hair + looking worried as she inspects her skin + in a bright bathroom with soft colors + excited and transformative mood.",
+            "Medium shot + the same young woman with wavy brown hair + frowning as she examines her wrinkles + in a clean bathroom with minimal decor + energetic and captivating atmosphere.",
+            "Close-up + the same young woman with wavy brown hair + showing concern while touching her face + in a serene bathroom with plants in the background + dynamic and engaging lighting."
+          ],
+          "audioNotes": "",
+          "firstFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763939005637-c33xd-F_43OgBhecyFQOS.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T230325Z&X-Amz-Expires=604800&X-Amz-Signature=96d3e99c55532a2314cd1750775e1f6736f7040b9aa64520635b5077d444607a&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "lastFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763939016690-QZhXx4C1RKC4Jhiq30iKw.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T230336Z&X-Amz-Expires=604800&X-Amz-Signature=d8e13de8a494acede8236bdf3e9f7bda5618bd981a3825e068a95334becb824e&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "body",
+          "description": "The camera continues moving as the young woman reaches for the Eighth Day Regenerative Serum on the counter. She applies a few drops to her fingertips, visibly excited. As she gently pats it on her face, the camera slows down to a smooth reveal, showcasing her transformation as her skin starts to glow instantly.",
+          "startTime": 6,
+          "endTime": 12,
+          "visualPrompt": "Tracking shot + the same young woman in her mid-20s with wavy brown hair + applying Eighth Day Regenerative Serum to her face + in the same well-lit bathroom with a large mirror + exciting and transformative mood.",
+          "visualPromptAlternatives": [
+            "Dolly shot + the same young woman with wavy brown hair + reaching for the serum and applying it to her face + in the same bright bathroom + vibrant and dynamic ambiance.",
+            "Close-up shot + the same young woman with wavy brown hair + smiling as she applies the serum + in the same bathroom, with a soft-focus background + engaging and uplifting atmosphere.",
+            "Wide shot + the same young woman with wavy brown hair + confidently applying the serum with both hands + in the same clean bathroom with natural light + energetic and exciting feel."
+          ],
+          "audioNotes": "",
+          "lastFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763939029995-QWukIBzrl46MjF3YLGaL_.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T230350Z&X-Amz-Expires=604800&X-Amz-Signature=8f8a87d46e63a94fcfeab10ae50c06775e910e1db2d1caa4d849ec62142e300e&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763939016690-QZhXx4C1RKC4Jhiq30iKw.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T230336Z&X-Amz-Expires=604800&X-Amz-Signature=d8e13de8a494acede8236bdf3e9f7bda5618bd981a3825e068a95334becb824e&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "cta",
+          "description": "The camera slowly pushes in on the young woman as she admires her glowing skin in the mirror, beaming with confidence. The text overlay appears, reading 'Buy now to take advantage of the 50% discount!' along with the Eighth Day logo. The frame locks on her radiant face as the logo is prominently displayed.",
+          "startTime": 12,
+          "endTime": 16,
+          "visualPrompt": "Hero shot + the same young woman in her mid-20s with wavy brown hair + smiling confidently at her reflection + in the same bright bathroom with the logo and text overlay + dynamic and engaging atmosphere.",
+          "visualPromptAlternatives": [
+            "Close-up + the same young woman with wavy brown hair + showcasing her radiant skin with a wide smile + in the same bathroom, with logo and text overlay + vibrant and uplifting ambiance.",
+            "Medium shot + the same young woman with wavy brown hair + joyfully looking at her reflection with glowing skin + in the same well-lit bathroom + exciting and transformative mood.",
+            "Zoomed-in shot + the same young woman with wavy brown hair + displaying her newly radiant skin + in the same bathroom, with the logo and text overlay + energetic and engaging feel."
+          ],
+          "audioNotes": "Dialogue: The young woman says: 'Buy now to take advantage!'",
+          "lastFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763939043387-5vMFHOzEBi_67-xk_aTGB.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T230403Z&X-Amz-Expires=604800&X-Amz-Signature=6daa6c2d39da37a0498fdb3db8413571f433ac2948040dfca3a16c21d8e2dc62&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763939029995-QWukIBzrl46MjF3YLGaL_.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T230350Z&X-Amz-Expires=604800&X-Amz-Signature=8f8a87d46e63a94fcfeab10ae50c06775e910e1db2d1caa4d849ec62142e300e&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        }
+      ],
+      "meta": {
+        "mode": "production",
+        "aspectRatio": "9:16",
+        "duration": 16
+      },
+      "createdAt": 1763938993986
+    },
+    "frames": [
+      {
+        "segmentIndex": 0,
+        "frameType": "first",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763939005637-c33xd-F_43OgBhecyFQOS.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T230325Z&X-Amz-Expires=604800&X-Amz-Signature=96d3e99c55532a2314cd1750775e1f6736f7040b9aa64520635b5077d444607a&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 0,
+        "frameType": "last",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763939016690-QZhXx4C1RKC4Jhiq30iKw.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T230336Z&X-Amz-Expires=604800&X-Amz-Signature=d8e13de8a494acede8236bdf3e9f7bda5618bd981a3825e068a95334becb824e&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 1,
+        "frameType": "last",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763939029995-QWukIBzrl46MjF3YLGaL_.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T230350Z&X-Amz-Expires=604800&X-Amz-Signature=8f8a87d46e63a94fcfeab10ae50c06775e910e1db2d1caa4d849ec62142e300e&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 2,
+        "frameType": "last",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763939043387-5vMFHOzEBi_67-xk_aTGB.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T230403Z&X-Amz-Expires=604800&X-Amz-Signature=6daa6c2d39da37a0498fdb3db8413571f433ac2948040dfca3a16c21d8e2dc62&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      }
+    ],
+    "videoUrl": "/api/watch/AX-wELGn5qz5uqYcRXnCn",
+    "videoId": "AX-wELGn5qz5uqYcRXnCn",
+    "endTime": 1763939208785
+  },
+  {
+    "id": "x3OdPBts6uFyV0OKay_6v",
+    "status": "completed",
+    "startTime": 1763940653517,
+    "assetJobId": "fOQFee6In2YdHiV_uahUI",
+    "storyboardId": "JZ8xwplucTqhOklVLecg1",
+    "progress": 100,
+    "step": "completed",
+    "storyboard": {
+      "id": "JZ8xwplucTqhOklVLecg1",
+      "segments": [
+        {
+          "type": "hook",
+          "description": "A young woman in her early 30s with long brown hair and a distressed expression, holds her face in her hands, showing signs of frustration due to visible wrinkles. The camera is at an extreme close-up, capturing the texture of her skin and the emotion on her face. As she leans forward, the camera slowly pushes in, emphasizing her peak frustration with the wrinkles, then the shot ends on her upset expression.",
+          "startTime": 0,
+          "endTime": 6,
+          "visualPrompt": "[Extreme close-up] + [a young woman in her early 30s with long brown hair] + [holds her face in her hands, showing signs of frustration] + [in a well-lit bathroom with a mirror and soft pastel colors] + [dynamic lighting to highlight her skin texture and emotions]",
+          "visualPromptAlternatives": [
+            "[Close-up] + [the same young woman in her early 30s with long brown hair] + [sighs deeply, looking disappointed] + [in the same well-lit bathroom with minimal decor] + [soft, warm lighting that adds to the emotional impact]",
+            "[Medium shot] + [the same young woman with long brown hair] + [leans against the bathroom wall, looking defeated] + [in a clean, modern bathroom with white tiles] + [bright, airy ambiance to contrast her feelings]",
+            "[Extreme close-up] + [the same young woman in her early 30s] + [wipes her eyes, visibly upset] + [in the same room, focusing on her reflection] + [natural light streaming in to enhance emotions]"
+          ],
+          "audioNotes": "",
+          "firstFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763940402258-tZQblxH_QfKvZToUCzphR.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T232642Z&X-Amz-Expires=604800&X-Amz-Signature=56b3a13fc42de7425d7d7129e03f8d5aba6b73e0a2d35f5ea00fb756b0f44364&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "lastFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763940415498-D-fTz-HWCSWe4fXyVwQ2X.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T232655Z&X-Amz-Expires=604800&X-Amz-Signature=f47689bc9ec7552a58d5c2ab870c6753047310f5221fb9c00859d8b24f53256a&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "body",
+          "description": "As the camera continues pushing in, the young woman reaches for the Eighth Day Regenerative Serum on the counter. She opens the bottle and applies it to her face with a hopeful smile. The camera captures her transformation in slow motion as her expression shifts to joy, and her skin appears visibly smoother. The action flows seamlessly as she admires her reflection in the same bathroom mirror.",
+          "startTime": 6,
+          "endTime": 12,
+          "visualPrompt": "[Tracking shot] + [the same young woman in her early 30s with long brown hair] + [applies the Eighth Day Regenerative Serum to her face, smiling] + [in the same well-lit bathroom with a mirror reflecting her] + [bright, uplifting lighting that highlights her transformation]",
+          "visualPromptAlternatives": [
+            "[Close-up] + [the same young woman with long brown hair] + [gently massages the serum into her skin, her face lighting up with joy] + [in the same clean bathroom with a soft-focus on the background] + [vibrant lighting that captures the moment]",
+            "[Medium shot] + [the same young woman in her early 30s] + [spreads the serum across her cheeks, her face glowing] + [in the same modern bathroom with a casual setup] + [joyful lighting to reflect her excitement]",
+            "[Over-the-shoulder shot] + [the same young woman with long brown hair] + [looks at her reflection, visibly changing her expression to happiness] + [in the same bathroom, maintaining continuity] + [natural, inviting lighting that enhances the moment]"
+          ],
+          "audioNotes": "SFX: Soft uplifting music begins to play. Dialogue: The woman says: 'This feels amazing!'",
+          "lastFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763940430893-hE7KntaoI8gsQQdom3w1r.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T232711Z&X-Amz-Expires=604800&X-Amz-Signature=a553bb2f5e8301161b39a9a2ed64b5670dab36a34b6b78f591311a05f890ae58&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763940415498-D-fTz-HWCSWe4fXyVwQ2X.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T232655Z&X-Amz-Expires=604800&X-Amz-Signature=f47689bc9ec7552a58d5c2ab870c6753047310f5221fb9c00859d8b24f53256a&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "cta",
+          "description": "The camera holds a steady shot on the woman, who now looks radiant with smooth skin, and the Eighth Day Regenerative Serum prominently displayed in her hand. The background remains the same, but the lighting shifts slightly to a more heroic tone as a tagline appears on screen: 'Transform Your Skin Today.' The logo locks up prominently as the shot slowly zooms in.",
+          "startTime": 12,
+          "endTime": 16,
+          "visualPrompt": "[Static shot] + [the same young woman in her early 30s holding the Eighth Day Regenerative Serum] + [smiling confidently, showcasing her transformed skin] + [in the same well-lit bathroom, now with a warm glow] + [dynamic text overlay with a tagline and logo lockup]",
+          "visualPromptAlternatives": [
+            "[Slow push-in shot] + [the same young woman with long brown hair holding the serum] + [radiant smile, showcasing her skin transformation] + [in the same bathroom, but with a slight focus shift to the serum] + [bright, bold text overlay with a call to action]",
+            "[Hero shot] + [the same young woman in her early 30s confidently displaying the serum] + [with a look of satisfaction and joy] + [in the same clean bathroom, with enhanced lighting] + [text overlay with tagline and logo prominently featured]",
+            "[Close-up] + [the same young woman with long brown hair holding the Eighth Day Regenerative Serum] + [beaming with happiness] + [in the same bathroom, focused on her glowing skin] + [elegant text overlay with a clear call to action]"
+          ],
+          "audioNotes": "Dialogue: The woman says: 'Purchase now to transform.'",
+          "lastFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763940442067-N7rSfrjuyGj5dSrVZMIZx.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T232722Z&X-Amz-Expires=604800&X-Amz-Signature=d6a1493b6be55403ca162ff43ed7224f83979e1c737bf60702c8d44c10779399&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763940430893-hE7KntaoI8gsQQdom3w1r.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T232711Z&X-Amz-Expires=604800&X-Amz-Signature=a553bb2f5e8301161b39a9a2ed64b5670dab36a34b6b78f591311a05f890ae58&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        }
+      ],
+      "meta": {
+        "mode": "production",
+        "aspectRatio": "9:16",
+        "duration": 16
+      },
+      "createdAt": 1763940388397
+    },
+    "frames": [
+      {
+        "segmentIndex": 0,
+        "frameType": "first",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763940402258-tZQblxH_QfKvZToUCzphR.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T232642Z&X-Amz-Expires=604800&X-Amz-Signature=56b3a13fc42de7425d7d7129e03f8d5aba6b73e0a2d35f5ea00fb756b0f44364&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 0,
+        "frameType": "last",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763940415498-D-fTz-HWCSWe4fXyVwQ2X.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T232655Z&X-Amz-Expires=604800&X-Amz-Signature=f47689bc9ec7552a58d5c2ab870c6753047310f5221fb9c00859d8b24f53256a&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 1,
+        "frameType": "last",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763940430893-hE7KntaoI8gsQQdom3w1r.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T232711Z&X-Amz-Expires=604800&X-Amz-Signature=a553bb2f5e8301161b39a9a2ed64b5670dab36a34b6b78f591311a05f890ae58&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 2,
+        "frameType": "last",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763940442067-N7rSfrjuyGj5dSrVZMIZx.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T232722Z&X-Amz-Expires=604800&X-Amz-Signature=d6a1493b6be55403ca162ff43ed7224f83979e1c737bf60702c8d44c10779399&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      }
+    ],
+    "videoUrl": "/api/watch/z9fch161d5obP6oiX90K6",
+    "videoId": "z9fch161d5obP6oiX90K6",
+    "endTime": 1763940670944
   }
 ]
