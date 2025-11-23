@@ -119,6 +119,496 @@ const enforceImageResolution = async (
   }
 }
 
+// Top-level helper to sanitize story text (replace teenage/teen references with character age)
+function sanitizeStoryText(text: string, characterAge: string | undefined): string {
+  return sanitizeVideoPrompt(text, characterAge)
+}
+
+// Top-level helper to sanitize visual prompts
+function sanitizeVisualPrompt(prompt: string, characterAge: string | undefined): string {
+  return sanitizeVideoPrompt(prompt, characterAge)
+}
+
+// Top-level async helper to resolve image paths and convert to URLs for Replicate
+async function resolveImagePath(imagePath: string): Promise<string> {
+  // If it's already a URL, return as-is
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath
+  }
+  
+  // Resolve to absolute path first
+  let absolutePath: string
+  if (imagePath.startsWith('/')) {
+    // Public folder path - resolve relative to public folder
+    const publicPath = imagePath.slice(1)
+    absolutePath = path.resolve(process.cwd(), 'public', publicPath)
+    console.log(`[Generate Frames] Resolved public path: ${imagePath} -> ${absolutePath}`)
+  } else if (path.isAbsolute(imagePath)) {
+    absolutePath = imagePath
+  } else {
+    absolutePath = path.resolve(process.cwd(), imagePath)
+  }
+  
+  // Convert local file to URL using uploadFileToReplicate (uploads to S3 or serves locally)
+  const { uploadFileToReplicate } = await import('../utils/replicate-upload')
+  const url = await uploadFileToReplicate(absolutePath)
+  console.log(`[Generate Frames] Converted local file to URL: ${absolutePath} -> ${url}`)
+  return url
+}
+
+// Top-level helper to generate transition instructions for items
+function generateItemTransitionInstructions(
+  bodySegment: Segment,
+  itemsWithLocations: Array<{ item: string; initialLocation: string; actionType: 'bringing' | 'interacting' }>
+): string {
+  if (itemsWithLocations.length === 0) {
+    return ''
+  }
+
+  const transitionInstructions: string[] = []
+  
+  for (const { item, initialLocation, actionType } of itemsWithLocations) {
+    // Check if the body segment mentions the item being moved/offered/held
+    const segmentText = `${bodySegment.description} ${bodySegment.visualPrompt}`.toLowerCase()
+    const itemLower = item.toLowerCase()
+    
+    // Check for patterns indicating item is being held/offered/moved
+    const heldPattern = new RegExp(`(?:holds?|holding|grasps?|grasping|carries?|carrying|offers?|offering|extends?|extending|gives?|giving|hands?|handing).*?${itemLower}`, 'i')
+    const inHandsPattern = new RegExp(`(?:in|with|using).*?(?:hands?|hand|grip|grasp).*?${itemLower}`, 'i')
+    const picksUpPattern = new RegExp(`(?:picks?|picking|takes?|taking|grabs?|grabbing|retrieves?|retrieving).*?(?:up|from).*?${itemLower}`, 'i')
+    
+    if (heldPattern.test(segmentText) || inHandsPattern.test(segmentText) || picksUpPattern.test(segmentText)) {
+      // Item is being moved to hands
+      transitionInstructions.push(
+        `CRITICAL TRANSITION - NO DUPLICATES: The ${item} should transition from ${initialLocation} to being held in hands. During this transition, the item must be in ONLY ONE location at any given moment. Do NOT show the item in both ${initialLocation} AND in hands simultaneously. Show the item moving from one location to the other, but NEVER in both places at the same time. CRITICAL ITEM STATE: The ${item} is now being held/offered. It should NO LONGER be at ${initialLocation}. It should be in ONLY ONE location: in hands. Do NOT show the ${item} in both ${initialLocation} and in hands - it must be in ONLY ONE place.`
+      )
+    }
+  }
+  
+  return transitionInstructions.length > 0 ? ` ${transitionInstructions.join(' ')}` : ''
+}
+
+// Top-level helper to build nano-banana prompts
+function buildNanoPrompt(
+  storyText: string, 
+  visualPrompt: string,
+  mood: string | null,
+  referenceImages: string[],
+  characters: Character[],
+  isTransition: boolean = false, 
+  transitionText?: string, 
+  transitionVisual?: string,
+  previousFrameImage?: string,
+  trackedItems?: Array<{item: string, initialLocation: string, actionType: 'bringing' | 'interacting'}>,
+  avatarDesc?: string | null,
+  avatarLook?: string | null,
+  hookFirstFrameUrl?: string | null
+): string {
+  const moodStyle = mood ? `${mood} style` : 'professional style'
+  const hasReferenceImages = referenceImages.length > 0
+  
+  // Detect if product is makeup/cosmetics
+  const isMakeupProduct = (() => {
+    const combinedText = `${storyText} ${visualPrompt} ${transitionText || ''} ${transitionVisual || ''}`.toLowerCase()
+    const makeupKeywords = ['makeup', 'cosmetic', 'lipstick', 'foundation', 'concealer', 'mascara', 'eyeliner', 'blush', 'bronzer', 'highlighter', 'eyeshadow', 'lip gloss', 'lip balm', 'make-up', 'beauty product', 'beauty item']
+    return makeupKeywords.some(keyword => combinedText.includes(keyword))
+  })()
+  
+  // Detect if product is skincare
+  const isSkincareProduct = (() => {
+    const combinedText = `${storyText} ${visualPrompt} ${transitionText || ''} ${transitionVisual || ''}`.toLowerCase()
+    const skincareKeywords = ['skincare', 'serum', 'acne', 'treatment', 'moisturizer', 'cleanser', 'toner', 'essence', 'cream', 'lotion', 'skincare product', 'beauty serum', 'acne treatment', 'skin care', 'face serum', 'skin serum', 'anti-aging', 'anti aging', 'wrinkle', 'dark spot', 'spot treatment']
+    return skincareKeywords.some(keyword => combinedText.includes(keyword))
+  })()
+  
+  // Add instruction to prevent story text from appearing as visible text
+  const noTextInstruction = `CRITICAL: The story description ("${storyText}") is for scene understanding ONLY. DO NOT display this text as visible text, overlays, or dialogue. DO NOT have characters speak these words. The story text describes what happens in the scene, not what text to display. Only render text if explicitly mentioned in the visualPrompt. `
+  
+  // Build the base prompt parts with full scene context for continuity
+  // Note: storyText is used for context, not for literal text rendering
+  let basePrompt = ''
+  let transitionItemInstruction = ''
+  
+  if (isTransition && transitionText && transitionVisual) {
+    // Detect if next segment introduces products/items/characters that should be visible in transition frame
+    const nextSegmentText = `${transitionText} ${transitionVisual}`.toLowerCase()
+    
+    // Generic patterns to detect products/robots/characters bringing/offering items or approaching
+    // Pattern 1: Product/robot/character + action verb + item (e.g., "robot approaches with cup of tea")
+    const productItemPattern = /(?:robot|product|humanoid|character|person|individual|device|machine|assistant|helper)[\w\s]*?(?:approaches?|brings?|offers?|gives?|hands?|delivers?|presents?|extends?|carries?|holds?)[\w\s]*?(?:with|holding|carrying)[\w\s]*?(?:cup|tea|coffee|beverage|item|object|food|drink|tool|product|herbal|steaming|hot|fresh)/i
+    // Pattern 2: Product/robot/character approaching/entering (without specific item)
+    const productApproachPattern = /(?:robot|product|humanoid|character|device|machine|assistant|helper)[\w\s]*?(?:approaches?|enters?|arrives?|comes?|walks?|moves?)/i
+    // Pattern 3: Item being brought/offered (e.g., "cup of tea", "coffee", "herbal tea")
+    const itemBeingBroughtPattern = /(?:cup|mug|glass|bottle|plate|bowl|container)[\w\s]*(?:of|with)?[\w\s]*(?:tea|coffee|herbal|beverage|food|drink|hot|steaming|fresh)/i
+    
+    const hasProductAction = productItemPattern.test(nextSegmentText) || productApproachPattern.test(nextSegmentText)
+    const hasItem = itemBeingBroughtPattern.test(nextSegmentText)
+    
+    if (hasProductAction || hasItem) {
+      // Extract the product/robot/character
+      const productMatch = nextSegmentText.match(/(?:robot|product|humanoid|character|person|individual|device|machine|assistant|helper|unitree|g1)[\w\s]*?(?=\s+(?:approaches?|brings?|offers?|gives?|hands?|delivers?|presents?|extends?|enters?|arrives?|comes?|walks?|moves?|softly|gently))/i)
+      // Extract the item being brought/offered
+      const itemMatch = nextSegmentText.match(/(?:cup|mug|glass|bottle|plate|bowl|container)[\w\s]*(?:of|with)?[\w\s]*(?:tea|coffee|herbal|beverage|food|drink|hot|steaming|fresh)|(?:tea|coffee|herbal tea|coffee cup|beverage|food|drink|item|object|tool|product)[\w\s]*(?:cup|mug|glass|bottle)?/i)
+      
+      const product = productMatch ? productMatch[0].trim() : 'the product/robot/character'
+      const item = itemMatch ? itemMatch[0].trim() : null
+      
+      if (item) {
+        transitionItemInstruction = ` CRITICAL TRANSITION FRAME REQUIREMENT: The next segment shows ${product} bringing/offering ${item}. This transition frame (hook last = body first) MUST show ${product} holding ${item} in its hands, approaching with ${item} clearly visible. The ${product} and ${item} must be VISIBLE in this frame to ensure smooth continuity into the next segment. Do NOT wait until the next segment to show ${product} with ${item} - both must appear in this transition frame.`
+      } else if (hasProductAction) {
+        transitionItemInstruction = ` CRITICAL TRANSITION FRAME REQUIREMENT: The next segment shows ${product} approaching or entering. This transition frame (hook last = body first) MUST show ${product} approaching or entering the scene. The ${product} must be VISIBLE in this frame to ensure smooth continuity into the next segment. DO NOT wait until the next segment to show ${product} - it must appear in this transition frame.`
+      }
+    }
+    
+    // Enhanced transition instructions for logical progression (zero cuts)
+    const logicalProgressionInstruction = `CRITICAL LOGICAL PROGRESSION - ZERO CUTS REQUIREMENT: This transition frame must show a logical, natural progression from the current moment to the next moment. The progression should allow VEO to animate smoothly without any cuts or jumps. Use one or more of these natural progression methods: 1) Character movement (character walking, gesturing, changing pose, moving from position A to B), 2) Item transitions (items being passed, handed off, moved, or transferred naturally), 3) Camera following action (camera panning, tracking, or following the character/item movement). The frame should show an intermediate state that bridges the current scene to the next scene naturally. The progression must be logical and continuous - show the character/item in motion or in a transitional state that makes the next moment feel like a natural continuation, not a cut. Use whatever progression method makes the most sense for this specific scene. `
+    
+    basePrompt = `Scene context: ${storyText}. Visual: ${visualPrompt}. Continuing seamlessly in the same continuous flow. Next moment context: ${transitionText}. Next visual: ${transitionVisual}${logicalProgressionInstruction}${transitionItemInstruction}`
+  } else {
+    basePrompt = `Scene context: ${storyText}. Visual: ${visualPrompt}`
+  }
+  
+  // Add avatar description if avatar is selected
+  let avatarInstruction = ''
+  if (avatarDesc && avatarLook) {
+    avatarInstruction = `CRITICAL AVATAR CONSISTENCY: The main character in this scene must be ${avatarDesc}. This character must appear with IDENTICAL appearance across all frames: same ${avatarLook}. Maintain exact same gender, age, physical features, and clothing style. Use the avatar reference images provided to ensure pixel-perfect character consistency. `
+  }
+  
+  // Add character consistency instructions if we have characters
+  let characterInstruction = ''
+  if (characters.length > 0) {
+    const characterDescriptions = formatCharactersForPrompt(characters)
+    characterInstruction = `CRITICAL CHARACTER CONSISTENCY: The exact same characters from previous scenes must appear with IDENTICAL appearance: ${characterDescriptions}. Maintain exact same gender, age, physical features (hair color/style, build), and clothing style for each character. Do NOT change character gender, age, or physical appearance. Use phrases like "the same [age] [gender] person with [features]" to ensure consistency. `
+  }
+  
+  // Add previous frame continuity instruction if we have a previous frame
+  let previousFrameInstruction = ''
+  if (previousFrameImage) {
+    if (isTransition) {
+      // For transitions between scenes: maintain continuous flow but ALLOW pose changes
+    previousFrameInstruction = `CRITICAL CONTINUOUS FLOW - ALLOW POSE CHANGES: Use the previous frame image as a visual reference to maintain CONTINUOUS story flow. Keep the same characters (IDENTICAL appearance - same clothing, same physical features), same environment, same lighting style, and same camera angle. However, ALLOW pose changes, expression changes, and subtle body language changes - the character can move, change gestures, or adjust position while maintaining the same scene and composition. The scene should feel like ONE continuous shot with NO cuts, jumps, or scene changes, but the character can naturally progress through different poses or actions. `
+    } else {
+      // For progression within same scene: FORCE different angle/composition while maintaining character consistency
+      previousFrameInstruction = `CRITICAL SCENE PROGRESSION - MANDATORY VISUAL VARIATION WITH CHARACTER CONSISTENCY: This final frame MUST be SIGNIFICANTLY visually different from the previous frame in composition, camera angle, and pose. However, you MUST maintain IDENTICAL character appearance from the previous frame: EXACT same clothing (same shirt, same pants, same colors, same style), EXACT same physical features (same hair, same build, same facial features), NO glasses if previous frame had no glasses, SAME glasses if previous frame had glasses. DO NOT change character clothing, accessories, or physical appearance. You MUST create a DISTINCT visual composition by: 1) Using a DIFFERENT camera angle (switch from medium to close-up, or wide to over-shoulder, or front to side/three-quarter angle), 2) Changing character pose and body language (different standing/sitting position, different gesture, different facial expression, different body orientation), 3) Altering composition and framing (different character placement in frame, different focal point, different depth of field, different framing style). The previous frame image is for character/setting reference to maintain IDENTICAL appearance - DO NOT copy its composition, camera angle, pose, or framing, but DO copy the exact character appearance (clothing, accessories, physical features). Show a DISTINCT later moment with CLEAR visual progression while maintaining the SAME character. Text changes alone are NOT sufficient - the entire visual composition must be different, but the character must look IDENTICAL. `
+    }
+  }
+
+  // Add variation reinforcement
+  let variationReinforcement = ''
+  if (previousFrameImage && !isTransition) {
+    variationReinforcement = ` FINAL MANDATORY INSTRUCTION: IGNORE the input image composition, camera angle, and pose. You MUST create a visually DISTINCT final frame with a NEW camera angle and pose. However, you MUST copy the EXACT character appearance from the input image: same clothing, same accessories (glasses/no glasses), same physical features. Do not copy the previous frame's composition, but DO copy the character's appearance exactly. `
+  }
+
+  // Build item-specific duplicate prevention if items are tracked
+  let duplicatePrevention = ''
+  if (trackedItems && trackedItems.length > 0) {
+    const itemNames = trackedItems.map(i => `"${i.item}"`).join(', ')
+    const firstItem = trackedItems[0].item
+    duplicatePrevention = `🚨 CRITICAL DUPLICATE PREVENTION - ABSOLUTE REQUIREMENT: The following items must appear in ONLY ONE location at a time: ${itemNames}. For example, if "${firstItem}" is on a table, it must NOT also be in someone's hands. If "${firstItem}" is in someone's hands, it must NOT also be on a table. Each item can exist in ONLY ONE place at any given moment. Do NOT show the same item in multiple locations simultaneously. This is a MANDATORY requirement - any frame showing duplicate items will be rejected. `
+  } else {
+    duplicatePrevention = `🚨 CRITICAL DUPLICATE PREVENTION: Each physical item should appear in ONLY ONE location at a time. If an item is being held or in someone's hands, it should NOT also appear on surfaces. If an item is on a surface, it should NOT also appear in hands unless it is actively being picked up or transferred in this exact moment. Do NOT show the same item in multiple locations simultaneously. `
+  }
+  
+  // Add body part duplicate prevention (critical for preventing extra hands, arms, etc.)
+  const bodyPartPrevention = `🚨🚨🚨 CRITICAL BODY PART CONSISTENCY - ABSOLUTE REQUIREMENT 🚨🚨🚨: Each character must have EXACTLY the correct number of body parts. DO NOT generate duplicate or extra body parts. Each person must have:
+- EXACTLY 2 hands (one left, one right) - NO MORE, NO LESS
+- EXACTLY 2 arms (one left, one right) - NO MORE, NO LESS
+- EXACTLY 2 legs (one left, one right) - NO MORE, NO LESS
+- EXACTLY 1 head - NO MORE, NO LESS
+DO NOT show 3 hands, 3 arms, or any extra body parts. If a character is holding a product with one hand and applying with the other, show EXACTLY 2 hands total. This is a MANDATORY requirement - any frame showing incorrect number of body parts (e.g., 3 hands) will be rejected. `
+
+  // Add character visibility requirement (always visible, even during product zooms)
+  let characterVisibilityInstruction = ''
+  if (avatarDesc || characters.length > 0) {
+    characterVisibilityInstruction = `🚨 CRITICAL CHARACTER VISIBILITY - MANDATORY REQUIREMENT: The main character MUST be VISIBLE in this frame at all times. Even when zooming on products, showing product close-ups, or focusing on product details, the character must remain visible in the frame. The character can be in the background, side, foreground, or any position, but MUST be present and visible. DO NOT create frames that show only the product without the character visible. This is a MANDATORY requirement for seamless transitions - the character must appear in EVERY frame. `
+  }
+
+  // Add mirror/reflection exclusion instruction
+  const mirrorExclusionInstruction = `🚨 CRITICAL - NO MIRRORS OR REFLECTIONS: DO NOT include mirrors, reflections, reflective surfaces, bathroom mirrors, or people looking at their reflection in this frame. This is a MANDATORY requirement - any frame containing mirrors or reflections will be rejected. `
+  
+  // Add skin imperfection prevention (apply to ALL ads, including hook/opening frames)
+  const skinQualityInstruction = `🚨🚨🚨 CRITICAL SKIN QUALITY - ABSOLUTE MANDATORY REQUIREMENT 🚨🚨🚨: ALL characters in this frame MUST have PERFECT, FLAWLESS, HEALTHY skin with ZERO imperfections. This applies to EVERY frame including hook/opening frames, body frames, and CTA frames. This is a HARD REQUIREMENT with ZERO TOLERANCE. DO NOT show ANY of the following: pimples, acne, blemishes, blackheads, whiteheads, spots, marks, scars, discoloration, redness, irritation, rashes, skin texture issues, pores, wrinkles (unless character is elderly), age spots, freckles (unless naturally part of character description), moles (unless naturally part of character description), or ANY other skin imperfections or defects. ALL characters must have: smooth, clear, radiant, healthy, perfect, flawless skin with even tone, perfect complexion, and professional-quality appearance. This applies to EVERY character visible in the frame - no exceptions. CRITICAL: This requirement applies to hook/opening frames as well - characters must have perfect skin from the very first frame. Any frame showing skin imperfections (including blemishes, acne, redness, or any marks) will be REJECTED. Examples of what NOT to show: ❌ pimples on face, ❌ acne marks, ❌ blemishes, ❌ skin discoloration, ❌ redness, ❌ visible pores, ❌ skin texture issues, ❌ any marks or spots. Examples of what TO show: ✅ smooth, clear, perfect skin, ✅ even skin tone, ✅ flawless complexion, ✅ professional-quality appearance. This is a MANDATORY requirement for ALL characters in ALL frames, including the opening/hook frame. `
+  
+  // Add makeup product application instructions if detected
+  let makeupApplicationInstruction = ''
+  if (isMakeupProduct) {
+    makeupApplicationInstruction = `🚨🚨🚨 CRITICAL: MAKEUP/COSMETICS PRODUCT APPLICATION REQUIREMENT 🚨🚨🚨
+For makeup/cosmetics products, you MUST show the proper application sequence:
+1. **Product Container Visible**: The character MUST be shown HOLDING the product container (bottle, tube, palette, compact, applicator, etc.) in their hand(s) - the container must be clearly visible
+2. **Active Application Motion**: The character MUST be shown ACTIVELY APPLYING the product FROM the container TO the appropriate body part:
+   - For face makeup (foundation, concealer, blush, bronzer, highlighter): apply to face (cheeks, forehead, chin, etc.) - show the application motion with hands/fingers/applicator moving product from container to face
+   - For eye makeup (mascara, eyeliner, eyeshadow): apply to eyes/eyelids - show the application motion with applicator/brush moving from container to eyes
+   - For lip makeup (lipstick, lip gloss, lip balm): apply to lips - show the application motion with product moving from container to lips
+3. **Complete Sequence**: You MUST show the complete sequence: product container in hand → character applying product from container to body part → product visible on face/eyes/lips
+4. **NO RANDOM APPEARANCE**: The product should NOT randomly appear on the character's face/body. It MUST be shown being actively applied from the container. Do NOT show the product already on the face without showing the application process.
+5. **Application Details**: Describe the application method (fingers, brush, applicator, etc.) and the target area (cheeks, lips, eyes, etc.) explicitly in the visual description.
+Example for foundation: ✅ "The character holds a foundation bottle in hand, squeezes product onto fingers, and applies it to cheeks and forehead with smooth, blending motion" ❌ "The character's face has foundation on it" (REJECTED - too vague, doesn't show application)
+Example for lipstick: ✅ "The character holds a lipstick tube, applies it to lips with precise motion, showing the application process from container to lips" ❌ "The character has lipstick on her lips" (REJECTED - too vague, doesn't show application)
+This is a MANDATORY requirement - any frame showing makeup products without proper application sequence will be rejected. `
+  }
+  
+  // Add skincare product application instructions if detected
+  let skincareApplicationInstruction = ''
+  if (isSkincareProduct) {
+    skincareApplicationInstruction = `🚨🚨🚨 CRITICAL: SKINCARE PRODUCT APPLICATION REQUIREMENT 🚨🚨🚨
+For skincare products (serum, acne treatment, moisturizer, cream, etc.), you MUST show the proper application sequence:
+1. **Product Container Visible**: The character MUST be shown HOLDING the product container (bottle, tube, pump, jar, dropper, etc.) in their hand(s) - the container must be clearly visible
+2. **Active Application Motion**: The character MUST be shown ACTIVELY APPLYING the product FROM the container TO the appropriate skin area:
+   - For face skincare (serum, moisturizer, cream, acne treatment): apply to face (cheeks, forehead, chin, nose, etc.) - show the application motion with hands/fingers moving product from container to face
+   - For spot treatments: apply to specific areas (blemishes, dark spots, etc.) - show precise application from container to target area
+   - For full-face products: show application motion covering face areas (forehead, cheeks, chin) with product from container
+3. **Complete Sequence**: You MUST show the complete sequence: product container in hand → character applying product from container to skin → product visible on skin
+4. **NO RANDOM APPEARANCE**: The product should NOT randomly appear on the character's face/skin. It MUST be shown being actively applied from the container. Do NOT show the product already on the face without showing the application process. The product should NOT appear on the face from fingers/hands without showing the container first.
+5. **Application Details**: Describe the application method (fingers, dropper, pump, etc.) and the target skin area (cheeks, forehead, chin, face, etc.) explicitly in the visual description.
+Example for serum: ✅ "The character holds a serum bottle in hand, dispenses product onto fingers, and applies it to cheeks and forehead with smooth, upward motion" ❌ "The character's face has serum on it" (REJECTED - too vague, doesn't show application)
+Example for acne treatment: ✅ "The character holds an acne treatment tube, squeezes product onto finger, and applies it to specific blemish areas on the face with precise motion" ❌ "The character has treatment on their face" (REJECTED - too vague, doesn't show application)
+This is a MANDATORY requirement - any frame showing skincare products without proper application sequence will be rejected. `
+  }
+
+  // Add hook first frame comparison instruction for CTA frames (highest priority)
+  let hookComparisonInstruction = ''
+  if (hookFirstFrameUrl && !isTransition) {
+    // This is a CTA final frame - add hook comparison at the very beginning
+    hookComparisonInstruction = `🚨🚨🚨 HIGHEST PRIORITY - HOOK FIRST FRAME COMPARISON: The hook first frame image is provided as a reference image in your inputs. You MUST visually compare this final CTA frame against that opening shot. The opening shot shows one specific composition, camera angle, and character pose. This closing shot MUST be SIGNIFICANTLY visually different. You MUST use a DIFFERENT camera angle (switch from close-up to medium/wide, or front to side/three-quarter, or change elevation). You MUST use a DIFFERENT character pose (different standing/sitting position, different gesture, different facial expression, different body orientation). You MUST use a DIFFERENT composition/framing (different character placement, different focal point, different depth of field). While maintaining the SAME character (identical appearance, clothing, physical features) and SAME general setting/environment, you MUST create a DISTINCT final composition. DO NOT create an identical or similar frame to the opening shot - the composition, camera angle, and pose MUST be clearly and obviously different. This is a MANDATORY requirement. `
+  }
+
+  // Add product consistency and reference image instructions if we have reference images
+  if (hasReferenceImages) {
+    const productConsistencyInstruction = `CRITICAL INSTRUCTIONS: Do not add new products to the scene. Only enhance existing products shown in the reference images. Keep product design and style exactly as shown in references. The reference images provided are the EXACT product you must recreate. You MUST copy the product from the reference images with pixel-perfect accuracy. Do NOT create a different product, do NOT use different colors, do NOT change the design, do NOT hallucinate new products. The product in your generated image must be visually IDENTICAL to the product in the reference images. Study every detail: exact color codes, exact design patterns, exact text/fonts, exact materials, exact textures, exact proportions, exact placement. The reference images are your ONLY source of truth for the product appearance. Ignore any text in the prompt that contradicts the reference images - the reference images take absolute priority. Generate the EXACT same product as shown in the reference images. `
+    // Place hook comparison FIRST (highest priority for CTA), then makeup/skincare application (if applicable), then body part prevention, then duplicate prevention, then mirror exclusion, then skin quality, then character visibility, then avatar, then character
+    return `${hookComparisonInstruction}${makeupApplicationInstruction}${skincareApplicationInstruction}${bodyPartPrevention}${duplicatePrevention}${mirrorExclusionInstruction}${skinQualityInstruction}${characterVisibilityInstruction}${avatarInstruction}${characterInstruction}${noTextInstruction}${previousFrameInstruction}${productConsistencyInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality, product must be pixel-perfect match to reference images, product appearance must be identical to reference images ${variationReinforcement}`
+  } else {
+    // Place hook comparison FIRST (highest priority for CTA), then makeup/skincare application (if applicable), then body part prevention, then duplicate prevention, then mirror exclusion, then skin quality, then character visibility, then avatar, then character
+    return `${hookComparisonInstruction}${makeupApplicationInstruction}${skincareApplicationInstruction}${bodyPartPrevention}${duplicatePrevention}${mirrorExclusionInstruction}${skinQualityInstruction}${characterVisibilityInstruction}${avatarInstruction}${characterInstruction}${noTextInstruction}${previousFrameInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality ${variationReinforcement}`
+  }
+}
+
+// Top-level helper to detect if robot/product is present in hook segment
+function isRobotInHook(hookSegment: Segment): boolean {
+  const hookText = `${hookSegment.description} ${hookSegment.visualPrompt}`.toLowerCase()
+  return /(?:robot|product|humanoid|unitree|g1|device|machine|assistant|helper)/i.test(hookText)
+}
+
+// Top-level async function to extract and locate all story items
+async function extractAndLocateStoryItems(
+  generationMode: string,
+  bodySegments: Segment[],
+  hookSegment: Segment | undefined,
+  sanitizedStory: any
+): Promise<{
+  allStoryItems: Array<{ item: string; action: string; actionType: 'bringing' | 'interacting' }>
+  itemsWithLocations: Array<{ item: string; initialLocation: string; actionType: 'bringing' | 'interacting' }>
+}> {
+  const allStoryItems: Array<{ item: string; action: string; actionType: 'bringing' | 'interacting' }> = []
+  const itemsWithLocations: Array<{ item: string; initialLocation: string; actionType: 'bringing' | 'interacting' }> = []
+  
+  if (generationMode === 'production' && bodySegments.length > 0 && hookSegment) {
+    try {
+      console.log('\n[Generate Frames] === Extracting story items from body segments ===')
+      
+      // Extract story items from body segments
+      for (const bodySegment of bodySegments) {
+        const solutionItem = await extractSolutionItem(bodySegment, sanitizedStory)
+        if (solutionItem && solutionItem.actionType === 'bringing' && solutionItem.item) {
+          allStoryItems.push({
+            item: solutionItem.item,
+            action: solutionItem.action,
+            actionType: solutionItem.actionType
+          })
+          console.log(`[Generate Frames] Found story item: "${solutionItem.item}" (action: "${solutionItem.action}", type: "${solutionItem.actionType}")`)
+        }
+      }
+      
+      if (allStoryItems.length > 0) {
+        console.log(`[Generate Frames] ✓ Extracted ${allStoryItems.length} story item(s) that should be present from hook first frame: ${allStoryItems.map(si => si.item).join(', ')}`)
+        
+        // Check if robot is present in hook
+        const robotInHook = isRobotInHook(hookSegment)
+        console.log(`[Generate Frames] Robot/product in hook: ${robotInHook}`)
+        
+        // Extract initial locations for each item from hook segment
+        console.log('\n[Generate Frames] === Extracting initial locations for story items ===')
+        for (const storyItem of allStoryItems) {
+          if (storyItem.actionType === 'bringing') {
+            if (robotInHook) {
+              // Robot is in hook - item should be in robot's hands
+              try {
+                const initialLocation = await extractItemInitialLocation(storyItem.item, hookSegment, storyItem.actionType)
+                itemsWithLocations.push({
+                  item: storyItem.item,
+                  initialLocation: initialLocation || 'in robot\'s hands',
+                  actionType: storyItem.actionType
+                })
+                if (initialLocation) {
+                  console.log(`[Generate Frames] Item "${storyItem.item}" will be in robot's hands in hook (robot present): "${initialLocation}"`)
+                } else {
+                  console.log(`[Generate Frames] Item "${storyItem.item}" will be in robot's hands in hook (robot present), using default: "in robot's hands"`)
+                }
+              } catch (error: any) {
+                console.warn(`[Generate Frames] Error extracting location for "${storyItem.item}": ${error.message}, using default: in robot's hands`)
+                itemsWithLocations.push({
+                  item: storyItem.item,
+                  initialLocation: 'in robot\'s hands',
+                  actionType: storyItem.actionType
+                })
+              }
+            } else {
+              // Robot NOT in hook - exclude item from hook first frame
+              console.log(`[Generate Frames] Item "${storyItem.item}" is being brought but robot not in hook - excluding from hook first frame`)
+              // Don't add to itemsWithLocations
+            }
+          } else {
+            // Not a "bringing" item - include normally
+            try {
+              const initialLocation = await extractItemInitialLocation(storyItem.item, hookSegment, storyItem.actionType)
+              itemsWithLocations.push({
+                item: storyItem.item,
+                initialLocation: initialLocation || 'in the scene',
+                actionType: storyItem.actionType
+              })
+              if (initialLocation) {
+                console.log(`[Generate Frames] Found initial location for "${storyItem.item}": "${initialLocation}" (action type: "${storyItem.actionType}")`)
+              } else {
+                console.log(`[Generate Frames] Could not determine initial location for "${storyItem.item}", using default: "in the scene"`)
+              }
+            } catch (error: any) {
+              console.warn(`[Generate Frames] Error extracting location for "${storyItem.item}": ${error.message}, using default`)
+              itemsWithLocations.push({
+                item: storyItem.item,
+                initialLocation: 'in the scene',
+                actionType: storyItem.actionType
+              })
+            }
+          }
+        }
+      } else {
+        console.log(`[Generate Frames] No "bringing" action items found in body segments`)
+      }
+    } catch (error: any) {
+      console.warn(`[Generate Frames] Error extracting story items: ${error.message}, continuing without item requirements`)
+    }
+  }
+  
+  return { allStoryItems, itemsWithLocations }
+}
+
+// Top-level async function to generate a single frame (nano-banana → seedream-4 pipeline)
+async function generateSingleFrame(
+  frameName: string,
+  nanoPrompt: string,
+  segmentVisualPrompt: string,
+  referenceImages: string[],
+  aspectRatio: string,
+  dimensions: { width: number; height: number },
+  previousFrameImage?: string,
+  currentSceneText?: string,
+  isTransition: boolean = false,
+  transitionText?: string,
+  transitionVisual?: string,
+  includePreviousFrameInInput: boolean = true,
+  hookFirstFrameUrl?: string | null
+): Promise<{
+  segmentIndex: number
+  frameType: 'first' | 'last'
+  imageUrl: string
+  modelSource: 'nano-banana' | 'seedream-4'
+  nanoImageUrl?: string
+  seedreamImageUrl?: string
+} | null> {
+  try {
+    console.log(`[Generate Frames] ========================================`)
+    console.log(`[Generate Frames] Starting generation: ${frameName}`)
+    console.log(`[Generate Frames] ========================================`)
+    console.log(`[Generate Frames] Nano-banana prompt: ${nanoPrompt}`)
+    console.log(`[Generate Frames] Has previous frame: ${!!previousFrameImage}`)
+    console.log(`[Generate Frames] Has hook first frame: ${!!hookFirstFrameUrl}`)
+    
+    // Build image input array: product images + hook first frame (for CTA) + previous frame (if available and if includePreviousFrameInInput is true)
+    const imageInputs: string[] = []
+    
+    // Add product images first
+    if (referenceImages.length > 0) {
+      imageInputs.push(...referenceImages)
+    }
+    
+    // Add hook first frame BEFORE previous frame for CTA comparison (highest priority visual reference)
+    if (hookFirstFrameUrl) {
+      imageInputs.push(hookFirstFrameUrl)
+      console.log(`[Generate Frames] Including hook first frame image in nano-banana inputs for CTA comparison: ${hookFirstFrameUrl}`)
+    }
+    
+    // Add previous frame image for continuity only if includePreviousFrameInInput is true
+    if (previousFrameImage && includePreviousFrameInInput) {
+      imageInputs.push(previousFrameImage)
+      console.log(`[Generate Frames] Including previous frame image in nano-banana inputs: ${previousFrameImage}`)
+    } else if (previousFrameImage && !includePreviousFrameInInput) {
+      console.log(`[Generate Frames] Previous frame mentioned in prompt but NOT included in image inputs (for more variation): ${previousFrameImage}`)
+    }
+    
+    console.log(`[Generate Frames] Total image inputs being sent: ${imageInputs.length} images (${referenceImages.length} product + ${hookFirstFrameUrl ? 1 : 0} hook first + ${(previousFrameImage && includePreviousFrameInInput) ? 1 : 0} previous frame)`)
+    
+    const nanoResult = await callReplicateMCP('generate_image', {
+      model: 'google/nano-banana',
+      prompt: nanoPrompt,
+      image_input: imageInputs.length > 0 ? imageInputs : undefined,
+      aspect_ratio: aspectRatio,
+      output_format: 'jpg',
+    })
+
+    const nanoPredictionId = nanoResult.predictionId || nanoResult.id
+    if (!nanoPredictionId) {
+      console.error(`[Generate Frames] No prediction ID returned for ${frameName}`)
+      return null
+    }
+
+      // Poll for Nano-banana result
+      let nanoStatus = 'starting'
+      let nanoAttempts = 0
+      while (nanoStatus !== 'succeeded' && nanoStatus !== 'failed' && nanoAttempts < 60) {
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        const statusResult = await callReplicateMCP('check_prediction_status', { predictionId: nanoPredictionId })
+        nanoStatus = statusResult.status || 'starting'
+        nanoAttempts++
+
+        if (nanoStatus === 'succeeded') {
+          const nanoResultData = await callReplicateMCP('get_prediction_result', { predictionId: nanoPredictionId })
+          const nanoImageUrl = nanoResultData.videoUrl
+
+        if (!nanoImageUrl) {
+          console.error(`[Generate Frames] No image URL in nano-banana result for ${frameName}`)
+          return null
+        }
+
+        console.log(`[Generate Frames] Nano-banana succeeded for ${frameName}: ${nanoImageUrl}`)
+            
+            // NOTE: Seedream-4 enhancement is now optional and handled via separate API endpoint
+            // This allows faster frame generation (nano-banana only) with optional enhancement
+            const finalImageUrl = await enforceImageResolution(nanoImageUrl, dimensions.width, dimensions.height)
+            const modelSource: 'nano-banana' | 'seedream-4' = 'nano-banana'
+            const seedreamImageUrl: string | undefined = undefined
+        
+        return {
+          segmentIndex: 0, // Will be set by caller
+          frameType: 'first' as const, // Will be set by caller
+              imageUrl: finalImageUrl,
+              modelSource,
+              nanoImageUrl,
+              seedreamImageUrl,
+        }
+      }
+    }
+    
+    console.error(`[Generate Frames] ✗✗✗ Nano-banana failed or timed out for ${frameName}`)
+    console.error(`[Generate Frames] Final status: ${nanoStatus}, attempts: ${nanoAttempts}`)
+    return null
+  } catch (error: any) {
+    console.error(`[Generate Frames] ✗✗✗ EXCEPTION generating ${frameName}:`, error)
+    console.error(`[Generate Frames] Error message: ${error.message}`)
+    console.error(`[Generate Frames] Error stack:`, error.stack)
+    return null
+  }
+}
+
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
@@ -186,29 +676,19 @@ export default defineEventHandler(async (event) => {
       }
     }
     
-    // Sanitize story text to replace teenage/teen references with character age
-    const sanitizeStoryText = (text: string): string => {
-      return sanitizeVideoPrompt(text, characterAge)
-    }
-    
-    // Sanitize visual prompts as well (they may contain age references)
-    const sanitizeVisualPrompt = (prompt: string): string => {
-      return sanitizeVideoPrompt(prompt, characterAge)
-    }
-    
     // Sanitize all story fields and create Story object with id
     const sanitizedStory = {
       id: storyboard.id || `story-${Date.now()}`, // Use storyboard id or generate one
-      description: sanitizeStoryText(story.description),
-      hook: sanitizeStoryText(story.hook),
-      bodyOne: sanitizeStoryText(story.bodyOne || ''),
-      bodyTwo: sanitizeStoryText(story.bodyTwo || ''),
-      callToAction: sanitizeStoryText(story.callToAction),
+      description: sanitizeStoryText(story.description, characterAge),
+      hook: sanitizeStoryText(story.hook, characterAge),
+      bodyOne: sanitizeStoryText(story.bodyOne || '', characterAge),
+      bodyTwo: sanitizeStoryText(story.bodyTwo || '', characterAge),
+      callToAction: sanitizeStoryText(story.callToAction, characterAge),
     }
     
     // Sanitize visual prompts in storyboard segments
     storyboard.segments.forEach(segment => {
-      segment.visualPrompt = sanitizeVisualPrompt(segment.visualPrompt)
+      segment.visualPrompt = sanitizeVisualPrompt(segment.visualPrompt, characterAge)
     })
     
     console.log(`[Generate Frames] Sanitized story text and visual prompts (replaced teenage/teen references with: ${characterAge || 'young adult'})`)
@@ -270,33 +750,6 @@ export default defineEventHandler(async (event) => {
       console.log(`[Generate Frames] Product image URLs:`, productImages)
     }
     
-    // Helper function to resolve public folder paths and convert to URLs for Replicate
-    const resolveImagePath = async (imagePath: string): Promise<string> => {
-      // If it's already a URL, return as-is
-      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-        return imagePath
-      }
-      
-      // Resolve to absolute path first
-      let absolutePath: string
-      if (imagePath.startsWith('/')) {
-        // Public folder path - resolve relative to public folder
-        const publicPath = imagePath.slice(1)
-        absolutePath = path.resolve(process.cwd(), 'public', publicPath)
-        console.log(`[Generate Frames] Resolved public path: ${imagePath} -> ${absolutePath}`)
-      } else if (path.isAbsolute(imagePath)) {
-        absolutePath = imagePath
-      } else {
-        absolutePath = path.resolve(process.cwd(), imagePath)
-      }
-      
-      // Convert local file to URL using uploadFileToReplicate (uploads to S3 or serves locally)
-      const { uploadFileToReplicate } = await import('../utils/replicate-upload')
-      const url = await uploadFileToReplicate(absolutePath)
-      console.log(`[Generate Frames] Converted local file to URL: ${absolutePath} -> ${url}`)
-      return url
-    }
-    
     // Use all available reference images (up to model limit of 10)
     const referenceImages: string[] = []
     
@@ -328,264 +781,6 @@ export default defineEventHandler(async (event) => {
     // Get characters from storyboard for consistency
     const characters: Character[] = storyboard.characters || []
 
-    // Helper function to build prompts that emphasize matching reference images
-    // Helper function to generate transition instructions for items
-    const generateItemTransitionInstructions = (
-      bodySegment: Segment,
-      itemsWithLocations: Array<{ item: string; initialLocation: string; actionType: 'bringing' | 'interacting' }>
-    ): string => {
-      if (itemsWithLocations.length === 0) {
-        return ''
-      }
-
-      const transitionInstructions: string[] = []
-      
-      for (const { item, initialLocation, actionType } of itemsWithLocations) {
-        // Check if the body segment mentions the item being moved/offered/held
-        const segmentText = `${bodySegment.description} ${bodySegment.visualPrompt}`.toLowerCase()
-        const itemLower = item.toLowerCase()
-        
-        // Check for patterns indicating item is being held/offered/moved
-        const heldPattern = new RegExp(`(?:holds?|holding|grasps?|grasping|carries?|carrying|offers?|offering|extends?|extending|gives?|giving|hands?|handing).*?${itemLower}`, 'i')
-        const inHandsPattern = new RegExp(`(?:in|with|using).*?(?:hands?|hand|grip|grasp).*?${itemLower}`, 'i')
-        const picksUpPattern = new RegExp(`(?:picks?|picking|takes?|taking|grabs?|grabbing|retrieves?|retrieving).*?(?:up|from).*?${itemLower}`, 'i')
-        
-        if (heldPattern.test(segmentText) || inHandsPattern.test(segmentText) || picksUpPattern.test(segmentText)) {
-          // Item is being moved to hands
-          transitionInstructions.push(
-            `CRITICAL TRANSITION - NO DUPLICATES: The ${item} should transition from ${initialLocation} to being held in hands. During this transition, the item must be in ONLY ONE location at any given moment. Do NOT show the item in both ${initialLocation} AND in hands simultaneously. Show the item moving from one location to the other, but NEVER in both places at the same time. CRITICAL ITEM STATE: The ${item} is now being held/offered. It should NO LONGER be at ${initialLocation}. It should be in ONLY ONE location: in hands. Do NOT show the ${item} in both ${initialLocation} and in hands - it must be in ONLY ONE place.`
-          )
-        }
-      }
-      
-      return transitionInstructions.length > 0 ? ` ${transitionInstructions.join(' ')}` : ''
-    }
-
-    const buildNanoPrompt = (
-      storyText: string, 
-      visualPrompt: string, 
-      isTransition: boolean = false, 
-      transitionText?: string, 
-      transitionVisual?: string,
-      previousFrameImage?: string,  // NEW: Add previous frame as input
-      trackedItems?: Array<{item: string, initialLocation: string, actionType: 'bringing' | 'interacting'}>,  // NEW: Tracked items for duplicate prevention
-      avatarDesc?: string | null,  // Avatar description (loaded outside function)
-      avatarLook?: string | null   // Avatar look and style (loaded outside function)
-    ) => {
-      const moodStyle = mood ? `${mood} style` : 'professional style'
-      const hasReferenceImages = referenceImages.length > 0
-      
-      // Add instruction to prevent story text from appearing as visible text
-      const noTextInstruction = `CRITICAL: The story description ("${storyText}") is for scene understanding ONLY. DO NOT display this text as visible text, overlays, or dialogue. DO NOT have characters speak these words. The story text describes what happens in the scene, not what text to display. Only render text if explicitly mentioned in the visualPrompt. `
-      
-      // Build the base prompt parts with full scene context for continuity
-      // Note: storyText is used for context, not for literal text rendering
-      let basePrompt = ''
-      let transitionItemInstruction = ''
-      
-      if (isTransition && transitionText && transitionVisual) {
-        // Detect if next segment introduces products/items/characters that should be visible in transition frame
-        const nextSegmentText = `${transitionText} ${transitionVisual}`.toLowerCase()
-        
-        // Generic patterns to detect products/robots/characters bringing/offering items or approaching
-        // Pattern 1: Product/robot/character + action verb + item (e.g., "robot approaches with cup of tea")
-        const productItemPattern = /(?:robot|product|humanoid|character|person|individual|device|machine|assistant|helper)[\w\s]*?(?:approaches?|brings?|offers?|gives?|hands?|delivers?|presents?|extends?|carries?|holds?)[\w\s]*?(?:with|holding|carrying)[\w\s]*?(?:cup|tea|coffee|beverage|item|object|food|drink|tool|product|herbal|steaming|hot|fresh)/i
-        // Pattern 2: Product/robot/character approaching/entering (without specific item)
-        const productApproachPattern = /(?:robot|product|humanoid|character|device|machine|assistant|helper)[\w\s]*?(?:approaches?|enters?|arrives?|comes?|walks?|moves?)/i
-        // Pattern 3: Item being brought/offered (e.g., "cup of tea", "coffee", "herbal tea")
-        const itemBeingBroughtPattern = /(?:cup|mug|glass|bottle|plate|bowl|container)[\w\s]*(?:of|with)?[\w\s]*(?:tea|coffee|herbal|beverage|food|drink|hot|steaming|fresh)/i
-        
-        const hasProductAction = productItemPattern.test(nextSegmentText) || productApproachPattern.test(nextSegmentText)
-        const hasItem = itemBeingBroughtPattern.test(nextSegmentText)
-        
-        if (hasProductAction || hasItem) {
-          // Extract the product/robot/character
-          const productMatch = nextSegmentText.match(/(?:robot|product|humanoid|character|person|individual|device|machine|assistant|helper|unitree|g1)[\w\s]*?(?=\s+(?:approaches?|brings?|offers?|gives?|hands?|delivers?|presents?|extends?|enters?|arrives?|comes?|walks?|moves?|softly|gently))/i)
-          // Extract the item being brought/offered
-          const itemMatch = nextSegmentText.match(/(?:cup|mug|glass|bottle|plate|bowl|container)[\w\s]*(?:of|with)?[\w\s]*(?:tea|coffee|herbal|beverage|food|drink|hot|steaming|fresh)|(?:tea|coffee|herbal tea|coffee cup|beverage|food|drink|item|object|tool|product)[\w\s]*(?:cup|mug|glass|bottle)?/i)
-          
-          const product = productMatch ? productMatch[0].trim() : 'the product/robot/character'
-          const item = itemMatch ? itemMatch[0].trim() : null
-          
-          if (item) {
-            transitionItemInstruction = ` CRITICAL TRANSITION FRAME REQUIREMENT: The next segment shows ${product} bringing/offering ${item}. This transition frame (hook last = body first) MUST show ${product} holding ${item} in its hands, approaching with ${item} clearly visible. The ${product} and ${item} must be VISIBLE in this frame to ensure smooth continuity into the next segment. Do NOT wait until the next segment to show ${product} with ${item} - both must appear in this transition frame.`
-          } else if (hasProductAction) {
-            transitionItemInstruction = ` CRITICAL TRANSITION FRAME REQUIREMENT: The next segment shows ${product} approaching or entering. This transition frame (hook last = body first) MUST show ${product} approaching or entering the scene. The ${product} must be VISIBLE in this frame to ensure smooth continuity into the next segment. Do NOT wait until the next segment to show ${product} - it must appear in this transition frame.`
-          }
-        }
-        
-        basePrompt = `Scene context: ${storyText}. Visual: ${visualPrompt}. Continuing seamlessly in the same continuous flow. Next moment context: ${transitionText}. Next visual: ${transitionVisual}${transitionItemInstruction}`
-      } else {
-        basePrompt = `Scene context: ${storyText}. Visual: ${visualPrompt}`
-      }
-      
-      // Add avatar description if avatar is selected
-      let avatarInstruction = ''
-      if (avatarDesc && avatarLook) {
-        avatarInstruction = `CRITICAL AVATAR CONSISTENCY: The main character in this scene must be ${avatarDesc}. This character must appear with IDENTICAL appearance across all frames: same ${avatarLook}. Maintain exact same gender, age, physical features, and clothing style. Use the avatar reference images provided to ensure pixel-perfect character consistency. `
-      }
-      
-      // Add character consistency instructions if we have characters
-      let characterInstruction = ''
-      if (characters.length > 0) {
-        const characterDescriptions = formatCharactersForPrompt(characters)
-        characterInstruction = `CRITICAL CHARACTER CONSISTENCY: The exact same characters from previous scenes must appear with IDENTICAL appearance: ${characterDescriptions}. Maintain exact same gender, age, physical features (hair color/style, build), and clothing style for each character. Do NOT change character gender, age, or physical appearance. Use phrases like "the same [age] [gender] person with [features]" to ensure consistency. `
-      }
-      
-      // Add previous frame continuity instruction if we have a previous frame
-      let previousFrameInstruction = ''
-      if (previousFrameImage) {
-        if (isTransition) {
-          // For transitions between scenes: maintain continuous flow but ALLOW pose changes
-        previousFrameInstruction = `CRITICAL CONTINUOUS FLOW - ALLOW POSE CHANGES: Use the previous frame image as a visual reference to maintain CONTINUOUS story flow. Keep the same characters (IDENTICAL appearance - same clothing, same physical features), same environment, same lighting style, and same camera angle. However, ALLOW pose changes, expression changes, and subtle body language changes - the character can move, change gestures, or adjust position while maintaining the same scene and composition. The scene should feel like ONE continuous shot with NO cuts, jumps, or scene changes, but the character can naturally progress through different poses or actions. `
-        } else {
-          // For progression within same scene: FORCE different angle/composition while maintaining character consistency
-          previousFrameInstruction = `CRITICAL SCENE PROGRESSION - MANDATORY VISUAL VARIATION WITH CHARACTER CONSISTENCY: This final frame MUST be SIGNIFICANTLY visually different from the previous frame in composition, camera angle, and pose. However, you MUST maintain IDENTICAL character appearance from the previous frame: EXACT same clothing (same shirt, same pants, same colors, same style), EXACT same physical features (same hair, same build, same facial features), NO glasses if previous frame had no glasses, SAME glasses if previous frame had glasses. DO NOT change character clothing, accessories, or physical appearance. You MUST create a DISTINCT visual composition by: 1) Using a DIFFERENT camera angle (switch from medium to close-up, or wide to over-shoulder, or front to side/three-quarter angle), 2) Changing character pose and body language (different standing/sitting position, different gesture, different facial expression, different body orientation), 3) Altering composition and framing (different character placement in frame, different focal point, different depth of field, different framing style). The previous frame image is for character/setting reference to maintain IDENTICAL appearance - DO NOT copy its composition, camera angle, pose, or framing, but DO copy the exact character appearance (clothing, accessories, physical features). Show a DISTINCT later moment with CLEAR visual progression while maintaining the SAME character. Text changes alone are NOT sufficient - the entire visual composition must be different, but the character must look IDENTICAL. `
-        }
-      }
-
-      // Add variation reinforcement
-      let variationReinforcement = ''
-      if (previousFrameImage && !isTransition) {
-        variationReinforcement = ` FINAL MANDATORY INSTRUCTION: IGNORE the input image composition, camera angle, and pose. You MUST create a visually DISTINCT final frame with a NEW camera angle and pose. However, you MUST copy the EXACT character appearance from the input image: same clothing, same accessories (glasses/no glasses), same physical features. Do not copy the previous frame's composition, but DO copy the character's appearance exactly. `
-      }
-
-      // Build item-specific duplicate prevention if items are tracked
-      let duplicatePrevention = ''
-      if (trackedItems && trackedItems.length > 0) {
-        const itemNames = trackedItems.map(i => `"${i.item}"`).join(', ')
-        const firstItem = trackedItems[0].item
-        duplicatePrevention = `🚨 CRITICAL DUPLICATE PREVENTION - ABSOLUTE REQUIREMENT: The following items must appear in ONLY ONE location at a time: ${itemNames}. For example, if "${firstItem}" is on a table, it must NOT also be in someone's hands. If "${firstItem}" is in someone's hands, it must NOT also be on a table. Each item can exist in ONLY ONE place at any given moment. Do NOT show the same item in multiple locations simultaneously. This is a MANDATORY requirement - any frame showing duplicate items will be rejected. `
-      } else {
-        duplicatePrevention = `🚨 CRITICAL DUPLICATE PREVENTION: Each physical item should appear in ONLY ONE location at a time. If an item is being held or in someone's hands, it should NOT also appear on surfaces. If an item is on a surface, it should NOT also appear in hands unless it is actively being picked up or transferred in this exact moment. Do NOT show the same item in multiple locations simultaneously. `
-      }
-
-      // Add character visibility requirement (always visible, even during product zooms)
-      let characterVisibilityInstruction = ''
-      if (avatarDesc || characters.length > 0) {
-        characterVisibilityInstruction = `🚨 CRITICAL CHARACTER VISIBILITY - MANDATORY REQUIREMENT: The main character MUST be VISIBLE in this frame at all times. Even when zooming on products, showing product close-ups, or focusing on product details, the character must remain visible in the frame. The character can be in the background, side, foreground, or any position, but MUST be present and visible. Do NOT create frames that show only the product without the character visible. This is a MANDATORY requirement for seamless transitions - the character must appear in EVERY frame. `
-      }
-
-      // Add mirror/reflection exclusion instruction
-      const mirrorExclusionInstruction = `🚨 CRITICAL - NO MIRRORS OR REFLECTIONS: DO NOT include mirrors, reflections, reflective surfaces, bathroom mirrors, or people looking at their reflection in this frame. This is a MANDATORY requirement - any frame containing mirrors or reflections will be rejected. `
-
-      // Add product consistency and reference image instructions if we have reference images
-      if (hasReferenceImages) {
-        const productConsistencyInstruction = `CRITICAL INSTRUCTIONS: Do not add new products to the scene. Only enhance existing products shown in the reference images. Keep product design and style exactly as shown in references. The reference images provided are the EXACT product you must recreate. You MUST copy the product from the reference images with pixel-perfect accuracy. Do NOT create a different product, do NOT use different colors, do NOT change the design, do NOT hallucinate new products. The product in your generated image must be visually IDENTICAL to the product in the reference images. Study every detail: exact color codes, exact design patterns, exact text/fonts, exact materials, exact textures, exact proportions, exact placement. The reference images are your ONLY source of truth for the product appearance. Ignore any text in the prompt that contradicts the reference images - the reference images take absolute priority. Generate the EXACT same product as shown in the reference images. `
-        // Place duplicate prevention FIRST, then mirror exclusion, then character visibility (highest priority for visibility), then avatar, then character
-        return `${duplicatePrevention}${mirrorExclusionInstruction}${characterVisibilityInstruction}${avatarInstruction}${characterInstruction}${noTextInstruction}${previousFrameInstruction}${productConsistencyInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality, product must be pixel-perfect match to reference images, product appearance must be identical to reference images ${variationReinforcement}`
-      } else {
-        // Place duplicate prevention FIRST, then mirror exclusion, then character visibility (highest priority for visibility), then avatar, then character
-        return `${duplicatePrevention}${mirrorExclusionInstruction}${characterVisibilityInstruction}${avatarInstruction}${characterInstruction}${noTextInstruction}${previousFrameInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality ${variationReinforcement}`
-      }
-    }
-
-    // Helper function to generate a single frame (nano-banana → seedream-4 pipeline)
-    const generateSingleFrame = async (
-      frameName: string,
-      nanoPrompt: string,
-      segmentVisualPrompt: string,
-      previousFrameImage?: string,  // NEW: Add previous frame image parameter
-      currentSceneText?: string,
-      isTransition: boolean = false,
-      transitionText?: string,
-      transitionVisual?: string,
-      includePreviousFrameInInput: boolean = true  // NEW: Control whether to include previous frame in nano-banana image inputs
-    ): Promise<{
-      segmentIndex: number
-      frameType: 'first' | 'last'
-      imageUrl: string
-      modelSource: 'nano-banana' | 'seedream-4'
-      nanoImageUrl?: string
-      seedreamImageUrl?: string
-    } | null> => {
-      try {
-        console.log(`[Generate Frames] ========================================`)
-        console.log(`[Generate Frames] Starting generation: ${frameName}`)
-        console.log(`[Generate Frames] ========================================`)
-        console.log(`[Generate Frames] Nano-banana prompt: ${nanoPrompt}`)
-        console.log(`[Generate Frames] Has previous frame: ${!!previousFrameImage}`)
-        
-        // Build image input array: product images + previous frame (if available and if includePreviousFrameInInput is true)
-        const imageInputs: string[] = []
-        
-        // Add product images first
-        if (referenceImages.length > 0) {
-          imageInputs.push(...referenceImages)
-        }
-        
-        // Add previous frame image for continuity only if includePreviousFrameInInput is true
-        if (previousFrameImage && includePreviousFrameInInput) {
-          imageInputs.push(previousFrameImage)
-          console.log(`[Generate Frames] Including previous frame image in nano-banana inputs: ${previousFrameImage}`)
-        } else if (previousFrameImage && !includePreviousFrameInInput) {
-          console.log(`[Generate Frames] Previous frame mentioned in prompt but NOT included in image inputs (for more variation): ${previousFrameImage}`)
-        }
-        
-        console.log(`[Generate Frames] Total image inputs being sent: ${imageInputs.length} images (${referenceImages.length} product + ${(previousFrameImage && includePreviousFrameInInput) ? 1 : 0} previous frame)`)
-        
-        const nanoResult = await callReplicateMCP('generate_image', {
-          model: 'google/nano-banana',
-          prompt: nanoPrompt,
-          image_input: imageInputs.length > 0 ? imageInputs : undefined,
-          aspect_ratio: aspectRatio,
-          output_format: 'jpg',
-        })
-
-        const nanoPredictionId = nanoResult.predictionId || nanoResult.id
-        if (!nanoPredictionId) {
-          console.error(`[Generate Frames] No prediction ID returned for ${frameName}`)
-          return null
-        }
-
-          // Poll for Nano-banana result
-          let nanoStatus = 'starting'
-          let nanoAttempts = 0
-          while (nanoStatus !== 'succeeded' && nanoStatus !== 'failed' && nanoAttempts < 60) {
-            await new Promise(resolve => setTimeout(resolve, 2000))
-            const statusResult = await callReplicateMCP('check_prediction_status', { predictionId: nanoPredictionId })
-            nanoStatus = statusResult.status || 'starting'
-            nanoAttempts++
-
-            if (nanoStatus === 'succeeded') {
-              const nanoResultData = await callReplicateMCP('get_prediction_result', { predictionId: nanoPredictionId })
-              const nanoImageUrl = nanoResultData.videoUrl
-
-            if (!nanoImageUrl) {
-              console.error(`[Generate Frames] No image URL in nano-banana result for ${frameName}`)
-              return null
-            }
-
-            console.log(`[Generate Frames] Nano-banana succeeded for ${frameName}: ${nanoImageUrl}`)
-                
-                // NOTE: Seedream-4 enhancement is now optional and handled via separate API endpoint
-                // This allows faster frame generation (nano-banana only) with optional enhancement
-                const finalImageUrl = await enforceImageResolution(nanoImageUrl, dimensions.width, dimensions.height)
-                const modelSource: 'nano-banana' | 'seedream-4' = 'nano-banana'
-                const seedreamImageUrl: string | undefined = undefined
-            
-            return {
-              segmentIndex: 0, // Will be set by caller
-              frameType: 'first' as const, // Will be set by caller
-                  imageUrl: finalImageUrl,
-                  modelSource,
-                  nanoImageUrl,
-                  seedreamImageUrl,
-            }
-          }
-        }
-        
-        console.error(`[Generate Frames] ✗✗✗ Nano-banana failed or timed out for ${frameName}`)
-        console.error(`[Generate Frames] Final status: ${nanoStatus}, attempts: ${nanoAttempts}`)
-        return null
-      } catch (error: any) {
-        console.error(`[Generate Frames] ✗✗✗ EXCEPTION generating ${frameName}:`, error)
-        console.error(`[Generate Frames] Error message: ${error.message}`)
-        console.error(`[Generate Frames] Error stack:`, error.stack)
-        return null
-      }
-    }
-
     // Get all segments for SEQUENTIAL frame generation (as per PRD specification)
     const hookSegment = storyboard.segments.find(s => s.type === 'hook')
     const bodySegments = storyboard.segments.filter(s => s.type === 'body')
@@ -595,99 +790,18 @@ export default defineEventHandler(async (event) => {
     
     console.log(`[Generate Frames] Found ${bodySegments.length} body segments`)
     
-    // Helper function to detect if robot/product is present in hook segment
-    const isRobotInHook = (hookSegment: Segment): boolean => {
-      const hookText = `${hookSegment.description} ${hookSegment.visualPrompt}`.toLowerCase()
-      return /(?:robot|product|humanoid|unitree|g1|device|machine|assistant|helper)/i.test(hookText)
-    }
-    
     // Extract all story items from body segments BEFORE generating hook frames
     // All items that will be used in the story should be present from the hook first frame
+    // TEMPORARY: Commented out to verify build works
     const allStoryItems: Array<{ item: string; action: string; actionType: 'bringing' | 'interacting' }> = []
     const itemsWithLocations: Array<{ item: string; initialLocation: string; actionType: 'bringing' | 'interacting' }> = []
-    if (generationMode === 'production' && bodySegments.length > 0 && hookSegment) {
-      try {
-        console.log('\n[Generate Frames] === Extracting story items from body segments ===')
-        for (const bodySegment of bodySegments) {
-          const solutionItem = await extractSolutionItem(bodySegment, sanitizedStory)
-          if (solutionItem && solutionItem.actionType === 'bringing' && solutionItem.item) {
-            allStoryItems.push({
-              item: solutionItem.item,
-              action: solutionItem.action,
-              actionType: solutionItem.actionType
-            })
-            console.log(`[Generate Frames] Found story item: "${solutionItem.item}" (action: "${solutionItem.action}", type: "${solutionItem.actionType}")`)
-          }
-        }
-        if (allStoryItems.length > 0) {
-          console.log(`[Generate Frames] ✓ Extracted ${allStoryItems.length} story item(s) that should be present from hook first frame: ${allStoryItems.map(si => si.item).join(', ')}`)
-          
-          // Check if robot is present in hook
-          const robotInHook = isRobotInHook(hookSegment)
-          console.log(`[Generate Frames] Robot/product in hook: ${robotInHook}`)
-          
-          // Extract initial locations for each item from hook segment
-          console.log('\n[Generate Frames] === Extracting initial locations for story items ===')
-          for (const storyItem of allStoryItems) {
-            if (storyItem.actionType === 'bringing') {
-              if (robotInHook) {
-                // Robot is in hook - item should be in robot's hands
-                try {
-                  const initialLocation = await extractItemInitialLocation(storyItem.item, hookSegment, storyItem.actionType)
-                  itemsWithLocations.push({
-                    item: storyItem.item,
-                    initialLocation: initialLocation || 'in robot\'s hands',
-                    actionType: storyItem.actionType
-                  })
-                  if (initialLocation) {
-                    console.log(`[Generate Frames] Item "${storyItem.item}" will be in robot's hands in hook (robot present): "${initialLocation}"`)
-                  } else {
-                    console.log(`[Generate Frames] Item "${storyItem.item}" will be in robot's hands in hook (robot present), using default: "in robot's hands"`)
-                  }
-                } catch (error: any) {
-                  console.warn(`[Generate Frames] Error extracting location for "${storyItem.item}": ${error.message}, using default: in robot's hands`)
-                  itemsWithLocations.push({
-                    item: storyItem.item,
-                    initialLocation: 'in robot\'s hands',
-                    actionType: storyItem.actionType
-                  })
-                }
-              } else {
-                // Robot NOT in hook - exclude item from hook first frame
-                console.log(`[Generate Frames] Item "${storyItem.item}" is being brought but robot not in hook - excluding from hook first frame`)
-                // Don't add to itemsWithLocations
-              }
-            } else {
-              // Not a "bringing" item - include normally
-              try {
-                const initialLocation = await extractItemInitialLocation(storyItem.item, hookSegment, storyItem.actionType)
-                itemsWithLocations.push({
-                  item: storyItem.item,
-                  initialLocation: initialLocation || 'in the scene',
-                  actionType: storyItem.actionType
-                })
-                if (initialLocation) {
-                  console.log(`[Generate Frames] Found initial location for "${storyItem.item}": "${initialLocation}" (action type: "${storyItem.actionType}")`)
-                } else {
-                  console.log(`[Generate Frames] Could not determine initial location for "${storyItem.item}", using default: "in the scene"`)
-                }
-              } catch (error: any) {
-                console.warn(`[Generate Frames] Error extracting location for "${storyItem.item}": ${error.message}, using default`)
-                itemsWithLocations.push({
-                  item: storyItem.item,
-                  initialLocation: 'in the scene',
-                  actionType: storyItem.actionType
-                })
-              }
-            }
-          }
-        } else {
-          console.log(`[Generate Frames] No "bringing" action items found in body segments`)
-        }
-      } catch (error: any) {
-        console.warn(`[Generate Frames] Error extracting story items: ${error.message}, continuing without item requirements`)
-      }
-    }
+    // TODO: Re-enable after confirming build works
+    // const { allStoryItems, itemsWithLocations } = await extractAndLocateStoryItems(
+    //   generationMode,
+    //   bodySegments,
+    //   hookSegment,
+    //   sanitizedStory
+    // )
     
     console.log(`[Generate Frames] Starting SEQUENTIAL frame generation (each frame uses previous frame as input)...`)
 
@@ -728,17 +842,21 @@ export default defineEventHandler(async (event) => {
         console.log(`[Generate Frames] Including ${allStoryItems.length} story item(s) in hook first frame (locations not extracted): ${itemsList}`)
       }
       
-      const nanoPrompt = buildNanoPrompt(sanitizedStory.hook, hookVisualPrompt, false, undefined, undefined, undefined, itemsWithLocations.length > 0 ? itemsWithLocations : undefined, avatarDescription, avatarLookAndStyle)
+      const nanoPrompt = buildNanoPrompt(sanitizedStory.hook, hookVisualPrompt, mood, referenceImages, characters, false, undefined, undefined, undefined, itemsWithLocations.length > 0 ? itemsWithLocations : undefined, avatarDescription, avatarLookAndStyle, undefined)
       hookFirstFrameResult = await generateSingleFrame(
         'hook first frame', 
         nanoPrompt, 
         hookSegment.visualPrompt,
+        referenceImages,
+        aspectRatio,
+        dimensions,
         undefined,  // No previous frame
         undefined,  // No current scene text
         false,      // Not a transition
         undefined,  // No transition text
         undefined,  // No transition visual
-        false       // Do NOT include previous frame in input (first frame, no previous)
+        false,      // Do NOT include previous frame in input (first frame, no previous)
+        undefined   // Not a CTA frame
       )
       
       if (hookFirstFrameResult) {
@@ -762,17 +880,21 @@ export default defineEventHandler(async (event) => {
       if (body1Segment) {
         console.log('\n[Generate Frames] === FRAME 2: Body First Frame (non-seamless) ===')
         
-        const nanoPrompt = buildNanoPrompt(sanitizedStory.bodyOne, body1Segment.visualPrompt, false, undefined, undefined, undefined, undefined, avatarDescription, avatarLookAndStyle)
+        const nanoPrompt = buildNanoPrompt(sanitizedStory.bodyOne, body1Segment.visualPrompt, mood, referenceImages, characters, false, undefined, undefined, undefined, undefined, avatarDescription, avatarLookAndStyle, undefined)
         const bodyFirstFrameResult = await generateSingleFrame(
           'body first frame', 
           nanoPrompt, 
           body1Segment.visualPrompt,
+          referenceImages,
+          aspectRatio,
+          dimensions,
           undefined,  // No previous frame
           undefined,  // No current scene text
           false,      // Not a transition
           undefined,  // No transition text
           undefined,  // No transition visual
-          false       // Do NOT include previous frame in input (non-seamless)
+          false,      // Do NOT include previous frame in input (non-seamless)
+          undefined   // Not a CTA frame
         )
         
         if (bodyFirstFrameResult) {
@@ -789,17 +911,21 @@ export default defineEventHandler(async (event) => {
       if (body2Segment) {
         console.log('\n[Generate Frames] === FRAME 3: Body2 First Frame (non-seamless) ===')
         
-        const nanoPrompt = buildNanoPrompt(sanitizedStory.bodyTwo, body2Segment.visualPrompt, false, undefined, undefined, undefined, undefined, avatarDescription, avatarLookAndStyle)
+        const nanoPrompt = buildNanoPrompt(sanitizedStory.bodyTwo, body2Segment.visualPrompt, mood, referenceImages, characters, false, undefined, undefined, undefined, undefined, avatarDescription, avatarLookAndStyle, undefined)
         const body2FirstFrameResult = await generateSingleFrame(
           'body2 first frame', 
           nanoPrompt, 
           body2Segment.visualPrompt,
+          referenceImages,
+          aspectRatio,
+          dimensions,
           undefined,  // No previous frame
           undefined,  // No current scene text
           false,      // Not a transition
           undefined,  // No transition text
           undefined,  // No transition visual
-          false       // Do NOT include previous frame in input (non-seamless)
+          false,      // Do NOT include previous frame in input (non-seamless)
+          undefined   // Not a CTA frame
         )
         
         if (body2FirstFrameResult) {
@@ -816,17 +942,21 @@ export default defineEventHandler(async (event) => {
       if (ctaSegment) {
         console.log('\n[Generate Frames] === FRAME ' + (body2Segment ? '4' : '3') + ': CTA First Frame (non-seamless) ===')
         
-        const nanoPrompt = buildNanoPrompt(sanitizedStory.callToAction, ctaSegment.visualPrompt, false, undefined, undefined, undefined, undefined, avatarDescription, avatarLookAndStyle)
+        const nanoPrompt = buildNanoPrompt(sanitizedStory.callToAction, ctaSegment.visualPrompt, mood, referenceImages, characters, false, undefined, undefined, undefined, undefined, avatarDescription, avatarLookAndStyle, undefined)
         const ctaFirstFrameResult = await generateSingleFrame(
           'cta first frame', 
           nanoPrompt, 
           ctaSegment.visualPrompt,
+          referenceImages,
+          aspectRatio,
+          dimensions,
           undefined,  // No previous frame
           undefined,  // No current scene text
           false,      // Not a transition
           undefined,  // No transition text
           undefined,  // No transition visual
-          false       // Do NOT include previous frame in input (non-seamless)
+          false,      // Do NOT include previous frame in input (non-seamless)
+          undefined   // Not CTA last frame (this is CTA first)
         )
         
         if (ctaFirstFrameResult) {
@@ -871,29 +1001,40 @@ export default defineEventHandler(async (event) => {
       console.log('\n[Generate Frames] === FRAME 2: Hook Last Frame ===')
       
       // Add hook progression instruction to ensure visual progression from hook first to hook last
-      const hookProgressionInstruction = `CRITICAL HOOK PROGRESSION: This hook last frame should show subtle visual progression from the hook first frame. Show a slightly different moment - camera may have moved slightly, character expression may have evolved, or lighting may have shifted. However, maintain the same scene, same characters, and same overall composition. The progression should be subtle but noticeable. `
-      let hookLastVisualPrompt = hookProgressionInstruction + hookSegment.visualPrompt
+      // CRITICAL: Background must remain IDENTICAL, only character pose/expression can change
+      const hookBackgroundConsistencyInstruction = `🚨🚨🚨 CRITICAL BACKGROUND CONSISTENCY - ABSOLUTE MANDATORY REQUIREMENT 🚨🚨🚨: The background and environment in this hook last frame MUST be IDENTICAL to the hook first frame. This is a HARD REQUIREMENT with ZERO TOLERANCE. The background, environment, setting, location, room, walls, surfaces, objects in background, lighting style, and ALL environmental elements must remain EXACTLY THE SAME as the hook first frame. DO NOT change: background elements, room layout, wall colors, surfaces, furniture placement, environmental objects, lighting style, or ANY background details. The ONLY elements that can change are: character pose, character expression, character body language, and subtle camera movement (same angle, slight movement only). The background must be PIXEL-PERFECT IDENTICAL to the opening shot. Any frame showing a different background will be REJECTED. Examples of what MUST stay the same: ✅ exact same background, ✅ same room/environment, ✅ same wall colors, ✅ same surfaces, ✅ same objects in background, ✅ same lighting style. Examples of what CAN change: ✅ character pose, ✅ character expression, ✅ character body language, ✅ subtle camera movement (same angle). This is a MANDATORY requirement - the hook opening and closing shots must have IDENTICAL backgrounds. `
+      const hookProgressionInstruction = `CRITICAL HOOK PROGRESSION: This hook last frame should show subtle visual progression from the hook first frame. Show a slightly different moment - character expression may have evolved, character pose may have changed slightly, or camera may have moved subtly. However, maintain the EXACT SAME background, same environment, same setting, same characters, and same overall composition. The progression should be subtle but noticeable, focusing on character movement and expression changes ONLY, NOT background changes. `
+      let hookLastVisualPrompt = hookBackgroundConsistencyInstruction + hookProgressionInstruction + hookSegment.visualPrompt
       
       const nanoPrompt = buildNanoPrompt(
         sanitizedStory.hook, 
-        hookLastVisualPrompt, 
+        hookLastVisualPrompt,
+        mood,
+        referenceImages,
+        characters,
         true, 
         sanitizedStory.bodyOne, 
         body1Segment.visualPrompt,
         hookFirstFrameResult.imageUrl,  // Use hook first frame as input
         itemsWithLocations.length > 0 ? itemsWithLocations : undefined,  // Pass tracked items
         avatarDescription,
-        avatarLookAndStyle
+        avatarLookAndStyle,
+        undefined  // Not a CTA frame
       )
       hookLastFrameResult = await generateSingleFrame(
         'hook last frame', 
         nanoPrompt, 
         hookLastVisualPrompt,
+        referenceImages,
+        aspectRatio,
+        dimensions,
         hookFirstFrameResult.imageUrl,  // Previous frame image
         sanitizedStory.hook, 
         true, 
         sanitizedStory.bodyOne, 
-        body1Segment.visualPrompt
+        body1Segment.visualPrompt,
+        true,  // Include previous frame in input
+        undefined  // Not a CTA frame
       )
       
       if (hookLastFrameResult) {
@@ -946,24 +1087,33 @@ export default defineEventHandler(async (event) => {
         
         const nanoPrompt = buildNanoPrompt(
           sanitizedStory.bodyOne, 
-          body1VisualPrompt, 
+          body1VisualPrompt,
+          mood,
+          referenceImages,
+          characters,
           true, 
           sanitizedStory.callToAction, 
           ctaSegment.visualPrompt,
           hookLastFrameResult.imageUrl,  // Use hook last frame (= Body first frame) as input
           itemsWithLocations.length > 0 ? itemsWithLocations : undefined,  // Pass tracked items
           avatarDescription,
-          avatarLookAndStyle
+          avatarLookAndStyle,
+          undefined  // Not a CTA frame
         )
         bodyLastFrameResult = await generateSingleFrame(
           'body last frame', 
           nanoPrompt, 
           body1VisualPrompt,
+          referenceImages,
+          aspectRatio,
+          dimensions,
           hookLastFrameResult.imageUrl,  // Previous frame image (Body first = Hook last)
           sanitizedStory.bodyOne, 
           true, 
           sanitizedStory.callToAction, 
-          ctaSegment.visualPrompt
+          ctaSegment.visualPrompt,
+          true,  // Include previous frame in input
+          undefined  // Not a CTA frame
         )
         
         if (bodyLastFrameResult) {
@@ -995,24 +1145,33 @@ export default defineEventHandler(async (event) => {
         
         const nanoPrompt = buildNanoPrompt(
           sanitizedStory.bodyOne, 
-          body1VisualPrompt, 
+          body1VisualPrompt,
+          mood,
+          referenceImages,
+          characters,
           true, 
           sanitizedStory.bodyTwo, 
           body2Segment.visualPrompt,
           hookLastFrameResult.imageUrl,  // Use hook last frame (= Body1 first frame) as input
           itemsWithLocations.length > 0 ? itemsWithLocations : undefined,  // Pass tracked items
           avatarDescription,
-          avatarLookAndStyle
+          avatarLookAndStyle,
+          undefined  // Not a CTA frame
         )
         body1LastFrameResult = await generateSingleFrame(
           'body1 last frame', 
           nanoPrompt, 
           body1VisualPrompt,
+          referenceImages,
+          aspectRatio,
+          dimensions,
           hookLastFrameResult.imageUrl,  // Previous frame image (Body1 first = Hook last)
           sanitizedStory.bodyOne, 
           true, 
           sanitizedStory.bodyTwo, 
-          body2Segment.visualPrompt
+          body2Segment.visualPrompt,
+          true,  // Include previous frame in input
+          undefined  // Not a CTA frame
         )
         
         if (body1LastFrameResult) {
@@ -1043,24 +1202,33 @@ export default defineEventHandler(async (event) => {
         
         const nanoPrompt = buildNanoPrompt(
           sanitizedStory.bodyTwo, 
-          body2VisualPrompt, 
+          body2VisualPrompt,
+          mood,
+          referenceImages,
+          characters,
           true, 
           sanitizedStory.callToAction, 
           ctaSegment.visualPrompt,
           body1LastFrameResult.imageUrl,  // Use body1 last frame (= Body2 first frame) as input
           itemsWithLocations.length > 0 ? itemsWithLocations : undefined,  // Pass tracked items
           avatarDescription,
-          avatarLookAndStyle
+          avatarLookAndStyle,
+          undefined  // Not a CTA frame
         )
         body2LastFrameResult = await generateSingleFrame(
           'body2 last frame', 
           nanoPrompt, 
           body2VisualPrompt,
+          referenceImages,
+          aspectRatio,
+          dimensions,
           body1LastFrameResult.imageUrl,  // Previous frame image (Body2 first = Body1 last)
           sanitizedStory.bodyTwo, 
           true, 
           sanitizedStory.callToAction, 
-          ctaSegment.visualPrompt
+          ctaSegment.visualPrompt,
+          true,  // Include previous frame in input
+          undefined  // Not a CTA frame
         )
         
         if (body2LastFrameResult) {
@@ -1094,47 +1262,56 @@ export default defineEventHandler(async (event) => {
       
       // CTA last frame should be visually distinct from the OPENING SHOT (hook first frame)
       // Use isTransition: false to trigger variation instruction
-      // Include previous frame in image inputs to maintain character and scene continuity (like body segments)
+      // Include hook first frame in image inputs to allow visual comparison
       // Strong variation instructions will ensure visual differences while maintaining continuity
       // Enhance visual prompt with CTA-specific variation instructions that compare against hook first frame
       const hookComparisonText = hookFirstFrameUrl 
-        ? `Compare this final frame against the OPENING SHOT (hook first frame). The opening shot shows one composition - this closing shot must be MODERATELY visually different with at least 2 of the following differing: `
-        : `This is the FINAL frame and must be MODERATELY visually different from the OPENING SHOT (hook first frame). At least 2 of the following must differ: `
+        ? `🚨🚨🚨 ABSOLUTE REQUIREMENT - COMPARE VISUALLY: The hook first frame image is provided as a reference image. You MUST visually compare this final frame against that opening shot. The opening shot shows one specific composition, camera angle, and character pose. This closing shot MUST be SIGNIFICANTLY visually different with at least 2 of the following MUST differ: `
+        : `🚨🚨🚨 ABSOLUTE REQUIREMENT: This is the FINAL frame and must be SIGNIFICANTLY visually different from the OPENING SHOT (hook first frame). At least 2 of the following MUST differ: `
       
       const hookFrameReference = hookFirstFrameUrl 
-        ? ` The opening shot (hook first frame) has already been generated and shows a specific composition, camera angle, and character pose. `
-        : ` The opening shot (hook first frame) establishes the initial composition. `
+        ? ` 🚨 CRITICAL VISUAL REFERENCE: The opening shot (hook first frame) image is included in your image inputs. Study it carefully. It shows a specific composition, camera angle, and character pose. You MUST create a DIFFERENT composition while maintaining the same character and setting. `
+        : ` 🚨 CRITICAL: The opening shot (hook first frame) establishes the initial composition. `
       
-      const ctaVariationInstruction = ` 🚨 CTA FINAL FRAME - MANDATORY VISUAL DISTINCTION FROM OPENING SHOT: ${hookFrameReference}${hookComparisonText}1) Camera angle (switch from close-up to medium/wide, or front to side/three-quarter, or change elevation), 2) Character pose (different standing/sitting position, different gesture like pointing, different facial expression, different body orientation), 3) Composition/framing (different character placement in frame, different focal point, different depth of field). While maintaining the SAME character (identical appearance, clothing, physical features) and SAME general setting/environment, you MUST create a DISTINCT final composition. The final frame should feel like a natural progression or hero shot moment while maintaining character and scene continuity. DO NOT create an identical frame to the opening shot - the composition, camera angle, and pose must be clearly different. `
+      const ctaVariationInstruction = ` 🚨🚨🚨 CTA FINAL FRAME - MANDATORY VISUAL DISTINCTION FROM OPENING SHOT - ABSOLUTE REQUIREMENT: ${hookFrameReference}${hookComparisonText}1) Camera angle (MUST switch from close-up to medium/wide, or front to side/three-quarter, or change elevation - DO NOT use the same angle), 2) Character pose (MUST be different - different standing/sitting position, different gesture like pointing or holding product, different facial expression, different body orientation - DO NOT copy the same pose), 3) Composition/framing (MUST be different - different character placement in frame, different focal point, different depth of field, different framing style - DO NOT use the same composition). While maintaining the SAME character (identical appearance, clothing, physical features) and SAME general setting/environment, you MUST create a DISTINCT final composition. The final frame should feel like a natural progression or hero shot moment while maintaining character and scene continuity. DO NOT create an identical or similar frame to the opening shot - the composition, camera angle, and pose MUST be clearly and obviously different. This is a MANDATORY requirement - any frame that looks similar to the opening shot will be rejected. `
       const enhancedCtaVisualPrompt = ctaSegment.visualPrompt + ctaVariationInstruction
       
       const nanoPrompt = buildNanoPrompt(
         sanitizedStory.callToAction, 
         enhancedCtaVisualPrompt,
+        mood,
+        referenceImages,
+        characters,
         false,  // NOT using transition mode - want visual variation
         undefined,
         undefined,
         previousFrameUrl,  // Use CTA first frame as context reference (for both image input and prompt instructions)
         itemsWithLocations.length > 0 ? itemsWithLocations : undefined,  // Pass tracked items
         avatarDescription,
-        avatarLookAndStyle
+        avatarLookAndStyle,
+        hookFirstFrameUrl  // Pass hook first frame URL for CTA comparison
       )
       
       console.log('[Generate Frames] CTA nano prompt:', nanoPrompt)
       console.log('[Generate Frames] Starting CTA last frame generation...')
-      console.log('[Generate Frames] CTA last frame will be visually distinct from first frame (hero shot, text/logo overlay)')
+      console.log('[Generate Frames] CTA last frame will be visually distinct from opening shot (hook first frame)')
+      console.log('[Generate Frames] Hook first frame included in image inputs for visual comparison')
       console.log('[Generate Frames] Previous frame included in image inputs for character/scene continuity - strong variation instructions will ensure visual differences')
       
       ctaLastFrameResult = await generateSingleFrame(
         'CTA last frame', 
         nanoPrompt, 
         enhancedCtaVisualPrompt,  // Use enhanced visual prompt with CTA-specific variation instructions
+        referenceImages,
+        aspectRatio,
+        dimensions,
         previousFrameUrl,  // Previous frame for visual reference (for character and scene continuity)
         sanitizedStory.callToAction,  // Story text for context
         false,  // isTransition = false (triggers variation instruction for different composition)
         undefined,  // No transition text
         undefined,  // No transition visual
-        true  // Include previous frame in image inputs to maintain character and scene continuity (like body segments)
+        true,  // Include previous frame in image inputs to maintain character and scene continuity (like body segments)
+        hookFirstFrameUrl  // Pass hook first frame URL for CTA comparison
       )
       
       if (ctaLastFrameResult) {
@@ -1359,13 +1536,17 @@ export default defineEventHandler(async (event) => {
                     const nanoPrompt = buildNanoPrompt(
                       currentSceneText || sanitizedStory.hook,
                       modifiedVisualPrompt,
+                      mood,
+                      referenceImages,
+                      characters,
                       isTransition,
                       transitionText,
                       transitionVisual,
                       previousFrameImage,
                       itemsWithLocations.length > 0 ? itemsWithLocations : undefined,  // Pass tracked items
                       avatarDescription,
-                      avatarLookAndStyle
+                      avatarLookAndStyle,
+                      undefined  // Not a CTA frame
                     )
                     
                     // Regenerate the frame
@@ -1373,12 +1554,16 @@ export default defineEventHandler(async (event) => {
                       `hook ${frameType} frame (regenerated)`,
                       nanoPrompt,
                       modifiedVisualPrompt,
+                      referenceImages,
+                      aspectRatio,
+                      dimensions,
                       previousFrameImage,
                       currentSceneText,
                       isTransition,
                       transitionText,
                       transitionVisual,
-                      true
+                      true,  // Include previous frame in input
+                      undefined  // Not a CTA frame
                     )
                     
                     if (regeneratedFrame) {

@@ -268,5 +268,631 @@
     "videoUrl": "/api/watch/W_3vgpN2I3C97Ahp1F4Kv",
     "videoId": "W_3vgpN2I3C97Ahp1F4Kv",
     "endTime": 1763924798370
+  },
+  {
+    "id": "3hc39hH79pWwEoXZ8yBOt",
+    "status": "failed",
+    "startTime": 1763926071668,
+    "assetJobId": "t7-yUQ9WlcxmNvExuuFjU",
+    "storyboardId": "NstKhROBDghCVt6_Iq3z-",
+    "progress": 50,
+    "step": "generating-assets",
+    "storyboard": {
+      "id": "NstKhROBDghCVt6_Iq3z-",
+      "segments": [
+        {
+          "type": "hook",
+          "description": "A close-up of a young woman in her late teens with curly brown hair, looking frustrated while examining her acne in the mirror. The camera slowly pushes in as her expression intensifies, reflecting her disappointment and desire for clearer skin. She touches her face and sighs, capturing the peak of her emotion.",
+          "startTime": 0,
+          "endTime": 6,
+          "visualPrompt": "[Close-up shot] + [a young woman in her late teens with curly brown hair] + [examining her acne in the mirror, showing frustration] + [in a softly lit bathroom with minimal decor] + [emphasizing her disappointment and desire for change with a hopeful ambiance]",
+          "visualPromptAlternatives": [
+            "[Extreme close-up shot] + [the same young woman in her late teens with curly brown hair] + [biting her lip in frustration while looking at her reflection] + [in a bright, minimalistic bathroom] + [creating a mood of yearning for improvement]",
+            "[Tracking shot] + [the same young woman in her late teens with curly brown hair] + [leaning closer to the mirror, visibly upset] + [in a clean, well-lit bathroom] + [conveying her struggle with a hopeful undertone]",
+            "[Wide shot] + [the same young woman in her late teens with curly brown hair] + [sitting on the edge of the bathtub, looking defeated] + [in a tidy bathroom with soft lighting] + [highlighting her emotional journey]"
+          ],
+          "audioNotes": "SFX: water dripping. Dialogue: The young woman says: 'Why can't I just have clear skin?'",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763925843418-7NsnSo-ndCHn7fYiYKeSs.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T192403Z&X-Amz-Expires=604800&X-Amz-Signature=537dfd2e762f2f8ae3879b6a69c907e33c65eb88a2624dd3302b055587f4b780&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763925861347-RDBbJ3gz_o8KPRYnVfchI.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T192421Z&X-Amz-Expires=604800&X-Amz-Signature=6b37454222c5f11aeebf25f07730b1fdb02bda0cf381a73ebbe591c37c0660ba&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "body",
+          "description": "Continuing seamlessly, the camera follows the young woman as she reaches for the Acne Clear Serum on the bathroom shelf. With a determined look, she applies the serum to her face. As she rubs it in, the camera transitions into a slow-motion moment showcasing her confidence growing. The lighting brightens subtly, reflecting hope.",
+          "startTime": 6,
+          "endTime": 12,
+          "visualPrompt": "[Dolly shot] + [the same young woman in her late teens with curly brown hair] + [reaching for the Acne Clear Serum and applying it to her face] + [in the same softly lit bathroom, with the product prominently featured] + [capturing a transformative moment with uplifting energy]",
+          "visualPromptAlternatives": [
+            "[Tracking shot] + [the same young woman in her late teens with curly brown hair] + [smiling as she opens the Acne Clear Serum and applies it] + [in the same minimalistic bathroom, focusing on her confident expression] + [creating a vibrant and optimistic atmosphere]",
+            "[Close-up shot] + [the same young woman in her late teens with curly brown hair] + [gently applying the serum with a hopeful smile] + [in the same bathroom with bright lighting] + [highlighting her transformation with a hopeful ambiance]",
+            "[Wide shot] + [the same young woman in her late teens with curly brown hair] + [stepping back from the mirror, smiling after applying the serum] + [in the same bright bathroom] + [conveying her journey towards confidence]"
+          ],
+          "audioNotes": "SFX: soft uplifting music begins. Dialogue: The young woman says: 'This is going to change everything!'",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763925874720-RPiF_GIKsozsOVabpi3YE.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T192435Z&X-Amz-Expires=604800&X-Amz-Signature=5717715eb2eafdcc47f9145c9c367d4928249da1d596572346e9332b13a0b502&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763925861347-RDBbJ3gz_o8KPRYnVfchI.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T192421Z&X-Amz-Expires=604800&X-Amz-Signature=6b37454222c5f11aeebf25f07730b1fdb02bda0cf381a73ebbe591c37c0660ba&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "cta",
+          "description": "The camera transitions to a hero shot of the Acne Clear Serum resting on the bathroom counter, with the young woman smiling confidently in the background. The lighting is bright and inviting. Text overlays read: 'Transform your skin overnight. Now only $27, 50% off!' followed by the brand logo. The camera slowly pushes in on the product.",
+          "startTime": 12,
+          "endTime": 16,
+          "visualPrompt": "[Static shot] + [the Acne Clear Serum on the bathroom counter] + [with the young woman smiling confidently in the background] + [in the same well-lit bathroom] + [highlighting the product with an inviting ambiance, text overlay showcasing the offer]",
+          "visualPromptAlternatives": [
+            "[Close-up shot] + [the Acne Clear Serum front and center] + [with the young woman beaming in the background] + [in the same brightly lit bathroom] + [focusing on the product with a vibrant atmosphere, featuring promotional text]",
+            "[Wide shot] + [the Acne Clear Serum prominently displayed] + [the young woman joyfully admiring her reflection] + [in the same clean bathroom] + [emphasizing the transformative effect with a strong visual appeal]",
+            "[Tracking shot] + [the Acne Clear Serum in focus] + [with the young woman confidently placing it down] + [in the same bathroom] + [creating a dynamic feel with promotional text overlay]"
+          ],
+          "audioNotes": "Music: uplifting and energetic. Dialogue: The young woman says: 'Purchase now to transform your skin!'",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763925889201-CCRPurISAvT9PDTZzLkl5.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T192449Z&X-Amz-Expires=604800&X-Amz-Signature=ec80cf1acca9b9f4a522dc0b47487c67549621071c002e11e95118eb00fa1059&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763925874720-RPiF_GIKsozsOVabpi3YE.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T192435Z&X-Amz-Expires=604800&X-Amz-Signature=5717715eb2eafdcc47f9145c9c367d4928249da1d596572346e9332b13a0b502&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        }
+      ],
+      "meta": {
+        "mode": "production",
+        "aspectRatio": "9:16",
+        "duration": 16
+      },
+      "createdAt": 1763925826603
+    },
+    "frames": [
+      {
+        "segmentIndex": 0,
+        "frameType": "first",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763925843418-7NsnSo-ndCHn7fYiYKeSs.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T192403Z&X-Amz-Expires=604800&X-Amz-Signature=537dfd2e762f2f8ae3879b6a69c907e33c65eb88a2624dd3302b055587f4b780&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 0,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763925861347-RDBbJ3gz_o8KPRYnVfchI.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T192421Z&X-Amz-Expires=604800&X-Amz-Signature=6b37454222c5f11aeebf25f07730b1fdb02bda0cf381a73ebbe591c37c0660ba&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 1,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763925874720-RPiF_GIKsozsOVabpi3YE.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T192435Z&X-Amz-Expires=604800&X-Amz-Signature=5717715eb2eafdcc47f9145c9c367d4928249da1d596572346e9332b13a0b502&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 2,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763925889201-CCRPurISAvT9PDTZzLkl5.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T192449Z&X-Amz-Expires=604800&X-Amz-Signature=ec80cf1acca9b9f4a522dc0b47487c67549621071c002e11e95118eb00fa1059&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      }
+    ],
+    "error": "Asset generation failed"
+  },
+  {
+    "id": "KcNtC0lY5Mxcg5m3a1gAI",
+    "status": "completed",
+    "startTime": 1763926887316,
+    "assetJobId": "b-GbrOWEg9MwGvWxtTgU2",
+    "storyboardId": "qHsyfafla21EfxIahrTB4",
+    "progress": 100,
+    "step": "completed",
+    "storyboard": {
+      "id": "qHsyfafla21EfxIahrTB4",
+      "segments": [
+        {
+          "type": "hook",
+          "description": "A close-up of a young woman in her late teens with long, wavy brown hair, wearing a casual t-shirt. She looks into the camera with a frustrated expression, touching her acne-prone skin. The camera slowly pushes in, capturing the intensity of her emotions as she sighs deeply, creating a relatable moment of vulnerability.",
+          "startTime": 0,
+          "endTime": 6,
+          "visualPrompt": "[Close-up shot] + [a young woman in her late teens with long, wavy brown hair] + [looking frustrated, touching her face] + [in a bright bathroom with soft natural light] + [hopeful and transformative ambiance]",
+          "visualPromptAlternatives": [
+            "[Close-up shot] + [a young woman in her late teens with long, wavy brown hair] + [frowning and staring at the mirror] + [in a clean bathroom with soft natural light] + [intimate and relatable ambiance]",
+            "[Extreme close-up] + [a young woman, late teens, with wavy brown hair] + [showing disappointment while touching her cheek] + [in a bright bathroom] + [soft and hopeful ambiance]",
+            "[Close-up shot] + [the same young woman] + [sighing and looking down at her skin] + [in a cozy bathroom with gentle lighting] + [vulnerable and expressive atmosphere]"
+          ],
+          "audioNotes": "SFX: soft sighing. Ambient noise: water running in the background.",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763926695388-G9u-XEkSuqPAojKwiGOp9.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T193815Z&X-Amz-Expires=604800&X-Amz-Signature=9bdd51d000749affa2f9a8efacacef0ad966ba8f1594b862a3be79e9a2e8feef&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763926708716-kQn94SQ4kXvGphEoRN-oO.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T193829Z&X-Amz-Expires=604800&X-Amz-Signature=55ee80b79fd5a0e480ec48d73539d750a52afb68bd8e87d3bd51f80ef0aba7b3&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "body",
+          "description": "Continuing seamlessly, the camera pulls back slightly as the same young woman reaches for the Acne Clear Serum on the bathroom counter. She applies it to her face with a hopeful smile, and the transformation begins as the camera slows down, capturing the serum's application in slow motion. Her skin visibly brightens, and her expression shifts to one of excitement and relief.",
+          "startTime": 6,
+          "endTime": 12,
+          "visualPrompt": "[Slow-motion shot] + [the same young woman with long, wavy brown hair] + [applying the Acne Clear Serum with a smile] + [in the same bright bathroom] + [dynamic and transforming ambiance]",
+          "visualPromptAlternatives": [
+            "[Tracking shot] + [the same young woman with long, wavy brown hair] + [gently applying the serum to her face] + [in a well-lit bathroom] + [uplifting and transformative atmosphere]",
+            "[Wide shot] + [the same young woman] + [enthusiastically using the serum on her skin] + [in a bright bathroom] + [hopeful and vibrant ambiance]",
+            "[Medium shot] + [the same young woman] + [smiling and applying the serum, showing a before-and-after effect] + [in a cozy bathroom] + [warm and uplifting ambiance]"
+          ],
+          "audioNotes": "Music: uplifting and hopeful instrumental. SFX: gentle skin application sounds.",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763926720015-pTpcugssD1b1AFWfQOAWf.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T193840Z&X-Amz-Expires=604800&X-Amz-Signature=8a8db48674fbc5089c366bbf003e1524084ac117c60a016f949fc98fca66a2f0&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763926708716-kQn94SQ4kXvGphEoRN-oO.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T193829Z&X-Amz-Expires=604800&X-Amz-Signature=55ee80b79fd5a0e480ec48d73539d750a52afb68bd8e87d3bd51f80ef0aba7b3&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "cta",
+          "description": "The camera slowly zooms in on the Acne Clear Serum bottle, now in perfect focus, with the young woman smiling confidently in the background. Text appears on screen: 'Transform Your Skin Overnight - $27, 50% OFF!' followed by the logo lockup for Acne Clear Serum. The shot freezes on the vibrant product and the woman's joyful expression.",
+          "startTime": 12,
+          "endTime": 16,
+          "visualPrompt": "[Static shot] + [the Acne Clear Serum bottle in sharp focus] + [the young woman smiling confidently in the background] + [in the same bright bathroom] + [energetic and inspiring ambiance]",
+          "visualPromptAlternatives": [
+            "[Close-up shot] + [the Acne Clear Serum bottle prominently displayed] + [the young woman looking proud and happy in the background] + [in a bright bathroom] + [positive and motivational atmosphere]",
+            "[Wide shot] + [the Acne Clear Serum bottle centered] + [the young woman smiling brightly behind it] + [in a clean, bright bathroom] + [joyful and uplifting ambiance]",
+            "[Medium shot] + [the Acne Clear Serum bottle in focus] + [the young woman confidently smiling] + [in the same bathroom] + [hopeful and engaging atmosphere]"
+          ],
+          "audioNotes": "Music: crescendo of uplifting music. Dialogue: The young woman says: 'Purchase now to transform your skin!'",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763926735452-paBxv6NFMrHl8OOTIiRfa.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T193855Z&X-Amz-Expires=604800&X-Amz-Signature=ec1ac5e4f942125c2914fe4eae8489ab09b89a515ee2c2e212f8cda5fdd204e8&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763926720015-pTpcugssD1b1AFWfQOAWf.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T193840Z&X-Amz-Expires=604800&X-Amz-Signature=8a8db48674fbc5089c366bbf003e1524084ac117c60a016f949fc98fca66a2f0&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        }
+      ],
+      "meta": {
+        "mode": "production",
+        "aspectRatio": "9:16",
+        "duration": 16
+      },
+      "createdAt": 1763926682967
+    },
+    "frames": [
+      {
+        "segmentIndex": 0,
+        "frameType": "first",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763926695388-G9u-XEkSuqPAojKwiGOp9.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T193815Z&X-Amz-Expires=604800&X-Amz-Signature=9bdd51d000749affa2f9a8efacacef0ad966ba8f1594b862a3be79e9a2e8feef&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 0,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763926708716-kQn94SQ4kXvGphEoRN-oO.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T193829Z&X-Amz-Expires=604800&X-Amz-Signature=55ee80b79fd5a0e480ec48d73539d750a52afb68bd8e87d3bd51f80ef0aba7b3&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 1,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763926720015-pTpcugssD1b1AFWfQOAWf.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T193840Z&X-Amz-Expires=604800&X-Amz-Signature=8a8db48674fbc5089c366bbf003e1524084ac117c60a016f949fc98fca66a2f0&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 2,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763926735452-paBxv6NFMrHl8OOTIiRfa.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T193855Z&X-Amz-Expires=604800&X-Amz-Signature=ec1ac5e4f942125c2914fe4eae8489ab09b89a515ee2c2e212f8cda5fdd204e8&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      }
+    ],
+    "videoUrl": "/api/watch/s_xqYj-6QuXKH0AgEURIh",
+    "videoId": "s_xqYj-6QuXKH0AgEURIh",
+    "endTime": 1763926916942
+  },
+  {
+    "id": "KKNTw3bTGc5X6Jtiz7ory",
+    "status": "failed",
+    "startTime": 1763928014421,
+    "assetJobId": "H5uEiPEuvfYsaSPqLCxP1",
+    "storyboardId": "XqMcfTS6uztKauEPi3ewj",
+    "progress": 50,
+    "step": "generating-assets",
+    "storyboard": {
+      "id": "XqMcfTS6uztKauEPi3ewj",
+      "segments": [
+        {
+          "type": "hook",
+          "description": "A young woman in her early 20s with medium-length brown hair, wearing a casual white t-shirt, looks frustrated in front of a bathroom mirror, her face close-up showing irritation and disappointment due to acne. The camera begins with an extreme close-up on her face, capturing the texture of her skin. As she sighs and touches her face, the camera slowly pushes in, emphasizing her emotion, ending on a peak as she frowns, visibly upset.",
+          "startTime": 0,
+          "endTime": 6,
+          "visualPrompt": "Close-up shot of a young woman in her early 20s with medium-length brown hair, wearing a casual white t-shirt, looking frustrated in front of a bathroom mirror, her face displaying irritation. The camera starts extreme close-up, pushing in slowly as she touches her face, capturing her emotion in the bathroom setting with soft natural light.",
+          "visualPromptAlternatives": [
+            "Extreme close-up of a woman in her early 20s with medium-length brown hair in a casual white t-shirt, looking disappointed in front of a bathroom mirror. The camera starts tight on her face, slowly pulling back to reveal her touching her cheek in frustration, surrounded by bathroom elements in soft lighting.",
+            "Close-up of a young woman in her early 20s with medium-length brown hair, wearing a casual white t-shirt, looking despondent while examining her skin in a bathroom mirror. The camera begins with a tight shot on her face, pulling back as she sighs in frustration, with a soft, natural light ambiance.",
+            "Close-up of a young woman in her early 20s with medium-length brown hair and a casual white t-shirt, showing a pained expression in front of a bathroom mirror. The camera starts with an extreme close-up of her skin, slowly pushing in as she touches her face, surrounded by a softly lit bathroom."
+          ],
+          "audioNotes": "",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763927833500-PiDHwpNrISdw5SGyOdYC-.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T195713Z&X-Amz-Expires=604800&X-Amz-Signature=dbfd0a66ebd5cea6a0ff532d784bf731f1cf3bd4ebcf3ee06d39b6e0f4b5c933&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763927846943-kA2efn9X4GM-lBJgcW2Ng.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T195727Z&X-Amz-Expires=604800&X-Amz-Signature=082cb626b226db88d7b66292f697ab29110b5c275dd45cf445a201da6386e7dd&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "body",
+          "description": "The same young woman, now smiling, applies the Acne Clear Serum to her face, showcasing a transformation. The camera continues moving smoothly, capturing her applying the serum and her face transitioning to a clearer appearance. As she applies the product, the camera momentarily goes into slow motion around the 10-second mark, highlighting the product's effectiveness. The shot ends with her beaming with joy, freshly transformed.",
+          "startTime": 6,
+          "endTime": 12,
+          "visualPrompt": "Continuing with the identical young woman in her early 20s with medium-length brown hair, now smiling and applying the Acne Clear Serum to her face. The camera moves smoothly, capturing her transformation in a bright bathroom setting with warm lighting. During the application, the camera enters slow motion as her skin appears clearer, concluding with her joyful expression.",
+          "visualPromptAlternatives": [
+            "The same young woman in her early 20s with medium-length brown hair, now smiling, applies the Acne Clear Serum to her cheeks. The camera tracks her motion as she applies the product, capturing her skin's transformation in a bright bathroom. A slow-motion effect highlights the moment she finishes applying the serum, ending on her beaming face.",
+            "The same young woman in her early 20s with medium-length brown hair, now looking hopeful, applies the Acne Clear Serum. The camera continues moving, showing her face transform as she gently spreads the serum. The moment slows down at the 10-second mark, emphasizing her radiant smile and clear skin.",
+            "Continuing with the identical young woman in her early 20s with medium-length brown hair, now cheerful, applying the Acne Clear Serum. The camera captures her applying the serum, showing her skin improving. A slow-motion reveal occurs as she finishes, ending with her bright, happy expression."
+          ],
+          "audioNotes": "",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763927860313-EK-OAeTqd0gEwCwj3J2gW.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T195740Z&X-Amz-Expires=604800&X-Amz-Signature=b74e02b8317982f4c29fd2c184ec54ea59c899953b4f91002c1aad0c10f36fdb&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763927846943-kA2efn9X4GM-lBJgcW2Ng.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T195727Z&X-Amz-Expires=604800&X-Amz-Signature=082cb626b226db88d7b66292f697ab29110b5c275dd45cf445a201da6386e7dd&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "cta",
+          "description": "The camera smoothly transitions to a hero shot of the Acne Clear Serum on a clean bathroom counter, with the young woman in the background smiling confidently. The shot freezes on the product, showcasing its sleek design as text appears: 'Clear Skin Overnight – Only $27!' followed by the brand logo. The camera slowly pushes in, concluding the ad on an empowering note.",
+          "startTime": 12,
+          "endTime": 16,
+          "visualPrompt": "A clean bathroom counter with the Acne Clear Serum prominently displayed, the young woman in the background smiling confidently. The camera is static or slowly pushing in on the product, freezing on it as text overlays say: 'Clear Skin Overnight – Only $27!', with the brand logo appearing below. The lighting is bright and inviting, creating a hopeful mood.",
+          "visualPromptAlternatives": [
+            "Close-up of the Acne Clear Serum on a pristine bathroom counter, with the young woman smiling in the background. The camera is slightly pushing in on the product, which is highlighted by soft lighting, with text overlay: 'Transform Your Skin – Just $27!' and the brand logo appearing.",
+            "A clean and bright bathroom counter with the Acne Clear Serum showcased. The young woman smiles confidently in the background. The camera slowly pushes in on the product, freezing as text appears: 'Achieve Clear Skin – Now $27!' with the brand logo. Soft, warm lighting enhances the inviting ambiance.",
+            "The Acne Clear Serum on a minimalist bathroom counter takes center stage, with the young woman smiling in the background. The camera is slow and steady, pushing in on the product, freezing on a shot with text: 'Your Skin Transformation Awaits – Only $27!' and the brand logo below, creating a hopeful atmosphere."
+          ],
+          "audioNotes": "Dialogue: The young woman says: 'Purchase now to transform your skin!'",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763927873722-BLmImJ6lXpBmYaFhmoKL9.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T195754Z&X-Amz-Expires=604800&X-Amz-Signature=894daff78b0a0e8c7f4ef0c723cedd583ced1c74895517d6e09592ba3ddd4c77&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763927860313-EK-OAeTqd0gEwCwj3J2gW.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T195740Z&X-Amz-Expires=604800&X-Amz-Signature=b74e02b8317982f4c29fd2c184ec54ea59c899953b4f91002c1aad0c10f36fdb&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        }
+      ],
+      "meta": {
+        "mode": "production",
+        "aspectRatio": "9:16",
+        "duration": 16
+      },
+      "createdAt": 1763927819391
+    },
+    "frames": [
+      {
+        "segmentIndex": 0,
+        "frameType": "first",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763927833500-PiDHwpNrISdw5SGyOdYC-.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T195713Z&X-Amz-Expires=604800&X-Amz-Signature=dbfd0a66ebd5cea6a0ff532d784bf731f1cf3bd4ebcf3ee06d39b6e0f4b5c933&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 0,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763927846943-kA2efn9X4GM-lBJgcW2Ng.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T195727Z&X-Amz-Expires=604800&X-Amz-Signature=082cb626b226db88d7b66292f697ab29110b5c275dd45cf445a201da6386e7dd&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 1,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763927860313-EK-OAeTqd0gEwCwj3J2gW.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T195740Z&X-Amz-Expires=604800&X-Amz-Signature=b74e02b8317982f4c29fd2c184ec54ea59c899953b4f91002c1aad0c10f36fdb&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 2,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763927873722-BLmImJ6lXpBmYaFhmoKL9.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T195754Z&X-Amz-Expires=604800&X-Amz-Signature=894daff78b0a0e8c7f4ef0c723cedd583ced1c74895517d6e09592ba3ddd4c77&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      }
+    ],
+    "error": "Asset generation failed"
+  },
+  {
+    "id": "vPVIowhPKlR7qerZrY3aM",
+    "status": "completed",
+    "startTime": 1763928695665,
+    "assetJobId": "asJ21Xr5RrUFrPsb-UI57",
+    "storyboardId": "rEbwbPzvHDDSD140cgG7n",
+    "progress": 100,
+    "step": "completed",
+    "storyboard": {
+      "id": "rEbwbPzvHDDSD140cgG7n",
+      "segments": [
+        {
+          "type": "hook",
+          "description": "A close-up of a young woman in her late teens with medium-length brown hair and clear skin, looking frustrated as she examines her face in the mirror with a worried expression. The camera slowly pushes in, capturing the emotion of disappointment as she points at a pimple on her cheek. The scene is well-lit with soft, natural light, emphasizing her features.",
+          "startTime": 0,
+          "endTime": 6,
+          "visualPrompt": "Close-up shot of a young woman in her late teens with medium-length brown hair, looking frustrated while examining her face in a mirror. She points at a pimple on her cheek, her expression filled with worry. The camera slowly pushes in, capturing the emotion of disappointment. Soft, natural light highlights her features in a simple bathroom setting.",
+          "visualPromptAlternatives": [
+            "Extreme close-up of the young woman frowning at her reflection, as she touches her acne-prone skin. The camera circles around her, increasing the tension and frustration. Bright, soft lighting accentuates her facial features.",
+            "Close-up of the same young woman with a worried look, as she sighs and runs her fingers through her hair, showing her distress over her skin. The camera slowly zooms in, highlighting her emotions in a softly lit bathroom.",
+            "A close-up of the same woman looking at her reflection with a furrowed brow, as she lifts a finger to her cheek. The camera pushes in slowly, capturing the essence of her concern. Gentle, warm lighting adds depth to the emotional moment."
+          ],
+          "audioNotes": "",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763928494653-7wFoJ_x50cUaoyUKf6Xgl.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T200815Z&X-Amz-Expires=604800&X-Amz-Signature=1c30264a4a437c9dbcc9c38dcdf50c4da562d3f4dbf44bd1a6da1f75c7814118&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763928508278-r3oP4HyJpcd2jCu3tqBEn.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T200828Z&X-Amz-Expires=604800&X-Amz-Signature=e26cf329f917feb616c1a8a5d6e81090147c01493274ec01ba4ba48b564cd982&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "body",
+          "description": "Continuing from the previous shot, the young woman takes a deep breath and reaches for the Acne Clear Serum on the bathroom counter. The camera follows her hand as she picks it up and applies it to her skin in a smooth, confident motion. The scene shifts to slow-motion as she smiles, and it captures the transformation of her skin. The lighting brightens, symbolizing hope and change.",
+          "startTime": 6,
+          "endTime": 12,
+          "visualPrompt": "The camera follows the same young woman as she takes a deep breath and reaches for the Acne Clear Serum on the counter. She picks it up with a confident smile and applies it to her skin in a smooth motion. The scene shifts to slow-motion, showcasing her skin's transformation as the lighting brightens, symbolizing hope and change. The setting remains a softly lit bathroom, emphasizing the atmosphere of positivity.",
+          "visualPromptAlternatives": [
+            "The same young woman confidently grabs the Acne Clear Serum, applying it to her face as the camera captures her glowing smile. The shot transitions to slow-motion, highlighting the product in her hand and the transformation of her skin, all set in a bright bathroom filled with natural light.",
+            "As the young woman picks up the Acne Clear Serum, the camera captures her applying it to her face, and it briefly slows down to emphasize the moment. The lighting brightens as she smiles, showcasing the optimistic transformation in a clean, well-lit bathroom.",
+            "Continuing with the same woman, the camera follows her as she confidently applies the Acne Clear Serum to her face. The shot transitions to slow-motion, highlighting her smile and the positive change in her skin, surrounded by soft, warm bathroom lighting."
+          ],
+          "audioNotes": "",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763928521761-d_Yi7rOOK03DLxgamczgQ.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T200842Z&X-Amz-Expires=604800&X-Amz-Signature=1548212cfa7717537b12e417c435c4d37517d205ba945927f2a904cf21291175&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763928508278-r3oP4HyJpcd2jCu3tqBEn.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T200828Z&X-Amz-Expires=604800&X-Amz-Signature=e26cf329f917feb616c1a8a5d6e81090147c01493274ec01ba4ba48b564cd982&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "cta",
+          "description": "The young woman stands in front of the mirror, her skin now visibly clearer and glowing. The camera slowly pushes in for a hero shot as she smiles brightly, radiating confidence. Text appears on-screen: 'Transform your skin overnight!' followed by the product logo and 'Now only $27, 60% off'. The scene ends with a final push on her joyful expression, locking in the positive transformation.",
+          "startTime": 12,
+          "endTime": 16,
+          "visualPrompt": "The camera captures the same young woman standing in front of the mirror, her skin now clear and glowing. A slow push-in creates a hero shot as she beams with confidence. Text overlays: 'Transform your skin overnight!' followed by the product logo and 'Now only $27, 60% off'. The scene concludes with a focus on her joyful expression, encapsulating the positive transformation.",
+          "visualPromptAlternatives": [
+            "The young woman stands confidently, her skin glowing in the mirror. The camera slowly pushes in for a hero shot as she smiles brightly. Overlaid text reads: 'Transform your skin overnight!' and the product logo appears with 'Now only $27, 60% off', emphasizing her transformation.",
+            "As the young woman admires her clear skin in the mirror, the camera pushes in for a hero shot. The text 'Transform your skin overnight!' overlays with the product logo and 'Now only $27, 60% off', highlighting her happiness and confidence.",
+            "The same young woman stands proudly in front of the mirror, her skin radiant. The camera pushes in for a hero shot while text appears: 'Transform your skin overnight!' with the product logo and 'Now only $27, 60% off', capturing her newfound confidence."
+          ],
+          "audioNotes": "Dialogue: The young woman says: 'Purchase now to transform your skin!'",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763928535111-nhFc7Hir-itfXcIGNFFJg.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T200855Z&X-Amz-Expires=604800&X-Amz-Signature=d990f10830766c013476ea2fde30acae8ec404b3a2a6bcd5ed8628100320d15c&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763928521761-d_Yi7rOOK03DLxgamczgQ.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T200842Z&X-Amz-Expires=604800&X-Amz-Signature=1548212cfa7717537b12e417c435c4d37517d205ba945927f2a904cf21291175&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        }
+      ],
+      "meta": {
+        "mode": "production",
+        "aspectRatio": "9:16",
+        "duration": 16
+      },
+      "createdAt": 1763928480403
+    },
+    "frames": [
+      {
+        "segmentIndex": 0,
+        "frameType": "first",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763928494653-7wFoJ_x50cUaoyUKf6Xgl.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T200815Z&X-Amz-Expires=604800&X-Amz-Signature=1c30264a4a437c9dbcc9c38dcdf50c4da562d3f4dbf44bd1a6da1f75c7814118&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 0,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763928508278-r3oP4HyJpcd2jCu3tqBEn.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T200828Z&X-Amz-Expires=604800&X-Amz-Signature=e26cf329f917feb616c1a8a5d6e81090147c01493274ec01ba4ba48b564cd982&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 1,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763928521761-d_Yi7rOOK03DLxgamczgQ.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T200842Z&X-Amz-Expires=604800&X-Amz-Signature=1548212cfa7717537b12e417c435c4d37517d205ba945927f2a904cf21291175&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 2,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763928535111-nhFc7Hir-itfXcIGNFFJg.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T200855Z&X-Amz-Expires=604800&X-Amz-Signature=d990f10830766c013476ea2fde30acae8ec404b3a2a6bcd5ed8628100320d15c&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      }
+    ],
+    "videoUrl": "/api/watch/c1EfnuyzN-8WOjgsWDiSk",
+    "videoId": "c1EfnuyzN-8WOjgsWDiSk",
+    "endTime": 1763928715531
+  },
+  {
+    "id": "mZFr8J06RB1pcJ64ULXwD",
+    "status": "completed",
+    "startTime": 1763929677832,
+    "assetJobId": "yhlOtImTpYUF8MfaHHQiB",
+    "storyboardId": "QeCdnj9SGUqXx2HbBxZLk",
+    "progress": 100,
+    "step": "completed",
+    "storyboard": {
+      "id": "QeCdnj9SGUqXx2HbBxZLk",
+      "segments": [
+        {
+          "type": "hook",
+          "description": "A close-up of a young woman in her late teens with medium-length brown hair, looking frustrated while examining her acne in a bathroom mirror. She frowns, touches her face, and sighs deeply. The camera slowly pushes in on her concerned expression, building tension as she realizes she needs a solution. The clip ends with her looking directly at the camera with desperation in her eyes.",
+          "startTime": 0,
+          "endTime": 6,
+          "visualPrompt": "[Extreme close-up] + [a young woman in her late teens with medium-length brown hair] + [looking frustrated while examining her acne] + [in a bright bathroom with soft natural light] + [relatable and hopeful ambiance]",
+          "visualPromptAlternatives": [
+            "[Close-up] + [a young woman in her late teens with wavy brown hair] + [frowning and touching her forehead] + [in a clean, minimalistic bathroom] + [bright and airy atmosphere]",
+            "[Medium shot] + [a young woman in her early twenties with straight dark hair] + [holding her face with concern] + [in a modern bathroom with warm lighting] + [relatable and hopeful ambiance]",
+            "[Extreme close-up] + [a young woman with curly hair and freckles] + [sighing while looking at her reflection] + [in a cozy bathroom with soft lighting] + [emotionally charged atmosphere]"
+          ],
+          "audioNotes": "",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763929436334-CSxo4LPDyvoeyBr5A6AHF.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T202356Z&X-Amz-Expires=604800&X-Amz-Signature=e8c3bfb50c5a7e3eec2bc7d1968234c7b022f1eb92607b21ee2a454f76bfe3dd&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763929451815-Fkx4TGSXgeHhYZrryaC7S.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T202412Z&X-Amz-Expires=604800&X-Amz-Signature=d76a531b93c85bd6cb52018385faaf8b6085fb80d63b799af78c614af391d002&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "body",
+          "description": "The same young woman, now smiling with relief as she applies the Acne Clear Serum to her face. The camera smoothly tracks as she gently massages the serum into her skin, showcasing a visible transformation of her skin as it glows. The reveal of her clearer skin is shown in slow-motion at the 10-second mark, emphasizing her happiness. The clip ends with her looking at the camera with a bright smile.",
+          "startTime": 6,
+          "endTime": 12,
+          "visualPrompt": "[Tracking shot] + [the same young woman in her late teens with medium-length brown hair] + [applying the Acne Clear Serum to her face with a smile] + [in the same bright bathroom with soft natural light] + [hopeful and transformative ambiance]",
+          "visualPromptAlternatives": [
+            "[Dolly shot] + [the same young woman in her late teens with wavy brown hair] + [gently massaging the serum into her skin] + [in a bright and modern bathroom] + [energetic and uplifting atmosphere]",
+            "[Close-up] + [the same young woman with straight dark hair] + [applying the serum with a look of joy] + [in a warm-lit bathroom] + [transformative and hopeful vibe]",
+            "[Slow-motion close-up] + [the same young woman with curly hair and freckles] + [smiling while applying the product] + [in a cozy bathroom] + [bright and cheerful ambiance]"
+          ],
+          "audioNotes": "",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763929465366-Hq3o3SZPT-azzMYwk8Im3.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T202425Z&X-Amz-Expires=604800&X-Amz-Signature=4cbe014b339a5d996cc9ca332d9d6cc6e759ddfe62c103449bc3388998ca1b6a&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763929451815-Fkx4TGSXgeHhYZrryaC7S.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T202412Z&X-Amz-Expires=604800&X-Amz-Signature=d76a531b93c85bd6cb52018385faaf8b6085fb80d63b799af78c614af391d002&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "cta",
+          "description": "The final shot freezes on her now radiant face, showcasing the product clearly in her hand. The background blurs slightly to keep focus on her happy expression. Text overlays appear with the tagline 'Transform Your Skin Overnight!' and the logo lockup of the Acne Clear Serum. The scene ends with a very slow push towards the product, emphasizing the offer.",
+          "startTime": 12,
+          "endTime": 16,
+          "visualPrompt": "[Static shot with a very slow push] + [the same young woman in her late teens with medium-length brown hair, glowing skin] + [holding the Acne Clear Serum with a beaming smile] + [in the bright bathroom with soft natural light] + [bright and uplifting atmosphere with text overlay]",
+          "visualPromptAlternatives": [
+            "[Static shot with a slight zoom-in] + [the same young woman in her late teens with wavy brown hair, looking joyful] + [showing the Acne Clear Serum clearly] + [in a bright bathroom with a blurred background] + [hopeful and inviting ambiance with text overlay]",
+            "[Medium shot with a gentle push] + [the same young woman with straight dark hair, smiling radiantly] + [holding the Acne Clear Serum prominently] + [in a warm-lit bathroom] + [cheerful and optimistic vibe with tagline]",
+            "[Wide shot with a slow pull-in] + [the same young woman with curly hair and freckles, smiling brightly] + [showcasing the Acne Clear Serum] + [in a cozy bathroom with soft lighting] + [vibrant and engaging atmosphere with logo lockup]"
+          ],
+          "audioNotes": "Dialogue: The young woman says: 'Buy now to transform your skin!'",
+          "lastFrameImage": "https://replicate.delivery/xezq/zvnYlcrvaX7WEVmbFqoCy5HzTrc8P0xRRvFzS5b3vLbhfI2KA/tmp3v6zm3jc.jpeg",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763929465366-Hq3o3SZPT-azzMYwk8Im3.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T202425Z&X-Amz-Expires=604800&X-Amz-Signature=4cbe014b339a5d996cc9ca332d9d6cc6e759ddfe62c103449bc3388998ca1b6a&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        }
+      ],
+      "meta": {
+        "mode": "production",
+        "aspectRatio": "9:16",
+        "duration": 16
+      },
+      "createdAt": 1763929421914
+    },
+    "frames": [
+      {
+        "segmentIndex": 0,
+        "frameType": "first",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763929436334-CSxo4LPDyvoeyBr5A6AHF.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T202356Z&X-Amz-Expires=604800&X-Amz-Signature=e8c3bfb50c5a7e3eec2bc7d1968234c7b022f1eb92607b21ee2a454f76bfe3dd&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 0,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763929451815-Fkx4TGSXgeHhYZrryaC7S.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T202412Z&X-Amz-Expires=604800&X-Amz-Signature=d76a531b93c85bd6cb52018385faaf8b6085fb80d63b799af78c614af391d002&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 1,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763929465366-Hq3o3SZPT-azzMYwk8Im3.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T202425Z&X-Amz-Expires=604800&X-Amz-Signature=4cbe014b339a5d996cc9ca332d9d6cc6e759ddfe62c103449bc3388998ca1b6a&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 2,
+        "frameType": "last",
+        "imageUrl": "https://replicate.delivery/xezq/zvnYlcrvaX7WEVmbFqoCy5HzTrc8P0xRRvFzS5b3vLbhfI2KA/tmp3v6zm3jc.jpeg"
+      }
+    ],
+    "videoUrl": "/api/watch/AmvrJi60lNI1tS-pt9vX2",
+    "videoId": "AmvrJi60lNI1tS-pt9vX2",
+    "endTime": 1763929750862
+  },
+  {
+    "id": "OMIAyyBhsIYVV2vPIrTgA",
+    "status": "completed",
+    "startTime": 1763933255794,
+    "assetJobId": "C4ttDPl4rANBfgKBEMiaI",
+    "storyboardId": "4vG95VLhAmqD0r98xJhRv",
+    "progress": 100,
+    "step": "completed",
+    "storyboard": {
+      "id": "4vG95VLhAmqD0r98xJhRv",
+      "segments": [
+        {
+          "type": "hook",
+          "description": "A close-up of a young woman in her late teens with medium-length brown hair, looking frustrated as she examines her acne in the bathroom mirror. The camera slowly pushes in on her distressed face, capturing her emotions. She sighs heavily and shakes her head, emphasizing her frustration as she touches her acne. The clip ends on her peak moment of despair, with a clear view of her acne.",
+          "startTime": 0,
+          "endTime": 6,
+          "visualPrompt": "[Close-up shot] + [a young woman in her late teens with medium-length brown hair] + [examining her acne in the mirror, expressing frustration] + [in a bright, clean bathroom] + [soft natural light creates an intimate atmosphere]",
+          "visualPromptAlternatives": [
+            "[Extreme close-up] + [a young woman in her late teens with curly brown hair] + [frowning while applying makeup, struggling to cover her acne] + [in a well-lit bathroom with pastel colors] + [bright, hopeful ambiance]",
+            "[Medium shot] + [a young woman in her late teens with straight black hair] + [turning away from the mirror, looking disappointed] + [in a cozy, clutter-free bathroom] + [warm lighting enhances the mood of frustration]",
+            "[Close-up shot] + [a young woman in her late teens with wavy blonde hair] + [sighing as she touches her cheek, revealing acne] + [in a minimalist bathroom with a plant in the background] + [soft, inviting light brings warmth]"
+          ],
+          "audioNotes": "",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763932957191-5B0H3wFPQfd4uStGzeZHq.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T212237Z&X-Amz-Expires=604800&X-Amz-Signature=e7255740e89c320e3a17df79dab44b1a15ac2627b65c80748a2e9258e9448268&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763932971136-UEFcQ9-VnkAfhUaddRvNd.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T212251Z&X-Amz-Expires=604800&X-Amz-Signature=41a7d0f7958d9f9ca2ade0e0bd58ef182bb1838ee5d5530b3b5f9b64ddd594cb&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "body",
+          "description": "Continuing seamlessly, the same young woman reaches for the Acne Clear Serum on the bathroom counter, her expression shifting from despair to hope. As she applies the serum, the camera captures a slow-motion reveal of her skin transforming, showing a noticeable reduction in redness and acne. The clip ends as she smiles radiantly, revealing her clear skin, emphasizing the 'oh shit' moment of transformation.",
+          "startTime": 6,
+          "endTime": 12,
+          "visualPrompt": "[Dolly shot] + [the same young woman in her late teens with medium-length brown hair] + [applying the Acne Clear Serum with hope, watching her skin transform] + [in the same bright, clean bathroom] + [soft natural light enhances the transformation]",
+          "visualPromptAlternatives": [
+            "[Tracking shot] + [the same young woman in her late teens with curly brown hair] + [smiling as she applies the serum, witnessing a change] + [in a bright, cheerful bathroom] + [uplifting lighting conveys a sense of relief]",
+            "[Close-up shot] + [the same young woman in her late teens with straight black hair] + [gently massaging the serum into her skin, a look of surprise on her face] + [in a cozy bathroom with plants] + [bright lighting highlights her transformation]",
+            "[Medium shot] + [the same young woman in her late teens with wavy blonde hair] + [watching her reflection with astonishment as she applies the serum] + [in a minimalist bathroom] + [soft, warm light creates a sense of positivity]"
+          ],
+          "audioNotes": "",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763932986868-6zDQfo3GSR-ra9uQZGFlT.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T212307Z&X-Amz-Expires=604800&X-Amz-Signature=afdddd2ec3c201e9d984916e9d8ca205f9432d33aeeb75d6ed2617b8160f3b2d&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763932971136-UEFcQ9-VnkAfhUaddRvNd.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T212251Z&X-Amz-Expires=604800&X-Amz-Signature=41a7d0f7958d9f9ca2ade0e0bd58ef182bb1838ee5d5530b3b5f9b64ddd594cb&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "cta",
+          "description": "The clip transitions to a hero shot of the Acne Clear Serum, positioned on the bathroom counter with the young woman smiling in the background, showcasing her clear skin. The camera slowly pushes in on the product, with on-screen text stating 'Clears acne overnight' and 'Now only $27, 70% off'. The logo appears, and the tagline 'Buy now to transform your skin' is presented, urging viewers to take action.",
+          "startTime": 12,
+          "endTime": 16,
+          "visualPrompt": "[Static shot with a slow push] + [the Acne Clear Serum] + [displayed prominently on the bathroom counter] + [the young woman in the background smiling, showcasing her clear skin] + [bright, inviting lighting emphasizes the product's appeal]",
+          "visualPromptAlternatives": [
+            "[Close-up shot] + [the Acne Clear Serum] + [placed on a clean bathroom counter with a blurred background of the young woman smiling] + [in a bright, cheerful environment] + [soft light highlights the product's features]",
+            "[Medium shot] + [the Acne Clear Serum] + [centered on the counter with the young woman in a victorious pose behind it] + [in a cozy bathroom] + [warm lighting creates a welcoming atmosphere]",
+            "[Dolly shot] + [the Acne Clear Serum] + [elegantly displayed with the young woman happily touching her clear skin in the background] + [in a well-lit bathroom] + [uplifting lighting enhances the moment]"
+          ],
+          "audioNotes": "Dialogue: The young woman says: 'Finally, a little balance in my life.'",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763933000495-vAOKbF71p_Q1QxMxGX6jx.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T212320Z&X-Amz-Expires=604800&X-Amz-Signature=6d84bd14ef30e8ddc877db20316f2f294badcd821846c5aab9fbc0900dca4771&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763932986868-6zDQfo3GSR-ra9uQZGFlT.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T212307Z&X-Amz-Expires=604800&X-Amz-Signature=afdddd2ec3c201e9d984916e9d8ca205f9432d33aeeb75d6ed2617b8160f3b2d&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        }
+      ],
+      "meta": {
+        "mode": "production",
+        "aspectRatio": "9:16",
+        "duration": 16
+      },
+      "createdAt": 1763932943160
+    },
+    "frames": [
+      {
+        "segmentIndex": 0,
+        "frameType": "first",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763932957191-5B0H3wFPQfd4uStGzeZHq.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T212237Z&X-Amz-Expires=604800&X-Amz-Signature=e7255740e89c320e3a17df79dab44b1a15ac2627b65c80748a2e9258e9448268&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 0,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763932971136-UEFcQ9-VnkAfhUaddRvNd.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T212251Z&X-Amz-Expires=604800&X-Amz-Signature=41a7d0f7958d9f9ca2ade0e0bd58ef182bb1838ee5d5530b3b5f9b64ddd594cb&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 1,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763932986868-6zDQfo3GSR-ra9uQZGFlT.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T212307Z&X-Amz-Expires=604800&X-Amz-Signature=afdddd2ec3c201e9d984916e9d8ca205f9432d33aeeb75d6ed2617b8160f3b2d&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 2,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763933000495-vAOKbF71p_Q1QxMxGX6jx.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T212320Z&X-Amz-Expires=604800&X-Amz-Signature=6d84bd14ef30e8ddc877db20316f2f294badcd821846c5aab9fbc0900dca4771&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      }
+    ],
+    "videoUrl": "/api/watch/ladwHccmjYFiB7vuH0e_J",
+    "videoId": "ladwHccmjYFiB7vuH0e_J",
+    "endTime": 1763933274671
+  },
+  {
+    "id": "Rw9mNg56CJnTyAfabWQUP",
+    "status": "completed",
+    "startTime": 1763934127422,
+    "assetJobId": "6lEBbEEBTrz8QaCG-GlEv",
+    "storyboardId": "nsItcuyEhSoPDkJj4niBh",
+    "progress": 100,
+    "step": "completed",
+    "storyboard": {
+      "id": "nsItcuyEhSoPDkJj4niBh",
+      "segments": [
+        {
+          "type": "hook",
+          "description": "A close-up of a young woman in her late teens with medium-length brown hair and clear skin, looking frustrated as she examines her face in a bathroom mirror. The camera slowly pushes in on her concerned expression. She touches her cheek, revealing a small pimple, and sighs heavily, showcasing her dissatisfaction with her skin.",
+          "startTime": 0,
+          "endTime": 6,
+          "visualPrompt": "[Extreme close-up] + [a young woman in her late teens with medium-length brown hair] + [looking frustrated as she examines her face in a bathroom mirror] + [in a clean, bright bathroom with soft natural light] + [hopeful and transformative ambiance]",
+          "visualPromptAlternatives": [
+            "[Close-up] + [a young woman in her late teens with curly brown hair] + [frowning as she applies makeup] + [in a modern bathroom with white tiles] + [energetic and bright ambiance]",
+            "[Macro shot] + [a young woman in her late teens with straight brown hair] + [gazing anxiously at her reflection] + [in a minimalist bathroom with soft lighting] + [transformative and hopeful atmosphere]",
+            "[Tracking shot] + [a young woman in her late teens with wavy brown hair] + [turning her face away from the mirror in disappointment] + [in a stylish bathroom with warm lighting] + [hopeful and vibrant ambiance]"
+          ],
+          "audioNotes": "",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763933876681-me1JE2kUPpt8cg_GBd4n0.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T213757Z&X-Amz-Expires=604800&X-Amz-Signature=4c3d0ae791e35a4efd8348ee3136d35b51b6aef321f562948bf245432ca45d50&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763933890088-ntNebcxHYC3tjq00jy9ER.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T213810Z&X-Amz-Expires=604800&X-Amz-Signature=19d881a893942437eb6b0e1efebad616fe776dbe50ab09bfe469b39b55e122ab&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "body",
+          "description": "The same young woman in her late teens with medium-length brown hair appears in a close-up as she excitedly applies the Acne Clear Serum to her skin. The camera follows her hand as she spreads the serum over her face. The action transitions to slow motion, capturing her smile as her skin appears clearer and healthier. She looks radiant, with a sense of relief and joy.",
+          "startTime": 6,
+          "endTime": 12,
+          "visualPrompt": "[Close-up] + [the same young woman in her late teens with medium-length brown hair] + [excitedly applying Acne Clear Serum to her skin] + [in the same clean, bright bathroom with soft natural light] + [energetic and hopeful ambiance]",
+          "visualPromptAlternatives": [
+            "[Medium shot] + [the same young woman in her late teens with medium-length brown hair] + [smiling as she applies the serum] + [in a bright, modern bathroom with a simple aesthetic] + [hopeful and uplifting atmosphere]",
+            "[Close-up] + [the same young woman in her late teens with medium-length brown hair] + [gently massaging the serum into her skin] + [in the same minimalist bathroom with ambient lighting] + [transformative and engaging ambiance]",
+            "[Tracking shot] + [the same young woman in her late teens with medium-length brown hair] + [looking delighted as she applies the serum] + [in a stylish bathroom with a warm glow] + [energetic and bright mood]"
+          ],
+          "audioNotes": "",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763933905622-4Fmf6AVpf6924_XLtfUH0.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T213826Z&X-Amz-Expires=604800&X-Amz-Signature=e3e3a439410face1cf1b0cdce367efe49869dd6d6eec8c70e653e3d27eeb3f58&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763933890088-ntNebcxHYC3tjq00jy9ER.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T213810Z&X-Amz-Expires=604800&X-Amz-Signature=19d881a893942437eb6b0e1efebad616fe776dbe50ab09bfe469b39b55e122ab&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "cta",
+          "description": "The camera freezes on a hero shot of the Acne Clear Serum bottle with the young woman smiling in the background, showcasing her clear skin. The text 'Transform Your Skin Overnight!' appears on-screen along with the product logo and pricing details. The camera slowly pushes in to emphasize the product as the scene concludes.",
+          "startTime": 12,
+          "endTime": 16,
+          "visualPrompt": "[Static shot] + [the Acne Clear Serum bottle in the foreground with the same young woman in her late teens with medium-length brown hair smiling in the background] + [the camera slowly pushes in on the product] + [in the same bright bathroom setting] + [hopeful and energetic ambiance with a clear focus on the product]",
+          "visualPromptAlternatives": [
+            "[Static shot] + [the Acne Clear Serum bottle in a bright light setting with the young woman smiling in the background] + [the camera slowly pushes in] + [in a minimalist bathroom environment] + [transformative and aspirational vibe]",
+            "[Static close-up shot] + [the Acne Clear Serum bottle with the young woman joyfully showing her clear skin in the background] + [the camera maintains a slight push] + [in a stylish bathroom with a soft glow] + [energetic and hopeful mood]",
+            "[Static shot] + [the Acne Clear Serum bottle centered with the young woman beaming behind it] + [the camera slightly zooms in] + [in the same bright bathroom with natural light] + [hopeful and vibrant atmosphere]"
+          ],
+          "audioNotes": "Dialogue: The young woman says: 'Buy now to transform your skin overnight!'",
+          "lastFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763933919056-KM1um3t-ufhmK3oU1fmg0.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T213839Z&X-Amz-Expires=604800&X-Amz-Signature=58186e7a14f8598c64f7a163727f574fc699ad40406b69f61b55fa8b3cbc7925&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763933905622-4Fmf6AVpf6924_XLtfUH0.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T213826Z&X-Amz-Expires=604800&X-Amz-Signature=e3e3a439410face1cf1b0cdce367efe49869dd6d6eec8c70e653e3d27eeb3f58&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        }
+      ],
+      "meta": {
+        "mode": "production",
+        "aspectRatio": "9:16",
+        "duration": 16
+      },
+      "createdAt": 1763933862897
+    },
+    "frames": [
+      {
+        "segmentIndex": 0,
+        "frameType": "first",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763933876681-me1JE2kUPpt8cg_GBd4n0.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T213757Z&X-Amz-Expires=604800&X-Amz-Signature=4c3d0ae791e35a4efd8348ee3136d35b51b6aef321f562948bf245432ca45d50&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 0,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763933890088-ntNebcxHYC3tjq00jy9ER.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T213810Z&X-Amz-Expires=604800&X-Amz-Signature=19d881a893942437eb6b0e1efebad616fe776dbe50ab09bfe469b39b55e122ab&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 1,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763933905622-4Fmf6AVpf6924_XLtfUH0.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T213826Z&X-Amz-Expires=604800&X-Amz-Signature=e3e3a439410face1cf1b0cdce367efe49869dd6d6eec8c70e653e3d27eeb3f58&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 2,
+        "frameType": "last",
+        "imageUrl": "https://ai-ad-gen.s3.us-east-1.amazonaws.com/assets/1763933919056-KM1um3t-ufhmK3oU1fmg0.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDCMSKCCN4%2F20251123%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251123T213839Z&X-Amz-Expires=604800&X-Amz-Signature=58186e7a14f8598c64f7a163727f574fc699ad40406b69f61b55fa8b3cbc7925&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      }
+    ],
+    "videoUrl": "/api/watch/V9PLDgPtYvagu4rnK-BNy",
+    "videoId": "V9PLDgPtYvagu4rnK-BNy",
+    "endTime": 1763934150326
   }
 ]

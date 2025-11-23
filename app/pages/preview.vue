@@ -362,7 +362,7 @@
                 </div>
 
                 <!-- Scene Video -->
-                <div v-if="videoGenerationStatus !== 'idle'" class="space-y-2">
+                <div v-if="videoGenerationStatus !== 'idle' || sceneVideos.has(index)" class="space-y-2">
                   <div class="flex items-center justify-between">
                     <p class="text-xs font-medium text-mendo-black/70 dark:text-mendo-white/70 uppercase tracking-wide">Scene Video</p>
                     <UButton
@@ -575,7 +575,7 @@
           </UCard>
 
           <!-- Final Videos Section -->
-          <div v-if="videoGenerationStatus === 'completed' && (finalVideoOriginal || finalVideoSeamless)" class="space-y-6">
+          <div v-if="videoGenerationStatus === 'completed' && (finalVideoOriginal || finalVideoSeamless || sceneVideos.size > 0)" class="space-y-6">
             <div class="text-center">
               <h2 class="text-2xl font-bold text-mendo-black dark:text-mendo-white mb-2">Final Videos</h2>
               <p class="text-mendo-black/70 dark:text-mendo-white/70 text-sm sm:text-base">
@@ -601,6 +601,28 @@
                   @click="regenerateFinalVideos"
                 >
                   Regenerate Final Videos
+                </UButton>
+              </template>
+            </UAlert>
+
+            <!-- Notification if videos are missing but scenes are available -->
+            <UAlert
+              v-if="videoGenerationStatus === 'completed' && sceneVideos.size > 0 && (!finalVideoOriginal || !finalVideoSeamless)"
+              color="blue"
+              variant="soft"
+              title="Composing Final Videos"
+              :description="!finalVideoOriginal && !finalVideoSeamless ? 'Composing both video versions...' : !finalVideoOriginal ? 'Composing original video...' : 'Composing seamless video...'"
+              class="mb-4"
+            >
+              <template #actions>
+                <UButton
+                  variant="ghost"
+                  color="blue"
+                  size="sm"
+                  :loading="regeneratingFinal"
+                  @click="regenerateFinalVideos"
+                >
+                  {{ !finalVideoOriginal && !finalVideoSeamless ? 'Compose Videos' : 'Retry Composition' }}
                 </UButton>
               </template>
             </UAlert>
@@ -1127,61 +1149,91 @@ const pollVideoStatus = async () => {
     // Update scene videos from response
     let allScenesComplete = false
     if (result.sceneVideos) {
+      console.log('[Preview] Received sceneVideos from API:', Object.keys(result.sceneVideos).length, 'scenes')
       Object.entries(result.sceneVideos).forEach(([segmentId, videoUrl]) => {
         const id = parseInt(segmentId)
         const oldUrl = sceneVideos.value.get(id)
         if (oldUrl && oldUrl !== videoUrl) {
           // Scene video changed - mark for final video regeneration
           sceneVideoChanged.value = true
+          console.log(`[Preview] Scene ${id} video changed`)
         }
         sceneVideos.value.set(id, videoUrl)
+        console.log(`[Preview] Scene ${id} video set:`, videoUrl?.substring(0, 60))
       })
       // Check if all scenes are complete
       if (storyboard.value && Object.keys(result.sceneVideos).length === storyboard.value.segments.length) {
         allScenesComplete = true
+        console.log('[Preview] All scene videos are complete')
       }
     } else if (result.assets) {
       // Fallback: extract from assets array
+      console.log('[Preview] Extracting scene videos from assets array:', result.assets.length, 'assets')
       const completedAssets = result.assets.filter(a => a.status === 'completed' && a.videoUrl)
       completedAssets.forEach((asset) => {
         const oldUrl = sceneVideos.value.get(asset.segmentId)
         if (oldUrl && oldUrl !== asset.videoUrl) {
           sceneVideoChanged.value = true
+          console.log(`[Preview] Scene ${asset.segmentId} video changed (from assets)`)
         }
         sceneVideos.value.set(asset.segmentId, asset.videoUrl!)
+        console.log(`[Preview] Scene ${asset.segmentId} video set from assets:`, asset.videoUrl?.substring(0, 60))
       })
       // Check if all scenes are complete
       if (storyboard.value && completedAssets.length === storyboard.value.segments.length) {
         allScenesComplete = true
+        console.log('[Preview] All scene videos are complete (from assets)')
       }
     }
     
     // If all scenes are complete but we don't have the original video yet, compose it
     if (allScenesComplete && !finalVideoOriginal.value && result.status !== 'completed') {
+      console.log('[Preview] All scenes complete, composing original video...')
       await composeOriginalVideo()
     }
     
     // If completed, we have the seamless video from the status endpoint
     // We still need to compose the original (un-seamless) version
     if (result.status === 'completed' && result.videoUrl) {
+      console.log('[Preview] Generation completed, seamless video URL:', result.videoUrl?.substring(0, 60))
       finalVideoSeamless.value = result.videoUrl
       
       // Compose original version if we have all scene videos
       // Check if we have videos for all segments
-      if (storyboard.value && sceneVideos.value.size === storyboard.value.segments.length && !finalVideoOriginal.value) {
-        await composeOriginalVideo()
+      if (storyboard.value && sceneVideos.value.size === storyboard.value.segments.length) {
+        if (!finalVideoOriginal.value) {
+          console.log('[Preview] Composing original video after completion...')
+          await composeOriginalVideo()
+        } else {
+          console.log('[Preview] Original video already composed')
+        }
+      } else {
+        console.warn('[Preview] Cannot compose original video: missing scene videos. Have', sceneVideos.value.size, 'of', storyboard.value?.segments.length)
+        // Try to compose anyway if we have at least some videos
+        if (sceneVideos.value.size > 0) {
+          console.log('[Preview] Attempting to compose original video with available scenes...')
+          await composeOriginalVideo()
+        }
       }
       
-      // Stop polling
-      stopPollingVideoStatus()
-      
-      toast.add({
-        title: 'Video Generated!',
-        description: 'Your video is ready to view.',
-        color: 'green',
-      })
+      // Stop polling only if we have both videos or if we've tried to compose
+      if (finalVideoOriginal.value || finalVideoSeamless.value) {
+        stopPollingVideoStatus()
+        console.log('[Preview] Stopping polling - videos available')
+        
+        toast.add({
+          title: 'Video Generated!',
+          description: finalVideoOriginal.value && finalVideoSeamless.value 
+            ? 'Both video versions are ready to view.'
+            : 'Your video is ready to view.',
+          color: 'green',
+        })
+      } else {
+        console.warn('[Preview] Generation completed but no videos available')
+      }
     } else if (result.status === 'failed') {
       stopPollingVideoStatus()
+      console.error('[Preview] Generation failed:', result.error)
       toast.add({
         title: 'Generation Failed',
         description: result.error || 'Video generation failed',
@@ -1255,7 +1307,12 @@ const formatClipsForComposition = () => {
 // Compose original (un-seamless) video only
 const composeOriginalVideo = async () => {
   const formattedClips = formatClipsForComposition()
-  if (formattedClips.length === 0 || !storyboard.value) return
+  if (formattedClips.length === 0 || !storyboard.value) {
+    console.warn('[Preview] Cannot compose original video: missing clips or storyboard')
+    return
+  }
+  
+  console.log('[Preview] Composing original video with', formattedClips.length, 'clips')
   
   try {
     const composeOptions = {
@@ -1272,10 +1329,26 @@ const composeOriginalVideo = async () => {
       },
     })
     
-    finalVideoOriginal.value = originalResult.videoUrl
+    if (originalResult.videoUrl) {
+      finalVideoOriginal.value = originalResult.videoUrl
+      console.log('[Preview] ✓ Original video composed successfully:', originalResult.videoUrl)
+    } else {
+      console.error('[Preview] Original video composition returned no URL')
+      toast.add({
+        title: 'Composition Warning',
+        description: 'Original video composition completed but no URL was returned',
+        color: 'yellow',
+        timeout: 5000,
+      })
+    }
   } catch (err: any) {
     console.error('[Preview] Error composing original video:', err)
-    // Don't show error toast for automatic composition
+    toast.add({
+      title: 'Composition Error',
+      description: err.message || 'Failed to compose original video. You can try regenerating it manually.',
+      color: 'red',
+      timeout: 8000,
+    })
   }
 }
 
@@ -1525,6 +1598,11 @@ onMounted(async () => {
         cost: data.cost,
         musicUrl: data.musicUrl || null,
       }
+      // Initialize dialogue state after loading storyboard
+      if (videoData.value.storyboard) {
+        storyboard.value = videoData.value.storyboard
+        initializeDialogueState()
+      }
       sessionStorage.removeItem('videoResult')
     } else if (route.query.videoId) {
       // Load from API if videoId is provided
@@ -1539,12 +1617,23 @@ onMounted(async () => {
           cost: result.generationCost,
           musicUrl: result.musicUrl || null,
         }
+        // Initialize dialogue state after loading storyboard
+        if (videoData.value.storyboard) {
+          storyboard.value = videoData.value.storyboard
+          initializeDialogueState()
+        }
       } catch (err: any) {
         error.value = err.data?.message || err.message || 'Failed to load video'
       }
     } else {
       error.value = 'No video data found'
     }
+    
+    // Initialize dialogue state if storyboard exists
+    if (storyboard.value) {
+      initializeDialogueState()
+    }
+    
     loading.value = false
   } catch (err: any) {
     console.error('Error loading video data:', err)
@@ -1569,20 +1658,51 @@ const dialogueState = ref<Record<number, { character: string; dialogueText: stri
 const initializeDialogueState = () => {
   if (!storyboard.value) return
   
+  console.log('[Preview] Initializing dialogue state from storyboard segments')
   storyboard.value.segments.forEach((segment, index) => {
+    // Try to parse dialogue from audioNotes
     const parsed = parseDialogue(segment.audioNotes)
     if (parsed) {
       dialogueState.value[index] = {
         character: parsed.character,
         dialogueText: parsed.dialogueText
       }
+      console.log(`[Preview] Segment ${index} (${segment.type}): Found dialogue - "${parsed.dialogueText}"`)
     } else {
       dialogueState.value[index] = {
         character: '',
         dialogueText: ''
       }
+      if (segment.audioNotes && segment.audioNotes.trim()) {
+        console.warn(`[Preview] Segment ${index} (${segment.type}): audioNotes exists but failed to parse: "${segment.audioNotes.substring(0, 100)}"`)
+      }
     }
   })
+  
+  // Also check if voiceoverSegments exist and merge them into storyboard if audioNotes is empty
+  if (videoData.value?.voiceoverSegments && storyboard.value) {
+    console.log('[Preview] Checking voiceoverSegments for dialogue to merge into storyboard')
+    videoData.value.voiceoverSegments.forEach((voiceoverSeg: any, index: number) => {
+      const storyboardSegment = storyboard.value?.segments[index]
+      if (storyboardSegment && voiceoverSeg.script) {
+        // Try to parse the voiceover script format: "[Character] says: '[text]'"
+        const scriptMatch = voiceoverSeg.script.match(/(.+?)\s+says:\s*['"](.+?)['"]/i)
+        if (scriptMatch && (!storyboardSegment.audioNotes || !storyboardSegment.audioNotes.trim())) {
+          // Convert to audioNotes format: "Dialogue: [Character] says: '[text]'"
+          const character = scriptMatch[1].trim()
+          const dialogueText = scriptMatch[2].trim()
+          storyboardSegment.audioNotes = `Dialogue: ${character} says: '${dialogueText}'`
+          console.log(`[Preview] Merged voiceover dialogue into segment ${index} (${storyboardSegment.type}): "${dialogueText}"`)
+          
+          // Update dialogue state
+          dialogueState.value[index] = {
+            character,
+            dialogueText
+          }
+        }
+      }
+    })
+  }
 }
 
 // Update audioNotes when dialogue changes

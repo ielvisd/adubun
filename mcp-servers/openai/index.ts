@@ -1205,10 +1205,13 @@ Definitions:
   * ${sceneDescription ? `🚨 CRITICAL: For the hook segment, ALL alternative prompts MUST also start with the same sceneDescription: "${sceneDescription}". They can vary camera angle (close-up, wide, overhead, side), lighting (soft, dramatic, natural, studio), composition, or perspective, but the product placement and scene must match the reference image. DO NOT create alternatives that change the product placement (e.g., from "wearing on wrist" to "on table" or "in case") - these are different scenes, not alternatives. Example: If sceneDescription is "a man wearing a watch on his wrist", all alternatives must show "person/man wearing watch on wrist", not "watch on table" or "watch in case".` : ''}
 - audioNotes: Format as "Dialogue: [character name/description] says: '[actual script text]'" OR "Voiceover: [actual script text to be spoken by off-screen narrator]" OR "Music: [description of music/sound effects]". 
   
+  🚨 CRITICAL: ONLY generate dialogue in audioNotes if the user has explicitly provided dialogue text. If no dialogue is provided by the user, set audioNotes to an empty string (""). DO NOT auto-generate dialogue based on the story content. Only include dialogue when the user has explicitly specified it.
+  
   🚨 CRITICAL: DIALOGUE vs VOICEOVER:
-  - **DIALOGUE**: Use when a character visible in the scene speaks on-camera. Format: "Dialogue: [character] says: '[text]'" (e.g., "Dialogue: The woman says: 'How am I going to finish all of this?'")
+  - **DIALOGUE**: Use when a character visible in the scene speaks on-camera AND dialogue is explicitly provided by the user. Format: "Dialogue: [character] says: '[text]'" (e.g., "Dialogue: The woman says: 'How am I going to finish all of this?'")
   - **VOICEOVER**: Use only for off-screen narration. Format: "Voiceover: [text]" (e.g., "Voiceover: Discover the luxury watch collection...")
   - **PREFER DIALOGUE**: For most ads, use Dialogue format so characters speak on-camera. Only use Voiceover if explicitly needed for off-screen narration.
+  - **IF NO DIALOGUE PROVIDED**: Set audioNotes to empty string ("") - do NOT generate dialogue automatically.
   
   🚨 CRITICAL: If you use Dialogue format, you MUST update the visualPrompt to show the character speaking:
   - Add timecodes showing when dialogue occurs: "[00:00-00:04] The woman speaks: 'How am I going to finish all of this?'"

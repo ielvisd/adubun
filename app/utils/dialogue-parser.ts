@@ -66,6 +66,36 @@ export function parseDialogue(audioNotes: string | undefined | null): ParsedDial
   const character = prefixMatch[1].trim()
   const dialogueText = audioNotes.substring(prefixEnd, lastQuoteIndex).trim()
   
+  // Validate that dialogue text is complete (not corrupted or cut off)
+  if (dialogueText.length === 0) {
+    console.warn('[Dialogue Parser] Dialogue text is empty after extraction')
+    return null
+  }
+  
+  // Check for incomplete/corrupted dialogue indicators
+  if (dialogueText.endsWith('*') || dialogueText.endsWith('...') || dialogueText.endsWith('…') || dialogueText.includes('*gibberish') || dialogueText.includes('*incomplete') || dialogueText.match(/\w+\*$/)) {
+    console.warn('[Dialogue Parser] Dialogue text appears incomplete or corrupted:', dialogueText)
+    // Try to clean up - remove trailing incomplete markers and gibberish patterns
+    let cleaned = dialogueText
+      .replace(/[*…]+$/, '') // Remove trailing asterisks/ellipses
+      .replace(/\*gibberish.*$/i, '') // Remove gibberish markers
+      .replace(/\*incomplete.*$/i, '') // Remove incomplete markers
+      .replace(/\w+\*$/g, '') // Remove words ending with asterisk (corrupted words)
+      .trim()
+    
+    // If cleaned text is too short or doesn't make sense, return null
+    if (cleaned.length === 0 || cleaned.split(/\s+/).length < 2) {
+      console.error('[Dialogue Parser] Dialogue text became empty or too short after cleanup - original was corrupted')
+      return null
+    }
+    // Return cleaned version with warning
+    return {
+      character,
+      dialogueText: cleaned,
+      hasDialogue: true
+    }
+  }
+  
   return {
     character,
     dialogueText,

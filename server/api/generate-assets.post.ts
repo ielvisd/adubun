@@ -381,7 +381,22 @@ export default defineEventHandler(async (event) => {
         }
         
         // Sanitize prompt to avoid content moderation flags
-        let sanitizedPrompt = sanitizeVideoPrompt(selectedPrompt)
+        // Pass segment type for context-aware sanitization (especially for CTA segments)
+        let sanitizedPrompt = sanitizeVideoPrompt(selectedPrompt, undefined, segment.type as 'hook' | 'body' | 'cta')
+        
+        // Apply additional CTA-specific sanitization for beauty/skincare terms
+        if (segment.type === 'cta') {
+          console.log(`[Segment ${idx}] Applying CTA-specific prompt sanitization`)
+          // Additional sanitization pass specifically for CTA segments
+          // Replace any remaining beauty/skincare terms that might trigger filters
+          sanitizedPrompt = sanitizeVideoPrompt(sanitizedPrompt, undefined, 'cta')
+          
+          // Add explicit professional product advertising context to CTA prompts
+          // This helps content moderation understand this is legitimate product advertising
+          sanitizedPrompt = `${sanitizedPrompt}, professional product advertisement, safe for all audiences, appropriate commercial content, legitimate product showcase`
+          
+          console.log(`[Segment ${idx}] CTA prompt after sanitization: ${sanitizedPrompt.substring(0, 200)}...`)
+        }
         
         // Extract mood from storyboard meta
         const mood = storyboard.meta.mood || 'professional'
@@ -431,13 +446,50 @@ export default defineEventHandler(async (event) => {
             if (segment.type === 'cta') {
               const wordCount = dialogueText.split(/\s+/).filter(word => word.length > 0).length
               if (wordCount > 5) {
-                console.warn(`[Segment ${idx}] CTA dialogue has ${wordCount} words (exceeds 5-word limit): "${dialogueText}"`)
-                // Truncate to first 5 words
+                console.warn(`[Segment ${idx}] ⚠️ CTA dialogue has ${wordCount} words (exceeds 5-word limit): "${dialogueText}"`)
+                console.warn(`[Segment ${idx}] ⚠️ This should not happen if voiceover generation is working correctly. Truncating as fallback.`)
+                // Truncate to first 5 words, but ensure we don't cut off mid-word or mid-sentence
                 const words = dialogueText.split(/\s+/).filter(word => word.length > 0)
-                dialogueText = words.slice(0, 5).join(' ')
-                console.log(`[Segment ${idx}] Truncated CTA dialogue to 5 words: "${dialogueText}"`)
+                if (words.length > 5) {
+                  // Take first 5 complete words only
+                  dialogueText = words.slice(0, 5).join(' ')
+                  // Ensure the truncated text ends properly (add period if it doesn't end with punctuation)
+                  if (!/[.!?]$/.test(dialogueText.trim())) {
+                    dialogueText = dialogueText.trim() + '.'
+                  } else {
+                    dialogueText = dialogueText.trim()
+                  }
+                  console.log(`[Segment ${idx}] Truncated CTA dialogue to 5 words: "${dialogueText}"`)
+                }
               } else {
-                console.log(`[Segment ${idx}] CTA dialogue word count validated: ${wordCount} words - "${dialogueText}"`)
+                console.log(`[Segment ${idx}] ✓ CTA dialogue word count validated: ${wordCount} words - "${dialogueText}"`)
+              }
+              
+              // Validate that dialogue text is complete (not corrupted or cut off)
+              if (dialogueText.trim().length === 0) {
+                console.warn(`[Segment ${idx}] CTA dialogue is empty after processing`)
+              } else if (dialogueText.trim().endsWith('*') || dialogueText.trim().endsWith('...') || dialogueText.trim().endsWith('…') || dialogueText.includes('*gibberish') || dialogueText.includes('*incomplete')) {
+                console.warn(`[Segment ${idx}] CTA dialogue appears incomplete or corrupted: "${dialogueText}"`)
+                // Try to clean up - remove trailing incomplete markers and gibberish
+                dialogueText = dialogueText.trim()
+                  .replace(/[*…]+$/, '')
+                  .replace(/\*gibberish.*$/i, '')
+                  .replace(/\*incomplete.*$/i, '')
+                  .trim()
+                if (dialogueText.length === 0) {
+                  console.error(`[Segment ${idx}] CTA dialogue became empty after cleanup - original was corrupted`)
+                } else {
+                  // Re-validate word count after cleanup
+                  const cleanedWordCount = dialogueText.split(/\s+/).filter(word => word.length > 0).length
+                  if (cleanedWordCount > 5) {
+                    const words = dialogueText.split(/\s+/).filter(word => word.length > 0)
+                    dialogueText = words.slice(0, 5).join(' ')
+                    if (!/[.!?]$/.test(dialogueText.trim())) {
+                      dialogueText = dialogueText.trim() + '.'
+                    }
+                    console.log(`[Segment ${idx}] CTA dialogue cleaned and truncated to 5 words: "${dialogueText}"`)
+                  }
+                }
               }
             }
             
@@ -499,7 +551,7 @@ export default defineEventHandler(async (event) => {
             
             dialogueInstructions = ` CRITICAL LANGUAGE REQUIREMENT: The dialogue "${dialogueText}" must be spoken in English ONLY. NO other languages allowed. CRITICAL ON-CAMERA SPOKEN DIALOGUE REQUIREMENT - NOT VOICEOVER, NOT THOUGHTS: [${startTimecode}-${endTimecode}] The ${characterDescription} SPEAKS ALOUD directly on-camera: "${dialogueText}". 
 
-CRITICAL: EXACT DIALOGUE MATCHING - The character must speak the EXACT words: "${dialogueText}". Do not paraphrase, do not change words, do not add words, do not remove words. Speak each word clearly and precisely. The character must say exactly: "${dialogueText}" - no substitutions, no variations, no gibberish, no made-up words.${toneInstruction}
+CRITICAL: EXACT DIALOGUE MATCHING - The character must speak the EXACT words: "${dialogueText}". Do not paraphrase, do not change words, do not add words, do not remove words. Speak each word clearly and precisely. The character must say exactly: "${dialogueText}" - no substitutions, no variations, no gibberish, no made-up words. CRITICAL: Speak the COMPLETE dialogue text from start to finish. Do NOT cut off, truncate, or corrupt any words. Say the entire phrase clearly and completely: "${dialogueText}". Every single word must be spoken clearly and fully.${toneInstruction}
 
 ABSOLUTELY NO VOICEOVER OR INTERNAL THOUGHTS:
 - This is SPOKEN DIALOGUE, not internal thoughts, not voiceover, not narration
@@ -519,7 +571,7 @@ MANDATORY VISUAL REQUIREMENTS:
 - Do NOT show the character silent or with closed mouth during this dialogue timecode
 - The character's voice must be AUDIBLE and come from their MOUTH, not as thoughts or narration
 
-The character's mouth movements must match the words being SPOKEN ALOUD: "${dialogueText}". This is SPOKEN DIALOGUE, not thoughts or voiceover.`
+The character's mouth movements must match the words being SPOKEN ALOUD: "${dialogueText}". This is SPOKEN DIALOGUE, not thoughts or voiceover. CRITICAL: Speak the COMPLETE phrase "${dialogueText}" from beginning to end. Do NOT cut off mid-word, mid-phrase, or truncate the dialogue. Say every word completely and clearly.`
             
             // Add the actual dialogue text in Veo format so it generates the spoken audio
             // Include tone description if available
@@ -530,7 +582,7 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
             if (!sanitizedPrompt.includes(`"${dialogueText}"`) && !sanitizedPrompt.includes(`'${dialogueText}'`)) {
               // Add explicit dialogue to visual prompt at the appropriate timecode with exact matching emphasis
               const toneContext = toneDescription ? ` with ${toneDescription}` : ''
-              const dialogueInVisualPrompt = ` [${startTimecode}-${endTimecode}] The ${characterDescription} speaks directly on-camera in English only, saying the EXACT words "${dialogueText}"${toneContext} with clear mouth movements. The character's lips move in sync with each word: "${dialogueText}". The character must speak these exact words precisely - no substitutions, no variations.`
+              const dialogueInVisualPrompt = ` [${startTimecode}-${endTimecode}] The ${characterDescription} speaks directly on-camera in English only, saying the EXACT COMPLETE words "${dialogueText}"${toneContext} with clear mouth movements. The character's lips move in sync with each word: "${dialogueText}". The character must speak these exact words precisely from start to finish - no substitutions, no variations, no truncation, no cut-off words. Speak the COMPLETE phrase: "${dialogueText}".`
               
               // Insert dialogue description into the visual prompt (before other instructions)
               // We'll prepend it to sanitizedPrompt so it appears early in the prompt
@@ -544,6 +596,16 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
           } else {
             console.log(`[Segment ${idx}] No dialogue found in audioNotes: ${segment.audioNotes?.substring(0, 100)}`)
           }
+        } else {
+          // No audioNotes at all - explicitly prevent any audio generation
+          console.log(`[Segment ${idx}] No audioNotes provided - preventing all audio generation`)
+        }
+        
+        // Add explicit no-audio instruction if no dialogue was found
+        let noAudioInstruction = ''
+        if (!dialogueInstructions && !dialogueTextForPrompt) {
+          noAudioInstruction = `🚨🚨🚨 CRITICAL NO-AUDIO REQUIREMENT - ABSOLUTE MANDATORY REQUIREMENT 🚨🚨🚨: This segment has NO dialogue and NO audio should be generated. This is a HARD REQUIREMENT with ZERO TOLERANCE. DO NOT generate ANY of the following: spoken dialogue, voiceover, narration, background voices, character speech, human speech, any language (English or otherwise), music, soundtracks, background music, sound effects (SFX), ambient noise, or ANY audio whatsoever. The video must be COMPLETELY SILENT with ZERO audio output. This segment is intentionally silent - no characters speak, no narration occurs, no music plays, no sounds are generated. ABSOLUTELY NO audio should be present in this video segment. Any audio generated will result in video rejection. This is a MANDATORY requirement - the video must be completely silent. `
+          console.log(`[Segment ${idx}] Added explicit no-audio instruction (no dialogue provided)`)
         }
         
         // Build segment-specific instructions based on segment type
@@ -551,14 +613,22 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
         let segmentSpecificInstructions = ''
         let holdFinalFrameInstruction = ''
         let cameraPerspectiveInstruction = ''
+        let actionContinuityInstruction = ''
         
         if (segment.type === 'cta') {
           // CTA is the end of the video, not a transition - need visual progression
           cameraPerspectiveInstruction = 'Allow camera movement and angle changes to show progression, ending with a distinct final composition. The video should progress naturally with clear visual changes from start to finish.'
           segmentSpecificInstructions = `CTA VISUAL PROGRESSION REQUIREMENT: This CTA segment is the FINAL segment of the video (not a transition to another segment). It must show clear visual progression from start to finish. The final moment must be visually DISTINCT from the starting moment. Use one or more of these techniques: 1) Change camera angle (switch from medium to close-up, or front to side/three-quarter angle), 2) Add text overlay or logo lockup in the final moment, 3) Change character pose or expression to show transformation, 4) Adjust composition to create a hero shot. The video should progress naturally from the starting frame to a visually distinct final frame. Do NOT hold the final frame static - this is the end of the video, not a transition, so show clear visual progression throughout the segment ending with a distinct hero shot. The final moment should be visually distinct from the starting moment - use different camera angle, composition, or add text/logo overlay. This is the end of the video, not a transition, so show clear visual progression.`
           console.log(`[Segment ${idx}] CTA segment: Applying visual progression instructions (no hold final frame)`)
+        } else if (segment.type === 'body') {
+          // Body segments need smooth transitions AND continuous action/motion
+          cameraPerspectiveInstruction = 'Maintain the same camera perspective and same setting throughout.'
+          holdFinalFrameInstruction = 'The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene.'
+          // CRITICAL: Body segments must show continuous motion/action throughout
+          actionContinuityInstruction = `🚨 CRITICAL ACTION CONTINUITY REQUIREMENT - MANDATORY: The character must be actively moving and performing actions throughout the ENTIRE body segment. Do NOT show the character as still, motionless, or frozen. The character must demonstrate continuous motion: reaching for items, applying products, moving hands, changing facial expressions, evolving body language, and progressing through actions. For product application scenes specifically: Show the character actively applying the product with continuous hand movements throughout the segment - hands moving, product being applied, facial expressions changing from initial state to transformed state, body language evolving. The character should NOT be static or motionless at any point during this segment. Show dynamic, continuous action that progresses naturally from start to finish. This is a MANDATORY requirement - any body segment showing a motionless or still character will be rejected.`
+          console.log(`[Segment ${idx}] Body segment: Applying transition instructions (hold final frame) + continuous action requirement`)
         } else {
-          // Hook and body segments need smooth transitions - hold final frame for next segment
+          // Hook segments need smooth transitions - hold final frame for next segment
           cameraPerspectiveInstruction = 'Maintain the same camera perspective and same setting throughout.'
           holdFinalFrameInstruction = 'The video should naturally ease into and hold the final frame steady for approximately 0.5 seconds. No transitions, cuts, or effects at the end. The final moment should be stable for smooth continuation into the next scene.'
           console.log(`[Segment ${idx}] ${segment.type} segment: Applying transition instructions (hold final frame for smooth transition)`)
@@ -566,7 +636,9 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
         
         // Add hold-final-frame instruction (conditional), face quality, people count limits, dialogue-only audio instructions, and clothing/jewelry stability
         // Insert dialogue text and instructions BEFORE other instructions so they take priority
-        const videoPrompt = `${sanitizedPrompt}${moodInstruction}${dialogueTextForPrompt}${dialogueInstructions} CRITICAL CONTINUOUS SHOT REQUIREMENT: This must be a SINGLE CONTINUOUS SHOT in ONE LOCATION. NO scene changes, NO location changes, NO background changes, NO room changes. The entire segment must take place in the exact same location with the same background, same environment, same surroundings from start to finish. ${cameraPerspectiveInstruction} The video should feel like ONE unbroken moment in ONE place - do NOT change locations, rooms, backgrounds, or environments during this segment. ONE continuous shot, ONE location, ONE background. ${holdFinalFrameInstruction}${segmentSpecificInstructions} 🚨 CRITICAL - NO MIRRORS OR REFLECTIONS: DO NOT include mirrors, reflections, reflective surfaces, bathroom mirrors, or people looking at their reflection in this video. This is a MANDATORY requirement - any video containing mirrors or reflections will be rejected. AUDIO: 🚨 CRITICAL LANGUAGE REQUIREMENT - ENGLISH ONLY: All spoken dialogue in this video MUST be in English ONLY. ABSOLUTELY NO exceptions. NO foreign languages, NO non-English speech, NO other languages whatsoever. If any character speaks, they must speak ONLY in English. This is a MANDATORY requirement - any non-English speech will result in video rejection. CRITICAL AUDIO REQUIREMENTS - SPOKEN DIALOGUE ONLY: Characters must SPEAK their dialogue ALOUD on-camera - this is SPOKEN DIALOGUE, not voiceover, not thoughts, not narration. Dialogue must come from the character's MOUTH as they speak on-camera. CRITICAL: EXACT DIALOGUE MATCHING - Characters must speak the EXACT words specified in the dialogue text. Do not paraphrase, do not change words, do not add words, do not remove words. Speak each word clearly and precisely. No substitutions, no variations, no gibberish, no made-up words. 🚨 ABSOLUTELY NO MUSIC - MANDATORY REQUIREMENT: Do NOT generate ANY background music, soundtrack, instrumental music, background score, musical audio, beats, rhythm, melody, songs, singing, or ANY musical elements whatsoever. Sound effects (SFX) and SPOKEN DIALOGUE are allowed, but ABSOLUTELY NO music of any kind. This is a HARD REQUIREMENT - any music in the generated video will result in rejection. ONLY on-camera characters visible in the scene may speak - their dialogue must be SPOKEN ALOUD, not heard as thoughts or voiceover. ABSOLUTELY NO narration, NO voiceover, NO off-screen announcer, NO background voices. ABSOLUTELY NO internal thoughts, NO internal monologue, NO thought bubbles, NO voiceover narration. If no character is speaking in a scene, there should be NO speech at all - complete silence. Only characters shown on-camera SPEAKING DIRECTLY to the camera or to other visible characters may have dialogue, and they must SPEAK ONLY in English. All dialogue must be SPOKEN ALOUD by the character on-camera - do NOT generate dialogue as thoughts, voiceover, or narration. If dialogue is present, it must end at least 2 seconds before the scene ends to ensure smooth transitions. CLOTHING & JEWELRY: Characters should already be wearing their clothes and jewelry from the start of the scene. Do NOT show characters putting on or taking off items. Items should be worn consistently throughout the scene. No wardrobe changes during the scene. TYPOGRAPHY & TEXT: If displaying any text, brand names, or product names: Use clean, elegant, modern typeface (sans-serif like Helvetica, Futura, Gotham for contemporary brands OR serif like Didot, Bodoni for luxury brands). High contrast for maximum legibility: crisp white text on dark background OR bold black text on light background. Large, bold, professional font size with generous spacing. Centered or elegantly positioned with balanced composition. Spell exactly as mentioned in prompt with perfect accuracy. Professional kerning, leading, and letter spacing. Sharp, crisp edges - no blurry or distorted text. Minimize decorative or script fonts unless specifically luxury brand requirement. Text should be perfectly readable at any resolution with cinema-quality typography. FACE QUALITY: Limit scene to 3-4 people maximum. Use close-ups and medium shots to ensure sharp faces, clear facial features, detailed faces, professional portrait quality. Avoid large groups, crowds, or more than 4 people.`
+        // Insert action continuity instruction for body segments BEFORE other instructions
+        // Insert no-audio instruction BEFORE other audio instructions if no dialogue exists
+        const videoPrompt = `${sanitizedPrompt}${moodInstruction}${actionContinuityInstruction}${noAudioInstruction}${dialogueTextForPrompt}${dialogueInstructions} CRITICAL CONTINUOUS SHOT REQUIREMENT: This must be a SINGLE CONTINUOUS SHOT in ONE LOCATION. NO scene changes, NO location changes, NO background changes, NO room changes. The entire segment must take place in the exact same location with the same background, same environment, same surroundings from start to finish. ${cameraPerspectiveInstruction} The video should feel like ONE unbroken moment in ONE place - do NOT change locations, rooms, backgrounds, or environments during this segment. ONE continuous shot, ONE location, ONE background. ${holdFinalFrameInstruction}${segmentSpecificInstructions} 🚨 CRITICAL - NO MIRRORS OR REFLECTIONS: DO NOT include mirrors, reflections, reflective surfaces, bathroom mirrors, or people looking at their reflection in this video. This is a MANDATORY requirement - any video containing mirrors or reflections will be rejected. ${noAudioInstruction ? '' : 'AUDIO: 🚨 CRITICAL LANGUAGE REQUIREMENT - ENGLISH ONLY: All spoken dialogue in this video MUST be in English ONLY. ABSOLUTELY NO exceptions. NO foreign languages, NO non-English speech, NO other languages whatsoever. If any character speaks, they must speak ONLY in English. This is a MANDATORY requirement - any non-English speech will result in video rejection. CRITICAL AUDIO REQUIREMENTS - SPOKEN DIALOGUE ONLY: Characters must SPEAK their dialogue ALOUD on-camera - this is SPOKEN DIALOGUE, not voiceover, not thoughts, not narration. Dialogue must come from the character\'s MOUTH as they speak on-camera. CRITICAL: EXACT DIALOGUE MATCHING - Characters must speak the EXACT words specified in the dialogue text. Do not paraphrase, do not change words, do not add words, do not remove words. Speak each word clearly and precisely. No substitutions, no variations, no gibberish, no made-up words. 🚨 ABSOLUTELY NO MUSIC - MANDATORY REQUIREMENT: Do NOT generate ANY background music, soundtrack, instrumental music, background score, musical audio, beats, rhythm, melody, songs, singing, or ANY musical elements whatsoever. Sound effects (SFX) and SPOKEN DIALOGUE are allowed, but ABSOLUTELY NO music of any kind. This is a HARD REQUIREMENT - any music in the generated video will result in rejection. ONLY on-camera characters visible in the scene may speak - their dialogue must be SPOKEN ALOUD, not heard as thoughts or voiceover. ABSOLUTELY NO narration, NO voiceover, NO off-screen announcer, NO background voices. ABSOLUTELY NO internal thoughts, NO internal monologue, NO thought bubbles, NO voiceover narration. If no character is speaking in a scene, there should be NO speech at all - complete silence. Only characters shown on-camera SPEAKING DIRECTLY to the camera or to other visible characters may have dialogue, and they must SPEAK ONLY in English. All dialogue must be SPOKEN ALOUD by the character on-camera - do NOT generate dialogue as thoughts, voiceover, or narration. If dialogue is present, it must end at least 2 seconds before the scene ends to ensure smooth transitions. '}CLOTHING & JEWELRY: Characters should already be wearing their clothes and jewelry from the start of the scene. Do NOT show characters putting on or taking off items. Items should be worn consistently throughout the scene. No wardrobe changes during the scene. TYPOGRAPHY & TEXT: If displaying any text, brand names, or product names: Use clean, elegant, modern typeface (sans-serif like Helvetica, Futura, Gotham for contemporary brands OR serif like Didot, Bodoni for luxury brands). High contrast for maximum legibility: crisp white text on dark background OR bold black text on light background. Large, bold, professional font size with generous spacing. Centered or elegantly positioned with balanced composition. Spell exactly as mentioned in prompt with perfect accuracy. Professional kerning, leading, and letter spacing. Sharp, crisp edges - no blurry or distorted text. Minimize decorative or script fonts unless specifically luxury brand requirement. Text should be perfectly readable at any resolution with cinema-quality typography. FACE QUALITY: Limit scene to 3-4 people maximum. Use close-ups and medium shots to ensure sharp faces, clear facial features, detailed faces, professional portrait quality. Avoid large groups, crowds, or more than 4 people.`
         
         const videoParams: any = {
           model,
@@ -604,8 +676,14 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
           const defaultFaceQualityNegative = 'blurry faces, distorted faces, crowds, large groups, more than 4 people, deformed faces, bad anatomy, scene changes, location changes, background changes, different rooms, different locations, multiple settings, changing environments, narration, voiceover, off-screen voices, foreign languages, non-English speech, non-English dialogue, foreign dialogue, foreign speech, background narration, announcer, other languages, background music, soundtrack, instrumental music, background score, music, musical score, musical audio, musical, beats, rhythm, melody, song, songs, singing, vocals, mirrors, reflections, reflective surfaces, bathroom mirrors, people looking at reflection, looking at reflection'
           let negativePrompt = defaultFaceQualityNegative
           
+          // Add no-audio terms to negative prompt if no dialogue exists
+          if (noAudioInstruction) {
+            negativePrompt = `${defaultFaceQualityNegative}, spoken dialogue, voiceover, narration, speech, human speech, character speech, any language, English speech, foreign language speech, sound effects, SFX, ambient noise, background voices, off-screen voices, any audio, music, soundtrack, sound, audio output, speech audio, dialogue audio, voice audio, human voice, speaking, talking, verbal communication`
+            console.log(`[Segment ${idx}] Adding no-audio terms to negative prompt (no dialogue provided)`)
+          }
+          
           if (childrenDetected) {
-            negativePrompt = `${defaultFaceQualityNegative}, no children, no kids, no minors, no toddlers, only adults`
+            negativePrompt = `${negativePrompt}, no children, no kids, no minors, no toddlers, only adults`
             console.log(`[Segment ${idx}] Adding children-related negative prompt due to frame content detection`)
           }
           
@@ -631,9 +709,15 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
             videoParams.resolution = storyboard.meta.resolution
           }
           
-          // Enable Veo native audio generation for dialogue-only audio
-          videoParams.generate_audio = true
-          console.log(`[Segment ${idx}] Audio generation enabled (Veo will generate dialogue-only audio)`)
+          // Enable Veo native audio generation only if dialogue exists
+          // If no dialogue, disable audio generation to prevent unwanted audio
+          if (noAudioInstruction) {
+            videoParams.generate_audio = false
+            console.log(`[Segment ${idx}] Audio generation DISABLED (no dialogue provided - segment must be silent)`)
+          } else {
+            videoParams.generate_audio = true
+            console.log(`[Segment ${idx}] Audio generation enabled (Veo will generate dialogue-only audio)`)
+          }
           
           // Priority: segment.seed > storyboard.meta.seed
           if ((segment as any).seed !== undefined && (segment as any).seed !== null) {
@@ -671,15 +755,22 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
           
           // Build negative prompt with default face quality terms, music terms, and mirror terms
           const defaultFaceQualityNegative = 'blurry faces, distorted faces, crowds, large groups, more than 4 people, deformed faces, bad anatomy, scene changes, location changes, background changes, different rooms, different locations, multiple settings, changing environments, narration, voiceover, off-screen voices, foreign languages, non-English speech, non-English dialogue, foreign dialogue, foreign speech, background narration, announcer, other languages, background music, soundtrack, instrumental music, background score, music, musical score, musical audio, musical, beats, rhythm, melody, song, songs, singing, vocals, mirrors, reflections, reflective surfaces, bathroom mirrors, people looking at reflection, looking at reflection'
+          let negativePrompt = defaultFaceQualityNegative
+          
+          // Add no-audio terms to negative prompt if no dialogue exists
+          if (noAudioInstruction) {
+            negativePrompt = `${defaultFaceQualityNegative}, spoken dialogue, voiceover, narration, speech, human speech, character speech, any language, English speech, foreign language speech, sound effects, SFX, ambient noise, background voices, off-screen voices, any audio, music, soundtrack, sound, audio output, speech audio, dialogue audio, voice audio, human voice, speaking, talking, verbal communication`
+            console.log(`[Segment ${idx}] Adding no-audio terms to negative prompt (no dialogue provided)`)
+          }
           
           // Priority: segment.negativePrompt > storyboard.meta.negativePrompt > auto-generated
           if ((segment as any).negativePrompt) {
-            videoParams.negative_prompt = `${(segment as any).negativePrompt}, ${defaultFaceQualityNegative}`
+            videoParams.negative_prompt = `${(segment as any).negativePrompt}, ${negativePrompt}`
             console.log(`[Segment ${idx}] Using segment-specific negative prompt`)
           } else if (storyboard.meta.negativePrompt) {
-            videoParams.negative_prompt = `${storyboard.meta.negativePrompt}, ${defaultFaceQualityNegative}`
+            videoParams.negative_prompt = `${storyboard.meta.negativePrompt}, ${negativePrompt}`
           } else {
-            videoParams.negative_prompt = defaultFaceQualityNegative
+            videoParams.negative_prompt = negativePrompt
           }
           
           // Priority: segment.resolution > storyboard.meta.resolution
@@ -690,9 +781,15 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
             videoParams.resolution = storyboard.meta.resolution
           }
           
-          // Enable Veo native audio generation for dialogue-only audio
-          videoParams.generate_audio = true
-          console.log(`[Segment ${idx}] Audio generation enabled (Veo will generate dialogue-only audio)`)
+          // Enable Veo native audio generation only if dialogue exists
+          // If no dialogue, disable audio generation to prevent unwanted audio
+          if (noAudioInstruction) {
+            videoParams.generate_audio = false
+            console.log(`[Segment ${idx}] Audio generation DISABLED (no dialogue provided - segment must be silent)`)
+          } else {
+            videoParams.generate_audio = true
+            console.log(`[Segment ${idx}] Audio generation enabled (Veo will generate dialogue-only audio)`)
+          }
           
           // Priority: segment.seed > storyboard.meta.seed
           if ((segment as any).seed !== undefined && (segment as any).seed !== null) {
@@ -805,14 +902,54 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
                             currentPredictionStatus.error?.toLowerCase().includes('flagged'))
         
         if (isE005Error && !retryAttempted) {
-          console.warn(`[Segment ${idx}] E005 error detected: ${currentPredictionStatus.error}`)
+          console.warn(`[Segment ${idx}] ===== E005 SENSITIVE CONTENT ERROR DETECTED =====`)
+          console.warn(`[Segment ${idx}] Error message: ${currentPredictionStatus.error}`)
+          console.warn(`[Segment ${idx}] Segment type: ${segment.type}`)
+          console.warn(`[Segment ${idx}] Segment description: ${segment.description}`)
+          console.warn(`[Segment ${idx}] Visual prompt: ${segment.visualPrompt}`)
+          console.warn(`[Segment ${idx}] Audio notes: ${segment.audioNotes || '(empty)'}`)
+          console.warn(`[Segment ${idx}] Full video prompt (before sanitization): ${videoPrompt.substring(0, 500)}...`)
+          console.warn(`[Segment ${idx}] Video prompt length: ${videoPrompt.length} characters`)
+          console.warn(`[Segment ${idx}] Model: ${model}`)
+          console.warn(`[Segment ${idx}] Prediction ID: ${currentPredictionId}`)
+          console.warn(`[Segment ${idx}] ================================================`)
+          
+          // Store error details for debugging (will be added to metadata if retry fails)
+          const errorDetails = {
+            errorType: 'E005_SENSITIVE_CONTENT',
+            errorMessage: currentPredictionStatus.error,
+            segmentType: segment.type,
+            segmentDescription: segment.description,
+            visualPrompt: segment.visualPrompt,
+            audioNotes: segment.audioNotes || '',
+            videoPromptPreview: videoPrompt.substring(0, 1000), // First 1000 chars
+            videoPromptLength: videoPrompt.length,
+            model,
+            predictionId: currentPredictionId,
+            timestamp: Date.now(),
+          }
+          
           console.log(`[Segment ${idx}] Retrying with modified prompt to add professional context`)
           
-          // Sanitize the videoPrompt again before retry (in case it wasn't sanitized initially)
-          const sanitizedVideoPrompt = sanitizeVideoPrompt(videoPrompt)
+          // Sanitize the videoPrompt again before retry with aggressive CTA-specific sanitization
+          // Apply multiple sanitization passes for CTA segments to be more aggressive
+          let sanitizedVideoPrompt = sanitizeVideoPrompt(videoPrompt, undefined, segment.type as 'hook' | 'body' | 'cta')
+          
+          // For CTA segments, apply additional sanitization passes
+          if (segment.type === 'cta') {
+            console.log(`[Segment ${idx}] Applying aggressive CTA-specific sanitization on retry`)
+            // Multiple passes for CTA to ensure all problematic terms are replaced
+            sanitizedVideoPrompt = sanitizeVideoPrompt(sanitizedVideoPrompt, undefined, 'cta')
+            sanitizedVideoPrompt = sanitizeVideoPrompt(sanitizedVideoPrompt, undefined, 'cta')
+          }
           
           // Modify prompt to add professional product showcase context and product name accuracy
-          const modifiedPrompt = `${sanitizedVideoPrompt}, professional product showcase, safe for all audiences, appropriate content. TYPOGRAPHY & TEXT: If displaying any text, brand names, or product names: Use clean, elegant, modern typeface (sans-serif like Helvetica, Futura, Gotham for contemporary brands OR serif like Didot, Bodoni for luxury brands). High contrast for maximum legibility: crisp white text on dark background OR bold black text on light background. Large, bold, professional font size with generous spacing. Centered or elegantly positioned with balanced composition. Spell exactly as mentioned in prompt with perfect accuracy. Professional kerning, leading, and letter spacing. Sharp, crisp edges - no blurry or distorted text. Text should be perfectly readable at any resolution with cinema-quality typography.`
+          // For CTA segments, add even more explicit professional advertising context
+          const professionalContext = segment.type === 'cta' 
+            ? 'professional product advertisement, legitimate commercial content, safe for all audiences, appropriate product showcase, professional advertising material'
+            : 'professional product showcase, safe for all audiences, appropriate content'
+          
+          const modifiedPrompt = `${sanitizedVideoPrompt}, ${professionalContext}. TYPOGRAPHY & TEXT: If displaying any text, brand names, or product names: Use clean, elegant, modern typeface (sans-serif like Helvetica, Futura, Gotham for contemporary brands OR serif like Didot, Bodoni for luxury brands). High contrast for maximum legibility: crisp white text on dark background OR bold black text on light background. Large, bold, professional font size with generous spacing. Centered or elegantly positioned with balanced composition. Spell exactly as mentioned in prompt with perfect accuracy. Professional kerning, leading, and letter spacing. Sharp, crisp edges - no blurry or distorted text. Text should be perfectly readable at any resolution with cinema-quality typography.`
           currentVideoParams = {
             ...videoParams,
             prompt: modifiedPrompt,
@@ -857,6 +994,40 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
         
         if (currentPredictionStatus.status !== 'succeeded') {
           const errorMsg = currentPredictionStatus.error || 'Unknown error'
+          
+          // Enhanced logging for final failure (including after retry)
+          if (isE005Error || errorMsg.toLowerCase().includes('sensitive') || errorMsg.toLowerCase().includes('flagged')) {
+            console.error(`[Segment ${idx}] ===== FINAL E005 ERROR (AFTER RETRY) =====`)
+            console.error(`[Segment ${idx}] Error message: ${errorMsg}`)
+            console.error(`[Segment ${idx}] Segment type: ${segment.type}`)
+            console.error(`[Segment ${idx}] Visual prompt: ${segment.visualPrompt}`)
+            console.error(`[Segment ${idx}] Audio notes: ${segment.audioNotes || '(empty)'}`)
+            console.error(`[Segment ${idx}] Final video prompt: ${currentVideoParams.prompt?.substring(0, 500)}...`)
+            console.error(`[Segment ${idx}] Retry attempted: ${retryAttempted}`)
+            console.error(`[Segment ${idx}] ===========================================`)
+            
+            // Store error details in asset metadata for frontend access
+            return {
+              segmentId: idx,
+              status: 'failed',
+              error: `Video generation failed${retryAttempted ? ' (after retry)' : ''}: ${errorMsg}`,
+              metadata: {
+                errorType: 'E005_SENSITIVE_CONTENT',
+                errorMessage: errorMsg,
+                segmentType: segment.type,
+                segmentDescription: segment.description,
+                visualPrompt: segment.visualPrompt,
+                audioNotes: segment.audioNotes || '',
+                videoPromptPreview: currentVideoParams.prompt?.substring(0, 1000),
+                videoPromptLength: currentVideoParams.prompt?.length || 0,
+                model,
+                predictionId: currentPredictionId,
+                retryAttempted,
+                timestamp: Date.now(),
+              },
+            } as Asset
+          }
+          
           throw new Error(`Video generation failed${retryAttempted ? ' (after retry)' : ''}: ${errorMsg}`)
         }
         
@@ -925,7 +1096,7 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
         // Audio is embedded in Veo-generated video - no separate audio generation needed
 
         // Store metadata including prediction ID and video URL for frontend access
-        const metadata = {
+        const metadata: any = {
           predictionId,
           videoUrl: finalVideoUrl, // S3 URL or Replicate URL (fallback)
           replicateVideoUrl: videoUrl, // Original Replicate URL

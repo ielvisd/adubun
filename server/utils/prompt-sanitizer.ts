@@ -11,13 +11,15 @@
 /**
  * Sanitizes a video generation prompt by replacing child-related terms
  * with "young adults" to reduce content moderation flags.
+ * Also sanitizes beauty/skincare terms that might trigger content filters.
  * 
  * @param prompt - The original video generation prompt
  * @param characterAge - Optional character age from image analysis (e.g., "mid-20s", "early 30s")
  *                       If provided, will replace teenage/teen terms with this specific age
- * @returns The sanitized prompt with child-related terms replaced
+ * @param segmentType - Optional segment type ('hook', 'body', 'cta') for context-aware sanitization
+ * @returns The sanitized prompt with problematic terms replaced
  */
-export function sanitizeVideoPrompt(prompt: string, characterAge?: string): string {
+export function sanitizeVideoPrompt(prompt: string, characterAge?: string, segmentType?: 'hook' | 'body' | 'cta'): string {
   if (!prompt || typeof prompt !== 'string') {
     return prompt
   }
@@ -97,6 +99,39 @@ export function sanitizeVideoPrompt(prompt: string, characterAge?: string): stri
   replaceTerm(/\bbathroom\s+mirrors?\b/gi, '', 'bathroom mirrors')
   replaceTerm(/\blooking\s+at\s+(?:their|his|her|the)\s+reflection\b/gi, '', 'looking at reflection')
   replaceTerm(/\bpeople?\s+looking\s+at\s+reflections?\b/gi, '', 'people looking at reflections')
+
+  // Beauty/skincare term sanitization - replace terms that might trigger content filters
+  // These replacements maintain meaning while avoiding filter triggers
+  // Process longer phrases first to avoid double-replacement
+  replaceTerm(/\btransform\s+your\s+skin\b/gi, 'achieve radiant results', 'transform your skin')
+  replaceTerm(/\btransform\s+(?:their|his|her)\s+skin\b/gi, 'achieve radiant results', 'transform their skin')
+  replaceTerm(/\bskin\s+transformation\b/gi, 'visible transformation', 'skin transformation')
+  replaceTerm(/\bclear\s+skin\b/gi, 'clear complexion', 'clear skin')
+  replaceTerm(/\bradiant\s+skin\b/gi, 'radiant appearance', 'radiant skin')
+  replaceTerm(/\bhealthy\s+skin\b/gi, 'healthy appearance', 'healthy skin')
+  replaceTerm(/\bglowing\s+skin\b/gi, 'glowing appearance', 'glowing skin')
+  replaceTerm(/\bflawless\s+skin\b/gi, 'flawless appearance', 'flawless skin')
+  replaceTerm(/\bperfect\s+skin\b/gi, 'perfect appearance', 'perfect skin')
+  replaceTerm(/\bsmooth\s+skin\b/gi, 'smooth appearance', 'smooth skin')
+  replaceTerm(/\bblemish-free\s+skin\b/gi, 'blemish-free appearance', 'blemish-free skin')
+  replaceTerm(/\bacne-free\s+skin\b/gi, 'acne-free appearance', 'acne-free skin')
+  // Replace "skin" when used in beauty/transformation contexts (but keep it in other contexts like "skin care product")
+  // This is more conservative - only replace when it's clearly about appearance transformation
+  replaceTerm(/\b(?:her|his|their)\s+skin\s+(?:looks|appears|becomes|transforms|clears|glows|radiates)\b/gi, 'their appearance looks', 'their skin looks')
+  replaceTerm(/\b(?:her|his|their)\s+skin\s+(?:is|was|becomes)\s+(?:clear|radiant|glowing|healthy|flawless|perfect|smooth)\b/gi, 'their appearance is', 'their skin is')
+  // Replace "skin" in phrases like "skin visibly brightens" or "skin clears"
+  replaceTerm(/\bskin\s+visibly\s+(?:brightens|clears|transforms|improves)\b/gi, 'appearance visibly improves', 'skin visibly brightens')
+  replaceTerm(/\bskin\s+(?:brightens|clears|transforms|improves|glows)\b/gi, 'appearance improves', 'skin brightens')
+
+  // CTA-specific aggressive sanitization (for call-to-action segments)
+  if (segmentType === 'cta') {
+    // More aggressive replacements for CTA segments to avoid filters
+    replaceTerm(/\bskin\b/gi, 'complexion', 'skin (CTA)')
+    replaceTerm(/\b(?:your|their|his|her)\s+skin\b/gi, 'your appearance', 'your skin (CTA)')
+    // Replace any remaining "skin" references in CTA with safer alternatives
+    replaceTerm(/\bfor\s+skin\b/gi, 'for your complexion', 'for skin (CTA)')
+    replaceTerm(/\bskin\s+care\b/gi, 'complexion care', 'skin care (CTA)')
+  }
 
   // Log replacements in development mode only
   if (process.env.NODE_ENV === 'development' && replacements.length > 0) {
