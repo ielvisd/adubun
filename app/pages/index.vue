@@ -6,6 +6,7 @@
         <!-- Hero Section -->
         <LandingHeroSection
           :primary-cta="{ label: 'Get Started Free', action: () => router.push('/create') }"
+          :secondary-cta="{ label: 'Model Generator', action: () => router.push('/models/create') }"
           :show-video-badge="false"
         />
 
