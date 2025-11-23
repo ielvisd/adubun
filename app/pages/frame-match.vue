@@ -1,554 +1,381 @@
 <template>
-  <div class="py-12">
-    <UContainer class="max-w-6xl">
-      <div class="mb-8">
-        <h1 class="text-3xl font-bold mb-2">Frame Matching Tool</h1>
-        <p class="text-gray-600 dark:text-gray-400">
-          Upload 2 or more video clips and automatically stitch them with intelligent frame matching for seamless transitions.
-        </p>
+  <div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
+    <UContainer class="max-w-7xl">
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-8">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">Split Screen Composer</h1>
+          <p class="text-gray-600 dark:text-gray-400">Generate two synchronized videos and stitch them side-by-side.</p>
+        </div>
+        <UButton
+          color="gray"
+          variant="ghost"
+          icon="i-heroicons-arrow-left"
+          to="/"
+        >
+          Back Home
+        </UButton>
       </div>
 
-      <!-- Upload Section -->
-      <UCard class="mb-8">
-        <template #header>
-          <div class="flex items-center justify-between">
-            <h2 class="text-xl font-semibold">Upload Video Clips ({{ clips.length }} clips)</h2>
-            <UButton
-              icon="i-heroicons-plus"
-              size="sm"
-              color="primary"
-              variant="outline"
-              :disabled="clips.length >= maxClips"
-              @click="addClip"
-            >
-              Add Clip
-            </UButton>
-          </div>
-        </template>
-
-        <div class="space-y-6">
-          <div v-for="(clip, index) in clips" :key="clip.id" class="space-y-3">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <UBadge color="gray" variant="subtle">{{ index + 1 }}</UBadge>
-                <h3 class="font-medium">Clip {{ index + 1 }}</h3>
-                <UBadge v-if="clip.file" color="green" variant="subtle">
-                  {{ formatFileSize(clip.file.size) }}
-                </UBadge>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        
+        <!-- LEFT VIDEO PANEL -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
+           <div class="bg-gray-100 dark:bg-gray-700/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+              <div class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                 <UBadge color="blue" variant="solid">LEFT</UBadge> Channel
               </div>
-              <UButton
-                v-if="clips.length > minClips"
-                icon="i-heroicons-trash"
-                size="xs"
-                color="red"
-                variant="ghost"
-                @click="deleteClip(index)"
-              >
-                Remove
-              </UButton>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <!-- Upload Area (takes 1/3 width on desktop) -->
-              <div
-                v-if="!clip.file"
-                class="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center cursor-pointer hover:border-primary-500 transition-colors"
-                @click="triggerFileInput(index)"
-                @dragover.prevent="handleDragOver(index)"
-                @dragleave.prevent="handleDragLeave(index)"
-                @drop.prevent="handleDrop($event, index)"
-              >
-                <UIcon name="i-heroicons-arrow-up-tray" class="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                <p class="text-sm text-gray-600 dark:text-gray-400">
-                  Click to upload or drag and drop
-                </p>
-                <p class="text-xs text-gray-500 mt-1">MP4, WebM up to 500MB</p>
+           </div>
+           
+           <div class="p-6 space-y-6 flex-1">
+              <!-- Inputs -->
+              <div class="space-y-4">
+                 <UFormField label="Start Image Prompt">
+                    <UTextarea v-model="left.startPrompt" :rows="2" placeholder="Describe the first frame..." autoresize />
+                 </UFormField>
+                 <UFormField label="Motion/Action Prompt">
+                    <UTextarea v-model="left.actionPrompt" :rows="2" placeholder="Describe the movement..." autoresize />
+                 </UFormField>
+                 <UFormField label="End Image Prompt">
+                    <UTextarea v-model="left.endPrompt" :rows="2" placeholder="Describe the last frame..." autoresize />
+                 </UFormField>
+              </div>
+              
+              <!-- References -->
+              <div class="grid grid-cols-2 gap-4">
+                  <div class="space-y-1">
+                     <span class="text-xs font-medium text-gray-500 uppercase">Start Model Ref</span>
+                     <div class="relative h-24 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 transition-colors flex items-center justify-center cursor-pointer overflow-hidden bg-gray-50 dark:bg-gray-900" @click="triggerFileInput('left-model')">
+                         <img v-if="left.modelRef" :src="left.modelRef" class="absolute inset-0 w-full h-full object-cover" />
+                         <div v-else class="text-center p-2"><UIcon name="i-heroicons-user" class="text-gray-400" /></div>
+                         <div v-if="left.modelRef" class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5" @click.stop="left.modelRef = undefined"><UIcon name="i-heroicons-x-mark" class="w-3 h-3" /></div>
+                         <input type="file" id="left-model" class="hidden" accept="image/*" @change="(e) => handleUpload(e, 'left', 'model')" />
+                     </div>
+                  </div>
+                  <div class="space-y-1">
+                     <span class="text-xs font-medium text-gray-500 uppercase">Start Style Ref</span>
+                     <div class="relative h-24 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 transition-colors flex items-center justify-center cursor-pointer overflow-hidden bg-gray-50 dark:bg-gray-900" @click="triggerFileInput('left-style')">
+                         <img v-if="left.styleRef" :src="left.styleRef" class="absolute inset-0 w-full h-full object-cover" />
+                         <div v-else class="text-center p-2"><UIcon name="i-heroicons-photo" class="text-gray-400" /></div>
+                         <div v-if="left.styleRef" class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5" @click.stop="left.styleRef = undefined"><UIcon name="i-heroicons-x-mark" class="w-3 h-3" /></div>
+                         <input type="file" id="left-style" class="hidden" accept="image/*" @change="(e) => handleUpload(e, 'left', 'style')" />
+                     </div>
+                  </div>
               </div>
 
-              <!-- Preview (takes full width when uploaded) -->
-              <div v-else class="md:col-span-3 space-y-2">
-                <div class="aspect-video bg-black rounded-lg overflow-hidden">
-                  <video
-                    :ref="el => videoRefs[index] = el"
-                    :src="clip.previewUrl"
-                    class="w-full h-full object-contain"
-                    controls
-                  />
-                </div>
-                <div class="flex items-center justify-between text-sm">
-                  <span class="text-gray-600 dark:text-gray-400 truncate flex-1">
-                    {{ clip.file.name }}
-                  </span>
-                  <UButton
-                    icon="i-heroicons-x-mark"
-                    size="xs"
-                    color="red"
-                    variant="ghost"
-                    @click="removeClipFile(index)"
-                  >
-                    Clear
+              <!-- Action Buttons -->
+              <div class="flex gap-2 pt-4 border-t border-gray-100 dark:border-gray-700">
+                  <UButton size="sm" color="gray" variant="solid" :loading="left.generatingImages" @click="generateKeyframes('left')" :disabled="!left.startPrompt || !left.endPrompt">
+                      Gen Images
                   </UButton>
-                </div>
+                  <UButton size="sm" color="primary" variant="solid" :loading="left.generatingVideo" @click="generateVideo('left')" :disabled="!left.firstFrame || !left.lastFrame">
+                      Gen Video
+                  </UButton>
               </div>
 
-              <!-- Hidden file input -->
-              <input
-                :ref="el => fileInputRefs[index] = el"
-                type="file"
-                accept="video/mp4,video/webm"
-                class="hidden"
-                @change="handleFileSelect($event, index)"
-              />
-            </div>
-          </div>
+              <!-- Previews -->
+              <div class="grid grid-cols-2 gap-2">
+                  <div class="aspect-video bg-gray-100 dark:bg-gray-900 rounded overflow-hidden border border-gray-200 dark:border-gray-700">
+                      <img v-if="left.firstFrame" :src="left.firstFrame" class="w-full h-full object-cover" />
+                      <div v-else class="h-full flex items-center justify-center text-xs text-gray-400">Start</div>
+                  </div>
+                  <div class="aspect-video bg-gray-100 dark:bg-gray-900 rounded overflow-hidden border border-gray-200 dark:border-gray-700">
+                      <img v-if="left.lastFrame" :src="left.lastFrame" class="w-full h-full object-cover" />
+                      <div v-else class="h-full flex items-center justify-center text-xs text-gray-400">End</div>
+                  </div>
+              </div>
+
+              <!-- Video Player -->
+              <div v-if="left.videoUrl" class="aspect-video bg-black rounded-lg overflow-hidden shadow-md">
+                  <video :src="left.videoUrl" controls class="w-full h-full"></video>
+              </div>
+           </div>
         </div>
 
-        <!-- Process Button -->
-        <div class="mt-8 flex flex-col items-center gap-4">
-          <UButton
-            size="xl"
-            color="primary"
-            :disabled="!hasMinimumClips || processing"
-            :loading="processing"
-            @click="processFrameMatching"
-          >
-            <template #leading>
-              <UIcon name="i-heroicons-sparkles" />
-            </template>
-            {{ processing ? 'Processing...' : `Stitch ${uploadedClipsCount} Clips with Frame Matching` }}
-          </UButton>
-          <p v-if="!hasMinimumClips" class="text-sm text-gray-500">
-            Upload at least {{ minClips }} clips to continue
-          </p>
-        </div>
-      </UCard>
+        <!-- RIGHT VIDEO PANEL -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
+           <div class="bg-gray-100 dark:bg-gray-700/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+              <div class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                 <UBadge color="orange" variant="solid">RIGHT</UBadge> Channel
+              </div>
+              <!-- Match Helper -->
+               <UButton
+                 v-if="left.videoUrl || left.firstFrame"
+                 size="xs"
+                 color="gray"
+                 variant="soft"
+                 icon="i-heroicons-arrows-right-left"
+                 @click="copyRefFromLeft"
+               >
+                 Use Left as Ref
+               </UButton>
+           </div>
 
-      <!-- Results Section -->
-      <UCard v-if="originalVideoUrl || smartVideoUrl" class="mt-8">
-        <template #header>
-          <div class="flex items-center justify-between">
-            <h2 class="text-xl font-semibold">Results</h2>
-            <div class="flex gap-2">
+           <div class="p-6 space-y-6 flex-1">
+              <!-- Inputs -->
+              <div class="space-y-4">
+                 <UFormField label="Start Image Prompt">
+                    <UTextarea v-model="right.startPrompt" :rows="2" placeholder="Describe the first frame..." autoresize />
+                 </UFormField>
+                 <UFormField label="Motion/Action Prompt">
+                    <UTextarea v-model="right.actionPrompt" :rows="2" placeholder="Describe the movement..." autoresize />
+                 </UFormField>
+                 <UFormField label="End Image Prompt">
+                    <UTextarea v-model="right.endPrompt" :rows="2" placeholder="Describe the last frame..." autoresize />
+                 </UFormField>
+              </div>
+              
+              <!-- References -->
+              <div class="grid grid-cols-2 gap-4">
+                  <div class="space-y-1">
+                     <span class="text-xs font-medium text-gray-500 uppercase">Start Model Ref</span>
+                     <div class="relative h-24 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 transition-colors flex items-center justify-center cursor-pointer overflow-hidden bg-gray-50 dark:bg-gray-900" @click="triggerFileInput('right-model')">
+                         <img v-if="right.modelRef" :src="right.modelRef" class="absolute inset-0 w-full h-full object-cover" />
+                         <div v-else class="text-center p-2"><UIcon name="i-heroicons-user" class="text-gray-400" /></div>
+                         <div v-if="right.modelRef" class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5" @click.stop="right.modelRef = undefined"><UIcon name="i-heroicons-x-mark" class="w-3 h-3" /></div>
+                         <input type="file" id="right-model" class="hidden" accept="image/*" @change="(e) => handleUpload(e, 'right', 'model')" />
+                     </div>
+                  </div>
+                  <div class="space-y-1">
+                     <span class="text-xs font-medium text-gray-500 uppercase">Start Style Ref</span>
+                     <div class="relative h-24 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 transition-colors flex items-center justify-center cursor-pointer overflow-hidden bg-gray-50 dark:bg-gray-900" @click="triggerFileInput('right-style')">
+                         <img v-if="right.styleRef" :src="right.styleRef" class="absolute inset-0 w-full h-full object-cover" />
+                         <div v-else class="text-center p-2"><UIcon name="i-heroicons-photo" class="text-gray-400" /></div>
+                         <div v-if="right.styleRef" class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5" @click.stop="right.styleRef = undefined"><UIcon name="i-heroicons-x-mark" class="w-3 h-3" /></div>
+                         <input type="file" id="right-style" class="hidden" accept="image/*" @change="(e) => handleUpload(e, 'right', 'style')" />
+                     </div>
+                  </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="flex gap-2 pt-4 border-t border-gray-100 dark:border-gray-700">
+                  <UButton size="sm" color="gray" variant="solid" :loading="right.generatingImages" @click="generateKeyframes('right')" :disabled="!right.startPrompt || !right.endPrompt">
+                      Gen Images
+                  </UButton>
+                  <UButton size="sm" color="primary" variant="solid" :loading="right.generatingVideo" @click="generateVideo('right')" :disabled="!right.firstFrame || !right.lastFrame">
+                      Gen Video
+                  </UButton>
+              </div>
+
+              <!-- Previews -->
+              <div class="grid grid-cols-2 gap-2">
+                  <div class="aspect-video bg-gray-100 dark:bg-gray-900 rounded overflow-hidden border border-gray-200 dark:border-gray-700">
+                      <img v-if="right.firstFrame" :src="right.firstFrame" class="w-full h-full object-cover" />
+                      <div v-else class="h-full flex items-center justify-center text-xs text-gray-400">Start</div>
+                  </div>
+                  <div class="aspect-video bg-gray-100 dark:bg-gray-900 rounded overflow-hidden border border-gray-200 dark:border-gray-700">
+                      <img v-if="right.lastFrame" :src="right.lastFrame" class="w-full h-full object-cover" />
+                      <div v-else class="h-full flex items-center justify-center text-xs text-gray-400">End</div>
+                  </div>
+              </div>
+
+              <!-- Video Player -->
+              <div v-if="right.videoUrl" class="aspect-video bg-black rounded-lg overflow-hidden shadow-md">
+                  <video :src="right.videoUrl" controls class="w-full h-full"></video>
+              </div>
+           </div>
+        </div>
+      </div>
+
+      <!-- STITCH SECTION -->
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 text-center">
+          <div class="max-w-md mx-auto space-y-6">
+              <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Stitch Split Screen</h2>
+              <p class="text-gray-500">Combine both generated videos into a single split-screen video.</p>
+              
               <UButton
-                v-if="smartVideoUrl"
-                icon="i-heroicons-arrow-down-tray"
-                size="sm"
-                @click="downloadVideo('smart')"
+                size="xl"
+                color="primary"
+                icon="i-heroicons-scissors"
+                :loading="stitching"
+                :disabled="!left.videoUrl || !right.videoUrl"
+                block
+                @click="stitchVideos"
               >
-                Download Frame-Matched
+                Generate Split Screen Video
               </UButton>
-              <UButton
-                v-if="originalVideoUrl"
-                icon="i-heroicons-arrow-down-tray"
-                size="sm"
-                variant="outline"
-                @click="downloadVideo('original')"
-              >
-                Download Original
-              </UButton>
-            </div>
-          </div>
-        </template>
 
-        <!-- Processing State -->
-        <div v-if="processing" class="flex flex-col items-center justify-center py-12">
-          <UIcon name="i-heroicons-arrow-path" class="w-12 h-12 text-primary-500 animate-spin mb-4" />
-          <p class="text-gray-600 dark:text-gray-400">Processing videos with frame matching...</p>
-          <p class="text-sm text-gray-500 mt-2">This may take 30-60 seconds</p>
-        </div>
-
-        <!-- Error State -->
-        <UAlert
-          v-else-if="error"
-          color="red"
-          variant="soft"
-          :title="error"
-          icon="i-heroicons-exclamation-triangle"
-        />
-
-        <!-- Side-by-Side Comparison -->
-        <div v-else-if="originalVideoUrl && smartVideoUrl" class="space-y-6">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Original -->
-            <div class="space-y-3">
-              <div class="flex items-center justify-between">
-                <h4 class="font-semibold text-lg">Original Concatenation</h4>
-                <UBadge color="gray" variant="subtle">Standard</UBadge>
+              <div v-if="stitchedVideoUrl" class="mt-8 bg-black rounded-xl overflow-hidden shadow-2xl border-4 border-gray-900 dark:border-gray-700">
+                  <video :src="stitchedVideoUrl" controls class="w-full aspect-video"></video>
               </div>
-              <div class="aspect-video bg-black rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-                <video
-                  :src="originalVideoUrl"
-                  class="w-full h-full object-contain"
-                  controls
-                />
-              </div>
-              <p class="text-sm text-gray-600 dark:text-gray-400">
-                Simple concatenation without frame matching
-              </p>
-            </div>
-
-            <!-- Frame-Matched -->
-            <div class="space-y-3">
-              <div class="flex items-center justify-between">
-                <h4 class="font-semibold text-lg">Frame-Matched</h4>
-                <UBadge color="primary" variant="subtle">Optimized</UBadge>
-              </div>
-              <div class="aspect-video bg-black rounded-lg overflow-hidden border-2 border-primary-500">
-                <video
-                  :src="smartVideoUrl"
-                  class="w-full h-full object-contain"
-                  controls
-                />
-              </div>
-              <p class="text-sm text-gray-600 dark:text-gray-400">
-                Intelligent frame matching for seamless transitions
-              </p>
-            </div>
           </div>
+      </div>
 
-          <!-- Adjustment Details -->
-          <div v-if="adjustments && adjustments.length > 0" class="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <div class="flex items-center gap-2 mb-3">
-              <UIcon name="i-heroicons-information-circle" class="w-5 h-5 text-primary-500" />
-              <h5 class="font-semibold">Frame Matching Results</h5>
-            </div>
-            <ul class="space-y-2 text-sm">
-              <li v-for="(adj, idx) in adjustments" :key="idx" class="flex items-center justify-between">
-                <span class="text-gray-700 dark:text-gray-300">{{ adj.transitionName }}</span>
-                <div class="flex items-center gap-3">
-                  <span v-if="adj.trimmedSeconds > 0" class="text-green-600 dark:text-green-400 font-medium">
-                    Trimmed {{ adj.trimmedSeconds.toFixed(2) }}s
-                  </span>
-                  <span v-else class="text-gray-500">No adjustment</span>
-                <UBadge 
-                  :color="adj.similarity >= 0.9 ? 'green' : adj.similarity >= 0.7 ? 'blue' : adj.similarity >= 0.5 ? 'yellow' : 'orange'" 
-                  variant="subtle" 
-                  size="xs"
-                >
-                  {{ (adj.similarity * 100).toFixed(1) }}% match
-                </UBadge>
-                </div>
-              </li>
-            </ul>
-            <p class="text-xs text-gray-500 mt-3">
-              Frame matching analyzes the last 30 frames of each clip and always applies the best match found for optimal transitions.
-            </p>
-          </div>
-        </div>
-      </UCard>
-
-      <!-- Info Card -->
-      <UCard class="mt-8 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-        <div class="flex gap-4">
-          <UIcon name="i-heroicons-information-circle" class="w-6 h-6 text-blue-500 flex-shrink-0 mt-1" />
-          <div class="space-y-2 text-sm">
-            <p class="font-semibold text-blue-900 dark:text-blue-100">How Frame Matching Works</p>
-            <ul class="list-disc list-inside space-y-1 text-blue-800 dark:text-blue-200">
-              <li>Works with any number of clips (minimum {{ minClips }}, maximum {{ maxClips }})</li>
-              <li>Analyzes the last 30 frames of each clip (1 second at 30fps)</li>
-              <li>Compares each frame to the first frame of the next clip using SSIM</li>
-              <li>SSIM (Structural Similarity Index) provides accurate perceptual matching</li>
-              <li>Always selects and applies the best matching frame found</li>
-              <li>Trims clips at optimal points for seamless transitions</li>
-              <li>Reduces visual discontinuities and jump cuts between clips</li>
-            </ul>
-          </div>
-        </div>
-      </UCard>
     </UContainer>
   </div>
 </template>
 
 <script setup lang="ts">
-interface Clip {
-  id: string
-  file: File | null
-  previewUrl: string | null
+interface ChannelState {
+    startPrompt: string
+    endPrompt: string
+    actionPrompt: string
+    modelRef?: string
+    styleRef?: string
+    firstFrame?: string
+    lastFrame?: string
+    videoUrl?: string
+    generatingImages: boolean
+    generatingVideo: boolean
 }
 
-interface StitchAdjustment {
-  clipIndex: number
-  originalEndTime: number
-  adjustedEndTime: number
-  trimmedSeconds: number
-  similarity: number
-  transitionName: string
-}
+const left = reactive<ChannelState>({
+    startPrompt: '',
+    endPrompt: '',
+    actionPrompt: '',
+    generatingImages: false,
+    generatingVideo: false
+})
 
+const right = reactive<ChannelState>({
+    startPrompt: '',
+    endPrompt: '',
+    actionPrompt: '',
+    generatingImages: false,
+    generatingVideo: false
+})
+
+const stitching = ref(false)
+const stitchedVideoUrl = ref<string | undefined>(undefined)
 const toast = useToast()
 
-// Configuration
-const minClips = 2
-const maxClips = 10
+// Upload Helper
+const triggerFileInput = (id: string) => document.getElementById(id)?.click()
 
-// Helper to generate unique IDs
-let clipIdCounter = 0
-const generateClipId = () => `clip-${Date.now()}-${clipIdCounter++}`
-
-// Clips state - start with 2 empty clips
-const clips = ref<Clip[]>([
-  { id: generateClipId(), file: null, previewUrl: null },
-  { id: generateClipId(), file: null, previewUrl: null },
-])
-
-// Refs
-const fileInputRefs = ref<(HTMLInputElement | null)[]>([])
-const videoRefs = ref<(HTMLVideoElement | null)[]>([])
-
-// Processing state
-const processing = ref(false)
-const error = ref<string | null>(null)
-const originalVideoUrl = ref<string | null>(null)
-const smartVideoUrl = ref<string | null>(null)
-const originalVideoId = ref<string | null>(null)
-const smartVideoId = ref<string | null>(null)
-const adjustments = ref<StitchAdjustment[]>([])
-
-// Computed properties
-const uploadedClipsCount = computed(() => {
-  return clips.value.filter(clip => clip.file !== null).length
-})
-
-const hasMinimumClips = computed(() => {
-  return uploadedClipsCount.value >= minClips
-})
-
-const allClipsUploaded = computed(() => {
-  return clips.value.every(clip => clip.file !== null)
-})
-
-// Add a new clip slot
-const addClip = () => {
-  if (clips.value.length >= maxClips) {
-    toast.add({
-      title: 'Maximum Clips Reached',
-      description: `You can add up to ${maxClips} clips.`,
-      color: 'warning',
-    })
-    return
-  }
-  
-  clips.value.push({ 
-    id: generateClipId(), 
-    file: null, 
-    previewUrl: null 
-  })
-  
-  toast.add({
-    title: 'Clip Slot Added',
-    description: `Clip ${clips.value.length} added. Upload a video to use it.`,
-    color: 'success',
-  })
-}
-
-// Delete a clip slot entirely
-const deleteClip = (index: number) => {
-  if (clips.value.length <= minClips) {
-    toast.add({
-      title: 'Minimum Clips Required',
-      description: `You need at least ${minClips} clips for stitching.`,
-      color: 'warning',
-    })
-    return
-  }
-  
-  // Revoke preview URL if exists
-  if (clips.value[index].previewUrl) {
-    URL.revokeObjectURL(clips.value[index].previewUrl!)
-  }
-  
-  clips.value.splice(index, 1)
-  
-  toast.add({
-    title: 'Clip Removed',
-    description: 'Clip slot has been removed.',
-    color: 'success',
-  })
-}
-
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes'
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
-}
-
-const triggerFileInput = (index: number) => {
-  fileInputRefs.value[index]?.click()
-}
-
-const handleFileSelect = (event: Event, index: number) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (file) {
-    processFile(file, index)
-  }
-}
-
-const handleDragOver = (index: number) => {
-  // Add visual feedback if needed
-}
-
-const handleDragLeave = (index: number) => {
-  // Remove visual feedback if needed
-}
-
-const handleDrop = (event: DragEvent, index: number) => {
-  const file = event.dataTransfer?.files[0]
-  if (file && (file.type === 'video/mp4' || file.type === 'video/webm')) {
-    processFile(file, index)
-  } else {
-    toast.add({
-      title: 'Invalid File',
-      description: 'Please upload MP4 or WebM video files only.',
-      color: 'error',
-    })
-  }
-}
-
-const processFile = (file: File, index: number) => {
-  // Validate file size (500MB max)
-  if (file.size > 500 * 1024 * 1024) {
-    toast.add({
-      title: 'File Too Large',
-      description: 'Please upload videos smaller than 500MB.',
-      color: 'error',
-    })
-    return
-  }
-
-  // Create preview URL
-  const previewUrl = URL.createObjectURL(file)
-  
-  // Revoke old preview URL if exists
-  if (clips.value[index].previewUrl) {
-    URL.revokeObjectURL(clips.value[index].previewUrl!)
-  }
-
-  // Update clip while preserving ID
-  clips.value[index] = {
-    ...clips.value[index],
-    file,
-    previewUrl,
-  }
-
-  toast.add({
-    title: 'Video Uploaded',
-    description: `Clip ${index + 1} uploaded successfully.`,
-    color: 'success',
-  })
-}
-
-// Clear a clip's file but keep the slot
-const removeClipFile = (index: number) => {
-  if (clips.value[index].previewUrl) {
-    URL.revokeObjectURL(clips.value[index].previewUrl!)
-  }
-  clips.value[index].file = null
-  clips.value[index].previewUrl = null
-}
-
-const processFrameMatching = async () => {
-  if (!hasMinimumClips.value) {
-    toast.add({
-      title: 'Not Enough Clips',
-      description: `Please upload at least ${minClips} clips to continue.`,
-      color: 'warning',
-    })
-    return
-  }
-
-  processing.value = true
-  error.value = null
-  originalVideoUrl.value = null
-  smartVideoUrl.value = null
-  adjustments.value = []
-
-  try {
-    // Create FormData with only uploaded clips
-    const formData = new FormData()
-    
-    let clipCount = 0
-    clips.value.forEach((clip, index) => {
-      if (clip.file) {
-        formData.append(`clip${clipCount}`, clip.file)
-        clipCount++
-      }
-    })
-
-    console.log(`[FrameMatch] Sending ${clipCount} clips for processing`)
-
-    // Call API endpoint
-    const result = await $fetch<{
-      originalVideoUrl: string
-      smartVideoUrl: string
-      originalVideoId: string
-      smartVideoId: string
-      adjustments: StitchAdjustment[]
-    }>('/api/frame-match', {
-      method: 'POST',
-      body: formData,
-    })
-
-    originalVideoUrl.value = result.originalVideoUrl
-    smartVideoUrl.value = result.smartVideoUrl
-    originalVideoId.value = result.originalVideoId
-    smartVideoId.value = result.smartVideoId
-    adjustments.value = result.adjustments
-
-    toast.add({
-      title: 'Processing Complete',
-      description: `Successfully stitched ${clipCount} clips with frame matching!`,
-      color: 'success',
-    })
-
-    // Scroll to results
-    setTimeout(() => {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
-    }, 100)
-  } catch (err: any) {
-    console.error('[FrameMatch] Error processing videos:', err)
-    error.value = err.data?.message || err.message || 'Failed to process videos. Please try again.'
-    
-    toast.add({
-      title: 'Processing Failed',
-      description: error.value,
-      color: 'error',
-    })
-  } finally {
-    processing.value = false
-  }
-}
-
-const downloadVideo = (version: 'original' | 'smart') => {
-  const url = version === 'original' ? originalVideoUrl.value : smartVideoUrl.value
-  const id = version === 'original' ? originalVideoId.value : smartVideoId.value
-  
-  if (!url || !id) return
-
-  // Create temporary link and trigger download
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `frame-matched-${version}-${id}.mp4`
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-
-  toast.add({
-    title: 'Download Started',
-    description: `Downloading ${version} video...`,
-    color: 'success',
-  })
-}
-
-// Cleanup on unmount
-onUnmounted(() => {
-  clips.value.forEach(clip => {
-    if (clip.previewUrl) {
-      URL.revokeObjectURL(clip.previewUrl)
+const handleUpload = async (event: Event, side: 'left' | 'right', type: 'model' | 'style') => {
+    const target = event.target as HTMLInputElement
+    if (target.files && target.files.length > 0) {
+        const file = target.files[0]
+        const formData = new FormData()
+        formData.append('images', file)
+        try {
+            const result = await $fetch<{ urls: string[] }>('/api/upload-images-s3', {
+                method: 'POST',
+                body: formData
+            })
+            if (result.urls && result.urls.length > 0) {
+                const url = result.urls[0]
+                const state = side === 'left' ? left : right
+                if (type === 'model') state.modelRef = url
+                if (type === 'style') state.styleRef = url
+                toast.add({ title: 'Success', description: 'Reference uploaded', color: 'green' })
+            }
+        } catch (error) {
+            toast.add({ title: 'Error', description: 'Upload failed', color: 'red' })
+        }
+        target.value = ''
     }
-  })
-})
-</script>
+}
 
+// Use Left as Reference for Right
+const copyRefFromLeft = () => {
+    if (left.firstFrame) {
+        right.styleRef = left.firstFrame // Use left start frame as style reference
+        toast.add({ title: 'Copied', description: 'Left Start Frame set as Right Style Ref', color: 'green' })
+    } else if (left.modelRef) {
+        right.modelRef = left.modelRef
+        toast.add({ title: 'Copied', description: 'Left Model Ref copied to Right', color: 'green' })
+    }
+}
+
+// Generate Keyframes
+const generateKeyframes = async (side: 'left' | 'right') => {
+    const state = side === 'left' ? left : right
+    state.generatingImages = true
+    
+    try {
+        const commonBody = {
+            aspectRatio: '9:16', // Vertical crops are better for split screen usually, but we crop 16:9 anyway. Let's use 16:9 source.
+            model: 'google/nano-banana'
+        }
+
+        // Start Frame
+        if (state.startPrompt) {
+            const res = await $fetch('/api/generate-image', {
+                method: 'POST',
+                body: {
+                    ...commonBody,
+                    prompt: state.startPrompt + ", cinematic shot",
+                    modelReference: state.modelRef,
+                    styleReference: state.styleRef
+                }
+            })
+            state.firstFrame = res.url
+        }
+
+        // End Frame
+        if (state.endPrompt) {
+            const res = await $fetch('/api/generate-image', {
+                method: 'POST',
+                body: {
+                    ...commonBody,
+                    prompt: state.endPrompt + ", cinematic shot",
+                    modelReference: state.modelRef,
+                    styleReference: state.styleRef || state.firstFrame // Continuity fallback
+                }
+            })
+            state.lastFrame = res.url
+        }
+        toast.add({ title: 'Success', description: 'Keyframes generated', color: 'green' })
+    } catch (error) {
+        console.error(error)
+        toast.add({ title: 'Error', description: 'Failed to generate images', color: 'red' })
+    } finally {
+        state.generatingImages = false
+    }
+}
+
+// Generate Video
+const generateVideo = async (side: 'left' | 'right') => {
+    const state = side === 'left' ? left : right
+    if (!state.firstFrame || !state.lastFrame) return
+    
+    state.generatingVideo = true
+    try {
+        const prompt = state.actionPrompt || `${state.startPrompt} transitioning to ${state.endPrompt}`
+        
+        const res = await $fetch('/api/generate-clip', {
+            method: 'POST',
+            body: {
+                prompt,
+                duration: 5,
+                firstFrame: state.firstFrame,
+                lastFrame: state.lastFrame,
+                aspectRatio: '16:9',
+                model: 'google/veo-3.1',
+                modelReference: state.modelRef
+            }
+        })
+        state.videoUrl = res.url
+        toast.add({ title: 'Success', description: 'Video generated', color: 'green' })
+    } catch (error: any) {
+        console.error(error)
+        toast.add({ title: 'Error', description: error.message || 'Failed to generate video', color: 'red' })
+    } finally {
+        state.generatingVideo = false
+    }
+}
+
+// Stitch
+const stitchVideos = async () => {
+    if (!left.videoUrl || !right.videoUrl) return
+    
+    stitching.value = true
+    try {
+        const res = await $fetch<{ url: string }>('/api/generate-split-screen', {
+            method: 'POST',
+            body: {
+                leftVideoUrl: left.videoUrl,
+                rightVideoUrl: right.videoUrl
+            }
+        })
+        stitchedVideoUrl.value = res.url
+        toast.add({ title: 'Success', description: 'Split screen video created!', color: 'green' })
+    } catch (error: any) {
+        console.error(error)
+        toast.add({ title: 'Error', description: error.message || 'Failed to stitch videos', color: 'red' })
+    } finally {
+        stitching.value = false
+    }
+}
+</script>

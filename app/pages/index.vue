@@ -19,17 +19,28 @@
         </div>
 
         <!-- Long Form / Scene Builder CTA -->
-        <div class="mt-8 text-center">
-          <p class="text-gray-600 dark:text-gray-400 mb-4">Want more control? Build scene by scene.</p>
-          <UButton
-            to="/manual"
-            variant="outline"
-            color="primary"
-            size="lg"
-            icon="i-heroicons-film"
-          >
-            Open Scene Builder
-          </UButton>
+        <div class="mt-8 text-center space-y-4">
+          <p class="text-gray-600 dark:text-gray-400 mb-4">Want more control? Use our advanced tools.</p>
+          <div class="flex justify-center gap-4">
+              <UButton
+                to="/manual"
+                variant="outline"
+                color="primary"
+                size="lg"
+                icon="i-heroicons-film"
+              >
+                Open Scene Builder
+              </UButton>
+              <UButton
+                to="/frame-match"
+                variant="outline"
+                color="black"
+                size="lg"
+                icon="i-heroicons-arrows-right-left"
+              >
+                Split Screen Tool
+              </UButton>
+          </div>
         </div>
       </UContainer>
     </div>

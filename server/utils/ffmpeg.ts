@@ -875,6 +875,72 @@ export async function extractAllFramesFromEnd(
  * Trim video at a specific timestamp (keeping content before timestamp)
  * IMPORTANT: This trims BOTH video and audio streams
  */
+
+/**
+ * Create a split-screen video from two input videos
+ * @param leftVideoPath - Path to the left video
+ * @param rightVideoPath - Path to the right video
+ * @param outputPath - Path for the output video
+ * @returns Path to the created video
+ */
+export async function createSplitScreenVideo(
+  leftVideoPath: string,
+  rightVideoPath: string,
+  outputPath: string
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    console.log('[FFmpeg] Creating split-screen video')
+    console.log('[FFmpeg] Left:', leftVideoPath)
+    console.log('[FFmpeg] Right:', rightVideoPath)
+
+    ffmpeg()
+      .input(leftVideoPath)
+      .input(rightVideoPath)
+      .complexFilter([
+        // 1. Scale both videos to the same height (1080p) while maintaining aspect ratio
+        //    We'll target a standard 1920x1080 output, so height=1080.
+        //    We use scale2ref to match the second video to the first if needed, but let's force 1080 height.
+        '[0:v]scale=-1:1080[left]',
+        '[1:v]scale=-1:1080[right]',
+        
+        // 2. Crop the left video to take the left half
+        //    crop=w=iw/2:h=ih:x=0:y=0
+        '[left]crop=iw/2:ih:0:0[left_half]',
+        
+        // 3. Crop the right video to take the right half
+        //    crop=w=iw/2:h=ih:x=iw/2:y=0
+        '[right]crop=iw/2:ih:iw/2:0[right_half]',
+        
+        // 4. Stack them horizontally
+        '[left_half][right_half]hstack[v]',
+        
+        // 5. Mix audio
+        '[0:a][1:a]amix=inputs=2:duration=longest[a]'
+      ])
+      .outputOptions([
+        '-c:v libx264',
+        '-preset fast',
+        '-crf 18',
+        '-pix_fmt yuv420p',
+        '-c:a aac',
+        '-b:a 192k',
+        '-map [v]',
+        '-map [a]'
+      ])
+      .output(outputPath)
+      .on('start', (cmd) => console.log('[FFmpeg] Split screen command:', cmd))
+      .on('end', () => {
+        console.log('[FFmpeg] Split screen creation complete')
+        resolve(outputPath)
+      })
+      .on('error', (err) => {
+        console.error('[FFmpeg] Error creating split screen:', err)
+        reject(err)
+      })
+      .run()
+  })
+}
+
 export async function trimVideoAtTimestamp(
   videoPath: string,
   timestamp: number
