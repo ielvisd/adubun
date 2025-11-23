@@ -1,5 +1,5 @@
 import { readMultipartFormData } from 'h3'
-import { saveAsset } from '../../utils/storage'
+import { saveAsset } from '../utils/storage'
 import path from 'path'
 
 export default defineEventHandler(async (event) => {

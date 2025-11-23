@@ -84,17 +84,45 @@ export const avatars: Avatar[] = [
     referenceImagePath: '',
     description: 'a 35-42 year old female with sleek dark hair, subtle jewelry, silk blouse or cashmere, calm confident smile, premium/luxury vibe',
   },
+  {
+    id: 'jamie',
+    name: 'Jamie',
+    displayName: 'Jamie',
+    gender: 'female',
+    ageRange: '25-30',
+    vibe: 'sophisticated elegant',
+    lookAndStyle: 'Elegant female, delicate features, smooth glowing skin, long neck, manicured hands, soft natural makeup',
+    primaryCategories: ['jewelry'],
+    secondaryCategories: ['clothing', 'skincare'],
+    thumbnailPath: '/avatars/jamie/thumbnail.png',
+    referenceImagePath: '',
+    description: 'a 25-30 year old female with delicate features, smooth glowing skin, long neck, manicured hands, soft natural makeup, sophisticated elegant vibe',
+  },
+  {
+    id: 'james',
+    name: 'James',
+    displayName: 'James',
+    gender: 'male',
+    ageRange: '25-35',
+    vibe: 'outgoing outdoorsy',
+    lookAndStyle: 'Active young adult, friendly smile, wind-swept hair, lightly tanned skin, fit and energetic build',
+    primaryCategories: ['pet'],
+    secondaryCategories: ['fitness', 'phone'],
+    thumbnailPath: '/avatars/james/thumbnail.png',
+    referenceImagePath: '',
+    description: 'a 25-35 year old male with friendly smile, wind-swept hair, lightly tanned skin, fit and energetic build, outgoing outdoorsy vibe',
+  },
 ]
 
 // Category to avatar mapping (locked - never change this)
 const categoryAvatarMap: Record<string, string> = {
   skincare: 'mia',
-  phone: 'jay',
+  phone: 'alex',
   kitchen: 'sophie',
   clothing: 'sophie',
   fitness: 'jay',
-  jewelry: 'mia',
-  pet: 'sophie',
+  jewelry: 'jamie',
+  pet: 'james',
 }
 
 /**

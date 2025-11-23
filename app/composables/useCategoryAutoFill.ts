@@ -123,7 +123,7 @@ const categoryConfigs: Record<string, CategoryConfig> = {
       'crystal clear display',
       'fits perfectly always',
     ],
-    avatarId: 'jay',
+    avatarId: 'alex',
   },
   kitchen: {
     id: 'kitchen',
@@ -195,7 +195,7 @@ const categoryConfigs: Record<string, CategoryConfig> = {
       'hypoallergenic material',
       'luxury look affordable',
     ],
-    avatarId: 'mia',
+    avatarId: 'jamie',
   },
   pet: {
     id: 'pet',
@@ -219,7 +219,7 @@ const categoryConfigs: Record<string, CategoryConfig> = {
       'safe for pets',
       'lasts forever',
     ],
-    avatarId: 'sophie',
+    avatarId: 'james',
   },
 }
 

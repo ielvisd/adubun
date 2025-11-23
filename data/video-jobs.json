@@ -268,5 +268,275 @@
     "videoUrl": "/api/watch/W_3vgpN2I3C97Ahp1F4Kv",
     "videoId": "W_3vgpN2I3C97Ahp1F4Kv",
     "endTime": 1763924798370
+  },
+  {
+    "id": "p5424YdWd2B5PTX0okW2k",
+    "status": "completed",
+    "startTime": 1763932559491,
+    "assetJobId": "caytauPrX1pW-vDLHsuZX",
+    "storyboardId": "mT9T6EklMLW7Ml_EaORj6",
+    "progress": 100,
+    "step": "completed",
+    "storyboard": {
+      "id": "mT9T6EklMLW7Ml_EaORj6",
+      "segments": [
+        {
+          "type": "hook",
+          "description": "A close-up of a young woman in her mid-20s with long dark hair and stylish attire, looking frustrated as she struggles to find the right necklace for her outfit. The camera slowly pushes in on her expression, highlighting her disappointment. She shakes her head and sighs, creating a peak of emotion. The scene is set in a bright, well-lit bedroom with a clean and minimal background.",
+          "startTime": 0,
+          "endTime": 6,
+          "visualPrompt": "[Close-up] + [a young woman in her mid-20s with long dark hair and fashionable clothing] + [looking frustrated and searching through a jewelry box] + [in a bright and minimalistic bedroom] + [exciting and urgent lighting with a vibrant atmosphere]",
+          "visualPromptAlternatives": [
+            "[Extreme close-up] + [the same young woman with long dark hair] + [holding her head in frustration as she looks at her empty jewelry box] + [in a chic bedroom with soft natural light] + [energetic ambiance with a hint of urgency]",
+            "[Close-up] + [the same young woman in her mid-20s with stylish attire] + [grabbing her hair in exasperation] + [in a bright and airy bedroom setting] + [dynamic lighting that adds excitement]",
+            "[Medium shot] + [the same young woman with long dark hair] + [sighing deeply while looking into her jewelry box] + [in a neatly arranged bedroom] + [exciting lighting that emphasizes her emotions]"
+          ],
+          "audioNotes": "Dialogue: The young woman says: 'I can’t believe I don’t have the right necklace!' (sighs)",
+          "firstFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763932255649-DAEvRasCtiE22XVooC1Et.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T211055Z&X-Amz-Expires=604800&X-Amz-Signature=d9171bfb9f70c26bc70e9f3cecb9062b9a6da269f8fd73a7e3dbbf346dae6573&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "lastFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763932268938-DVgsiJBG0awRL7xCVEQJK.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T211109Z&X-Amz-Expires=604800&X-Amz-Signature=9d0acfdfce0b28cefb73146a19f6e4e6a0196f0a6e76f028430cb2c698ca4ce4&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "body",
+          "description": "Continuing seamlessly, the camera transitions as the young woman suddenly finds the Vortex, Torus, Rodin Necklace glowing in the box. The moment of discovery transforms her expression from frustration to excitement. The camera pulls back slightly to reveal her putting on the necklace, showcasing its elegance. The shot slows down as she admires her reflection in a clean, minimalistic mirror without visible reflections, capturing the necklace's shine.",
+          "startTime": 6,
+          "endTime": 12,
+          "visualPrompt": "[Tracking shot] + [the same young woman with long dark hair and fashionable clothing] + [excitedly discovering the Vortex, Torus, Rodin Necklace in her jewelry box and putting it on] + [in a bright and minimalistic bedroom with a clean view] + [exciting and urgent ambiance with soft, glowing lighting]",
+          "visualPromptAlternatives": [
+            "[Dolly shot] + [the same young woman with long dark hair] + [gasping in delight as she finds the necklace and puts it on] + [in a bright bedroom with a neat setup] + [vibrant lighting that emphasizes her joy]",
+            "[Slow pan] + [the same young woman with stylish attire] + [smiling widely while admiring the necklace in her hands] + [in a clean and airy bedroom space] + [dynamic lighting that highlights the necklace's features]",
+            "[Medium shot] + [the same young woman with long dark hair] + [taking her time to put the necklace on and admiring its beauty] + [in a bright bedroom with a soft focus background] + [energetic light that creates an uplifting mood]"
+          ],
+          "audioNotes": "SFX: A soft chime sound as she discovers the necklace.",
+          "lastFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763932284309-CQKQ-vHVosxfpFcEoye0Y.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T211124Z&X-Amz-Expires=604800&X-Amz-Signature=911172e54010aa17b76f3a864d361f255424b8d01578ab297a3240aad851e549&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763932268938-DVgsiJBG0awRL7xCVEQJK.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T211109Z&X-Amz-Expires=604800&X-Amz-Signature=9d0acfdfce0b28cefb73146a19f6e4e6a0196f0a6e76f028430cb2c698ca4ce4&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "cta",
+          "description": "The scene transitions to a close-up hero shot of the young woman wearing the Vortex, Torus, Rodin Necklace, radiating confidence and joy. The camera slowly pushes in to highlight the necklace's intricate design. The text 'Shop now to get 60% off!' overlays the bottom of the frame, with the brand logo appearing at the end. The composition captures the perfect moment, showcasing the necklace as a must-have accessory.",
+          "startTime": 12,
+          "endTime": 16,
+          "visualPrompt": "[Hero shot close-up] + [the same young woman in her mid-20s with long dark hair, confidently wearing the Vortex, Torus, Rodin Necklace] + [radiating joy and confidence] + [in the same bright bedroom with soft lighting] + [exciting ambiance with the tagline and logo overlay]",
+          "visualPromptAlternatives": [
+            "[Static close-up shot] + [the same young woman with long dark hair] + [smiling confidently while wearing the necklace] + [in the bright bedroom setting] + [dynamic lighting that enhances her expression and showcases the necklace]",
+            "[Close-up shot] + [the same young woman with long dark hair] + [looking directly at the camera with a satisfied smile] + [in the same bright bedroom] + [exciting lighting that emphasizes the necklace and her joy]",
+            "[Medium close-up shot] + [the same young woman wearing the necklace] + [smiling as she touches the necklace gently] + [in the bright setting] + [vibrant and energetic ambiance with text overlay]"
+          ],
+          "audioNotes": "Dialogue: The young woman says: 'This is my new favorite!'",
+          "lastFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763932301930-d47IhJjnk69jIqfFawl6l.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T211142Z&X-Amz-Expires=604800&X-Amz-Signature=70638611b08b7ecc5169f6c868c2646a2e1457c576de83ec204a711d9cfbdd18&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763932284309-CQKQ-vHVosxfpFcEoye0Y.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T211124Z&X-Amz-Expires=604800&X-Amz-Signature=911172e54010aa17b76f3a864d361f255424b8d01578ab297a3240aad851e549&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        }
+      ],
+      "meta": {
+        "mode": "production",
+        "aspectRatio": "9:16",
+        "duration": 16
+      },
+      "createdAt": 1763932241076
+    },
+    "frames": [
+      {
+        "segmentIndex": 0,
+        "frameType": "first",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763932255649-DAEvRasCtiE22XVooC1Et.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T211055Z&X-Amz-Expires=604800&X-Amz-Signature=d9171bfb9f70c26bc70e9f3cecb9062b9a6da269f8fd73a7e3dbbf346dae6573&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 0,
+        "frameType": "last",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763932268938-DVgsiJBG0awRL7xCVEQJK.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T211109Z&X-Amz-Expires=604800&X-Amz-Signature=9d0acfdfce0b28cefb73146a19f6e4e6a0196f0a6e76f028430cb2c698ca4ce4&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 1,
+        "frameType": "last",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763932284309-CQKQ-vHVosxfpFcEoye0Y.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T211124Z&X-Amz-Expires=604800&X-Amz-Signature=911172e54010aa17b76f3a864d361f255424b8d01578ab297a3240aad851e549&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 2,
+        "frameType": "last",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763932301930-d47IhJjnk69jIqfFawl6l.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T211142Z&X-Amz-Expires=604800&X-Amz-Signature=70638611b08b7ecc5169f6c868c2646a2e1457c576de83ec204a711d9cfbdd18&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      }
+    ],
+    "videoUrl": "/api/watch/0Ec-QVgJ_cBL1gA7y7AP6",
+    "videoId": "0Ec-QVgJ_cBL1gA7y7AP6",
+    "endTime": 1763932575650
+  },
+  {
+    "id": "_S_jaCRHGruQ-O3zFEyuE",
+    "status": "completed",
+    "startTime": 1763935297616,
+    "assetJobId": "-vqe0dtFUS3INyGyW1ape",
+    "storyboardId": "-pov3KDIVx7RH_lB4fnj6",
+    "progress": 100,
+    "step": "completed",
+    "storyboard": {
+      "id": "-pov3KDIVx7RH_lB4fnj6",
+      "segments": [
+        {
+          "type": "hook",
+          "description": "A young woman in her mid-20s with long brown hair and a vibrant outfit looks frustrated, holding a tarnished piece of jewelry in her hand. The camera starts with an extreme close-up on her face, capturing her expression. As the camera slowly pushes in, she sighs dramatically and shakes her head, showing her disappointment. The shot ends with her dropping the tarnished jewelry, emphasizing her frustration.",
+          "startTime": 0,
+          "endTime": 6,
+          "visualPrompt": "[Close-up shot] + [a young woman in her mid-20s with long brown hair, wearing a colorful outfit] + [looking frustrated, holding a tarnished piece of jewelry] + [in a bright, clean living room with minimal decor] + [vibrant lighting that highlights her expressions]",
+          "visualPromptAlternatives": [
+            "[Extreme close-up] + [a young woman in her mid-20s with curly brown hair, wearing a stylish top] + [frowning as she inspects a tarnished necklace] + [in a cozy bedroom with soft natural light] + [warm ambiance that contrasts her frustration]",
+            "[Medium shot] + [a young woman in her mid-20s with straight black hair, wearing a trendy outfit] + [expressing disappointment while examining a dull piece of jewelry] + [in a modern kitchen with subtle decor] + [bright and cheerful lighting that enhances her facial features]",
+            "[Wide shot] + [a young woman in her mid-20s with shoulder-length blonde hair, dressed fashionably] + [gesturing animatedly as she shows a tarnished ring to a friend] + [in a sunlit coffee shop with minimal distractions] + [exciting atmosphere with ambient chatter in the background]"
+          ],
+          "audioNotes": "SFX: a sigh of disappointment.",
+          "firstFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935064173-HtjFcJFu1q-3XaWSU8WDS.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T215744Z&X-Amz-Expires=604800&X-Amz-Signature=9cfb6f7c646818f8d99cf85af0abc3713963f928bb3c8bb4534b04982b22d54e&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "lastFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935077469-ZSxoLB5_dPMXDTqq6IKT3.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T215757Z&X-Amz-Expires=604800&X-Amz-Signature=fb5b00aed40e73dc1599efa0f20eeaf008ed4e1427831e6b9fe349b78b201485&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "body",
+          "description": "The same young woman, now with a bright smile, reaches for a Shungite Orgonite Pendant hanging nearby. As she puts it on, the camera continues to push in, capturing the transformation of her expression. The pendant glistens as she moves, and the camera slows down to emphasize the pendant's beauty at the 10-11 second mark. The shot ends with her looking confidently at the camera, showcasing the pendant.",
+          "startTime": 6,
+          "endTime": 12,
+          "visualPrompt": "[Tracking shot] + [the same young woman in her mid-20s with long brown hair, wearing a vibrant outfit] + [putting on a Shungite Orgonite Pendant, smiling as it catches the light] + [in the same bright living room setting] + [dynamic lighting that enhances the glimmer of the pendant]",
+          "visualPromptAlternatives": [
+            "[Dolly shot] + [the same young woman in her mid-20s with curly brown hair] + [grabbing the Shungite Orgonite Pendant with excitement and putting it on] + [in a sunlit room with vibrant decor] + [energetic atmosphere that highlights her transformation]",
+            "[Close-up shot] + [the same young woman in her mid-20s with straight black hair] + [eagerly putting on the Shungite Orgonite Pendant, her face lighting up with joy] + [in a stylish workspace with minimal distractions] + [bright, cheerful lighting that adds to the excitement]",
+            "[Wide-angle shot] + [the same young woman in her mid-20s with shoulder-length blonde hair] + [wearing the Shungite Orgonite Pendant, turning to show it off] + [in a cozy cafe setting with soft lighting] + [an inviting atmosphere that captures her enthusiasm]"
+          ],
+          "audioNotes": "Dialogue: The woman says: 'This is exactly what I needed!'",
+          "lastFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935088674-ig42ZMqqSCIrYVrNz3pN4.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T215808Z&X-Amz-Expires=604800&X-Amz-Signature=89f46f7e7a6098b64b654c8aef7cd9c5622993e72d36e0a78a2c77f8963c48f5&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935077469-ZSxoLB5_dPMXDTqq6IKT3.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T215757Z&X-Amz-Expires=604800&X-Amz-Signature=fb5b00aed40e73dc1599efa0f20eeaf008ed4e1427831e6b9fe349b78b201485&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "cta",
+          "description": "The shot transitions to a hero shot of the Shungite Orgonite Pendant, freeze-framed with a subtle zoom-out. The product is beautifully displayed against a soft backdrop. The text overlay reads 'Shop now to get 60% off!' followed by the logo. The camera slowly pushes in to emphasize the pendant's features and the discount.",
+          "startTime": 12,
+          "endTime": 16,
+          "visualPrompt": "[Static shot with a slow push] + [the Shungite Orgonite Pendant as the focal point] + [highlighting the pendant with soft lighting] + [against a blurred, simple background] + [clean and elegant style with vibrant colors enhancing the pendant]",
+          "visualPromptAlternatives": [
+            "[Close-up shot with a slow zoom] + [the Shungite Orgonite Pendant prominently displayed] + [showcasing its shine and detail] + [set against a warm, inviting backdrop with subtle textures] + [luxurious ambiance that reflects quality]",
+            "[Medium shot with a slow pull-back] + [the Shungite Orgonite Pendant front and center] + [capturing its elegance and uniqueness] + [against a soft gradient background] + [bright and uplifting atmosphere that invokes excitement]",
+            "[Wide shot with a gentle zoom-out] + [the Shungite Orgonite Pendant showcased artistically] + [emphasizing its craftsmanship and beauty] + [on a clean, minimalistic table] + [stylish ambiance that elevates the product's appeal]"
+          ],
+          "audioNotes": "Voiceover: 'Never tarnishes, over 80k sold this month, now only $27, was $111.'",
+          "lastFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935099785-IK1vc2pGEOEVi1bs81evJ.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T215819Z&X-Amz-Expires=604800&X-Amz-Signature=429620c7432cac326bf80b69baaa1602ecd90edd4dd9fd6d7797d6cd4c66ff01&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935088674-ig42ZMqqSCIrYVrNz3pN4.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T215808Z&X-Amz-Expires=604800&X-Amz-Signature=89f46f7e7a6098b64b654c8aef7cd9c5622993e72d36e0a78a2c77f8963c48f5&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        }
+      ],
+      "meta": {
+        "mode": "production",
+        "aspectRatio": "9:16",
+        "duration": 16
+      },
+      "createdAt": 1763935052087
+    },
+    "frames": [
+      {
+        "segmentIndex": 0,
+        "frameType": "first",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935064173-HtjFcJFu1q-3XaWSU8WDS.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T215744Z&X-Amz-Expires=604800&X-Amz-Signature=9cfb6f7c646818f8d99cf85af0abc3713963f928bb3c8bb4534b04982b22d54e&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 0,
+        "frameType": "last",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935077469-ZSxoLB5_dPMXDTqq6IKT3.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T215757Z&X-Amz-Expires=604800&X-Amz-Signature=fb5b00aed40e73dc1599efa0f20eeaf008ed4e1427831e6b9fe349b78b201485&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 1,
+        "frameType": "last",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935088674-ig42ZMqqSCIrYVrNz3pN4.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T215808Z&X-Amz-Expires=604800&X-Amz-Signature=89f46f7e7a6098b64b654c8aef7cd9c5622993e72d36e0a78a2c77f8963c48f5&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 2,
+        "frameType": "last",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935099785-IK1vc2pGEOEVi1bs81evJ.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T215819Z&X-Amz-Expires=604800&X-Amz-Signature=429620c7432cac326bf80b69baaa1602ecd90edd4dd9fd6d7797d6cd4c66ff01&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      }
+    ],
+    "videoUrl": "/api/watch/bZMFMvXc5ogk_J_fHSL-Y",
+    "videoId": "bZMFMvXc5ogk_J_fHSL-Y",
+    "endTime": 1763935318856
+  },
+  {
+    "id": "Avl63dQDuCKs3O-aP87hR",
+    "status": "completed",
+    "startTime": 1763935742737,
+    "assetJobId": "owcreG9iPHncjCAoGZB8w",
+    "storyboardId": "mmIcCDPx1S46hTbZqKDj8",
+    "progress": 100,
+    "step": "completed",
+    "storyboard": {
+      "id": "mmIcCDPx1S46hTbZqKDj8",
+      "segments": [
+        {
+          "type": "hook",
+          "description": "A close-up of a frustrated man in his late 20s with short black hair, sweating and struggling to lift weights in a gym. He's visibly tired and looks around as others seem to have more energy. The camera slowly pushes in, capturing the intensity of his expression as he exhales deeply.",
+          "startTime": 0,
+          "endTime": 6,
+          "visualPrompt": "[Close-up] + [a man in his late 20s with short black hair] + [struggling to lift weights, glancing around with a tired expression] + [in a busy gym setting, surrounded by energetic gym-goers] + [dynamic lighting highlighting sweat and determination]",
+          "visualPromptAlternatives": [
+            "[Medium shot] + [a man in his late 20s with a muscular build and short black hair] + [attempting a heavy lift while looking exhausted] + [in a vibrant gym filled with workout equipment] + [high contrast lighting emphasizing his challenge]",
+            "[Extreme close-up] + [the same man with sweat on his brow] + [breathing heavily, looking around at others effortlessly lifting weights] + [inside an active gym] + [energetic and motivational atmosphere]",
+            "[Wide shot] + [a group of gym-goers] + [the man struggles while others are in sync, lifting weights] + [busy gym environment] + [bright and energetic lighting]"
+          ],
+          "audioNotes": "SFX: weights clanking. Dialogue: The man says: 'Why can't I push through like they do?'",
+          "firstFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935500020-84kZzkC-uDciyF9mjJ80n.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T220500Z&X-Amz-Expires=604800&X-Amz-Signature=dafccf365585082e29fe4c09d2214e4746c3eb69dd22a9af66292af45d8345f2&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "lastFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935511240-UlSY5tJHCcQ-irmBqpglL.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T220511Z&X-Amz-Expires=604800&X-Amz-Signature=193887dc0ee88e95d7a45c17a6c0b1f1678a0dbbcf31f616e9d5acd46d99280a&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "body",
+          "description": "The camera transitions smoothly to show the man mixing Whey Protein Optimum Nutrition Gold Standard in a shaker bottle. As he takes a sip, his expression transforms from struggle to determination, and the scene shifts into slow motion. He starts lifting weights again, this time with confidence and vigor.",
+          "startTime": 6,
+          "endTime": 12,
+          "visualPrompt": "[Tracking shot] + [the same man in his late 20s with short black hair] + [mixing Whey Protein Optimum Nutrition Gold Standard in a shaker, then taking a determined sip] + [in the same gym environment, now with more focus and energy] + [high-energy, motivational music building up]",
+          "visualPromptAlternatives": [
+            "[Dolly shot] + [the same man with short black hair] + [pouring Whey Protein into a shaker and shaking it up] + [inside the gym, with a vibrant atmosphere] + [dynamic lighting as he lifts weights with renewed energy]",
+            "[Close-up] + [the same man with clear determination] + [mixing Whey Protein and taking a sip, then confidently lifting weights] + [busy gym in the background, focusing on his transformation] + [uplifting music crescendo]",
+            "[Wide shot] + [the same man with short black hair] + [sipping on Whey Protein and lifting weights effortlessly] + [in an energetic gym filled with motivating vibes] + [intense lighting highlighting his newfound confidence]"
+          ],
+          "audioNotes": "SFX: shaker bottle rattling. Music: upbeat motivational track.",
+          "lastFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935524479-yqkT8HXDbjOZ-eAjW4HKZ.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T220524Z&X-Amz-Expires=604800&X-Amz-Signature=8867bb9fcf270fa46a9bc33f9732d9f0d7369b2d441f8204d2a73b1d1dfe48c9&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935511240-UlSY5tJHCcQ-irmBqpglL.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T220511Z&X-Amz-Expires=604800&X-Amz-Signature=193887dc0ee88e95d7a45c17a6c0b1f1678a0dbbcf31f616e9d5acd46d99280a&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        },
+        {
+          "type": "cta",
+          "description": "The camera captures the man confidently lifting weights, showcasing his transformation. He smiles at the camera, a clear representation of confidence and strength. The scene freezes on this hero shot, with the product prominently displayed in the foreground.",
+          "startTime": 12,
+          "endTime": 16,
+          "visualPrompt": "[Hero shot] + [the same man in his late 20s with short black hair] + [lifting weights, smiling confidently] + [in the same gym with a focus on the Whey Protein Optimum Nutrition Gold Standard in front] + [bright lighting with a motivational atmosphere]",
+          "visualPromptAlternatives": [
+            "[Close-up hero shot] + [the same man with a triumphant expression] + [lifting weights and showing off his physique] + [focusing on the Whey Protein bottle in his hand] + [dynamic lighting to emphasize his transformation]",
+            "[Medium shot] + [the same man smiling and flexing] + [lifting weights with the Whey Protein bottle beside him] + [in the same gym with vibrant colors] + [motivational atmosphere with bright lighting]",
+            "[Wide shot] + [the same man confidently lifting weights] + [with Whey Protein prominently displayed] + [in a gym environment with others cheering him on] + [energetic lighting enhancing the mood]"
+          ],
+          "audioNotes": "Dialogue: The man says: 'Transform your workouts with Whey Protein!'",
+          "lastFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935535683-wghXBAmIYOzciYjUlHceY.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T220535Z&X-Amz-Expires=604800&X-Amz-Signature=e5cda741350d258490de116293dcc33ea8200c6df1a5ac10ab62425ba0da9f52&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+          "firstFrameImage": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935524479-yqkT8HXDbjOZ-eAjW4HKZ.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T220524Z&X-Amz-Expires=604800&X-Amz-Signature=8867bb9fcf270fa46a9bc33f9732d9f0d7369b2d441f8204d2a73b1d1dfe48c9&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+        }
+      ],
+      "meta": {
+        "mode": "production",
+        "aspectRatio": "9:16",
+        "duration": 16
+      },
+      "createdAt": 1763935485606
+    },
+    "frames": [
+      {
+        "segmentIndex": 0,
+        "frameType": "first",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935500020-84kZzkC-uDciyF9mjJ80n.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T220500Z&X-Amz-Expires=604800&X-Amz-Signature=dafccf365585082e29fe4c09d2214e4746c3eb69dd22a9af66292af45d8345f2&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 0,
+        "frameType": "last",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935511240-UlSY5tJHCcQ-irmBqpglL.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T220511Z&X-Amz-Expires=604800&X-Amz-Signature=193887dc0ee88e95d7a45c17a6c0b1f1678a0dbbcf31f616e9d5acd46d99280a&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 1,
+        "frameType": "last",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935524479-yqkT8HXDbjOZ-eAjW4HKZ.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T220524Z&X-Amz-Expires=604800&X-Amz-Signature=8867bb9fcf270fa46a9bc33f9732d9f0d7369b2d441f8204d2a73b1d1dfe48c9&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      },
+      {
+        "segmentIndex": 2,
+        "frameType": "last",
+        "imageUrl": "https://parent-onboarding-insurance-cards-tony.s3.us-east-2.amazonaws.com/assets/1763935535683-wghXBAmIYOzciYjUlHceY.jpeg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA6ELKOKYDPX5IB5TQ%2F20251123%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251123T220535Z&X-Amz-Expires=604800&X-Amz-Signature=e5cda741350d258490de116293dcc33ea8200c6df1a5ac10ab62425ba0da9f52&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject"
+      }
+    ],
+    "videoUrl": "/api/watch/RF3wyB9sGtSKinyIsVKTc",
+    "videoId": "RF3wyB9sGtSKinyIsVKTc",
+    "endTime": 1763935767786
   }
 ]

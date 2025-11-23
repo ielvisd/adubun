@@ -3,40 +3,40 @@
     <!-- Content temporarily disabled - set showContent to true to enable -->
     <ClientOnly>
       <template v-if="showContent">
-        <!-- Hero Section -->
-        <LandingHeroSection
+    <!-- Hero Section -->
+    <LandingHeroSection
           :primary-cta="{ label: 'Get Started Free', action: () => router.push('/create') }"
           :secondary-cta="{ label: 'Model Generator', action: () => router.push('/models/create') }"
           :show-video-badge="false"
-        />
+          />
 
-        <!-- Features Section -->
-        <div class="py-20 bg-mendo-white dark:bg-mendo-black text-mendo-black dark:text-mendo-white transition-colors duration-300">
-          <UContainer class="max-w-7xl px-4 sm:px-6">
-            <LandingSectionHeader
-              title="Why Choose AdUbun?"
-              description="Everything you need to create professional videos at scale."
-            />
-            
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-8">
-              <LandingFeatureCard
-                icon="⚡"
-                title="Fast Generation"
-                description="Generate professional ad videos with fully automated AI-powered pipeline."
-              />
-              <LandingFeatureCard
-                icon="💰"
-                title="Cost Effective"
-                description="Less than $2 per minute of video content. No hidden fees."
-              />
-              <LandingFeatureCard
-                icon="🤖"
-                title="AI-Powered"
-                description="Leveraging cutting-edge AI models including GPT-4, Replicate, and ElevenLabs."
-              />
-            </div>
-          </UContainer>
+    <!-- Features Section -->
+    <div class="py-20 bg-mendo-white dark:bg-mendo-black text-mendo-black dark:text-mendo-white transition-colors duration-300">
+      <UContainer class="max-w-7xl px-4 sm:px-6">
+        <LandingSectionHeader
+          title="Why Choose AdUbun?"
+          description="Everything you need to create professional videos at scale."
+        />
+        
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-8">
+          <LandingFeatureCard
+            icon="⚡"
+            title="Fast Generation"
+            description="Generate professional ad videos with fully automated AI-powered pipeline."
+          />
+          <LandingFeatureCard
+            icon="💰"
+            title="Cost Effective"
+            description="Less than $2 per minute of video content. No hidden fees."
+          />
+          <LandingFeatureCard
+            icon="🤖"
+            title="AI-Powered"
+            description="Leveraging cutting-edge AI models including GPT-4, Replicate, and ElevenLabs."
+          />
         </div>
+      </UContainer>
+    </div>
       </template>
     </ClientOnly>
   </div>

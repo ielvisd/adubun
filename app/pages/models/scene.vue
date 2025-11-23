@@ -56,6 +56,22 @@
             </div>
           </div>
 
+          <!-- Quick Presets -->
+          <div class="space-y-2">
+            <label class="text-sm font-medium text-gray-300">Quick Select Preset</label>
+            <div class="flex gap-2 overflow-x-auto pb-2">
+              <button 
+                v-for="preset in PRESETS" 
+                :key="preset.name"
+                @click="selectPreset(preset)"
+                class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition-colors whitespace-nowrap"
+              >
+                <img :src="preset.imageUrl" class="w-6 h-6 rounded-full object-cover" />
+                <span class="text-xs text-gray-300">{{ preset.name }}</span>
+              </button>
+            </div>
+          </div>
+
           <div class="space-y-2">
             <label class="text-sm font-medium text-gray-300">Scene Description</label>
             <textarea 
@@ -138,6 +154,16 @@ const model = ref<ModelData | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 const router = useRouter()
 
+const PRESETS = [
+  { name: 'Alex', imageUrl: '/avatars/alex/reference.jpg', description: 'Male model, athletic build, short hair, confident look.' },
+  { name: 'Emma', imageUrl: '/avatars/emma/reference.jpg', description: 'Female model, blonde hair, professional look.' },
+  { name: 'Jay', imageUrl: '/avatars/jay/reference.jpg', description: 'Male model, 28-34, short fade, trimmed beard, plain tee.' },
+  { name: 'Mia', imageUrl: '/avatars/mia/reference.jpg', description: 'Female model, casual style, natural look.' },
+  { name: 'Sophie', imageUrl: '/avatars/sophie/reference.jpg', description: 'Female model, elegant style, high fashion.' },
+  { name: 'Jamie', imageUrl: '/avatars/jamie/reference.jpg', description: 'Female model, late 20s, sophisticated, jewelry focused.' },
+  { name: 'James', imageUrl: '/avatars/james/preview.jpg', description: 'Male model, outdoorsy, pet friendly, casual.' },
+]
+
 onMounted(() => {
   const stored = sessionStorage.getItem('currentModel')
   if (stored) {
@@ -158,6 +184,15 @@ onMounted(() => {
     }
   }
 })
+
+function selectPreset(preset: any) {
+  model.value = {
+    imageUrl: preset.imageUrl,
+    name: preset.name,
+    description: preset.description
+  }
+  modelDescription.value = preset.description
+}
 
 function triggerUpload() {
   fileInput.value?.click()

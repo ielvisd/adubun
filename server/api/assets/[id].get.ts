@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
 
   const ASSETS_DIR = path.join(process.env.MCP_FILESYSTEM_ROOT || './data', 'assets')
   const filePath = path.join(ASSETS_DIR, id)
-
+  
   try {
     // Check if file exists
     await fs.access(filePath)
