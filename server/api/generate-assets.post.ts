@@ -444,23 +444,13 @@ export default defineEventHandler(async (event) => {
             
             // Validate CTA segment word count (must be 5 words or less)
             if (segment.type === 'cta') {
-              const wordCount = dialogueText.split(/\s+/).filter(word => word.length > 0).length
+              const wordCount = dialogueText.split(/\s+/).filter((word: string) => word.length > 0).length
               if (wordCount > 5) {
-                console.warn(`[Segment ${idx}] ⚠️ CTA dialogue has ${wordCount} words (exceeds 5-word limit): "${dialogueText}"`)
-                console.warn(`[Segment ${idx}] ⚠️ This should not happen if voiceover generation is working correctly. Truncating as fallback.`)
-                // Truncate to first 5 words, but ensure we don't cut off mid-word or mid-sentence
-                const words = dialogueText.split(/\s+/).filter(word => word.length > 0)
-                if (words.length > 5) {
-                  // Take first 5 complete words only
-                  dialogueText = words.slice(0, 5).join(' ')
-                  // Ensure the truncated text ends properly (add period if it doesn't end with punctuation)
-                  if (!/[.!?]$/.test(dialogueText.trim())) {
-                    dialogueText = dialogueText.trim() + '.'
-                  } else {
-                    dialogueText = dialogueText.trim()
-                  }
-                  console.log(`[Segment ${idx}] Truncated CTA dialogue to 5 words: "${dialogueText}"`)
-                }
+                console.error(`[Segment ${idx}] ❌ CTA dialogue has ${wordCount} words (exceeds 5-word limit): "${dialogueText}"`)
+                console.error(`[Segment ${idx}] ❌ This should NOT happen - the AI model should never generate CTA dialogue exceeding 5 words.`)
+                console.error(`[Segment ${idx}] ❌ The segment will be marked as failed. Please regenerate the storyboard with proper CTA dialogue.`)
+                // DO NOT truncate - reject the segment instead
+                throw new Error(`CTA dialogue exceeds 5-word limit: "${dialogueText}" (${wordCount} words). The AI model should never generate CTA dialogue exceeding 5 words. Please regenerate the storyboard.`)
               } else {
                 console.log(`[Segment ${idx}] ✓ CTA dialogue word count validated: ${wordCount} words - "${dialogueText}"`)
               }
@@ -480,14 +470,13 @@ export default defineEventHandler(async (event) => {
                   console.error(`[Segment ${idx}] CTA dialogue became empty after cleanup - original was corrupted`)
                 } else {
                   // Re-validate word count after cleanup
-                  const cleanedWordCount = dialogueText.split(/\s+/).filter(word => word.length > 0).length
+                  const cleanedWordCount = dialogueText.split(/\s+/).filter((word: string) => word.length > 0).length
                   if (cleanedWordCount > 5) {
-                    const words = dialogueText.split(/\s+/).filter(word => word.length > 0)
-                    dialogueText = words.slice(0, 5).join(' ')
-                    if (!/[.!?]$/.test(dialogueText.trim())) {
-                      dialogueText = dialogueText.trim() + '.'
-                    }
-                    console.log(`[Segment ${idx}] CTA dialogue cleaned and truncated to 5 words: "${dialogueText}"`)
+                    console.error(`[Segment ${idx}] ❌ CTA dialogue still has ${cleanedWordCount} words after cleanup (exceeds 5-word limit): "${dialogueText}"`)
+                    console.error(`[Segment ${idx}] ❌ This should NOT happen - the AI model should never generate CTA dialogue exceeding 5 words.`)
+                    console.error(`[Segment ${idx}] ❌ The segment will be marked as failed. Please regenerate the storyboard with proper CTA dialogue.`)
+                    // DO NOT truncate - reject the segment instead
+                    throw new Error(`CTA dialogue exceeds 5-word limit after cleanup: "${dialogueText}" (${cleanedWordCount} words). The AI model should never generate CTA dialogue exceeding 5 words. Please regenerate the storyboard.`)
                   }
                 }
               }

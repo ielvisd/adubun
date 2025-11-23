@@ -46,7 +46,7 @@ The dialogue should:
 - **CRITICAL:** Characters must speak on-camera - this is dialogue, not off-screen narration
 - **CRITICAL:** Only human characters speak - robots/products do not speak
 - **CRITICAL:** Every dialogue must be a complete, grammatically correct sentence - no fragments or incomplete phrases
-- **🚨🚨🚨 CRITICAL: CTA WORD LIMIT - ABSOLUTE MANDATORY REQUIREMENT 🚨🚨🚨**: CTA segments (4 seconds) must have dialogue of EXACTLY 5 words or less. This is a HARD REQUIREMENT with ZERO TOLERANCE - any dialogue exceeding 5 words will be REJECTED and the entire response will be regenerated. You MUST count the words in your CTA dialogue before finalizing your response. The word count MUST be 5 or fewer. Generate short, punchy phrases that make complete sense. Examples: ✅ "Find your voice today." (5 words - ACCEPTED) ✅ "It's clearer than you think." (5 words - ACCEPTED) ✅ "Shop now and save." (4 words - ACCEPTED) ✅ "Buy now to transform." (5 words - ACCEPTED) ❌ "Find your voice today and save money." (9 words - REJECTED - WILL CAUSE REGENERATION) ❌ "It's clearer than you think it is." (7 words - REJECTED - WILL CAUSE REGENERATION) ❌ "Buy now to transform your skin." (7 words - REJECTED - WILL CAUSE REGENERATION). The phrase must be complete, meaningful, and grammatically correct within this 5-word constraint. Do NOT generate incomplete or corrupted phrases. COUNT YOUR WORDS BEFORE SUBMITTING.
+- **🚨🚨🚨 CRITICAL: CTA WORD LIMIT - ABSOLUTE MANDATORY REQUIREMENT 🚨🚨🚨**: CTA segments (4 seconds) must have dialogue of EXACTLY 5 words or less. This is a HARD REQUIREMENT with ZERO TOLERANCE - any dialogue exceeding 5 words will be REJECTED and the entire response will be regenerated. You MUST NEVER generate CTA dialogue with more than 5 words. BEFORE generating CTA dialogue, you MUST: 1) Count the words in your intended dialogue text BEFORE writing it, 2) If your intended dialogue exceeds 5 words, shorten it to 5 words or less BEFORE generating it, 3) Generate ONLY dialogue that is 5 words or less - do NOT generate dialogue and then truncate it. Generate short, punchy phrases that make complete sense. Examples: ✅ "Find your voice today." (5 words - ACCEPTED) ✅ "It's clearer than you think." (5 words - ACCEPTED) ✅ "Shop now and save." (4 words - ACCEPTED) ✅ "Buy now to transform." (5 words - ACCEPTED) ❌ "Find your voice today and save money." (9 words - DO NOT GENERATE - WILL CAUSE REGENERATION) ❌ "It's clearer than you think it is." (7 words - DO NOT GENERATE - WILL CAUSE REGENERATION) ❌ "Buy now to transform your skin." (7 words - DO NOT GENERATE - WILL CAUSE REGENERATION). The phrase must be complete, meaningful, and grammatically correct within this 5-word constraint. Do NOT generate incomplete or corrupted phrases. COUNT YOUR WORDS BEFORE GENERATING, NOT AFTER.
 
 Return ONLY valid JSON with this structure:
 {
@@ -62,7 +62,7 @@ Return ONLY valid JSON with this structure:
     },
     {
       "type": "cta",
-      "script": "Dialogue text for CTA scene - HUMAN character speaks on-camera (12-16s). Format: '[Human character description] says: [dialogue text]'. 🚨🚨🚨 ABSOLUTE MANDATORY REQUIREMENT: CTA dialogue must be EXACTLY 5 words or less. This is a HARD REQUIREMENT with ZERO TOLERANCE. You MUST count the words before submitting. Examples: ✅ 'Find your voice today.' (5 words - ACCEPTED) ✅ 'Shop now and save.' (4 words - ACCEPTED) ✅ 'Buy now to transform.' (5 words - ACCEPTED) ❌ 'Find your voice today and save money.' (9 words - REJECTED - WILL CAUSE REGENERATION) ❌ 'Buy now to transform your skin.' (7 words - REJECTED - WILL CAUSE REGENERATION). The phrase must be complete, meaningful, and grammatically correct. COUNT YOUR WORDS."
+      "script": "Dialogue text for CTA scene - HUMAN character speaks on-camera (12-16s). Format: '[Human character description] says: [dialogue text]'. 🚨🚨🚨 ABSOLUTE MANDATORY REQUIREMENT: CTA dialogue must be EXACTLY 5 words or less. This is a HARD REQUIREMENT with ZERO TOLERANCE. You MUST NEVER generate CTA dialogue with more than 5 words. BEFORE generating this dialogue, you MUST: 1) Count the words in your intended dialogue text BEFORE writing it, 2) If your intended dialogue exceeds 5 words, shorten it to 5 words or less BEFORE generating it, 3) Generate ONLY dialogue that is 5 words or less. Examples: ✅ 'Find your voice today.' (5 words - ACCEPTED) ✅ 'Shop now and save.' (4 words - ACCEPTED) ✅ 'Buy now to transform.' (5 words - ACCEPTED) ❌ 'Find your voice today and save money.' (9 words - DO NOT GENERATE - WILL CAUSE REGENERATION) ❌ 'Buy now to transform your skin.' (7 words - DO NOT GENERATE - WILL CAUSE REGENERATION). The phrase must be complete, meaningful, and grammatically correct. COUNT YOUR WORDS BEFORE GENERATING, NOT AFTER."
     }
   ]
 }
@@ -93,7 +93,7 @@ ${storyboard.segments.map((seg, idx) => `${idx + 1}. ${seg.type}: ${seg.descript
 - **NO MUSIC**: Do NOT include any music, background music, or soundtracks. Only dialogue.
 - **3 SEGMENTS**: Generate exactly 3 segments (Hook, Body, CTA) - do NOT create 4 segments.
 - **CRITICAL: COMPLETE SENTENCES**: All dialogue must be complete, grammatically correct English sentences. Do NOT generate incomplete phrases, fragments, or cut-off sentences. Each dialogue must be a full, meaningful sentence that makes sense on its own. Examples: ✅ "Oh, thank you! That's exactly what I needed." ✅ "How am I going to finish all of this?" ❌ "Oh, thank you, that" (incomplete - REJECTED) ❌ "That's exactly..." (cut-off - REJECTED). Before finalizing dialogue, verify that each sentence is complete and grammatically correct. If a sentence feels incomplete, expand it to be a full, meaningful statement.
-- **🚨🚨🚨 CRITICAL: CTA WORD LIMIT - ABSOLUTE MANDATORY REQUIREMENT 🚨🚨🚨**: For CTA segment: Generate dialogue with EXACTLY 5 words or less. This is a HARD REQUIREMENT with ZERO TOLERANCE - any dialogue exceeding 5 words will be REJECTED and the entire response will be regenerated. You MUST count the words in your CTA dialogue before finalizing your response. The word count MUST be 5 or fewer. The phrase must be complete, meaningful, and grammatically correct. Examples: ✅ "Find your voice today." (5 words - ACCEPTED) ✅ "It's clearer than you think." (5 words - ACCEPTED) ✅ "Shop now and save." (4 words - ACCEPTED) ✅ "Buy now to transform." (5 words - ACCEPTED) ❌ "Find your voice today and save money." (9 words - REJECTED - WILL CAUSE REGENERATION) ❌ "It's clearer than you think it is." (7 words - REJECTED - WILL CAUSE REGENERATION) ❌ "Buy now to transform your skin." (7 words - REJECTED - WILL CAUSE REGENERATION). Do NOT generate incomplete, corrupted, or truncated phrases. Every word must be complete and the phrase must make full sense. COUNT YOUR WORDS BEFORE SUBMITTING.
+- **🚨🚨🚨 CRITICAL: CTA WORD LIMIT - ABSOLUTE MANDATORY REQUIREMENT 🚨🚨🚨**: For CTA segment: Generate dialogue with EXACTLY 5 words or less. This is a HARD REQUIREMENT with ZERO TOLERANCE - any dialogue exceeding 5 words will be REJECTED and the entire response will be regenerated. You MUST NEVER generate CTA dialogue with more than 5 words. BEFORE generating CTA dialogue, you MUST: 1) Count the words in your intended dialogue text BEFORE writing it, 2) If your intended dialogue exceeds 5 words, shorten it to 5 words or less BEFORE generating it, 3) Generate ONLY dialogue that is 5 words or less - do NOT generate dialogue and then truncate it. The phrase must be complete, meaningful, and grammatically correct. Examples: ✅ "Find your voice today." (5 words - ACCEPTED) ✅ "It's clearer than you think." (5 words - ACCEPTED) ✅ "Shop now and save." (4 words - ACCEPTED) ✅ "Buy now to transform." (5 words - ACCEPTED) ❌ "Find your voice today and save money." (9 words - DO NOT GENERATE - WILL CAUSE REGENERATION) ❌ "It's clearer than you think it is." (7 words - DO NOT GENERATE - WILL CAUSE REGENERATION) ❌ "Buy now to transform your skin." (7 words - DO NOT GENERATE - WILL CAUSE REGENERATION). Do NOT generate incomplete, corrupted, or truncated phrases. Every word must be complete and the phrase must make full sense. COUNT YOUR WORDS BEFORE GENERATING, NOT AFTER.
 
 The dialogue should:
 - Be engaging, concise, and match the storyboard content
@@ -169,7 +169,7 @@ CRITICAL: This is on-camera dialogue, not off-screen narration. Only human chara
         const dialogueMatch = ctaSegment.script.match(/says:\s*['"](.+?)['"]/i)
         if (dialogueMatch) {
           const dialogueText = dialogueMatch[1].trim()
-          const wordCount = dialogueText.split(/\s+/).filter(word => word.length > 0).length
+          const wordCount = dialogueText.split(/\s+/).filter((word: string) => word.length > 0).length
           
           if (wordCount > 5) {
             return { isValid: false, dialogueText, wordCount }
@@ -189,7 +189,7 @@ CRITICAL: This is on-camera dialogue, not off-screen narration. Only human chara
                 `$1${cleaned}$3`
               )
               console.log(`[Generate Voiceover] Cleaned CTA dialogue: "${cleaned}"`)
-              const cleanedWordCount = cleaned.split(/\s+/).filter(word => word.length > 0).length
+              const cleanedWordCount = cleaned.split(/\s+/).filter((word: string) => word.length > 0).length
               return { isValid: cleanedWordCount <= 5, dialogueText: cleaned, wordCount: cleanedWordCount }
             } else {
               console.error(`[Generate Voiceover] CTA dialogue became empty after cleanup - original was corrupted`)
@@ -268,7 +268,7 @@ Your previous CTA dialogue was REJECTED because it exceeded the 5-word limit.
             const dialogueMatch = ctaSegment.script.match(/says:\s*['"](.+?)['"]/i)
             if (dialogueMatch) {
               const dialogueText = dialogueMatch[1].trim()
-              const words = dialogueText.split(/\s+/).filter(word => word.length > 0)
+              const words = dialogueText.split(/\s+/).filter((word: string) => word.length > 0)
               if (words.length > 5) {
                 const truncatedDialogue = words.slice(0, 5).join(' ')
                 const finalDialogue = /[.!?]$/.test(truncatedDialogue.trim()) 
