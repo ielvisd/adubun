@@ -70,12 +70,9 @@ interface Props {
 }
 
 withDefaults(defineProps<Props>(), {
-  headlineLine1: 'Transform Prompts',
-  headlineLine2: 'into Professional Ads',
-  subheadline: 'Create stunning, high-converting video content in minutes with our AI-powered platform. No editing skills required.',
+  headlineLine1: 'Turn any product',
+  headlineLine2: 'into a viral TikTok ad',
+  subheadline: '  No filming. No editing. Just type 3 things → AI does the rest.',
   showVideoBadge: true,
 })
 </script>
-
-
-

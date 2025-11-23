@@ -46,7 +46,7 @@
             </div>
             <UButton
               variant="ghost"
-              color="red"
+              color="error"
               size="sm"
               @click="removeImage(index)"
             >
@@ -58,7 +58,7 @@
     </div>
     
     <UButton
-      v-if="images.filter(img => img !== null).length < maxImages"
+      v-if="images.filter(img => img !== null).length < maxImages && maxImages > 1"
       variant="outline"
       size="sm"
       @click="handleClick"

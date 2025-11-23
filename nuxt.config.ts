@@ -1,4 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-01-15',
   
@@ -10,15 +13,8 @@ export default defineNuxtConfig({
     '@nuxt/fonts',
     '@nuxt/image',
     '@nuxtjs/color-mode',
-    '@nuxtjs/storybook',
     '@vite-pwa/nuxt',
   ],
-
-  storybook: {
-    url: 'http://localhost:6006',
-    storybookRoute: '/__storybook__',
-    port: 6006,
-  },
 
   colorMode: {
     preference: 'system', // default value of $colorMode.preference
@@ -66,7 +62,7 @@ export default defineNuxtConfig({
 
   app: {
     pageTransition: { name: 'page', mode: 'out-in' },
-    layoutTransition: { name: 'layout', mode: 'out-in' },
+    layoutTransition: false,
     head: {
       title: 'AdUbun - AI Video Generation',
       meta: [
@@ -92,8 +88,18 @@ export default defineNuxtConfig({
     },
   },
 
-  devtools: { enabled: true },
+  devtools: { 
+    enabled: true,
+  },
   typescript: { strict: true },
+  
+  vite: {
+    server: {
+      watch: {
+        ignored: ['**/.nuxt/**', '**/.nuxt'],
+      },
+    },
+  },
   
   router: {
     options: {
@@ -251,7 +257,7 @@ export default defineNuxtConfig({
       periodicSyncForUpdates: 20,
     },
     devOptions: {
-      enabled: true,
+      enabled: false, // Disable PWA in dev to avoid service worker file errors
       suppressWarnings: true,
       navigateFallback: '/',
       navigateFallbackAllowlist: [/^\/$/],

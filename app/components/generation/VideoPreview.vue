@@ -83,6 +83,20 @@
           </UButton>
         </div>
 
+        <!-- Download Button (when video is ready) -->
+        <div v-if="selectedVersion && (originalVideoUrl || smartVideoUrl)" class="flex justify-center">
+          <UButton
+            size="xl"
+            color="secondary"
+            variant="solid"
+            @click="downloadVideo"
+            class="bg-secondary-500 hover:bg-secondary-600 text-white font-semibold"
+          >
+            <UIcon name="i-heroicons-arrow-down-tray" class="mr-2" />
+            Download Video
+          </UButton>
+        </div>
+
         <!-- Side-by-Side Comparison -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- Original Composition -->
@@ -342,6 +356,28 @@ const onOriginalVideoLoaded = () => {
 const onSmartVideoLoaded = () => {
   if (smartVideoRef.value) {
     smartVideoDuration.value = smartVideoRef.value.duration
+  }
+}
+
+const downloadVideo = async () => {
+  if (!selectedVersion.value) return
+  
+  const videoUrl = selectedVersion.value === 'original' ? originalVideoUrl.value : smartVideoUrl.value
+  if (!videoUrl) return
+  
+  try {
+    // Create a temporary anchor element to trigger download
+    const link = document.createElement('a')
+    link.href = videoUrl
+    link.download = `ad-video-${Date.now()}.mp4`
+    link.target = '_blank'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  } catch (error) {
+    console.error('Error downloading video:', error)
+    // Fallback: open in new tab
+    window.open(videoUrl, '_blank')
   }
 }
 

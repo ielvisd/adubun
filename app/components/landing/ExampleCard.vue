@@ -1,19 +1,16 @@
 <template>
   <div
-    :class="[
-      'group bg-mendo-light-grey dark:bg-gray-900 rounded-2xl p-6 border border-transparent transition-all duration-300',
-      clickable && 'cursor-pointer hover:bg-white dark:hover:bg-gray-800 hover:shadow-xl hover:border-gray-200 dark:hover:border-gray-700',
-    ]"
+    :class="cardClasses"
     @click="clickable && $emit('click', example)"
   >
     <div class="flex items-start justify-between mb-4">
       <div class="w-12 h-12 rounded-xl bg-mendo-white dark:bg-black flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform">
         {{ example.icon }}
       </div>
-      <UIcon 
+      <UIcon
         v-if="clickable"
-        name="i-heroicons-arrow-up-right" 
-        class="w-5 h-5 text-gray-400 group-hover:text-mendo-black dark:group-hover:text-mendo-white transition-colors" 
+        name="i-heroicons-arrow-up-right"
+        class="w-5 h-5 text-gray-400 group-hover:text-mendo-black dark:group-hover:text-mendo-white transition-colors"
       />
     </div>
     
@@ -40,7 +37,7 @@ interface Example {
   style: string
   prompt: string
   adType?: string
-  [key: string]: any // Allow additional properties
+  [key: string]: any
 }
 
 interface Props {
@@ -48,12 +45,19 @@ interface Props {
   clickable?: boolean
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   clickable: true,
 })
 
 defineEmits<{
   click: [example: Example]
 }>()
-</script>
 
+const cardClasses = computed(() => {
+  const baseClasses = 'group bg-mendo-light-grey dark:bg-gray-900 rounded-2xl p-6 border border-transparent transition-all duration-300'
+  const clickableClasses = props.clickable
+    ? 'cursor-pointer hover:bg-white dark:hover:bg-gray-800 hover:shadow-xl hover:border-gray-200 dark:hover:border-gray-700'
+    : ''
+  return `${baseClasses} ${clickableClasses}`.trim()
+})
+</script>

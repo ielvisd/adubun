@@ -311,9 +311,14 @@
                 type="button"
               >
                 <div class="flex items-center gap-3">
-                  <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                    {{ getSegmentLabel(segment.type) }}
-                  </h3>
+                  <div class="flex flex-col gap-1">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                      {{ getSegmentLabel(segment.type) }}
+                    </h3>
+                    <p v-if="getDialogue(index).dialogueText.trim()" class="text-xs text-gray-500 dark:text-gray-400 italic">
+                      "{{ getDialogue(index).dialogueText }}"
+                    </p>
+                  </div>
                   <span class="text-sm text-gray-500 dark:text-gray-400">
                     {{ segment.startTime }}s - {{ segment.endTime }}s
                   </span>
@@ -447,32 +452,87 @@
                 </div>
               </UFormField>
 
-              <!-- Audio Notes -->
-              <UFormField 
-                label="Audio Notes" 
-                :name="`segment-${index}-audio`"
-              >
-                <div class="relative">
-                  <UTextarea
-                    :ref="el => setTextareaRef(el, index, 'audio')"
-                    v-model="segment.audioNotes"
-                    :rows="3"
-                    placeholder="Dialogue: The man says: 'I spent $400 on a microphone so my voice would finally sound professional.'"
-                    class="w-full"
-                    :disabled="generatingFrames || isFrameRegenerating(index)"
-                    @input="debouncedSave"
-                  />
-                  <div class="absolute top-3 right-3">
-                    <UiVoiceInputButton
-                      :is-supported="voiceInputs[`${index}-audio`]?.isSupported ?? false"
-                      :is-listening="voiceInputs[`${index}-audio`]?.isListening ?? false"
-                      :error="voiceInputs[`${index}-audio`]?.error ?? null"
-                      :disabled="generatingFrames || isFrameRegenerating(index)"
-                      @click="handleVoiceInput(index, 'audio')"
-                    />
-                  </div>
+              <!-- Dialogue / Audio Input (Prominent Section) -->
+              <div class="space-y-3">
+                <div class="flex items-center gap-2">
+                  <UIcon name="i-heroicons-chat-bubble-left-right" class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Spoken Dialogue</h4>
+                  <UBadge 
+                    v-if="getDialogue(index).dialogueText.trim()"
+                    color="blue"
+                    variant="soft"
+                    size="xs"
+                  >
+                    Has Dialogue
+                  </UBadge>
                 </div>
-              </UFormField>
+                <UCard class="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                  <div class="space-y-4">
+                    <!-- Character Field -->
+                    <UFormField 
+                      label="Character" 
+                      :name="`segment-${index}-character`"
+                      description="Who is speaking? (e.g., 'The man', 'The young woman')"
+                    >
+                      <UInput
+                        :model-value="getDialogue(index).character"
+                        placeholder="The man"
+                        class="w-full"
+                        :disabled="generatingFrames || isFrameRegenerating(index)"
+                        @update:model-value="(value: string) => updateDialogue(index, 'character', value)"
+                      />
+                    </UFormField>
+
+                    <!-- Dialogue Text Field -->
+                    <UFormField 
+                      label="Dialogue Text" 
+                      :name="`segment-${index}-dialogue`"
+                      :description="segment.type === 'cta' ? 'CTA dialogue must be 5 words or less' : 'What will the character say?'"
+                    >
+                      <div class="relative">
+                        <UTextarea
+                          :ref="el => setTextareaRef(el, index, 'audio')"
+                          :model-value="getDialogue(index).dialogueText"
+                          :rows="4"
+                          placeholder="I spent $400 on a microphone so my voice would finally sound professional."
+                          class="w-full"
+                          :disabled="generatingFrames || isFrameRegenerating(index)"
+                          @update:model-value="(value: string) => updateDialogue(index, 'dialogueText', value)"
+                        />
+                        <div class="absolute top-3 right-3">
+                          <UiVoiceInputButton
+                            :is-supported="voiceInputs[`${index}-audio`]?.isSupported ?? false"
+                            :is-listening="voiceInputs[`${index}-audio`]?.isListening ?? false"
+                            :error="voiceInputs[`${index}-audio`]?.error ?? null"
+                            :disabled="generatingFrames || isFrameRegenerating(index)"
+                            @click="handleVoiceInput(index, 'audio')"
+                          />
+                        </div>
+                      </div>
+                      <!-- Word Count for CTA -->
+                      <div v-if="segment.type === 'cta'" class="mt-2 flex items-center gap-2">
+                        <span class="text-xs text-gray-500 dark:text-gray-400">
+                          Word count: {{ getDialogueWordCount(getDialogue(index).dialogueText) }}/5
+                        </span>
+                        <UBadge 
+                          v-if="getDialogueWordCount(getDialogue(index).dialogueText) > 5"
+                          color="red"
+                          variant="soft"
+                          size="xs"
+                        >
+                          Exceeds limit
+                        </UBadge>
+                      </div>
+                    </UFormField>
+
+                    <!-- Formatted Preview (Read-only) -->
+                    <div v-if="getDialogue(index).dialogueText.trim()" class="mt-2 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                      <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Formatted Output:</p>
+                      <p class="text-sm text-gray-700 dark:text-gray-300 font-mono">{{ getDialoguePreview(index) }}</p>
+                    </div>
+                  </div>
+                </UCard>
+              </div>
 
               <!-- USER MODE: Side-by-Side Frames -->
               <div v-if="viewMode === 'user'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -745,6 +805,7 @@ import type { Storyboard, Segment } from '~/types/generation'
 import FrameComparison from '~/components/generation/FrameComparison.vue'
 import { nextTick, triggerRef } from 'vue'
 import { getModelById } from '~/config/video-models'
+import { parseDialogue, formatDialogue, getDialogueWordCount, validateCTADialogue } from '~/utils/dialogue-parser'
 
 definePageMeta({
   middleware: 'auth',
@@ -776,6 +837,89 @@ const textareaRefs = ref<Record<string, HTMLTextAreaElement>>({})
 // Voice input instances for each textarea
 const voiceInputs = ref<Record<string, ReturnType<typeof useVoiceInput>>>({})
 
+// Dialogue state for each segment (character and dialogue text)
+const dialogueState = ref<Record<number, { character: string; dialogueText: string }>>({})
+
+// Initialize dialogue state from segments
+const initializeDialogueState = () => {
+  if (!selectedStoryboard.value) return
+  
+  selectedStoryboard.value.segments.forEach((segment, index) => {
+    const parsed = parseDialogue(segment.audioNotes)
+    if (parsed) {
+      dialogueState.value[index] = {
+        character: parsed.character,
+        dialogueText: parsed.dialogueText
+      }
+    } else {
+      dialogueState.value[index] = {
+        character: '',
+        dialogueText: ''
+      }
+    }
+  })
+}
+
+// Update audioNotes when dialogue changes
+const updateDialogue = (index: number, field: 'character' | 'dialogueText', value: string) => {
+  if (!selectedStoryboard.value) return
+  
+  const segment = selectedStoryboard.value.segments[index]
+  if (!segment) return
+  
+  // Update local dialogue state
+  if (!dialogueState.value[index]) {
+    dialogueState.value[index] = { character: '', dialogueText: '' }
+  }
+  dialogueState.value[index][field] = value
+  
+  // Validate CTA dialogue word count
+  if (segment.type === 'cta' && field === 'dialogueText') {
+    const validation = validateCTADialogue(value)
+    if (!validation.isValid) {
+      toast.add({
+        title: 'Word Limit Exceeded',
+        description: validation.message,
+        color: 'yellow',
+        timeout: 3000,
+      })
+    }
+  }
+  
+  // Reconstruct audioNotes format
+  const { character, dialogueText } = dialogueState.value[index]
+  segment.audioNotes = formatDialogue(character, dialogueText)
+  
+  // Trigger save
+  debouncedSave()
+}
+
+// Get parsed dialogue for a segment
+const getDialogue = (index: number) => {
+  if (!dialogueState.value[index]) {
+    const segment = selectedStoryboard.value?.segments[index]
+    if (segment) {
+      const parsed = parseDialogue(segment.audioNotes)
+      if (parsed) {
+        dialogueState.value[index] = {
+          character: parsed.character,
+          dialogueText: parsed.dialogueText
+        }
+      } else {
+        dialogueState.value[index] = { character: '', dialogueText: '' }
+      }
+    }
+  }
+  return dialogueState.value[index] || { character: '', dialogueText: '' }
+}
+
+// Get dialogue preview text for display
+const getDialoguePreview = (index: number): string => {
+  const dialogue = getDialogue(index)
+  if (!dialogue.dialogueText.trim()) return ''
+  return formatDialogue(dialogue.character || 'Character', dialogue.dialogueText)
+}
+
 // Set textarea ref
 const setTextareaRef = (el: HTMLTextAreaElement | null, index: number, field: 'description' | 'visual' | 'audio') => {
   if (el) {
@@ -788,15 +932,19 @@ const setTextareaRef = (el: HTMLTextAreaElement | null, index: number, field: 'd
         const segment = selectedStoryboard.value?.segments[index]
         if (!segment) return
         
-        const currentValue = (segment as any)[field === 'description' ? 'description' : field === 'visual' ? 'visualPrompt' : 'audioNotes']?.trim() || ''
-        const newValue = currentValue ? `${currentValue} ${text}` : text
-        
         if (field === 'description') {
-          segment.description = newValue
+          const currentValue = segment.description?.trim() || ''
+          segment.description = currentValue ? `${currentValue} ${text}` : text
         } else if (field === 'visual') {
-          segment.visualPrompt = newValue
+          const currentValue = segment.visualPrompt?.trim() || ''
+          segment.visualPrompt = currentValue ? `${currentValue} ${text}` : text
         } else if (field === 'audio') {
-          segment.audioNotes = newValue
+          // For dialogue, append to dialogueText
+          const dialogue = getDialogue(index)
+          const currentDialogue = dialogue.dialogueText?.trim() || ''
+          const newDialogueText = currentDialogue ? `${currentDialogue} ${text}` : text
+          updateDialogue(index, 'dialogueText', newDialogueText)
+          return // updateDialogue already calls debouncedSave
         }
         
         debouncedSave()
@@ -1616,6 +1764,18 @@ onMounted(async () => {
   
   // Get selected story and prompt data from sessionStorage
   if (process.client) {
+    // Check if this is a new navigation (from create/finalize) vs page refresh
+    const isNewNavigation = sessionStorage.getItem('isNewNavigation') === 'true'
+    
+    // If new navigation, clear old video generation state (but preserve storyboard/frames if they exist)
+    if (isNewNavigation) {
+      sessionStorage.removeItem('generateVideoJobId')
+      sessionStorage.removeItem('videoResult')
+      sessionStorage.removeItem('isNewNavigation') // Clear flag after use
+      console.log('[Storyboards] New navigation detected - cleared old video generation state')
+    }
+    // On refresh: preserve ALL data - do NOT clear anything
+    
     const storedStory = sessionStorage.getItem('selectedStory')
     const storedPromptData = sessionStorage.getItem('promptData')
     const storedMode = sessionStorage.getItem('generationMode')
@@ -1658,7 +1818,7 @@ onMounted(async () => {
       const mode = storedMode === 'demo' ? 'demo' : 'production'
       
       // Pass mode to generateStoryboards so it's set correctly before frame generation
-        await generateStoryboards(undefined, mode)
+        await generateStoryboards(mode)
         
         // Check all frame dimensions after storyboard loads
         await nextTick()
@@ -1729,6 +1889,9 @@ const generateStoryboards = async (mode?: 'demo' | 'production') => {
       console.log('[Storyboards] Mode set to:', selectedStoryboard.value.meta.mode)
       console.log('[Storyboards] Model set to:', selectedStoryboard.value.meta.model)
       
+      // Initialize dialogue state
+      initializeDialogueState()
+      
       // Try to load saved state from localStorage
       const savedState = loadStoryboardState(selectedStoryboard.value.id)
       if (savedState && savedState.segments) {
@@ -1754,6 +1917,8 @@ const generateStoryboards = async (mode?: 'demo' | 'production') => {
             }
           }
         })
+        // Re-initialize dialogue state after restoring saved state
+        initializeDialogueState()
         // Restore model if saved
         if (savedState.meta?.model && selectedStoryboard.value.meta) {
           selectedStoryboard.value.meta.model = savedState.meta.model

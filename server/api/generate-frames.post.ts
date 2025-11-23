@@ -7,6 +7,7 @@ import { saveAsset, deleteFile } from '../utils/storage'
 import { uploadFileToS3 } from '../utils/s3-upload'
 import { createCharacterConsistencyInstruction, formatCharactersForPrompt } from '../utils/character-extractor'
 import { detectSceneConflict, extractSolutionItem, extractItemInitialLocation } from '../utils/scene-conflict-checker'
+import { sanitizeVideoPrompt } from '../utils/prompt-sanitizer'
 import type { Storyboard, Segment, Character } from '~/types/generation'
 
 const generateFramesSchema = z.object({
@@ -47,6 +48,8 @@ const generateFramesSchema = z.object({
   }),
   productImages: z.array(z.string()).optional(),
   subjectReference: z.string().optional(),
+  avatarReference: z.array(z.string()).optional(),
+  avatarId: z.string().optional(),
   story: z.object({
     description: z.string(),
     hook: z.string(),
@@ -126,13 +129,89 @@ export default defineEventHandler(async (event) => {
       console.log(`[Generate Frames] Raw body received - first 3 productImages:`, body.productImages.slice(0, 3))
     }
     
-    const { storyboard, productImages = [], subjectReference, story, mode } = generateFramesSchema.parse(body)
+    const { storyboard, productImages = [], subjectReference, avatarReference = [], avatarId, story, mode } = generateFramesSchema.parse(body)
     
     // Set subjectReference on storyboard meta if provided and not already set
     if (subjectReference && !storyboard.meta.subjectReference) {
       storyboard.meta.subjectReference = subjectReference
       console.log(`[Generate Frames] Set subjectReference on storyboard.meta: ${subjectReference}`)
     }
+    
+    // Load avatar description if avatarId is provided
+    let avatarDescription: string | null = null
+    let avatarLookAndStyle: string | null = null
+    let characterAge: string | undefined = undefined
+    if (avatarId) {
+      try {
+        const { getAvatarById } = await import('../../app/config/avatars')
+        const avatar = getAvatarById(avatarId)
+        if (avatar) {
+          avatarDescription = avatar.description
+          avatarLookAndStyle = avatar.lookAndStyle
+          // Extract age from avatar description or ageRange
+          // Look for patterns like "24-28 year old", "mid-20s", "early 30s", etc.
+          const ageMatch = avatar.description.match(/(\d+-\d+|\d+)\s*year\s*old|(mid|early|late)\s*-?\s*(\d+)s?|(\d+)\s*years?\s*old/i)
+          if (ageMatch) {
+            if (ageMatch[1]) {
+              // "24-28 year old" -> "mid-20s"
+              const [start, end] = ageMatch[1].split('-').map(Number)
+              const mid = Math.floor((start + end) / 2)
+              characterAge = `mid-${Math.floor(mid / 10) * 10}s`
+            } else if (ageMatch[2] && ageMatch[3]) {
+              // "mid-20s" or "early 30s"
+              characterAge = `${ageMatch[2]}-${ageMatch[3]}s`
+            } else if (ageMatch[4]) {
+              // "24 years old" -> "mid-20s"
+              const age = Number(ageMatch[4])
+              const decade = Math.floor(age / 10) * 10
+              if (age % 10 < 3) characterAge = `early-${decade}s`
+              else if (age % 10 < 7) characterAge = `mid-${decade}s`
+              else characterAge = `late-${decade}s`
+            }
+          } else if (avatar.ageRange) {
+            // Use ageRange as fallback (e.g., "24-28" -> "mid-20s")
+            const [start, end] = avatar.ageRange.split('-').map(Number)
+            if (start && end) {
+              const mid = Math.floor((start + end) / 2)
+              characterAge = `mid-${Math.floor(mid / 10) * 10}s`
+            }
+          }
+          
+          // Store gender for context-aware replacements
+          const avatarGender = avatar.gender || 'female'
+          console.log(`[Generate Frames] Loaded avatar description for ${avatarId}, extracted age: ${characterAge}`)
+        }
+      } catch (error) {
+        console.warn(`[Generate Frames] Could not load avatar description for ${avatarId}:`, error)
+      }
+    }
+    
+    // Sanitize story text to replace teenage/teen references with character age
+    const sanitizeStoryText = (text: string): string => {
+      return sanitizeVideoPrompt(text, characterAge)
+    }
+    
+    // Sanitize visual prompts as well (they may contain age references)
+    const sanitizeVisualPrompt = (prompt: string): string => {
+      return sanitizeVideoPrompt(prompt, characterAge)
+    }
+    
+    // Sanitize all story fields and create Story object with id
+    const sanitizedStory = {
+      id: storyboard.id || `story-${Date.now()}`, // Use storyboard id or generate one
+      description: sanitizeStoryText(story.description),
+      hook: sanitizeStoryText(story.hook),
+      bodyOne: sanitizeStoryText(story.bodyOne || ''),
+      bodyTwo: sanitizeStoryText(story.bodyTwo || ''),
+      callToAction: sanitizeStoryText(story.callToAction),
+    }
+    
+    // Sanitize visual prompts in storyboard segments
+    storyboard.segments.forEach(segment => {
+      segment.visualPrompt = sanitizeVisualPrompt(segment.visualPrompt)
+    })
+    
+    console.log(`[Generate Frames] Sanitized story text and visual prompts (replaced teenage/teen references with: ${characterAge || 'young adult'})`)
     
     console.log(`[Generate Frames] After parsing - productImages type:`, typeof productImages)
     console.log(`[Generate Frames] After parsing - productImages is array:`, Array.isArray(productImages))
@@ -191,13 +270,59 @@ export default defineEventHandler(async (event) => {
       console.log(`[Generate Frames] Product image URLs:`, productImages)
     }
     
-    // Use all available reference images (up to model limit of 10)
-    const referenceImages = productImages.length > 0 ? productImages.slice(0, 10) : []
+    // Helper function to resolve public folder paths and convert to URLs for Replicate
+    const resolveImagePath = async (imagePath: string): Promise<string> => {
+      // If it's already a URL, return as-is
+      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        return imagePath
+      }
+      
+      // Resolve to absolute path first
+      let absolutePath: string
+      if (imagePath.startsWith('/')) {
+        // Public folder path - resolve relative to public folder
+        const publicPath = imagePath.slice(1)
+        absolutePath = path.resolve(process.cwd(), 'public', publicPath)
+        console.log(`[Generate Frames] Resolved public path: ${imagePath} -> ${absolutePath}`)
+      } else if (path.isAbsolute(imagePath)) {
+        absolutePath = imagePath
+      } else {
+        absolutePath = path.resolve(process.cwd(), imagePath)
+      }
+      
+      // Convert local file to URL using uploadFileToReplicate (uploads to S3 or serves locally)
+      const { uploadFileToReplicate } = await import('../utils/replicate-upload')
+      const url = await uploadFileToReplicate(absolutePath)
+      console.log(`[Generate Frames] Converted local file to URL: ${absolutePath} -> ${url}`)
+      return url
+    }
     
-    // Add person reference (subjectReference) if available from storyboard meta
-    if (storyboard.meta.subjectReference) {
-      console.log(`[Generate Frames] Adding person reference to nano-banana inputs: ${storyboard.meta.subjectReference}`)
-      referenceImages.push(storyboard.meta.subjectReference)
+    // Use all available reference images (up to model limit of 10)
+    const referenceImages: string[] = []
+    
+    // Add product images first (resolve paths and convert to URLs)
+    if (productImages.length > 0) {
+      const resolvedProductImages = await Promise.all(productImages.slice(0, 10).map(resolveImagePath))
+      referenceImages.push(...resolvedProductImages)
+    }
+    
+    // Add avatar reference images (resolve public folder paths and convert to URLs)
+    if (avatarReference.length > 0) {
+      const remainingSlots = 10 - referenceImages.length
+      if (remainingSlots > 0) {
+        console.log(`[Generate Frames] Avatar reference images before resolution:`, avatarReference.slice(0, remainingSlots))
+        const resolvedAvatarImages = await Promise.all(avatarReference.slice(0, remainingSlots).map(resolveImagePath))
+        console.log(`[Generate Frames] Avatar reference images after resolution:`, resolvedAvatarImages)
+        referenceImages.push(...resolvedAvatarImages)
+        console.log(`[Generate Frames] Added ${Math.min(avatarReference.length, remainingSlots)} avatar reference image(s) to nano-banana inputs`)
+      }
+    }
+    
+    // Add person reference (subjectReference) if available from storyboard meta (resolve path and convert to URL)
+    if (storyboard.meta.subjectReference && referenceImages.length < 10) {
+      const resolvedSubjectRef = await resolveImagePath(storyboard.meta.subjectReference)
+      console.log(`[Generate Frames] Adding person reference to nano-banana inputs: ${resolvedSubjectRef}`)
+      referenceImages.push(resolvedSubjectRef)
     }
 
     // Get characters from storyboard for consistency
@@ -243,7 +368,9 @@ export default defineEventHandler(async (event) => {
       transitionText?: string, 
       transitionVisual?: string,
       previousFrameImage?: string,  // NEW: Add previous frame as input
-      trackedItems?: Array<{item: string, initialLocation: string, actionType: 'bringing' | 'interacting'}>  // NEW: Tracked items for duplicate prevention
+      trackedItems?: Array<{item: string, initialLocation: string, actionType: 'bringing' | 'interacting'}>,  // NEW: Tracked items for duplicate prevention
+      avatarDesc?: string | null,  // Avatar description (loaded outside function)
+      avatarLook?: string | null   // Avatar look and style (loaded outside function)
     ) => {
       const moodStyle = mood ? `${mood} style` : 'professional style'
       const hasReferenceImages = referenceImages.length > 0
@@ -292,6 +419,12 @@ export default defineEventHandler(async (event) => {
         basePrompt = `Scene context: ${storyText}. Visual: ${visualPrompt}`
       }
       
+      // Add avatar description if avatar is selected
+      let avatarInstruction = ''
+      if (avatarDesc && avatarLook) {
+        avatarInstruction = `CRITICAL AVATAR CONSISTENCY: The main character in this scene must be ${avatarDesc}. This character must appear with IDENTICAL appearance across all frames: same ${avatarLook}. Maintain exact same gender, age, physical features, and clothing style. Use the avatar reference images provided to ensure pixel-perfect character consistency. `
+      }
+      
       // Add character consistency instructions if we have characters
       let characterInstruction = ''
       if (characters.length > 0) {
@@ -327,14 +460,23 @@ export default defineEventHandler(async (event) => {
         duplicatePrevention = `🚨 CRITICAL DUPLICATE PREVENTION: Each physical item should appear in ONLY ONE location at a time. If an item is being held or in someone's hands, it should NOT also appear on surfaces. If an item is on a surface, it should NOT also appear in hands unless it is actively being picked up or transferred in this exact moment. Do NOT show the same item in multiple locations simultaneously. `
       }
 
+      // Add character visibility requirement (always visible, even during product zooms)
+      let characterVisibilityInstruction = ''
+      if (avatarDesc || characters.length > 0) {
+        characterVisibilityInstruction = `🚨 CRITICAL CHARACTER VISIBILITY - MANDATORY REQUIREMENT: The main character MUST be VISIBLE in this frame at all times. Even when zooming on products, showing product close-ups, or focusing on product details, the character must remain visible in the frame. The character can be in the background, side, foreground, or any position, but MUST be present and visible. Do NOT create frames that show only the product without the character visible. This is a MANDATORY requirement for seamless transitions - the character must appear in EVERY frame. `
+      }
+
+      // Add mirror/reflection exclusion instruction
+      const mirrorExclusionInstruction = `🚨 CRITICAL - NO MIRRORS OR REFLECTIONS: DO NOT include mirrors, reflections, reflective surfaces, bathroom mirrors, or people looking at their reflection in this frame. This is a MANDATORY requirement - any frame containing mirrors or reflections will be rejected. `
+
       // Add product consistency and reference image instructions if we have reference images
       if (hasReferenceImages) {
         const productConsistencyInstruction = `CRITICAL INSTRUCTIONS: Do not add new products to the scene. Only enhance existing products shown in the reference images. Keep product design and style exactly as shown in references. The reference images provided are the EXACT product you must recreate. You MUST copy the product from the reference images with pixel-perfect accuracy. Do NOT create a different product, do NOT use different colors, do NOT change the design, do NOT hallucinate new products. The product in your generated image must be visually IDENTICAL to the product in the reference images. Study every detail: exact color codes, exact design patterns, exact text/fonts, exact materials, exact textures, exact proportions, exact placement. The reference images are your ONLY source of truth for the product appearance. Ignore any text in the prompt that contradicts the reference images - the reference images take absolute priority. Generate the EXACT same product as shown in the reference images. `
-        // Place duplicate prevention FIRST, before all other instructions
-        return `${duplicatePrevention}${characterInstruction}${noTextInstruction}${previousFrameInstruction}${productConsistencyInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality, product must be pixel-perfect match to reference images, product appearance must be identical to reference images ${variationReinforcement}`
+        // Place duplicate prevention FIRST, then mirror exclusion, then character visibility (highest priority for visibility), then avatar, then character
+        return `${duplicatePrevention}${mirrorExclusionInstruction}${characterVisibilityInstruction}${avatarInstruction}${characterInstruction}${noTextInstruction}${previousFrameInstruction}${productConsistencyInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality, product must be pixel-perfect match to reference images, product appearance must be identical to reference images ${variationReinforcement}`
       } else {
-        // Place duplicate prevention FIRST, before all other instructions
-        return `${duplicatePrevention}${characterInstruction}${noTextInstruction}${previousFrameInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality ${variationReinforcement}`
+        // Place duplicate prevention FIRST, then mirror exclusion, then character visibility (highest priority for visibility), then avatar, then character
+        return `${duplicatePrevention}${mirrorExclusionInstruction}${characterVisibilityInstruction}${avatarInstruction}${characterInstruction}${noTextInstruction}${previousFrameInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality ${variationReinforcement}`
       }
     }
 
@@ -467,7 +609,7 @@ export default defineEventHandler(async (event) => {
       try {
         console.log('\n[Generate Frames] === Extracting story items from body segments ===')
         for (const bodySegment of bodySegments) {
-          const solutionItem = await extractSolutionItem(bodySegment, story)
+          const solutionItem = await extractSolutionItem(bodySegment, sanitizedStory)
           if (solutionItem && solutionItem.actionType === 'bringing' && solutionItem.item) {
             allStoryItems.push({
               item: solutionItem.item,
@@ -586,7 +728,7 @@ export default defineEventHandler(async (event) => {
         console.log(`[Generate Frames] Including ${allStoryItems.length} story item(s) in hook first frame (locations not extracted): ${itemsList}`)
       }
       
-      const nanoPrompt = buildNanoPrompt(story.hook, hookVisualPrompt, false, undefined, undefined, undefined, itemsWithLocations.length > 0 ? itemsWithLocations : undefined)
+      const nanoPrompt = buildNanoPrompt(sanitizedStory.hook, hookVisualPrompt, false, undefined, undefined, undefined, itemsWithLocations.length > 0 ? itemsWithLocations : undefined, avatarDescription, avatarLookAndStyle)
       hookFirstFrameResult = await generateSingleFrame(
         'hook first frame', 
         nanoPrompt, 
@@ -608,6 +750,9 @@ export default defineEventHandler(async (event) => {
         console.error('[Generate Frames] ✗ Hook first frame generation failed')
       }
     }
+    
+    // Store hook first frame URL for later comparison with CTA last frame
+    const hookFirstFrameUrl = hookFirstFrameResult?.imageUrl || null
 
     // NON-SEAMLESS TRANSITION: Generate only first frames if seamlessTransition is OFF
     if (!seamlessTransition) {
@@ -617,7 +762,7 @@ export default defineEventHandler(async (event) => {
       if (body1Segment) {
         console.log('\n[Generate Frames] === FRAME 2: Body First Frame (non-seamless) ===')
         
-        const nanoPrompt = buildNanoPrompt(story.bodyOne, body1Segment.visualPrompt)
+        const nanoPrompt = buildNanoPrompt(sanitizedStory.bodyOne, body1Segment.visualPrompt, false, undefined, undefined, undefined, undefined, avatarDescription, avatarLookAndStyle)
         const bodyFirstFrameResult = await generateSingleFrame(
           'body first frame', 
           nanoPrompt, 
@@ -644,7 +789,7 @@ export default defineEventHandler(async (event) => {
       if (body2Segment) {
         console.log('\n[Generate Frames] === FRAME 3: Body2 First Frame (non-seamless) ===')
         
-        const nanoPrompt = buildNanoPrompt(story.bodyTwo, body2Segment.visualPrompt)
+        const nanoPrompt = buildNanoPrompt(sanitizedStory.bodyTwo, body2Segment.visualPrompt, false, undefined, undefined, undefined, undefined, avatarDescription, avatarLookAndStyle)
         const body2FirstFrameResult = await generateSingleFrame(
           'body2 first frame', 
           nanoPrompt, 
@@ -671,7 +816,7 @@ export default defineEventHandler(async (event) => {
       if (ctaSegment) {
         console.log('\n[Generate Frames] === FRAME ' + (body2Segment ? '4' : '3') + ': CTA First Frame (non-seamless) ===')
         
-        const nanoPrompt = buildNanoPrompt(story.callToAction, ctaSegment.visualPrompt)
+        const nanoPrompt = buildNanoPrompt(sanitizedStory.callToAction, ctaSegment.visualPrompt, false, undefined, undefined, undefined, undefined, avatarDescription, avatarLookAndStyle)
         const ctaFirstFrameResult = await generateSingleFrame(
           'cta first frame', 
           nanoPrompt, 
@@ -730,22 +875,24 @@ export default defineEventHandler(async (event) => {
       let hookLastVisualPrompt = hookProgressionInstruction + hookSegment.visualPrompt
       
       const nanoPrompt = buildNanoPrompt(
-        story.hook, 
+        sanitizedStory.hook, 
         hookLastVisualPrompt, 
         true, 
-        story.bodyOne, 
+        sanitizedStory.bodyOne, 
         body1Segment.visualPrompt,
         hookFirstFrameResult.imageUrl,  // Use hook first frame as input
-        itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
+        itemsWithLocations.length > 0 ? itemsWithLocations : undefined,  // Pass tracked items
+        avatarDescription,
+        avatarLookAndStyle
       )
       hookLastFrameResult = await generateSingleFrame(
         'hook last frame', 
         nanoPrompt, 
         hookLastVisualPrompt,
         hookFirstFrameResult.imageUrl,  // Previous frame image
-        story.hook, 
+        sanitizedStory.hook, 
         true, 
-        story.bodyOne, 
+        sanitizedStory.bodyOne, 
         body1Segment.visualPrompt
       )
       
@@ -798,22 +945,24 @@ export default defineEventHandler(async (event) => {
         }
         
         const nanoPrompt = buildNanoPrompt(
-          story.bodyOne, 
+          sanitizedStory.bodyOne, 
           body1VisualPrompt, 
           true, 
-          story.callToAction, 
+          sanitizedStory.callToAction, 
           ctaSegment.visualPrompt,
           hookLastFrameResult.imageUrl,  // Use hook last frame (= Body first frame) as input
-          itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
+          itemsWithLocations.length > 0 ? itemsWithLocations : undefined,  // Pass tracked items
+          avatarDescription,
+          avatarLookAndStyle
         )
         bodyLastFrameResult = await generateSingleFrame(
           'body last frame', 
           nanoPrompt, 
           body1VisualPrompt,
           hookLastFrameResult.imageUrl,  // Previous frame image (Body first = Hook last)
-          story.bodyOne, 
+          sanitizedStory.bodyOne, 
           true, 
-          story.callToAction, 
+          sanitizedStory.callToAction, 
           ctaSegment.visualPrompt
         )
         
@@ -845,22 +994,24 @@ export default defineEventHandler(async (event) => {
         }
         
         const nanoPrompt = buildNanoPrompt(
-          story.bodyOne, 
+          sanitizedStory.bodyOne, 
           body1VisualPrompt, 
           true, 
-          story.bodyTwo, 
+          sanitizedStory.bodyTwo, 
           body2Segment.visualPrompt,
           hookLastFrameResult.imageUrl,  // Use hook last frame (= Body1 first frame) as input
-          itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
+          itemsWithLocations.length > 0 ? itemsWithLocations : undefined,  // Pass tracked items
+          avatarDescription,
+          avatarLookAndStyle
         )
         body1LastFrameResult = await generateSingleFrame(
           'body1 last frame', 
           nanoPrompt, 
           body1VisualPrompt,
           hookLastFrameResult.imageUrl,  // Previous frame image (Body1 first = Hook last)
-          story.bodyOne, 
+          sanitizedStory.bodyOne, 
           true, 
-          story.bodyTwo, 
+          sanitizedStory.bodyTwo, 
           body2Segment.visualPrompt
         )
         
@@ -891,22 +1042,24 @@ export default defineEventHandler(async (event) => {
         }
         
         const nanoPrompt = buildNanoPrompt(
-          story.bodyTwo, 
+          sanitizedStory.bodyTwo, 
           body2VisualPrompt, 
           true, 
-          story.callToAction, 
+          sanitizedStory.callToAction, 
           ctaSegment.visualPrompt,
           body1LastFrameResult.imageUrl,  // Use body1 last frame (= Body2 first frame) as input
-          itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
+          itemsWithLocations.length > 0 ? itemsWithLocations : undefined,  // Pass tracked items
+          avatarDescription,
+          avatarLookAndStyle
         )
         body2LastFrameResult = await generateSingleFrame(
           'body2 last frame', 
           nanoPrompt, 
           body2VisualPrompt,
           body1LastFrameResult.imageUrl,  // Previous frame image (Body2 first = Body1 last)
-          story.bodyTwo, 
+          sanitizedStory.bodyTwo, 
           true, 
-          story.callToAction, 
+          sanitizedStory.callToAction, 
           ctaSegment.visualPrompt
         )
         
@@ -936,24 +1089,35 @@ export default defineEventHandler(async (event) => {
         visualPrompt: ctaSegment.visualPrompt,
       })
       console.log(`[Generate Frames] CTA first frame URL (${is3SegmentFormat ? 'body' : 'body2'} last):`, previousFrameUrl)
-      console.log('[Generate Frames] CTA story text:', story.callToAction)
+      console.log('[Generate Frames] CTA story text:', sanitizedStory.callToAction)
+      console.log('[Generate Frames] Hook first frame URL (for comparison):', hookFirstFrameUrl)
       
-      // CTA last frame should be visually distinct from first frame (hero shot, text overlay, logo)
+      // CTA last frame should be visually distinct from the OPENING SHOT (hook first frame)
       // Use isTransition: false to trigger variation instruction
       // Include previous frame in image inputs to maintain character and scene continuity (like body segments)
       // Strong variation instructions will ensure visual differences while maintaining continuity
-      // Enhance visual prompt with CTA-specific variation instructions
-      const ctaVariationInstruction = ` 🚨 CTA FINAL FRAME - MANDATORY VISUAL DISTINCTION: This is the FINAL frame of the CTA segment and must be SIGNIFICANTLY visually different from the opening shot. While maintaining the SAME character (identical appearance, clothing, physical features) and SAME general setting/environment, you MUST create a DISTINCT final composition by: 1) Using a DIFFERENT camera angle (switch from close-up to medium/wide, or front to side/three-quarter, or change elevation), 2) Changing character pose and body language (different standing/sitting position, different gesture like pointing, different facial expression, different body orientation), 3) Altering composition and framing (different character placement in frame, different focal point, different depth of field), 4) Adding or modifying text overlays/logo lockups if specified in the visual prompt. The final frame should feel like a natural progression or hero shot moment while maintaining character and scene continuity. DO NOT create an identical frame - the composition, camera angle, and pose must be clearly different. `
+      // Enhance visual prompt with CTA-specific variation instructions that compare against hook first frame
+      const hookComparisonText = hookFirstFrameUrl 
+        ? `Compare this final frame against the OPENING SHOT (hook first frame). The opening shot shows one composition - this closing shot must be MODERATELY visually different with at least 2 of the following differing: `
+        : `This is the FINAL frame and must be MODERATELY visually different from the OPENING SHOT (hook first frame). At least 2 of the following must differ: `
+      
+      const hookFrameReference = hookFirstFrameUrl 
+        ? ` The opening shot (hook first frame) has already been generated and shows a specific composition, camera angle, and character pose. `
+        : ` The opening shot (hook first frame) establishes the initial composition. `
+      
+      const ctaVariationInstruction = ` 🚨 CTA FINAL FRAME - MANDATORY VISUAL DISTINCTION FROM OPENING SHOT: ${hookFrameReference}${hookComparisonText}1) Camera angle (switch from close-up to medium/wide, or front to side/three-quarter, or change elevation), 2) Character pose (different standing/sitting position, different gesture like pointing, different facial expression, different body orientation), 3) Composition/framing (different character placement in frame, different focal point, different depth of field). While maintaining the SAME character (identical appearance, clothing, physical features) and SAME general setting/environment, you MUST create a DISTINCT final composition. The final frame should feel like a natural progression or hero shot moment while maintaining character and scene continuity. DO NOT create an identical frame to the opening shot - the composition, camera angle, and pose must be clearly different. `
       const enhancedCtaVisualPrompt = ctaSegment.visualPrompt + ctaVariationInstruction
       
       const nanoPrompt = buildNanoPrompt(
-        story.callToAction, 
+        sanitizedStory.callToAction, 
         enhancedCtaVisualPrompt,
         false,  // NOT using transition mode - want visual variation
         undefined,
         undefined,
         previousFrameUrl,  // Use CTA first frame as context reference (for both image input and prompt instructions)
-        itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
+        itemsWithLocations.length > 0 ? itemsWithLocations : undefined,  // Pass tracked items
+        avatarDescription,
+        avatarLookAndStyle
       )
       
       console.log('[Generate Frames] CTA nano prompt:', nanoPrompt)
@@ -966,7 +1130,7 @@ export default defineEventHandler(async (event) => {
         nanoPrompt, 
         enhancedCtaVisualPrompt,  // Use enhanced visual prompt with CTA-specific variation instructions
         previousFrameUrl,  // Previous frame for visual reference (for character and scene continuity)
-        story.callToAction,  // Story text for context
+        sanitizedStory.callToAction,  // Story text for context
         false,  // isTransition = false (triggers variation instruction for different composition)
         undefined,  // No transition text
         undefined,  // No transition visual
@@ -1080,7 +1244,7 @@ export default defineEventHandler(async (event) => {
                 segment,
                 segmentFrameImages,
                 segment.visualPrompt,
-                story
+                sanitizedStory
               )
               
               if (refinedPrompt && refinedPrompt !== segment.visualPrompt) {
@@ -1134,7 +1298,7 @@ export default defineEventHandler(async (event) => {
           
           if (hookFrameUrls.length > 0) {
             console.log(`[Generate Frames] Checking ${hookFrameUrls.length} hook frame(s) for conflicts with body segment solution...`)
-            conflictDetails = await detectSceneConflict(hookFrameUrls, body1Segment, story)
+            conflictDetails = await detectSceneConflict(hookFrameUrls, body1Segment, sanitizedStory)
             conflictDetected = conflictDetails.hasConflict
             
             if (conflictDetected && conflictDetails.item && regenerationAttempts < maxRegenerationAttempts) {
@@ -1181,25 +1345,27 @@ export default defineEventHandler(async (event) => {
                     
                     if (frameType === 'first') {
                       // Hook first frame: no previous frame
-                      currentSceneText = story.hook
+                      currentSceneText = sanitizedStory.hook
                     } else {
                       // Hook last frame: uses hook first as previous, transitions to body1
                       previousFrameImage = hookFirstFrame.imageUrl
-                      currentSceneText = story.hook
+                      currentSceneText = sanitizedStory.hook
                       isTransition = true
-                      transitionText = story.bodyOne
+                      transitionText = sanitizedStory.bodyOne
                       transitionVisual = body1Segment.visualPrompt
                     }
                     
                     // Build nano prompt with modified visual prompt
                     const nanoPrompt = buildNanoPrompt(
-                      currentSceneText || story.hook,
+                      currentSceneText || sanitizedStory.hook,
                       modifiedVisualPrompt,
                       isTransition,
                       transitionText,
                       transitionVisual,
                       previousFrameImage,
-                      itemsWithLocations.length > 0 ? itemsWithLocations : undefined  // Pass tracked items
+                      itemsWithLocations.length > 0 ? itemsWithLocations : undefined,  // Pass tracked items
+                      avatarDescription,
+                      avatarLookAndStyle
                     )
                     
                     // Regenerate the frame
@@ -1235,16 +1401,18 @@ export default defineEventHandler(async (event) => {
                       if (frameType === 'last' && segmentIndex === 0) {
                         const body1SegmentIndex = storyboard.segments.findIndex(s => s.type === 'body')
                         if (body1SegmentIndex >= 0) {
-                          storyboard.segments[body1SegmentIndex].firstFrameImage = regeneratedFrame.imageUrl
+                          const body1Segment = storyboard.segments[body1SegmentIndex] as Segment
+                          body1Segment.firstFrameImage = regeneratedFrame.imageUrl
                           console.log(`[Generate Frames] ✓ Updated body1 first frame to match regenerated hook last frame`)
                         }
                       }
                       
                       // Update segment's frame image
+                      const hookSegmentTyped = hookSegment as Segment
                       if (frameType === 'first') {
-                        hookSegment.firstFrameImage = regeneratedFrame.imageUrl
+                        hookSegmentTyped.firstFrameImage = regeneratedFrame.imageUrl
                       } else {
-                        hookSegment.lastFrameImage = regeneratedFrame.imageUrl
+                        hookSegmentTyped.lastFrameImage = regeneratedFrame.imageUrl
                       }
                       
                       framesRegenerated = true
@@ -1265,7 +1433,7 @@ export default defineEventHandler(async (event) => {
                   
                   if (updatedHookFirstFrame && updatedHookLastFrame && body1Segment) {
                     const updatedHookFrameUrls = [updatedHookFirstFrame.imageUrl, updatedHookLastFrame.imageUrl].filter(Boolean) as string[]
-                    const reanalysisResult = await detectSceneConflict(updatedHookFrameUrls, body1Segment, story)
+                    const reanalysisResult = await detectSceneConflict(updatedHookFrameUrls, body1Segment, sanitizedStory)
                     
                     if (reanalysisResult.hasConflict) {
                       console.warn(`[Generate Frames] ⚠️ Conflict still detected after regeneration: ${reanalysisResult.item} is still missing from hook frames`)

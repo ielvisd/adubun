@@ -61,7 +61,7 @@ export default defineEventHandler(async (event) => {
       segments,
       meta: {
         ...parsed.meta,
-        mode: parsed.meta.mode || 'demo',
+        mode: parsed.meta.mode || 'production',
       },
       createdAt: Date.now(),
     }

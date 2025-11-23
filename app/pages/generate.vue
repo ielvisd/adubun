@@ -1,8 +1,23 @@
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
     <UContainer class="max-w-5xl">
+      <!-- Empty State: Show prompt input when no storyboard -->
+      <div v-if="!storyboard && !planningStoryboard" class="py-12">
+        <div class="py-20 bg-mendo-light-blue dark:bg-black border-y border-gray-100 dark:border-gray-800 rounded-3xl">
+          <UContainer class="max-w-4xl px-4 sm:px-6">
+            <LandingSectionHeader
+              title="Create Your Video"
+              description="Just describe your product. We'll handle the rest."
+            />
+            <div class="bg-white dark:bg-gray-900 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 p-8 sm:p-10 mt-8">
+              <UiPromptInput :loading="isLoading" @submit="handleSubmit" />
+            </div>
+          </UContainer>
+        </div>
+      </div>
+
       <!-- Loading state while planning storyboard -->
-      <div v-if="planningStoryboard" class="flex flex-col items-center justify-center py-24">
+      <div v-else-if="planningStoryboard" class="flex flex-col items-center justify-center py-24">
         <UIcon name="i-heroicons-arrow-path" class="w-16 h-16 text-secondary-500 animate-spin mb-4" />
         <h2 class="text-2xl font-semibold text-gray-900 mb-2">Planning Your Storyboard</h2>
         <p class="text-gray-600 text-center">We're analyzing your prompt and creating a detailed storyboard...</p>
@@ -14,9 +29,9 @@
           <!-- Header with Back Button and Mode Display -->
           <div class="flex items-center justify-between mb-4 flex-wrap gap-4">
             <UButton
-              v-if="status === 'processing' || status === 'pending' || generationStarted"
+              v-if="status === 'processing' || generationStarted"
               variant="ghost"
-              color="gray"
+              color="neutral"
               @click="handleBackToStoryboard"
               class="flex items-center gap-2"
             >
@@ -27,7 +42,7 @@
             <!-- Mode Display -->
             <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white py-3 px-5 rounded-lg shadow-sm">
             <div class="flex items-center gap-4">
-                <UBadge :color="storyboard.meta.mode === 'demo' ? 'yellow' : 'blue'" size="lg" variant="subtle" class="uppercase">
+                <UBadge :color="storyboard.meta.mode === 'demo' ? 'warning' : 'primary'" size="lg" variant="subtle" class="uppercase">
                 {{ storyboard.meta.mode === 'demo' ? 'Demo Mode' : 'Production Mode' }}
                 </UBadge>
                 <div class="text-sm text-gray-600 dark:text-gray-400">
@@ -79,7 +94,10 @@
 import GenerationProgress from '~/components/ui/GenerationProgress.vue'
 import VideoPreview from '~/components/generation/VideoPreview.vue'
 import PromptJourneyViewer from '~/components/prompt-journey/PromptJourneyViewer.vue'
-import type { Segment, Storyboard } from '~/app/types/generation'
+import type { Segment, Storyboard } from '~/types/generation'
+
+// Use prompt submission for empty state
+const { handleSubmit, isLoading } = usePromptSubmission()
 
 const route = useRoute()
 const router = useRouter()
@@ -106,7 +124,7 @@ const pollStoryboardStatus = async (jobId: string, meta: any) => {
           id: jobId,
           meta: meta,
         },
-      })
+      }) as { status?: string; storyboard?: Storyboard; error?: string }
       
       if (statusResult.status === 'completed' && statusResult.storyboard) {
         storyboard.value = statusResult.storyboard
@@ -221,84 +239,143 @@ onMounted(async () => {
         // If state was NOT restored, continue to auto-start check below
       }
       
-      // Check if we have parsed prompt data (new flow)
-      const parsedPromptData = sessionStorage.getItem('parsedPrompt')
+      // Check for category-based flow (promptData from /create/details)
+      const categoryFlowData = sessionStorage.getItem('categoryFlow')
+      const promptData = sessionStorage.getItem('promptData')
       
-      if (parsedPromptData) {
-        // New flow: plan storyboard on generate page
+      if (categoryFlowData && promptData) {
+        // Category-based flow: parse prompt and plan storyboard
         planningStoryboard.value = true
         
         try {
-          const parsed = JSON.parse(parsedPromptData)
+          const categoryData = JSON.parse(categoryFlowData)
+          const promptInfo = JSON.parse(promptData)
           
-          // Check if we have a selected story from demo-stories page
-          if (parsed.selectedStory) {
-            // Convert selected story to storyboard format
-            const selectedStory = parsed.selectedStory
-            const segments = selectedStory.clips.map((clip: any, index: number) => {
-              const startTime = index * clip.duration
-              const endTime = startTime + clip.duration
-              
-              // Determine segment type based on index
-              let type = 'body'
-              if (index === 0) type = 'hook'
-              else if (index === selectedStory.clips.length - 1) type = 'cta'
-              
-              return {
-                type,
-                description: clip.description,
-                startTime,
-                endTime,
-                visualPrompt: clip.description,
-                visualPromptAlternatives: [],
-                audioNotes: index === 0 ? selectedStory.hook : 
-                           index === 1 ? (selectedStory.body || selectedStory.bodyOne || selectedStory.bodyTwo || '') :
-                           selectedStory.callToAction,
-              }
-            })
-            
-            // Create storyboard from selected story
-            storyboard.value = {
-              id: `storyboard-${Date.now()}`,
-              segments,
-              meta: {
-                ...parsed.meta,
-                duration: 24,
-                mode: 'production',
-              },
-              createdAt: Date.now(),
-            }
-            
-            // Save storyboard to sessionStorage
-            if (storyboard.value) {
-              saveStoryboardToStorage(storyboard.value)
-            }
+          // Parse the prompt using the existing API
+          const parsedResult = await $fetch('/api/parse-prompt', {
+            method: 'POST',
+            body: {
+              prompt: promptInfo.prompt,
+              aspectRatio: promptInfo.aspectRatio || '9:16', // Fixed for TikTok
+              mood: promptInfo.mood || 'energetic',
+              adType: promptInfo.adType || 'lifestyle',
+              model: promptInfo.model || 'google/veo-3.1-fast',
+              seamlessTransition: promptInfo.seamlessTransition ?? true,
+              generateVoiceover: promptInfo.generateVoiceover ?? true,
+              duration: 16, // Fixed 16 seconds for category flow
+            },
+          })
+          
+          // Plan storyboard
+          const storyboardResult = await $fetch('/api/plan-storyboard', {
+            method: 'POST',
+            body: { parsed: parsedResult },
+          }) as Storyboard | { jobId?: string; status?: string; meta?: any }
+          
+          // Check if this is an async response with jobId
+          if ('jobId' in storyboardResult && storyboardResult.jobId && storyboardResult.status === 'pending') {
+            await pollStoryboardStatus(storyboardResult.jobId, storyboardResult.meta || parsedResult.meta)
           } else {
-            // Regular flow: call plan-storyboard API
-            const storyboardResult = await $fetch('/api/plan-storyboard', {
-              method: 'POST',
-              body: { parsed },
-            })
-            
-            // Check if this is an async response with jobId
-            if (storyboardResult.jobId && storyboardResult.status === 'pending') {
-              // Poll for status (use meta from response if available, otherwise from parsed)
-              await pollStoryboardStatus(storyboardResult.jobId, storyboardResult.meta || parsed.meta)
-            } else {
-              // Synchronous response (backward compatibility)
-              storyboard.value = storyboardResult
-            }
-            
-            // Save storyboard to sessionStorage
-            if (storyboard.value) {
-              saveStoryboardToStorage(storyboard.value)
-            }
+            storyboard.value = storyboardResult as Storyboard
           }
           
-          // Clear parsedPrompt after successful planning
-          sessionStorage.removeItem('parsedPrompt')
-          sessionStorage.removeItem('selectedStory')
+          // Save storyboard to sessionStorage
+          if (storyboard.value) {
+            saveStoryboardToStorage(storyboard.value)
+          }
+          
+          // Clear category flow data after processing
+          sessionStorage.removeItem('categoryFlow')
+          sessionStorage.removeItem('promptData')
         } catch (error: any) {
+          console.error('[Generate] Category flow error:', error)
+          toast.add({
+            title: 'Error',
+            description: error.message || 'Failed to process category flow. Please try again.',
+            color: 'error',
+          })
+        } finally {
+          planningStoryboard.value = false
+        }
+      } else {
+        // Check if we have parsed prompt data (existing flow)
+        const parsedPromptData = sessionStorage.getItem('parsedPrompt')
+        
+        if (parsedPromptData) {
+          // New flow: plan storyboard on generate page
+          planningStoryboard.value = true
+          
+          try {
+            const parsed = JSON.parse(parsedPromptData)
+            
+            // Check if we have a selected story from demo-stories page
+            if (parsed.selectedStory) {
+              // Convert selected story to storyboard format
+              const selectedStory = parsed.selectedStory
+              const segments = selectedStory.clips.map((clip: any, index: number) => {
+                const startTime = index * clip.duration
+                const endTime = startTime + clip.duration
+                
+                // Determine segment type based on index
+                let type = 'body'
+                if (index === 0) type = 'hook'
+                else if (index === selectedStory.clips.length - 1) type = 'cta'
+                
+                return {
+                  type,
+                  description: clip.description,
+                  startTime,
+                  endTime,
+                  visualPrompt: clip.description,
+                  visualPromptAlternatives: [],
+                  audioNotes: index === 0 ? selectedStory.hook : 
+                             index === 1 ? (selectedStory.body || selectedStory.bodyOne || selectedStory.bodyTwo || '') :
+                             selectedStory.callToAction,
+                }
+              })
+              
+              // Create storyboard from selected story
+              storyboard.value = {
+                id: `storyboard-${Date.now()}`,
+                segments,
+                meta: {
+                  ...parsed.meta,
+                  duration: 24,
+                  mode: 'production',
+                },
+                createdAt: Date.now(),
+              }
+              
+              // Save storyboard to sessionStorage
+              if (storyboard.value) {
+                saveStoryboardToStorage(storyboard.value)
+              }
+            } else {
+              // Regular flow: call plan-storyboard API
+              const storyboardResult = await $fetch('/api/plan-storyboard', {
+                method: 'POST',
+                body: { parsed },
+              }) as Storyboard | { jobId?: string; status?: string; meta?: any }
+              
+              // Check if this is an async response with jobId
+              if ('jobId' in storyboardResult && storyboardResult.jobId && storyboardResult.status === 'pending') {
+                // Poll for status (use meta from response if available, otherwise from parsed)
+                await pollStoryboardStatus(storyboardResult.jobId, storyboardResult.meta || parsed.meta)
+              } else {
+                // Synchronous response (backward compatibility)
+                storyboard.value = storyboardResult as Storyboard
+              }
+              
+              // Save storyboard to sessionStorage
+              if (storyboard.value) {
+                saveStoryboardToStorage(storyboard.value)
+              }
+            }
+            
+            // Clear parsedPrompt after successful planning
+            sessionStorage.removeItem('parsedPrompt')
+            sessionStorage.removeItem('selectedStory')
+          } catch (error: any) {
           console.error('[Generate] Storyboard planning error:', error)
           const toast = useToast()
           toast.add({
@@ -312,8 +389,8 @@ onMounted(async () => {
           planningStoryboard.value = false
         }
       } else {
-        // Legacy flow: check for existing storyboard (temporary storage)
-        const stored = sessionStorage.getItem('storyboard')
+          // Legacy flow: check for existing storyboard (temporary storage)
+          const stored = sessionStorage.getItem('storyboard')
         if (stored) {
           storyboard.value = JSON.parse(stored)
           // Save to persistent storage
@@ -321,17 +398,11 @@ onMounted(async () => {
           // Clear temporary storage
           sessionStorage.removeItem('storyboard')
         } else {
-          // If no storyboard found, show error but don't redirect
-          console.error('[Generate] No storyboard found in sessionStorage')
-          const toast = useToast()
-          toast.add({
-            title: 'No storyboard found',
-            description: 'Please start a new generation from the home page',
-            color: 'warning',
-          })
-          // Don't navigate away immediately - let user see the error
-          // navigateTo('/')
+          // If no storyboard found, silently allow empty state
+          // The template will show the prompt input when storyboard is null
+          console.log('[Generate] No storyboard found - showing empty state with prompt input')
         }
+      }
       }
     } catch (error) {
       console.error('[Generate] Failed to load storyboard:', error)

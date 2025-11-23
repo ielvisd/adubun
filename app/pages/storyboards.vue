@@ -310,13 +310,41 @@
                 class="w-full flex items-center justify-between cursor-pointer"
                 type="button"
               >
-                <div class="flex items-center gap-3">
-                  <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                    {{ getSegmentLabel(segment.type) }}
-                  </h3>
-                  <span class="text-sm text-gray-500 dark:text-gray-400">
-                    {{ segment.startTime }}s - {{ segment.endTime }}s
-                  </span>
+                <div class="flex items-center gap-3 flex-wrap">
+                  <div class="flex flex-col gap-1">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                      {{ getSegmentLabel(segment.type) }}
+                    </h3>
+                    <p v-if="getDialogue(index).dialogueText.trim()" class="text-xs text-gray-500 dark:text-gray-400 italic">
+                      "{{ getDialogue(index).dialogueText }}"
+                    </p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <UInput
+                      :model-value="segment.startTime"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      size="xs"
+                      class="w-16"
+                      :disabled="loading || generatingFrames || isFrameRegenerating(index)"
+                      @update:model-value="(value: string) => handleTimingChange(index, 'startTime', parseFloat(value) || 0)"
+                      @click.stop
+                    />
+                    <span class="text-sm text-gray-500 dark:text-gray-400">-</span>
+                    <UInput
+                      :model-value="segment.endTime"
+                      type="number"
+                      step="0.1"
+                      :min="segment.startTime + 0.1"
+                      size="xs"
+                      class="w-16"
+                      :disabled="loading || generatingFrames || isFrameRegenerating(index)"
+                      @update:model-value="(value: string) => handleTimingChange(index, 'endTime', parseFloat(value) || segment.startTime + 1)"
+                      @click.stop
+                    />
+                    <span class="text-sm text-gray-500 dark:text-gray-400">s</span>
+                  </div>
                   
                   <!-- Status Badge -->
                   <UBadge 
@@ -368,9 +396,37 @@
                       Demo: Skipped
                     </UBadge>
                   </div>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">
-                    {{ segment.startTime }}s - {{ segment.endTime }}s
-                  </p>
+                  <div class="flex items-center gap-2 mt-1">
+                    <UFormField label="Start" :name="`segment-${index}-startTime`" class="mb-0">
+                      <UInput
+                        :model-value="segment.startTime"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        size="sm"
+                        class="w-20"
+                        :disabled="loading || generatingFrames || isFrameRegenerating(index)"
+                        @update:model-value="(value: string) => handleTimingChange(index, 'startTime', parseFloat(value) || 0)"
+                      />
+                    </UFormField>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">-</span>
+                    <UFormField label="End" :name="`segment-${index}-endTime`" class="mb-0">
+                      <UInput
+                        :model-value="segment.endTime"
+                        type="number"
+                        step="0.1"
+                        :min="segment.startTime + 0.1"
+                        size="sm"
+                        class="w-20"
+                        :disabled="loading || generatingFrames || isFrameRegenerating(index)"
+                        @update:model-value="(value: string) => handleTimingChange(index, 'endTime', parseFloat(value) || segment.startTime + 1)"
+                      />
+                    </UFormField>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">s</span>
+                    <span class="text-xs text-gray-400 dark:text-gray-500">
+                      ({{ (segment.endTime - segment.startTime).toFixed(1) }}s)
+                    </span>
+                  </div>
                 </div>
                 <div class="flex items-center gap-2">
                   <UFormField label="Duration" :name="`segment-${index}-duration`" class="mb-0">
@@ -390,92 +446,155 @@
             <!-- Content (show/hide based on mode and expanded state) -->
             <div 
               v-show="viewMode === 'admin' || expandedSegments.includes(index)"
-              class="space-y-4"
+              class="space-y-6"
             >
-              <!-- Scene Description -->
-              <UFormField 
-                :label="viewMode === 'user' ? 'What happens?' : 'Scene Description'" 
-                :name="`segment-${index}-description`"
-              >
-                <div class="relative">
-                  <UTextarea
-                    :ref="el => setTextareaRef(el, index, 'description')"
-                    v-model="segment.description"
-                    :rows="4"
-                    placeholder="Describe what happens in this scene"
-                    class="w-full"
-                    :disabled="generatingFrames || isFrameRegenerating(index)"
-                    @input="debouncedSave"
-                  />
-                  <div class="absolute top-3 right-3">
-                    <UiVoiceInputButton
-                      :is-supported="voiceInputs[`${index}-description`]?.isSupported ?? false"
-                      :is-listening="voiceInputs[`${index}-description`]?.isListening ?? false"
-                      :error="voiceInputs[`${index}-description`]?.error ?? null"
+              <!-- Scene Information Section -->
+              <div class="space-y-4">
+                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Scene Information</h4>
+                
+                <!-- Scene Description -->
+                <UFormField 
+                  :label="viewMode === 'user' ? 'What happens?' : 'Scene Description'" 
+                  :name="`segment-${index}-description`"
+                >
+                  <div class="relative">
+                    <UTextarea
+                      :ref="el => setTextareaRef(el, index, 'description')"
+                      v-model="segment.description"
+                      :rows="4"
+                      placeholder="Describe what happens in this scene"
+                      class="w-full"
                       :disabled="generatingFrames || isFrameRegenerating(index)"
-                      @click="handleVoiceInput(index, 'description')"
+                      @input="debouncedSave"
                     />
+                    <div class="absolute top-3 right-3">
+                      <UiVoiceInputButton
+                        :is-supported="voiceInputs[`${index}-description`]?.isSupported ?? false"
+                        :is-listening="voiceInputs[`${index}-description`]?.isListening ?? false"
+                        :error="voiceInputs[`${index}-description`]?.error ?? null"
+                        :disabled="generatingFrames || isFrameRegenerating(index)"
+                        @click="handleVoiceInput(index, 'description')"
+                      />
+                    </div>
                   </div>
-                </div>
-              </UFormField>
+                </UFormField>
 
-              <!-- Visual Prompt (Admin only) -->
-              <UFormField 
-                v-if="viewMode === 'admin'"
-                label="Visual Prompt" 
-                :name="`segment-${index}-visual`"
-              >
-                <div class="relative">
-                  <UTextarea
-                    :ref="el => setTextareaRef(el, index, 'visual')"
-                    v-model="segment.visualPrompt"
-                    :rows="6"
-                    placeholder="Describe the visual style and composition"
-                    class="w-full"
-                    :disabled="generatingFrames || isFrameRegenerating(index)"
-                    @input="debouncedSave"
-                  />
-                  <div class="absolute top-3 right-3">
-                    <UiVoiceInputButton
-                      :is-supported="voiceInputs[`${index}-visual`]?.isSupported ?? false"
-                      :is-listening="voiceInputs[`${index}-visual`]?.isListening ?? false"
-                      :error="voiceInputs[`${index}-visual`]?.error ?? null"
+                <!-- Visual Prompt (Editable in all modes) -->
+                <UFormField 
+                  label="Visual Style" 
+                  :name="`segment-${index}-visual`"
+                >
+                  <div class="relative">
+                    <UTextarea
+                      :ref="el => setTextareaRef(el, index, 'visual')"
+                      v-model="segment.visualPrompt"
+                      :rows="6"
+                      placeholder="Describe the visual style, camera angles, lighting, and composition for this scene"
+                      class="w-full"
                       :disabled="generatingFrames || isFrameRegenerating(index)"
-                      @click="handleVoiceInput(index, 'visual')"
+                      @input="debouncedSave"
                     />
+                    <div class="absolute top-3 right-3">
+                      <UiVoiceInputButton
+                        :is-supported="voiceInputs[`${index}-visual`]?.isSupported ?? false"
+                        :is-listening="voiceInputs[`${index}-visual`]?.isListening ?? false"
+                        :error="voiceInputs[`${index}-visual`]?.error ?? null"
+                        :disabled="generatingFrames || isFrameRegenerating(index)"
+                        @click="handleVoiceInput(index, 'visual')"
+                      />
+                    </div>
                   </div>
-                </div>
-              </UFormField>
+                </UFormField>
+              </div>
 
-              <!-- Audio Notes -->
-              <UFormField 
-                label="Audio Notes" 
-                :name="`segment-${index}-audio`"
-              >
-                <div class="relative">
-                  <UTextarea
-                    :ref="el => setTextareaRef(el, index, 'audio')"
-                    v-model="segment.audioNotes"
-                    :rows="3"
-                    placeholder="Dialogue: The man says: 'I spent $400 on a microphone so my voice would finally sound professional.'"
-                    class="w-full"
-                    :disabled="generatingFrames || isFrameRegenerating(index)"
-                    @input="debouncedSave"
-                  />
-                  <div class="absolute top-3 right-3">
-                    <UiVoiceInputButton
-                      :is-supported="voiceInputs[`${index}-audio`]?.isSupported ?? false"
-                      :is-listening="voiceInputs[`${index}-audio`]?.isListening ?? false"
-                      :error="voiceInputs[`${index}-audio`]?.error ?? null"
-                      :disabled="generatingFrames || isFrameRegenerating(index)"
-                      @click="handleVoiceInput(index, 'audio')"
-                    />
+              <!-- Dialogue / Audio Input (Prominent Section) -->
+              <div class="space-y-3">
+                <div class="flex items-center gap-2">
+                  <UIcon name="i-heroicons-chat-bubble-left-right" class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Spoken Dialogue</h4>
+                  <UBadge 
+                    v-if="getDialogue(index).dialogueText.trim()"
+                    color="blue"
+                    variant="soft"
+                    size="xs"
+                  >
+                    Has Dialogue
+                  </UBadge>
+                </div>
+                <UCard class="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                  <div class="space-y-4">
+                    <!-- Character Field -->
+                    <UFormField 
+                      label="Character" 
+                      :name="`segment-${index}-character`"
+                      description="Who is speaking? (e.g., 'The man', 'The young woman')"
+                    >
+                      <UInput
+                        :model-value="getDialogue(index).character"
+                        placeholder="The man"
+                        class="w-full"
+                        :disabled="generatingFrames || isFrameRegenerating(index)"
+                        @update:model-value="(value: string) => updateDialogue(index, 'character', value)"
+                      />
+                    </UFormField>
+
+                    <!-- Dialogue Text Field -->
+                    <UFormField 
+                      label="Dialogue Text" 
+                      :name="`segment-${index}-dialogue`"
+                      :description="segment.type === 'cta' ? 'CTA dialogue must be 5 words or less' : 'What will the character say?'"
+                    >
+                      <div class="relative">
+                        <UTextarea
+                          :ref="el => setTextareaRef(el, index, 'audio')"
+                          :model-value="getDialogue(index).dialogueText"
+                          :rows="4"
+                          placeholder="I spent $400 on a microphone so my voice would finally sound professional."
+                          class="w-full"
+                          :disabled="generatingFrames || isFrameRegenerating(index)"
+                          @update:model-value="(value: string) => updateDialogue(index, 'dialogueText', value)"
+                        />
+                        <div class="absolute top-3 right-3">
+                          <UiVoiceInputButton
+                            :is-supported="voiceInputs[`${index}-audio`]?.isSupported ?? false"
+                            :is-listening="voiceInputs[`${index}-audio`]?.isListening ?? false"
+                            :error="voiceInputs[`${index}-audio`]?.error ?? null"
+                            :disabled="generatingFrames || isFrameRegenerating(index)"
+                            @click="handleVoiceInput(index, 'audio')"
+                          />
+                        </div>
+                      </div>
+                      <!-- Word Count for CTA -->
+                      <div v-if="segment.type === 'cta'" class="mt-2 flex items-center gap-2">
+                        <span class="text-xs text-gray-500 dark:text-gray-400">
+                          Word count: {{ getDialogueWordCount(getDialogue(index).dialogueText) }}/5
+                        </span>
+                        <UBadge 
+                          v-if="getDialogueWordCount(getDialogue(index).dialogueText) > 5"
+                          color="red"
+                          variant="soft"
+                          size="xs"
+                        >
+                          Exceeds limit
+                        </UBadge>
+                      </div>
+                    </UFormField>
+
+                    <!-- Formatted Preview (Read-only) -->
+                    <div v-if="getDialogue(index).dialogueText.trim()" class="mt-2 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                      <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Formatted Output:</p>
+                      <p class="text-sm text-gray-700 dark:text-gray-300 font-mono">{{ getDialoguePreview(index) }}</p>
+                    </div>
                   </div>
-                </div>
-              </UFormField>
+                </UCard>
+              </div>
 
-              <!-- USER MODE: Side-by-Side Frames -->
-              <div v-if="viewMode === 'user'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Visual Frames Section -->
+              <div class="space-y-2">
+                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Visual Frames</h4>
+                
+                <!-- USER MODE: Side-by-Side Frames -->
+                <div v-if="viewMode === 'user'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- Opening Shot (First Frame) -->
                 <UFormField label="Opening Shot">
                   <div v-if="segment.firstFrameImage" class="space-y-2">
@@ -571,10 +690,10 @@
                     <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">~30 seconds</p>
                   </div>
                 </UFormField>
-              </div>
+                </div>
 
-              <!-- ADMIN MODE: Stacked Frames (existing layout) -->
-              <template v-else>
+                <!-- ADMIN MODE: Stacked Frames (existing layout) -->
+                <template v-else>
               <!-- First Frame Image -->
               <UFormField label="First Frame Image" :name="`segment-${index}-first-frame`">
                 <div v-if="segment.firstFrameImage || (generatingFrames && !segment.firstFrameImage)" class="space-y-2">
@@ -761,6 +880,7 @@
               </UFormField>
               </template>
               <!-- End Admin Mode -->
+              </div>
             </div>
           </UCard>
         </div>
@@ -830,6 +950,7 @@ import FrameComparison from '~/components/generation/FrameComparison.vue'
 import ImageUpload from '~/components/ui/ImageUpload.vue'
 import { nextTick, triggerRef } from 'vue'
 import { getModelById } from '~/config/video-models'
+import { parseDialogue, formatDialogue, getDialogueWordCount, validateCTADialogue } from '~/utils/dialogue-parser'
 
 definePageMeta({
   middleware: 'auth',
@@ -862,6 +983,89 @@ const textareaRefs = ref<Record<string, HTMLTextAreaElement>>({})
 // Voice input instances for each textarea
 const voiceInputs = ref<Record<string, ReturnType<typeof useVoiceInput>>>({})
 
+// Dialogue state for each segment (character and dialogue text)
+const dialogueState = ref<Record<number, { character: string; dialogueText: string }>>({})
+
+// Initialize dialogue state from segments
+const initializeDialogueState = () => {
+  if (!selectedStoryboard.value) return
+  
+  selectedStoryboard.value.segments.forEach((segment, index) => {
+    const parsed = parseDialogue(segment.audioNotes)
+    if (parsed) {
+      dialogueState.value[index] = {
+        character: parsed.character,
+        dialogueText: parsed.dialogueText
+      }
+    } else {
+      dialogueState.value[index] = {
+        character: '',
+        dialogueText: ''
+      }
+    }
+  })
+}
+
+// Update audioNotes when dialogue changes
+const updateDialogue = (index: number, field: 'character' | 'dialogueText', value: string) => {
+  if (!selectedStoryboard.value) return
+  
+  const segment = selectedStoryboard.value.segments[index]
+  if (!segment) return
+  
+  // Update local dialogue state
+  if (!dialogueState.value[index]) {
+    dialogueState.value[index] = { character: '', dialogueText: '' }
+  }
+  dialogueState.value[index][field] = value
+  
+  // Validate CTA dialogue word count
+  if (segment.type === 'cta' && field === 'dialogueText') {
+    const validation = validateCTADialogue(value)
+    if (!validation.isValid) {
+      toast.add({
+        title: 'Word Limit Exceeded',
+        description: validation.message,
+        color: 'yellow',
+        timeout: 3000,
+      })
+    }
+  }
+  
+  // Reconstruct audioNotes format
+  const { character, dialogueText } = dialogueState.value[index]
+  segment.audioNotes = formatDialogue(character, dialogueText)
+  
+  // Trigger save
+  debouncedSave()
+}
+
+// Get parsed dialogue for a segment
+const getDialogue = (index: number) => {
+  if (!dialogueState.value[index]) {
+    const segment = selectedStoryboard.value?.segments[index]
+    if (segment) {
+      const parsed = parseDialogue(segment.audioNotes)
+      if (parsed) {
+        dialogueState.value[index] = {
+          character: parsed.character,
+          dialogueText: parsed.dialogueText
+        }
+      } else {
+        dialogueState.value[index] = { character: '', dialogueText: '' }
+      }
+    }
+  }
+  return dialogueState.value[index] || { character: '', dialogueText: '' }
+}
+
+// Get dialogue preview text for display
+const getDialoguePreview = (index: number): string => {
+  const dialogue = getDialogue(index)
+  if (!dialogue.dialogueText.trim()) return ''
+  return formatDialogue(dialogue.character || 'Character', dialogue.dialogueText)
+}
+
 // Set textarea ref
 const setTextareaRef = (el: HTMLTextAreaElement | null, index: number, field: 'description' | 'visual' | 'audio') => {
   if (el) {
@@ -874,15 +1078,19 @@ const setTextareaRef = (el: HTMLTextAreaElement | null, index: number, field: 'd
         const segment = selectedStoryboard.value?.segments[index]
         if (!segment) return
         
-        const currentValue = (segment as any)[field === 'description' ? 'description' : field === 'visual' ? 'visualPrompt' : 'audioNotes']?.trim() || ''
-        const newValue = currentValue ? `${currentValue} ${text}` : text
-        
         if (field === 'description') {
-          segment.description = newValue
+          const currentValue = segment.description?.trim() || ''
+          segment.description = currentValue ? `${currentValue} ${text}` : text
         } else if (field === 'visual') {
-          segment.visualPrompt = newValue
+          const currentValue = segment.visualPrompt?.trim() || ''
+          segment.visualPrompt = currentValue ? `${currentValue} ${text}` : text
         } else if (field === 'audio') {
-          segment.audioNotes = newValue
+          // For dialogue, append to dialogueText
+          const dialogue = getDialogue(index)
+          const currentDialogue = dialogue.dialogueText?.trim() || ''
+          const newDialogueText = currentDialogue ? `${currentDialogue} ${text}` : text
+          updateDialogue(index, 'dialogueText', newDialogueText)
+          return // updateDialogue already calls debouncedSave
         }
         
         debouncedSave()
@@ -1445,6 +1653,129 @@ const regenerateSingleFrame = async (segmentIndex: number, field: 'firstFrameIma
   }
 }
 
+// Handle timing change (startTime or endTime) for a segment
+const handleTimingChange = (segmentIndex: number, field: 'startTime' | 'endTime', newValue: number) => {
+  if (!selectedStoryboard.value) return
+  
+  const segment = selectedStoryboard.value.segments[segmentIndex]
+  if (!segment) return
+  
+  // Validate the new value
+  if (field === 'startTime') {
+    // Start time must be >= 0 and < endTime
+    if (newValue < 0) {
+      toast.add({
+        title: 'Invalid Start Time',
+        description: 'Start time cannot be negative',
+        color: 'red',
+        timeout: 2000,
+      })
+      return
+    }
+    if (newValue >= segment.endTime) {
+      toast.add({
+        title: 'Invalid Start Time',
+        description: 'Start time must be less than end time',
+        color: 'red',
+        timeout: 2000,
+      })
+      return
+    }
+    // Check for overlap with previous segment
+    if (segmentIndex > 0) {
+      const prevSegment = selectedStoryboard.value.segments[segmentIndex - 1]
+      if (newValue < prevSegment.endTime) {
+        toast.add({
+          title: 'Timing Conflict',
+          description: 'Start time overlaps with previous segment',
+          color: 'red',
+          timeout: 2000,
+        })
+        return
+      }
+    }
+  } else if (field === 'endTime') {
+    // End time must be > startTime
+    if (newValue <= segment.startTime) {
+      toast.add({
+        title: 'Invalid End Time',
+        description: 'End time must be greater than start time',
+        color: 'red',
+        timeout: 2000,
+      })
+      return
+    }
+    // Check for overlap with next segment
+    if (segmentIndex < selectedStoryboard.value.segments.length - 1) {
+      const nextSegment = selectedStoryboard.value.segments[segmentIndex + 1]
+      if (newValue > nextSegment.startTime) {
+        toast.add({
+          title: 'Timing Conflict',
+          description: 'End time overlaps with next segment',
+          color: 'red',
+          timeout: 2000,
+        })
+        return
+      }
+    }
+  }
+  
+  // Update this segment
+  const updatedSegments = [...selectedStoryboard.value.segments]
+  updatedSegments[segmentIndex] = {
+    ...updatedSegments[segmentIndex],
+    [field]: newValue
+  }
+  
+  // If endTime changed, recalculate subsequent segments
+  if (field === 'endTime') {
+    let currentStartTime = newValue
+    for (let i = segmentIndex + 1; i < updatedSegments.length; i++) {
+      const nextSegment = updatedSegments[i]
+      const nextDuration = nextSegment.endTime - nextSegment.startTime
+      updatedSegments[i] = {
+        ...nextSegment,
+        startTime: currentStartTime,
+        endTime: currentStartTime + nextDuration
+      }
+      currentStartTime = currentStartTime + nextDuration
+    }
+  }
+  // If startTime changed, recalculate this segment's endTime to maintain duration, then adjust subsequent segments
+  else if (field === 'startTime') {
+    const duration = segment.endTime - segment.startTime
+    updatedSegments[segmentIndex] = {
+      ...updatedSegments[segmentIndex],
+      endTime: newValue + duration
+    }
+    // Recalculate subsequent segments
+    let currentStartTime = newValue + duration
+    for (let i = segmentIndex + 1; i < updatedSegments.length; i++) {
+      const nextSegment = updatedSegments[i]
+      const nextDuration = nextSegment.endTime - nextSegment.startTime
+      updatedSegments[i] = {
+        ...nextSegment,
+        startTime: currentStartTime,
+        endTime: currentStartTime + nextDuration
+      }
+      currentStartTime = currentStartTime + nextDuration
+    }
+  }
+  
+  // Update storyboard
+  selectedStoryboard.value.segments = updatedSegments
+  
+  // Save to localStorage
+  debouncedSave()
+  
+  toast.add({
+    title: 'Timing Updated',
+    description: `Scene ${field === 'startTime' ? 'start' : 'end'} time updated.`,
+    color: 'blue',
+    timeout: 2000,
+  })
+}
+
 // Handle duration change for a segment
 const handleDurationChange = (segmentIndex: number, newDuration: number) => {
   if (!selectedStoryboard.value) return
@@ -1781,6 +2112,18 @@ onMounted(async () => {
   
   // Get selected story and prompt data from sessionStorage
   if (process.client) {
+    // Check if this is a new navigation (from create/finalize) vs page refresh
+    const isNewNavigation = sessionStorage.getItem('isNewNavigation') === 'true'
+    
+    // If new navigation, clear old video generation state (but preserve storyboard/frames if they exist)
+    if (isNewNavigation) {
+      sessionStorage.removeItem('generateVideoJobId')
+      sessionStorage.removeItem('videoResult')
+      sessionStorage.removeItem('isNewNavigation') // Clear flag after use
+      console.log('[Storyboards] New navigation detected - cleared old video generation state')
+    }
+    // On refresh: preserve ALL data - do NOT clear anything
+    
     const storedStory = sessionStorage.getItem('selectedStory')
     const storedPromptData = sessionStorage.getItem('promptData')
     const storedMode = sessionStorage.getItem('generationMode')
@@ -1823,7 +2166,7 @@ onMounted(async () => {
       const mode = storedMode === 'demo' ? 'demo' : 'production'
       
       // Pass mode to generateStoryboards so it's set correctly before frame generation
-        await generateStoryboards(undefined, mode)
+        await generateStoryboards(mode)
         
         // Check all frame dimensions after storyboard loads
         await nextTick()
@@ -1893,6 +2236,9 @@ const generateStoryboards = async (mode?: 'demo' | 'production') => {
       console.log('[Storyboards] Mode set to:', selectedStoryboard.value.meta.mode)
       console.log('[Storyboards] Model set to:', selectedStoryboard.value.meta.model)
       
+      // Initialize dialogue state
+      initializeDialogueState()
+      
       // Try to load saved state from localStorage
       const savedState = loadStoryboardState(selectedStoryboard.value.id)
       if (savedState && savedState.segments) {
@@ -1918,6 +2264,8 @@ const generateStoryboards = async (mode?: 'demo' | 'production') => {
             }
           }
         })
+        // Re-initialize dialogue state after restoring saved state
+        initializeDialogueState()
         // Restore model if saved
         if (savedState.meta?.model && selectedStoryboard.value.meta) {
           selectedStoryboard.value.meta.model = savedState.meta.model
@@ -2197,8 +2545,16 @@ const generateFrames = async () => {
         const hookLastNanoImageUrl = hookFrames?.lastNanoImageUrl
         const hookLastSeedreamImageUrl = hookFrames?.lastSeedreamImageUrl
         const bodyFrames = frameMap.get('1')
-        console.log('[Storyboards] Body frames (3-segment format):', bodyFrames)
+        console.log('[Storyboards] ========================================')
+        console.log('[Storyboards] Assigning Body Frames (3-segment format)')
+        console.log('[Storyboards] ========================================')
+        console.log('[Storyboards] Body frames from map:', bodyFrames)
+        console.log('[Storyboards] Hook last frame (for body first):', hookLastFrame?.substring(0, 60))
+        console.log('[Storyboards] Body has last in map:', !!bodyFrames?.last)
+        console.log('[Storyboards] Body last frame URL:', bodyFrames?.last?.substring(0, 60))
+        
         if (hookLastFrame) {
+          // Force assignment - ensure it happens
           selectedStoryboard.value.segments[1].firstFrameImage = hookLastFrame
           frameGenerationStatus.value.set(1, { 
             ...frameGenerationStatus.value.get(1), 
@@ -2207,7 +2563,18 @@ const generateFrames = async () => {
             firstNanoImageUrl: hookLastNanoImageUrl,
             firstSeedreamImageUrl: hookLastSeedreamImageUrl
           })
-          console.log('[Storyboards] Assigned body first frame (from hook last):', hookLastFrame)
+          console.log('[Storyboards] ✓ Assigned body first frame (from hook last):', hookLastFrame.substring(0, 60))
+          console.log('[Storyboards] ✓ Body segment firstFrameImage after assignment:', selectedStoryboard.value.segments[1].firstFrameImage?.substring(0, 60))
+        } else {
+          console.error('[Storyboards] ✗ Could not assign body first frame - hookLastFrame is missing')
+          console.error('[Storyboards] hookFrames:', hookFrames)
+          console.error('[Storyboards] hookFrames?.last:', hookFrames?.last)
+          // Fallback: try to get hook last from segments[0] if frameMap failed
+          if (selectedStoryboard.value.segments[0]?.lastFrameImage) {
+            const fallbackHookLast = selectedStoryboard.value.segments[0].lastFrameImage
+            selectedStoryboard.value.segments[1].firstFrameImage = fallbackHookLast
+            console.log('[Storyboards] ✓ Fallback: Assigned body first frame from segments[0].lastFrameImage:', fallbackHookLast.substring(0, 60))
+          }
         }
         if (bodyFrames?.last) {
           selectedStoryboard.value.segments[1].lastFrameImage = bodyFrames.last
@@ -2218,7 +2585,9 @@ const generateFrames = async () => {
             lastNanoImageUrl: bodyFrames.lastNanoImageUrl,
             lastSeedreamImageUrl: bodyFrames.lastSeedreamImageUrl
           })
-          console.log('[Storyboards] Assigned body last frame:', bodyFrames.last)
+          console.log('[Storyboards] ✓ Assigned body last frame:', bodyFrames.last.substring(0, 60))
+        } else {
+          console.error('[Storyboards] ✗ Could not assign body last frame - bodyFrames.last is missing')
         }
 
         // CTA segment (index 2)
@@ -2237,7 +2606,20 @@ const generateFrames = async () => {
         console.log('[Storyboards] CTA has last in map:', !!ctaFrames?.last)
         console.log('[Storyboards] Body last frame (for CTA first):', bodyLastFrame?.substring(0, 60))
         
+        // Validate that body last and CTA last are different BEFORE assignment
+        if (bodyLastFrame && ctaFrames?.last) {
+          if (bodyLastFrame === ctaFrames.last) {
+            console.error('[Storyboards] ✗✗✗ CRITICAL: Body last and CTA last are the SAME URL in frameMap!')
+            console.error('[Storyboards] This indicates the API returned duplicate frames')
+            console.error('[Storyboards] Body last URL:', bodyLastFrame.substring(0, 80))
+            console.error('[Storyboards] CTA last URL:', ctaFrames.last.substring(0, 80))
+          } else {
+            console.log('[Storyboards] ✓ Verified: Body last and CTA last are different frames')
+          }
+        }
+        
         if (bodyLastFrame) {
+          // Force assignment - ensure it happens
           selectedStoryboard.value.segments[2].firstFrameImage = bodyLastFrame
           frameGenerationStatus.value.set(2, { 
             ...frameGenerationStatus.value.get(2), 
@@ -2247,11 +2629,28 @@ const generateFrames = async () => {
             firstSeedreamImageUrl: bodyLastSeedreamImageUrl
           })
           console.log('[Storyboards] ✓ Assigned CTA first frame (from body last):', bodyLastFrame.substring(0, 60))
+          console.log('[Storyboards] ✓ CTA segment firstFrameImage after assignment:', selectedStoryboard.value.segments[2].firstFrameImage?.substring(0, 60))
         } else {
           console.error('[Storyboards] ✗ Could not assign CTA first frame - bodyLastFrame is missing')
+          console.error('[Storyboards] bodyFrames:', bodyFrames)
+          console.error('[Storyboards] bodyFrames?.last:', bodyFrames?.last)
+          // Fallback: try to get body last from segments[1] if frameMap failed
+          if (selectedStoryboard.value.segments[1]?.lastFrameImage) {
+            const fallbackBodyLast = selectedStoryboard.value.segments[1].lastFrameImage
+            selectedStoryboard.value.segments[2].firstFrameImage = fallbackBodyLast
+            console.log('[Storyboards] ✓ Fallback: Assigned CTA first frame from segments[1].lastFrameImage:', fallbackBodyLast.substring(0, 60))
+          }
         }
         
         if (ctaFrames?.last) {
+          // Validate that CTA last is different from body last
+          if (bodyLastFrame && ctaFrames.last === bodyLastFrame) {
+            console.error('[Storyboards] ✗✗✗ CRITICAL ERROR: CTA last frame is the SAME as body last frame!')
+            console.error('[Storyboards] Body last:', bodyLastFrame.substring(0, 60))
+            console.error('[Storyboards] CTA last:', ctaFrames.last.substring(0, 60))
+            console.error('[Storyboards] This indicates a bug in frame generation - both frames have the same URL')
+          }
+          
           // CTA's last frame is the final frame of the video
           selectedStoryboard.value.segments[2].lastFrameImage = ctaFrames.last
           frameGenerationStatus.value.set(2, { 
@@ -2391,7 +2790,44 @@ const generateFrames = async () => {
         firstFrameImage: seg.firstFrameImage,
         lastFrameImage: seg.lastFrameImage,
       }))
-      console.log('[Storyboards] Final segment states:', finalStates)
+      console.log('[Storyboards] ========================================')
+      console.log('[Storyboards] Final Segment States After Assignment')
+      console.log('[Storyboards] ========================================')
+      finalStates.forEach((state, idx) => {
+        console.log(`[Storyboards] Segment ${idx} (${state.type}):`)
+        console.log(`[Storyboards]   firstFrameImage: ${state.firstFrameImage ? state.firstFrameImage.substring(0, 60) + '...' : 'MISSING'}`)
+        console.log(`[Storyboards]   lastFrameImage: ${state.lastFrameImage ? state.lastFrameImage.substring(0, 60) + '...' : 'MISSING'}`)
+      })
+      
+      // Validate that body and CTA have firstFrameImage set
+      if (segmentCount === 3) {
+        if (!finalStates[1]?.firstFrameImage) {
+          console.error('[Storyboards] ✗✗✗ VALIDATION FAILED: Body segment (index 1) missing firstFrameImage!')
+          // Try to fix it by getting from hook last
+          const hookLast = finalStates[0]?.lastFrameImage
+          if (hookLast && selectedStoryboard.value) {
+            selectedStoryboard.value.segments[1].firstFrameImage = hookLast
+            console.log('[Storyboards] ✓ Fixed: Assigned body firstFrameImage from hook last:', hookLast.substring(0, 60))
+          }
+        }
+        if (!finalStates[2]?.firstFrameImage) {
+          console.error('[Storyboards] ✗✗✗ VALIDATION FAILED: CTA segment (index 2) missing firstFrameImage!')
+          // Try to fix it by getting from body last
+          const bodyLast = finalStates[1]?.lastFrameImage
+          if (bodyLast && selectedStoryboard.value) {
+            selectedStoryboard.value.segments[2].firstFrameImage = bodyLast
+            console.log('[Storyboards] ✓ Fixed: Assigned CTA firstFrameImage from body last:', bodyLast.substring(0, 60))
+          }
+        }
+        // Check for duplicate closing frames
+        if (finalStates[1]?.lastFrameImage && finalStates[2]?.lastFrameImage) {
+          if (finalStates[1].lastFrameImage === finalStates[2].lastFrameImage) {
+            console.error('[Storyboards] ✗✗✗ VALIDATION FAILED: Body last and CTA last are the SAME URL!')
+            console.error('[Storyboards] Body last:', finalStates[1].lastFrameImage.substring(0, 60))
+            console.error('[Storyboards] CTA last:', finalStates[2].lastFrameImage.substring(0, 60))
+          }
+        }
+      }
       
       // Validate frame assignments - ensure no segment has CTA frames unless it's the CTA segment
       const ctaSegmentIndex = segmentCount === 3 ? 2 : 3
@@ -2435,6 +2871,20 @@ const generateFrames = async () => {
 
     const frameCount = frames.length
     const mode = selectedStoryboard.value.meta.mode || 'production'
+    
+    // Final defensive check: Ensure body and CTA firstFrameImage are set before saving
+    if (segmentCount === 3 && selectedStoryboard.value) {
+      // Body first should be hook last
+      if (!selectedStoryboard.value.segments[1]?.firstFrameImage && selectedStoryboard.value.segments[0]?.lastFrameImage) {
+        selectedStoryboard.value.segments[1].firstFrameImage = selectedStoryboard.value.segments[0].lastFrameImage
+        console.log('[Storyboards] ✓ Final fix: Assigned body firstFrameImage from hook last before save')
+      }
+      // CTA first should be body last
+      if (!selectedStoryboard.value.segments[2]?.firstFrameImage && selectedStoryboard.value.segments[1]?.lastFrameImage) {
+        selectedStoryboard.value.segments[2].firstFrameImage = selectedStoryboard.value.segments[1].lastFrameImage
+        console.log('[Storyboards] ✓ Final fix: Assigned CTA firstFrameImage from body last before save')
+      }
+    }
     
     // Save storyboard state including frameGenerationStatus
     saveStoryboardState()

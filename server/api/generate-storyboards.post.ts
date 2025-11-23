@@ -136,6 +136,7 @@ Generate a single storyboard for a 16-second ad. The storyboard must have 3 segm
 - COLOR GRADING: Color-grade all clips identically before sequencing for visual consistency.
 - MINI-RESOLVE ENDINGS: End every clip on a "mini-resolve" (beat drop, head turn, smile, product glint) so even if someone watches only the first 4-8s it still feels complete.
 - ZERO CUTS: Each segment must be a SINGLE CONTINUOUS SHOT with ZERO cuts inside the clip. No scene changes, no transitions, no cuts within the segment.
+- **🚨 OPENING/CLOSING DISTINCTION (CRITICAL)**: The hook (opening) and CTA (closing) segments MUST have moderate visual distinction - at least 2 of the following must differ: 1) Camera angle (e.g., if hook is close-up, CTA should be medium/wide; if hook is front-facing, CTA should be side/three-quarter; or change elevation), 2) Character pose (different body position, gesture, expression, orientation), 3) Composition (different framing, focal point, depth of field). This applies to ALL ad types. Hook should establish the scene/problem with one style. CTA should conclude with a visually distinct style while maintaining the same character and setting. DO NOT create identical opening and closing shots - they must be visually different.
 - **HARD REJECTION RULE - NO MIRRORS/REFLECTIONS**: DO NOT use mirrors, reflections, reflective surfaces, bathroom mirrors, or people looking at their reflection. Any storyboard containing these elements will be automatically rejected. This is a hard requirement that applies to ALL storyboard generations.
 - **CRITICAL: NO CHILDREN**: DO NOT include children in any scenes. No children visible in any part of the storyboard. All characters must be adults.
 - **CRITICAL: NO ELECTRONIC DEVICES**: DO NOT use laptops, phones, tablets, computers, screens, monitors, or ANY electronic devices in scenes. ABSOLUTELY NO technology interfaces, NO devices, NO screens of any kind. This is a hard requirement - if you include any electronic device, the storyboard will be rejected.
@@ -244,8 +245,8 @@ Return ONLY valid JSON with this structure:
       },
       {
         "type": "cta",
-        "description": "Hero shot + CTA + logo lockup scene",
-        "visualPrompt": "Detailed visual prompt for CTA scene following the 5-part formula. Single continuous shot, no cuts. Freeze on perfect product/after state. Text + logo slam in. One punchy tagline. Ends exactly at 16.000s.",
+        "description": "Hero shot + CTA + logo lockup scene - MUST be visually distinct from hook opening (at least 2 of: different camera angle, different pose, or different composition)",
+        "visualPrompt": "Detailed visual prompt for CTA scene following the 5-part formula. Single continuous shot, no cuts. Freeze on perfect product/after state. Text + logo slam in. One punchy tagline. Ends exactly at 16.000s. CRITICAL: This closing shot must be visually distinct from the opening hook shot - use at least 2 of: different camera angle, different character pose, or different composition while maintaining the same character and setting.",
         "audioNotes": "Spoken dialogue or voiceover script for this scene",
         "startTime": 12,
         "endTime": 16
@@ -271,9 +272,10 @@ ${productImages.length > 0 ? `Product images are available for reference.` : ''}
 
 🚨 CHARACTER CONSISTENCY REQUIREMENT:
 - Extract all characters from the hook scene and ensure they maintain IDENTICAL appearance (gender, age, physical features, clothing) across all segments
-- In the hook segment: Include explicit character descriptions (e.g., "a teenage [gender] with [hair color] hair, [build], wearing [clothing]")
+- In the hook segment: Include explicit character descriptions (e.g., "a woman in her mid-20s with [hair color] hair, [build], wearing [clothing]")
 - In body and CTA segments: Reference characters as "the same [age] [gender] person with [features]" to maintain consistency
 - Do NOT change character gender, age, or physical appearance between scenes
+- DO NOT use "teenage", "teen", or "late teens" - use specific age ranges like "mid-20s", "early 30s", "young adult", etc.
 - **VOICE CONSISTENCY:** Extract voice characteristics from the hook scene audioNotes and use the EXACT SAME voice description for each character in all subsequent scenes where they speak
 
 Stay true to the story content. Focus on creating emotionally compelling visuals that evoke emotions through facial expressions, body language, and visual mood. Limit all scenes to 3-4 people maximum and ensure clear, sharp faces through close-ups and medium shots.

@@ -615,6 +615,14 @@ Return your response as a JSON object with:
   - "A watch resting on a polished wooden table" (NOT "a watch")
   - "A woman holding a bottle in her hand" (NOT "a woman with a bottle")
   The sceneDescription MUST include the product's exact placement/location. This is the PRIMARY field and will be used as the starting point for the hook segment.
+- characterDescription: (REQUIRED if person/character is visible) A detailed description of any person/character visible in the image(s). Include:
+  - Age: Be specific (e.g., "mid-20s", "early 30s", "young adult", "middle-aged"). DO NOT use "teenage" unless the person clearly appears to be 13-19 years old. If uncertain, use "young adult" or estimate based on visible features.
+  - Gender: "male", "female", "non-binary", or "unspecified" if not clear
+  - Physical appearance: Hair color/style, build, distinctive features, facial features
+  - Clothing: Clothing style and colors if visible
+  Format: "A [age] [gender] with [physical features], wearing [clothing]"
+  Example: "A woman in her mid-20s with long brown hair, average build, wearing casual modern clothing"
+  If no person is visible, use empty string "".
 - suggestedEnhancements: A string containing specific prompt enhancements that should be merged with existing visual prompts to better match these reference images. Focus on concrete visual details (colors, composition, style, mood, product placement, etc.)
 - keyElements: An array of strings describing the key visual elements identified
 - styleNotes: A string describing the overall visual style and aesthetic
@@ -632,7 +640,15 @@ Return ONLY valid JSON, no markdown, no code blocks, just the JSON object.`
 
 These are completely different scenes. If you see a watch on someone's wrist, say "wearing a watch on his/her wrist". If you see a watch on a table, say "watch on a table". These are NOT the same.
 
-2. Suggest enhancements to visual prompts that would better match these images
+2. Character Description (if person/character is visible):
+   - Analyze the person's age carefully. Look at facial features, skin texture, body proportions, and overall appearance.
+   - DO NOT default to "teenage" unless the person clearly appears to be 13-19 years old.
+   - Use specific age ranges: "mid-20s", "early 30s", "late 20s", "young adult", "middle-aged", etc.
+   - Include physical features: hair color/style, build, distinctive features
+   - Include clothing style if visible
+   - This character description will be used to generate the story, so accuracy is critical.
+
+3. Suggest enhancements to visual prompts that would better match these images
 
 Be extremely specific about product placement. For example:
 - ✅ CORRECT: "a man wearing a watch on his wrist" (explicit placement)
@@ -720,7 +736,7 @@ Be extremely specific about product placement. For example:
       }
 
       // Parse and validate the response
-      let parsed: { sceneDescription: string; suggestedEnhancements: string; keyElements: string[]; styleNotes: string }
+      let parsed: { sceneDescription: string; characterDescription?: string; suggestedEnhancements: string; keyElements: string[]; styleNotes: string }
       try {
         // Try to parse JSON - handle cases where response might have markdown code blocks
         let jsonContent = content.trim()
@@ -774,9 +790,19 @@ Be extremely specific about product placement. For example:
         if (typeof parsed.styleNotes !== 'string') {
           throw new Error('Missing or invalid styleNotes field')
         }
+        
+        // Validate characterDescription (optional but should be string if present)
+        if (parsed.characterDescription !== undefined && typeof parsed.characterDescription !== 'string') {
+          throw new Error('characterDescription must be a string if provided')
+        }
       } catch (parseError: any) {
         console.error('[OpenAI MCP] Invalid JSON response from analyze_reference_images:', content)
         throw new Error(`OpenAI returned invalid response: ${parseError.message}`)
+      }
+
+      // Log character description if found
+      if (parsed.characterDescription) {
+        console.error(`[OpenAI MCP] Character description extracted: ${parsed.characterDescription}`)
       }
 
       return {
@@ -785,6 +811,7 @@ Be extremely specific about product placement. For example:
             type: 'text',
             text: JSON.stringify({
               sceneDescription: parsed.sceneDescription,
+              characterDescription: parsed.characterDescription || '',
               suggestedEnhancements: parsed.suggestedEnhancements,
               keyElements: parsed.keyElements,
               styleNotes: parsed.styleNotes,
@@ -937,15 +964,18 @@ Be extremely specific about product placement. For example:
         imageAnalysis = analysisContent
         imageEnhancements = analysisContent.suggestedEnhancements || ''
         const sceneDescription = analysisContent.sceneDescription || ''
+        const characterDescription = analysisContent.characterDescription || ''
         
         console.error(`[OpenAI MCP] Reference image analysis completed:`)
         console.error(`[OpenAI MCP] Scene description: ${sceneDescription}`)
+        console.error(`[OpenAI MCP] Character description: ${characterDescription}`)
         console.error(`[OpenAI MCP] Key elements: ${analysisContent.keyElements?.join(', ')}`)
         console.error(`[OpenAI MCP] Style notes: ${analysisContent.styleNotes}`)
         console.error(`[OpenAI MCP] Suggested enhancements: ${imageEnhancements}`)
         
-        // Store sceneDescription for use in system prompt
+        // Store sceneDescription and characterDescription for use in system prompt
         imageAnalysis.sceneDescription = sceneDescription
+        imageAnalysis.characterDescription = characterDescription
       } catch (error: any) {
         console.error(`[OpenAI MCP] Failed to analyze reference images: ${error.message}`)
         if (error.stack) {
@@ -956,6 +986,7 @@ Be extremely specific about product placement. For example:
         // Set defaults so storyboard generation can continue
         imageAnalysis = {
           sceneDescription: '', // Empty - will skip reference image requirements
+          characterDescription: '', // Empty - no character info available
           suggestedEnhancements: '',
           keyElements: [],
           styleNotes: '',
@@ -965,8 +996,9 @@ Be extremely specific about product placement. For example:
       }
     }
     
-    // Extract sceneDescription if available
+    // Extract sceneDescription and characterDescription if available
     const sceneDescription = imageAnalysis?.sceneDescription || ''
+    const characterDescription = imageAnalysis?.characterDescription || ''
     
     // Build ad-type specific instructions
     let adTypeInstruction = ''
@@ -1253,14 +1285,38 @@ STORY CONTINUITY REQUIREMENTS:
 - IMPORTANT: For product videos with text/labels (cans, bottles, packages), use shorter segment durations (2-5 seconds) to minimize text degradation and maintain product consistency throughout the video
 
 🚨 CHARACTER CONSISTENCY REQUIREMENTS (CRITICAL):
+${characterDescription ? `
+🚨 REFERENCE IMAGE CHARACTER (MANDATORY):
+The reference images show: "${characterDescription}"
+
+CRITICAL: You MUST use this EXACT character description for ALL segments. Do NOT use generic terms like "teenage", "young person", or "a person". Use the specific character details from the reference images.
+
+Hook segment visualPrompt: MUST start with or include: "${characterDescription}"
+Body and CTA segment visualPrompts: MUST reference "the same ${characterDescription}" or "continuing with ${characterDescription}"
+
+DO NOT:
+- Use "teenage", "teen", "late teens", or any teen-related terms UNLESS the character description explicitly says "teenage" (which should never happen if reference images show an adult)
+- Use vague age terms - ALWAYS use the specific age from character description (e.g., "mid-20s", "early 30s", "young adult")
+- Change the character's age, appearance, or gender between segments
+- Use generic terms like "a person", "someone", "a young person", or "a teen" - always use the specific character description from reference images
+
+Example: If characterDescription is "A woman in her mid-20s with long brown hair, average build, wearing casual modern clothing", then:
+✅ CORRECT: "A woman in her mid-20s with long brown hair, average build, wearing casual modern clothing, holding the product..."
+✅ CORRECT: "The same woman in her mid-20s with long brown hair continues..."
+❌ WRONG: "A teenage girl..." (WRONG - character is mid-20s, not teenage)
+❌ WRONG: "A young person..." (WRONG - too vague, use specific age)
+❌ WRONG: "A person..." (WRONG - use specific character description)
+` : `
 - Extract ALL characters mentioned in the hook segment and maintain their EXACT appearance across ALL segments
-- For each character, identify and maintain: gender (male/female/non-binary), age (teenage/elderly/young adult/etc.), physical features (hair color/style, build, distinctive features), and clothing style
-- Hook segment visualPrompt: MUST include explicit character descriptions (e.g., "a teenage [gender] with [hair color] hair, [build], wearing [clothing]")
+- For each character, identify and maintain: gender (male/female/non-binary), age (be specific: "mid-20s", "early 30s", "young adult", etc. - DO NOT default to "teenage" unless clearly 13-19 years old), physical features (hair color/style, build, distinctive features), and clothing style
+- Hook segment visualPrompt: MUST include explicit character descriptions (e.g., "a woman in her mid-20s with [hair color] hair, [build], wearing [clothing]")
 - Body and CTA segment visualPrompts: MUST reference characters as "the same [age] [gender] person with [features]" or "continuing with the identical character appearance"
 - CRITICAL: Characters must maintain the SAME gender, age, physical features, and clothing style across ALL segments
-- Do NOT use vague terms like "a teen" or "a person" in later segments - always reference "the same teenage [gender]" or "the same elderly [gender]" from the hook
+- Do NOT use vague terms like "a teen" or "a person" in later segments - always reference the specific character description from the hook
 - Do NOT change character gender, age, or physical appearance between scenes
-- Example: If hook describes "a teenage boy with brown hair cheering up an elderly man", body segments must reference "the same teenage boy with brown hair" and "the same elderly man", not generic terms
+- Do NOT default to "teenage" - use specific age ranges based on visible features
+- Example: If hook describes "a woman in her mid-20s with brown hair", body segments must reference "the same woman in her mid-20s with brown hair", not generic terms
+`}
 
 EMOTIONAL CAPTIVATION REQUIREMENTS:
 - Create visually compelling scenes that evoke emotions through facial expressions, body language, and visual mood
