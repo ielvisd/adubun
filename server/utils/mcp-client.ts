@@ -17,10 +17,19 @@ export async function initializeMCPClients(): Promise<MCPClients> {
   }
 
   try {
+    // Pass environment variables to child processes
+    const childEnv = {
+      ...process.env,
+      REPLICATE_API_KEY: process.env.REPLICATE_API_KEY || '',
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
+      ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY || '',
+    }
+
     // Replicate Client
     const replicateTransport = new StdioClientTransport({
       command: 'npx',
       args: ['tsx', path.join(process.cwd(), 'mcp-servers/replicate/index.ts')],
+      env: childEnv,
     })
     clients.replicate = new Client(
       { name: 'adubun-client', version: '1.0.0' },
@@ -38,6 +47,7 @@ export async function initializeMCPClients(): Promise<MCPClients> {
     const openaiTransport = new StdioClientTransport({
       command: 'npx',
       args: ['tsx', path.join(process.cwd(), 'mcp-servers/openai/index.ts')],
+      env: childEnv,
     })
     clients.openai = new Client(
       { name: 'adubun-client', version: '1.0.0' },
@@ -55,6 +65,7 @@ export async function initializeMCPClients(): Promise<MCPClients> {
     const elevenlabsTransport = new StdioClientTransport({
       command: 'npx',
       args: ['tsx', path.join(process.cwd(), 'mcp-servers/elevenlabs/index.ts')],
+      env: childEnv,
     })
     clients.elevenlabs = new Client(
       { name: 'adubun-client', version: '1.0.0' },
