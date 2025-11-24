@@ -8,7 +8,7 @@ import { sanitizeVideoPrompt } from '../utils/prompt-sanitizer'
 import { checkFrameForChildren } from '../utils/frame-content-checker'
 import { detectSceneConflict } from '../utils/scene-conflict-checker'
 import { nanoid } from 'nanoid'
-import type { GenerationJob, Asset } from '../../app/types/generation'
+import type { GenerationJob, Asset, Story } from '../../app/types/generation'
 import { promises as fs } from 'fs'
 import path from 'path'
 
@@ -337,6 +337,25 @@ export default defineEventHandler(async (event) => {
     console.log(`[Generate Assets] Total segments in storyboard: ${storyboard.segments.length}`)
     console.log(`[Generate Assets] Frames provided: ${frames?.length || 0}`)
     
+    // Extract voice description from hook scene for reuse in subsequent scenes
+    let hookVoiceDescription = ''
+    const hookSegment = storyboard.segments.find((seg: any) => seg.type === 'hook')
+    if (hookSegment && hookSegment.audioNotes) {
+      // Extract voice description pattern: "in a warm, confident voice with an American accent"
+      const voiceMatch = hookSegment.audioNotes.match(/in\s+a\s+[^,]+(?:,\s*[^,]+)*\s+voice\s+with\s+an\s+American\s+accent/i)
+      if (voiceMatch) {
+        hookVoiceDescription = voiceMatch[0].trim()
+        console.log(`[Generate Assets] Extracted voice description from hook scene: "${hookVoiceDescription}"`)
+      } else {
+        // Fallback: try to extract any voice description pattern
+        const fallbackMatch = hookSegment.audioNotes.match(/in\s+a\s+[^,]+(?:,\s*[^,]+)*\s+voice/i)
+        if (fallbackMatch) {
+          hookVoiceDescription = fallbackMatch[0].trim() + ' with an American accent'
+          console.log(`[Generate Assets] Extracted fallback voice description from hook scene: "${hookVoiceDescription}"`)
+        }
+      }
+    }
+    
     // Extract segment processing into a function for parallel execution
     const generateSegmentAsset = async (idx: number, segment: any): Promise<Asset> => {
       console.log(`\n[Generate Assets] ===== Starting Segment ${idx + 1}/${segmentsToProcess.length} =====`)
@@ -374,6 +393,20 @@ export default defineEventHandler(async (event) => {
                 console.warn(`[Segment ${idx}] Children detected in frame image: ${imageUrl}`)
               }
             })
+          }
+        }
+
+        // Extract story object from storyboard for conflict detection
+        let story: Story | null = null
+        const storyContent = storyboard.promptJourney?.storyGeneration?.output
+        if (storyContent) {
+          story = {
+            id: storyboard.id || nanoid(),
+            hook: storyContent.hook || '',
+            bodyOne: storyContent.bodyOne || '',
+            bodyTwo: storyContent.bodyTwo || '',
+            callToAction: storyContent.callToAction || '',
+            description: storyContent.description || '',
           }
         }
 
@@ -541,18 +574,28 @@ export default defineEventHandler(async (event) => {
               }
             }
             
-            // Extract tone/voice descriptions before cleaning (e.g., "soft, concerned voice", "confident, clear voice")
-            // Priority: tone from "says" clause > tone from character description
+            // Extract tone/voice descriptions before cleaning (e.g., "soft, concerned voice", "confident, clear voice", "in a warm, confident voice with an American accent")
+            // Priority: tone from "says" clause > tone from character description > hook scene voice description
             let toneDescription = ''
             if (toneFromSays) {
               // Use tone from "says" clause if found
               toneDescription = toneFromSays
             } else {
               // Fall back to extracting from character description
-              const toneMatch = characterDescription.match(/(?:,\s*)?(?:in\s+a\s+)?([^,]+(?:,\s*[^,]+)*\s+voice)/i)
+              const toneMatch = characterDescription.match(/(?:,\s*)?(?:in\s+a\s+)?([^,]+(?:,\s*[^,]+)*\s+voice(?:\s+with\s+an\s+American\s+accent)?)/i)
               if (toneMatch) {
                 toneDescription = toneMatch[1].trim()
+              } else if (hookVoiceDescription && segment.type !== 'hook') {
+                // If no voice description found and this is not the hook scene, use hook scene's voice description
+                toneDescription = hookVoiceDescription
+                console.log(`[Segment ${idx}] Using hook scene voice description: "${toneDescription}"`)
               }
+            }
+            
+            // If still no tone description and we have hook voice description, use it
+            if (!toneDescription && hookVoiceDescription) {
+              toneDescription = hookVoiceDescription
+              console.log(`[Segment ${idx}] Applied hook scene voice description as fallback: "${toneDescription}"`)
             }
             
             // Clean up character description - keep character identifier but preserve tone separately
@@ -597,9 +640,21 @@ export default defineEventHandler(async (event) => {
             // Build explicit speaking instructions with timecodes
             const toneInstruction = toneDescription ? ` CRITICAL: TONE MATCHING - The character must speak with the tone/emotion: "${toneDescription}". Match the intended delivery style (e.g., "soft, concerned voice" means speak softly with concern, "confident, clear voice" means speak with confidence). Preserve the emotional delivery style specified.` : ''
             
+            // Detect punctuation type and add explicit intonation instructions
+            const trimmedDialogue = dialogueText.trim()
+            const endsWithQuestion = trimmedDialogue.endsWith('?')
+            const endsWithExclamation = trimmedDialogue.endsWith('!')
+            
+            let punctuationInstruction = ''
+            if (endsWithQuestion) {
+              punctuationInstruction = ` 🚨🚨🚨 CRITICAL PUNCTUATION HANDLING - QUESTION MARK 🚨🚨🚨: The dialogue ends with a question mark (?). The character must speak this as a complete, clear question with proper rising intonation. Do NOT generate gibberish, do NOT corrupt the words, do NOT add extra sounds, do NOT add unintelligible speech. Speak the complete question clearly and naturally: "${dialogueText}". The question mark indicates a question - speak with appropriate question intonation (rising tone at the end), but keep ALL words clear, complete, and intelligible.`
+            } else if (endsWithExclamation) {
+              punctuationInstruction = ` 🚨🚨🚨 CRITICAL PUNCTUATION HANDLING - EXCLAMATION MARK 🚨🚨🚨: The dialogue ends with an exclamation mark (!). The character must speak this as a complete, clear exclamation with proper emphasis. Do NOT generate gibberish, do NOT corrupt the words, do NOT add extra sounds, do NOT add unintelligible speech. Speak the complete exclamation clearly and naturally: "${dialogueText}". The exclamation mark indicates emphasis - speak with appropriate exclamatory intonation (stronger emphasis), but keep ALL words clear, complete, and intelligible.`
+            }
+            
             dialogueInstructions = ` CRITICAL LANGUAGE REQUIREMENT: The dialogue "${dialogueText}" must be spoken in English ONLY. NO other languages allowed. CRITICAL ON-CAMERA SPOKEN DIALOGUE REQUIREMENT - NOT VOICEOVER, NOT THOUGHTS: [${startTimecode}-${endTimecode}] The ${characterDescription} SPEAKS ALOUD directly on-camera: "${dialogueText}". 
 
-CRITICAL: EXACT DIALOGUE MATCHING - The character must speak the EXACT words: "${dialogueText}". Do not paraphrase, do not change words, do not add words, do not remove words. Speak each word clearly and precisely. The character must say exactly: "${dialogueText}" - no substitutions, no variations, no gibberish, no made-up words. CRITICAL: Speak the COMPLETE dialogue text from start to finish. Do NOT cut off, truncate, or corrupt any words. Say the entire phrase clearly and completely: "${dialogueText}". Every single word must be spoken clearly and fully.${toneInstruction}
+CRITICAL: EXACT DIALOGUE MATCHING - The character must speak the EXACT words: "${dialogueText}". Do not paraphrase, do not change words, do not add words, do not remove words. Speak each word clearly and precisely - no substitutions, no variations, no gibberish, no made-up words. CRITICAL: Speak the COMPLETE dialogue text from start to finish. Do NOT cut off, truncate, or corrupt any words. Every single word must be spoken clearly and fully.${toneInstruction}${punctuationInstruction}
 
 ABSOLUTELY NO VOICEOVER OR INTERNAL THOUGHTS:
 - This is SPOKEN DIALOGUE, not internal thoughts, not voiceover, not narration
@@ -609,19 +664,20 @@ ABSOLUTELY NO VOICEOVER OR INTERNAL THOUGHTS:
 - The character must be HEARD speaking these words with their voice coming from their mouth
 
 MANDATORY VISUAL REQUIREMENTS:
-- The character's MOUTH MUST MOVE clearly and naturally as they SPEAK each word ALOUD
-- The character's LIPS MUST SYNC with the spoken words "${dialogueText}"
+- The character's MOUTH MUST MOVE clearly and naturally as they SPEAK each word ALOUD during [${startTimecode}-${endTimecode}]
+- The character's LIPS MUST SYNC with the spoken words during the dialogue timecode
 - The character MUST be shown SPEAKING on-camera, not just reacting, thinking, or expressing
 - Use CLOSE-UP or MEDIUM SHOT to clearly show the character's face and mouth movements
 - The character's FACE must be clearly visible with mouth movements matching the dialogue
 - Show the character actively SPEAKING with visible speaking gestures, mouth movements, and facial expressions
 - The character must be looking at the camera or at other visible characters while SPEAKING
-- Do NOT show the character silent or with closed mouth during this dialogue timecode
+- Do NOT show the character silent or with closed mouth during [${startTimecode}-${endTimecode}]
 - The character's voice must be AUDIBLE and come from their MOUTH, not as thoughts or narration
+- CRITICAL: Mouth movements MUST STOP at [${endTimecode}] - after this timecode, the character's mouth must be closed/neutral with NO further movements
 
-The character's mouth movements must match the words being SPOKEN ALOUD: "${dialogueText}". This is SPOKEN DIALOGUE, not thoughts or voiceover. CRITICAL: Speak the COMPLETE phrase "${dialogueText}" from beginning to end. Do NOT cut off mid-word, mid-phrase, or truncate the dialogue. Say every word completely and clearly.
+This is SPOKEN DIALOGUE, not thoughts or voiceover. CRITICAL: Speak the COMPLETE phrase from beginning to end within the timecode range [${startTimecode}-${endTimecode}]. Do NOT cut off mid-word, mid-phrase, or truncate the dialogue. Say every word completely and clearly.
 
-${segment.type === 'cta' ? `🚨🚨🚨 CRITICAL: CTA DIALOGUE - STOP SPEAKING IMMEDIATELY AFTER DIALOGUE ENDS - ABSOLUTE MANDATORY REQUIREMENT (ZERO TOLERANCE) 🚨🚨🚨: This is a CTA (Call-to-Action) segment. After [${endTimecode}], the character MUST STOP speaking IMMEDIATELY and COMPLETELY. The character must be ABSOLUTELY SILENT for the remainder of the segment. Do NOT continue speaking, do NOT add extra words, do NOT generate gibberish, do NOT make sounds, do NOT speak beyond the dialogue timecode, do NOT add any additional speech, do NOT continue the dialogue, do NOT extend the dialogue, do NOT add filler words, do NOT add random sounds, do NOT add unintelligible speech. The character must remain COMPLETELY SILENT after saying "${dialogueText}". This is a HARD REQUIREMENT with ZERO TOLERANCE - any speech, sounds, gibberish, or additional words after [${endTimecode}] will result in video rejection. The CTA dialogue "${dialogueText}" must be the FINAL and ONLY words spoken in this segment.` : `🚨🚨🚨 CRITICAL: STOP SPEAKING AFTER DIALOGUE ENDS - ABSOLUTE MANDATORY REQUIREMENT 🚨🚨🚨: After [${endTimecode}], the character must STOP speaking completely. The character must be SILENT for the remainder of the segment. Do NOT continue speaking, do NOT add extra words, do NOT generate gibberish, do NOT make sounds, do NOT speak beyond the dialogue timecode. The character must remain completely silent after saying "${dialogueText}". This is a HARD REQUIREMENT - any speech, sounds, or gibberish after [${endTimecode}] will result in video rejection.`}`
+${segment.type === 'cta' ? `🚨🚨🚨 CRITICAL: CTA DIALOGUE - STOP SPEAKING AND MOUTH MOVEMENTS IMMEDIATELY AFTER DIALOGUE ENDS - ABSOLUTE MANDATORY REQUIREMENT (ZERO TOLERANCE) 🚨🚨🚨: This is a CTA (Call-to-Action) segment. At EXACTLY [${endTimecode}], the character MUST STOP speaking IMMEDIATELY and COMPLETELY. The character's MOUTH MUST STOP MOVING at [${endTimecode}] - mouth must be closed/neutral with NO further mouth movements after this timecode. The character must be ABSOLUTELY SILENT for the remainder of the segment. Do NOT continue speaking, do NOT add extra words, do NOT generate gibberish, do NOT make sounds, do NOT speak beyond the dialogue timecode, do NOT add any additional speech, do NOT continue the dialogue, do NOT extend the dialogue, do NOT add filler words, do NOT add random sounds, do NOT add unintelligible speech, do NOT continue mouth movements after [${endTimecode}]. The character must remain COMPLETELY SILENT with CLOSED/NEUTRAL MOUTH after saying "${dialogueText}". This is a HARD REQUIREMENT with ZERO TOLERANCE - any speech, sounds, gibberish, additional words, or mouth movements after [${endTimecode}] will result in video rejection. The CTA dialogue "${dialogueText}" must be the FINAL and ONLY words spoken in this segment.` : `🚨🚨🚨 CRITICAL: STOP SPEAKING AND MOUTH MOVEMENTS AFTER DIALOGUE ENDS - ABSOLUTE MANDATORY REQUIREMENT 🚨🚨🚨: At EXACTLY [${endTimecode}], the character must STOP speaking completely. The character's MOUTH MUST STOP MOVING at [${endTimecode}] - mouth must be closed/neutral with NO further mouth movements after this timecode. The character must be SILENT for the remainder of the segment. Do NOT continue speaking, do NOT add extra words, do NOT generate gibberish, do NOT make sounds, do NOT speak beyond the dialogue timecode, do NOT continue mouth movements after [${endTimecode}]. The character must remain completely silent with closed/neutral mouth after saying "${dialogueText}". This is a HARD REQUIREMENT - any speech, sounds, gibberish, or mouth movements after [${endTimecode}] will result in video rejection.`}`
             
             // Add the actual dialogue text in Veo format so it generates the spoken audio
             // Include tone description if available
@@ -631,8 +687,9 @@ ${segment.type === 'cta' ? `🚨🚨🚨 CRITICAL: CTA DIALOGUE - STOP SPEAKING 
             // Enhance visual prompt to explicitly include dialogue text and state character is SPEAKING
             if (!sanitizedPrompt.includes(`"${dialogueText}"`) && !sanitizedPrompt.includes(`'${dialogueText}'`)) {
               // Add explicit dialogue to visual prompt at the appropriate timecode with exact matching emphasis
+              // Reduced repetition: mention dialogue text only once to prevent word repetition in generated audio
               const toneContext = toneDescription ? ` with ${toneDescription}` : ''
-              const dialogueInVisualPrompt = ` [${startTimecode}-${endTimecode}] The ${characterDescription} speaks directly on-camera in English only, saying the EXACT COMPLETE words "${dialogueText}"${toneContext} with clear mouth movements. The character's lips move in sync with each word: "${dialogueText}". The character must speak these exact words precisely from start to finish - no substitutions, no variations, no truncation, no cut-off words. Speak the COMPLETE phrase: "${dialogueText}".`
+              const dialogueInVisualPrompt = ` [${startTimecode}-${endTimecode}] The ${characterDescription} speaks directly on-camera in English only, saying the EXACT words "${dialogueText}"${toneContext} with clear mouth movements synchronized to each word. The character must speak these exact words precisely from start to finish - no substitutions, no variations, no truncation, no cut-off words. CRITICAL: Mouth movements MUST STOP immediately at [${endTimecode}] - the character's mouth must be closed/neutral after this timecode with NO further mouth movements.`
               
               // Insert dialogue description into the visual prompt (before other instructions)
               // We'll prepend it to sanitizedPrompt so it appears early in the prompt
@@ -1013,9 +1070,23 @@ ${segment.type === 'cta' ? `🚨🚨🚨 CRITICAL: CTA DIALOGUE - STOP SPEAKING 
           }
           
           await new Promise(resolve => setTimeout(resolve, 2000))
-          currentPredictionStatus = await callReplicateMCP('check_prediction_status', {
-            predictionId: currentPredictionId,
-          })
+          try {
+            currentPredictionStatus = await callReplicateMCP('check_prediction_status', {
+              predictionId: currentPredictionId,
+            })
+          } catch (statusCheckError: any) {
+            console.error(`[Segment ${idx}] Error checking prediction status:`, statusCheckError)
+            console.error(`[Segment ${idx}] Status check error details:`, JSON.stringify(statusCheckError, Object.getOwnPropertyNames(statusCheckError), 2))
+            // Continue with last known status, but log the error
+            // The loop will exit and we'll handle the error below
+            break
+          }
+          
+          // Validate that we got a valid status response
+          if (!currentPredictionStatus || typeof currentPredictionStatus !== 'object') {
+            console.error(`[Segment ${idx}] Invalid status response:`, currentPredictionStatus)
+            throw new Error(`Invalid prediction status response: ${JSON.stringify(currentPredictionStatus)}`)
+          }
           
           // Update job with current status so UI can see progress
           if (!job.assets) job.assets = []
@@ -1150,9 +1221,23 @@ ${segment.type === 'cta' ? `🚨🚨🚨 CRITICAL: CTA DIALOGUE - STOP SPEAKING 
             }
             
             await new Promise(resolve => setTimeout(resolve, 2000))
-            currentPredictionStatus = await callReplicateMCP('check_prediction_status', {
-              predictionId: currentPredictionId,
-            })
+            try {
+              currentPredictionStatus = await callReplicateMCP('check_prediction_status', {
+                predictionId: currentPredictionId,
+              })
+            } catch (statusCheckError: any) {
+              console.error(`[Segment ${idx}] Error checking retry prediction status:`, statusCheckError)
+              console.error(`[Segment ${idx}] Retry status check error details:`, JSON.stringify(statusCheckError, Object.getOwnPropertyNames(statusCheckError), 2))
+              // Continue with last known status, but log the error
+              // The loop will exit and we'll handle the error below
+              break
+            }
+            
+            // Validate that we got a valid status response
+            if (!currentPredictionStatus || typeof currentPredictionStatus !== 'object') {
+              console.error(`[Segment ${idx}] Invalid retry status response:`, currentPredictionStatus)
+              throw new Error(`Invalid retry prediction status response: ${JSON.stringify(currentPredictionStatus)}`)
+            }
             
             // Update job with current retry status
             if (!job.assets) job.assets = []
@@ -1175,7 +1260,28 @@ ${segment.type === 'cta' ? `🚨🚨🚨 CRITICAL: CTA DIALOGUE - STOP SPEAKING 
         }
         
         if (currentPredictionStatus.status !== 'succeeded') {
-          const errorMsg = currentPredictionStatus.error || 'Unknown error'
+          // Log full prediction status for debugging
+          console.error(`[Segment ${idx}] ===== PREDICTION FAILED =====`)
+          console.error(`[Segment ${idx}] Full prediction status:`, JSON.stringify(currentPredictionStatus, null, 2))
+          console.error(`[Segment ${idx}] Status: ${currentPredictionStatus.status}`)
+          console.error(`[Segment ${idx}] Error field:`, currentPredictionStatus.error)
+          console.error(`[Segment ${idx}] Prediction ID: ${currentPredictionId}`)
+          console.error(`[Segment ${idx}] Model: ${model}`)
+          console.error(`[Segment ${idx}] ===========================================`)
+          
+          // Extract error message with better fallback
+          let errorMsg = 'Unknown error'
+          if (currentPredictionStatus.error) {
+            errorMsg = typeof currentPredictionStatus.error === 'string' 
+              ? currentPredictionStatus.error 
+              : JSON.stringify(currentPredictionStatus.error)
+          } else if (currentPredictionStatus.status === 'failed') {
+            errorMsg = `Prediction failed with status: ${currentPredictionStatus.status}. No error message provided.`
+          } else if (currentPredictionStatus.status === 'canceled') {
+            errorMsg = 'Prediction was canceled'
+          } else {
+            errorMsg = `Prediction ended with unexpected status: ${currentPredictionStatus.status}. No error message provided.`
+          }
           
           // Enhanced logging for final failure (including after retry)
           if (isE005Error || errorMsg.toLowerCase().includes('sensitive') || errorMsg.toLowerCase().includes('flagged')) {
@@ -1347,11 +1453,19 @@ ${segment.type === 'cta' ? `🚨🚨🚨 CRITICAL: CTA DIALOGUE - STOP SPEAKING 
         return completedAsset
       } catch (error: any) {
         const errorMessage = error.message || 'Unknown error occurred'
-        console.error(`[Segment ${idx}] Asset generation failed:`, errorMessage)
+        console.error(`[Segment ${idx}] ===== ASSET GENERATION EXCEPTION =====`)
+        console.error(`[Segment ${idx}] Error message:`, errorMessage)
+        console.error(`[Segment ${idx}] Error type:`, error?.constructor?.name || typeof error)
+        console.error(`[Segment ${idx}] Full error object:`, JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
         console.error(`[Segment ${idx}] Error details:`, error)
         if (error.stack) {
           console.error(`[Segment ${idx}] Stack trace:`, error.stack)
         }
+        console.error(`[Segment ${idx}] Segment type:`, segment.type)
+        console.error(`[Segment ${idx}] Segment description:`, segment.description)
+        console.error(`[Segment ${idx}] Visual prompt:`, segment.visualPrompt)
+        console.error(`[Segment ${idx}] Audio notes:`, segment.audioNotes || '(empty)')
+        console.error(`[Segment ${idx}] ===========================================`)
         
         const errorAsset: Asset = {
           segmentId: idx,
@@ -1361,6 +1475,8 @@ ${segment.type === 'cta' ? `🚨🚨🚨 CRITICAL: CTA DIALOGUE - STOP SPEAKING 
             segmentIndex: idx,
             segmentType: segment.type,
             errorDetails: error.stack,
+            errorType: error?.constructor?.name || typeof error,
+            errorObject: error ? JSON.stringify(error, Object.getOwnPropertyNames(error), 2) : undefined,
             timestamp: Date.now(),
           },
         } as Asset
@@ -1450,7 +1566,15 @@ ${segment.type === 'cta' ? `🚨🚨🚨 CRITICAL: CTA DIALOGUE - STOP SPEAKING 
 
     // Update job
     job.assets = assets
-    job.status = assets.every(a => a.status === 'completed') ? 'completed' : 'failed'
+    // Mark as 'completed' if all segments finished processing and at least one completed
+    // This allows video composition to proceed with completed segments even if some failed
+    const allSegmentsProcessed = assets.every(a => a.status === 'completed' || a.status === 'failed')
+    const hasCompletedSegments = assets.some(a => a.status === 'completed')
+    job.status = allSegmentsProcessed && hasCompletedSegments 
+      ? 'completed'  // All segments processed and at least one completed - allow composition
+      : assets.every(a => a.status === 'completed') 
+        ? 'completed'  // All segments completed successfully
+        : 'failed'  // No segments completed or processing still ongoing
     job.endTime = Date.now()
     await saveJob(job)
 

@@ -14,21 +14,42 @@ async function loadCosts() {
   } catch (error: any) {
     if (error.code === 'ENOENT') {
       costs = []
-      await saveCosts()
+      // Try to save, but don't fail if filesystem is read-only (e.g., Vercel)
+      try {
+        await saveCosts()
+      } catch (saveError: any) {
+        // Ignore filesystem errors in serverless environments
+        console.warn('[Cost Tracker] Cannot save costs file (read-only filesystem):', saveError.message)
+      }
     } else {
-      throw error
+      // For other errors, just log and continue with empty costs array
+      console.warn('[Cost Tracker] Cannot load costs file:', error.message)
+      costs = []
     }
   }
 }
 
 // Save costs to file
 async function saveCosts() {
-  await fs.mkdir(path.dirname(COSTS_FILE), { recursive: true })
-  await fs.writeFile(COSTS_FILE, JSON.stringify(costs, null, 2))
+  try {
+    await fs.mkdir(path.dirname(COSTS_FILE), { recursive: true })
+    await fs.writeFile(COSTS_FILE, JSON.stringify(costs, null, 2))
+  } catch (error: any) {
+    // In serverless environments (like Vercel), filesystem writes may fail
+    // Log the error but don't throw - cost tracking is non-critical
+    if (error.code === 'EROFS' || error.code === 'EACCES' || error.message?.includes('read-only')) {
+      console.warn('[Cost Tracker] Cannot save costs (read-only filesystem):', error.message)
+    } else {
+      throw error
+    }
+  }
 }
 
-// Initialize on import
-loadCosts().catch(console.error)
+// Initialize on import - don't let failures prevent module from loading
+loadCosts().catch((error) => {
+  console.warn('[Cost Tracker] Failed to initialize:', error.message)
+  costs = []
+})
 
 export async function trackCost(
   operation: string,
@@ -43,7 +64,14 @@ export async function trackCost(
   }
 
   costs.push(entry)
-  await saveCosts()
+  // Try to save, but don't fail if filesystem is read-only (e.g., Vercel)
+  try {
+    await saveCosts()
+  } catch (error: any) {
+    // In serverless environments, cost tracking may not be persistent
+    // This is acceptable - cost tracking is non-critical
+    console.warn('[Cost Tracker] Failed to save cost entry:', error.message)
+  }
 }
 
 export async function getCostSummary(

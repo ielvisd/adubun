@@ -54,22 +54,23 @@ Return ONLY valid JSON with this structure:
   "segments": [
     {
       "type": "hook",
-      "script": "Dialogue text for hook scene - HUMAN character speaks on-camera (0-6s). Format: '[Human character description] says: [dialogue text]'"
+      "script": "Dialogue text for hook scene - HUMAN character speaks on-camera (0-6s). Format: '[Human character description] in a warm, confident voice with an American accent says: [dialogue text]'"
     },
     {
       "type": "body",
-      "script": "Dialogue text for body scene - HUMAN character speaks on-camera (6-12s). Format: '[Human character description] says: [dialogue text]'"
+      "script": "Dialogue text for body scene - HUMAN character speaks on-camera (6-12s). Format: '[Human character description] in a warm, confident voice with an American accent says: [dialogue text]'. CRITICAL: Use the EXACT SAME voice description from the hook scene. If hook scene used 'in a warm, confident voice with an American accent', use the same description here."
     },
     {
       "type": "cta",
-      "script": "Dialogue text for CTA scene - HUMAN character speaks on-camera (12-16s). Format: '[Human character description] says: [dialogue text]'. 🚨🚨🚨 ABSOLUTE MANDATORY REQUIREMENT: CTA dialogue must be EXACTLY 5 words or less. This is a HARD REQUIREMENT with ZERO TOLERANCE. You MUST NEVER generate CTA dialogue with more than 5 words. BEFORE generating this dialogue, you MUST: 1) Count the words in your intended dialogue text BEFORE writing it, 2) If your intended dialogue exceeds 5 words, shorten it to 5 words or less BEFORE generating it, 3) Generate ONLY dialogue that is 5 words or less. Examples: ✅ 'Find your voice today.' (5 words - ACCEPTED) ✅ 'Shop now and save.' (4 words - ACCEPTED) ✅ 'Buy now to transform.' (5 words - ACCEPTED) ❌ 'Find your voice today and save money.' (9 words - DO NOT GENERATE - WILL CAUSE REGENERATION) ❌ 'Buy now to transform your skin.' (7 words - DO NOT GENERATE - WILL CAUSE REGENERATION). The phrase must be complete, meaningful, and grammatically correct. COUNT YOUR WORDS BEFORE GENERATING, NOT AFTER."
+      "script": "Dialogue text for CTA scene - HUMAN character speaks on-camera (12-16s). Format: '[Human character description] in a warm, confident voice with an American accent says: [dialogue text]'. CRITICAL: Use the EXACT SAME voice description from the hook scene. If hook scene used 'in a warm, confident voice with an American accent', use the same description here. 🚨🚨🚨 ABSOLUTE MANDATORY REQUIREMENT: CTA dialogue must be EXACTLY 5 words or less. This is a HARD REQUIREMENT with ZERO TOLERANCE. You MUST NEVER generate CTA dialogue with more than 5 words. BEFORE generating this dialogue, you MUST: 1) Count the words in your intended dialogue text BEFORE writing it, 2) If your intended dialogue exceeds 5 words, shorten it to 5 words or less BEFORE generating it, 3) Generate ONLY dialogue that is 5 words or less. Examples: ✅ 'Find your voice today.' (5 words - ACCEPTED) ✅ 'Shop now and save.' (4 words - ACCEPTED) ✅ 'Buy now to transform.' (5 words - ACCEPTED) ❌ 'Find your voice today and save money.' (9 words - DO NOT GENERATE - WILL CAUSE REGENERATION) ❌ 'Buy now to transform your skin.' (7 words - DO NOT GENERATE - WILL CAUSE REGENERATION). The phrase must be complete, meaningful, and grammatically correct. COUNT YOUR WORDS BEFORE GENERATING, NOT AFTER."
     }
   ]
 }
 
 IMPORTANT: 
-- Format each script as "[Human Character] says: '[dialogue text]'" so it can be used in the audioNotes field as "Dialogue: [Human Character] says: '[dialogue text]'"
-- **CRITICAL FORMAT REQUIREMENT**: Always use the format '[Human Character] says: [dialogue text]'. Do NOT use variations like 'mutters', 'concludes', 'whispers', 'exclaims', 'states', 'speaks', 'remarks', etc. Always use 'says:' for consistency and proper extraction. Examples: ✅ "The woman says: 'Why does it always sound like this?'" ✅ "The same woman says: 'Finally, the clarity I need.'" ❌ "The woman mutters to herself: 'Why does it always sound like this?'" (REJECTED - use 'says:' instead) ❌ "The woman concludes: 'My voice, perfectly clear.'" (REJECTED - use 'says:' instead)
+- Format each script as "[Human Character] in a warm, confident voice with an American accent says: '[dialogue text]'" so it can be used in the audioNotes field as "Dialogue: [Human Character] in a warm, confident voice with an American accent says: '[dialogue text]'"
+- **CRITICAL VOICE CONSISTENCY REQUIREMENT**: The hook scene MUST establish the voice description (e.g., "in a warm, confident voice with an American accent"). ALL subsequent scenes (body, CTA) MUST use the EXACT SAME voice description from the hook scene. This ensures voice consistency across all scenes.
+- **CRITICAL FORMAT REQUIREMENT**: Always use the format '[Human Character] in a warm, confident voice with an American accent says: [dialogue text]'. Do NOT use variations like 'mutters', 'concludes', 'whispers', 'exclaims', 'states', 'speaks', 'remarks', etc. Always use 'says:' for consistency and proper extraction. Examples: ✅ "The woman in a warm, confident voice with an American accent says: 'Why does it always sound like this?'" ✅ "The same woman in a warm, confident voice with an American accent says: 'Finally, the clarity I need.'" ❌ "The woman mutters to herself: 'Why does it always sound like this?'" (REJECTED - use 'says:' instead) ❌ "The woman concludes: 'My voice, perfectly clear.'" (REJECTED - use 'says:' instead)
 - Do NOT include music or soundtracks
 - Do NOT have robots or products speak - only humans`
 
@@ -100,12 +101,13 @@ The dialogue should:
 - Be spoken by HUMAN characters visible in each scene (on-camera dialogue)
 - Be in English ONLY - no exceptions
 - Progress the story naturally from scene to scene
-- Format each segment's script as "[Human character description] says: '[dialogue text]'"
-- **CRITICAL FORMAT REQUIREMENT**: Always use 'says:' in the format. Do NOT use variations like 'mutters', 'concludes', 'whispers', 'exclaims', 'states', 'speaks', 'remarks', etc. Always use 'says:' for consistency and proper extraction. Examples: ✅ "The young woman says: 'How am I going to finish all of this?'" ✅ "The same woman says: 'Finally, the clarity I need.'" ❌ "The woman mutters to herself: 'Why does it always sound like this?'" (REJECTED - use 'says:' instead) ❌ "The woman concludes: 'My voice, perfectly clear.'" (REJECTED - use 'says:' instead)
-- Example: "The young woman says: 'How am I going to finish all of this?'"
+- Format each segment's script as "[Human character description] in a warm, confident voice with an American accent says: '[dialogue text]'"
+- **CRITICAL VOICE CONSISTENCY**: The hook scene MUST establish the voice description "in a warm, confident voice with an American accent". ALL subsequent scenes (body, CTA) MUST use the EXACT SAME voice description to ensure voice consistency. Example: Hook: "The young woman in a warm, confident voice with an American accent says: '...'" → Body: "The same woman in a warm, confident voice with an American accent says: '...'" → CTA: "The same woman in a warm, confident voice with an American accent says: '...'"
+- **CRITICAL FORMAT REQUIREMENT**: Always use 'says:' in the format. Do NOT use variations like 'mutters', 'concludes', 'whispers', 'exclaims', 'states', 'speaks', 'remarks', etc. Always use 'says:' for consistency and proper extraction. Examples: ✅ "The young woman in a warm, confident voice with an American accent says: 'How am I going to finish all of this?'" ✅ "The same woman in a warm, confident voice with an American accent says: 'Finally, the clarity I need.'" ❌ "The woman mutters to herself: 'Why does it always sound like this?'" (REJECTED - use 'says:' instead) ❌ "The woman concludes: 'My voice, perfectly clear.'" (REJECTED - use 'says:' instead)
+- Example: "The young woman in a warm, confident voice with an American accent says: 'How am I going to finish all of this?'"
 - If the story involves a robot or product, only the human character should speak - the robot/product should be silent
 - **CRITICAL:** Every dialogue must be a complete, grammatically correct sentence - no fragments or incomplete phrases
-- **PRESERVE TONE/EMOTION**: Preserve tone and emotion descriptions from the story context (e.g., if story mentions "soft, concerned voice", include that in the character description: "The woman, in a soft, concerned voice says: '...'"). If story mentions "confident, clear voice", include that: "The same woman, now with a confident, clear voice says: '...'")
+- **VOICE DESCRIPTION**: Always include "in a warm, confident voice with an American accent" in the character description for voice consistency across all scenes
 
 CRITICAL: This is on-camera dialogue, not off-screen narration. Only human characters must be shown speaking in the video. Robots and products do not speak. All dialogue must be in English only and must be complete, grammatically correct sentences.`
 

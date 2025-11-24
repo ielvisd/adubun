@@ -3,8 +3,8 @@ import path from 'path'
 import sharp from 'sharp'
 import { callReplicateMCP } from '../utils/mcp-client'
 import { trackCost } from '../utils/cost-tracker'
-import { saveAsset, deleteFile } from '../utils/storage'
-import { uploadFileToS3 } from '../utils/s3-upload'
+import { uploadBufferToS3 } from '../utils/s3-upload'
+import { isServerlessEnvironment } from '../utils/openai-direct'
 import { createCharacterConsistencyInstruction, formatCharactersForPrompt } from '../utils/character-extractor'
 import { detectSceneConflict, extractSolutionItem, extractItemInitialLocation } from '../utils/scene-conflict-checker'
 import { sanitizeVideoPrompt } from '../utils/prompt-sanitizer'
@@ -81,20 +81,15 @@ const getExtensionFromUrl = (url: string): string => {
   return ALLOWED_IMAGE_EXTENSIONS.has(ext) ? ext : 'jpg'
 }
 
-const getLocalAssetUrl = (filePath: string): string => {
-  const assetId = path.basename(filePath)
-  return `/api/assets/${assetId}`
-}
-
 const persistImageBuffer = async (buffer: Buffer, extension: string): Promise<string> => {
-  const tempPath = await saveAsset(buffer, extension)
   try {
-    const url = await uploadFileToS3(tempPath)
-    await deleteFile(tempPath).catch(() => {})
+    // Upload buffer directly to S3 (no filesystem writes for Vercel compatibility)
+    const filename = `frame-${Date.now()}.${extension}`
+    const url = await uploadBufferToS3(buffer, filename, 'frames')
     return url
   } catch (error: any) {
-    console.warn('[Generate Frames] S3 upload unavailable, serving from local assets:', error.message)
-    return getLocalAssetUrl(tempPath)
+    console.error('[Generate Frames] Failed to upload image buffer to S3:', error.message)
+    throw new Error(`Failed to upload image to S3: ${error.message}`)
   }
 }
 
@@ -138,7 +133,29 @@ async function resolveImagePath(imagePath: string): Promise<string> {
     return imagePath
   }
   
-  // Resolve to absolute path first
+  // In serverless environments, only URLs are supported (no file paths)
+  if (isServerlessEnvironment()) {
+    // If it's a public folder path (starts with /), try to construct a URL
+    if (imagePath.startsWith('/')) {
+      // Try to construct a URL from the public path
+      // This handles cases like "/avatars/mia/preview.jpg"
+      // Use environment variable or construct from request if available
+      const baseUrl = process.env.APP_URL || process.env.VERCEL_URL 
+        ? `https://${process.env.VERCEL_URL || 'adubun.vercel.app'}`
+        : 'https://adubun.vercel.app'
+      const publicUrl = `${baseUrl}${imagePath}`
+      console.log(`[Generate Frames] Converted public path to URL in serverless: ${imagePath} -> ${publicUrl}`)
+      return publicUrl
+    }
+    
+    // If it's not a URL and not a public path, log warning but don't throw
+    // This allows the code to continue and handle the missing image gracefully
+    console.warn(`[Generate Frames] Non-URL image path in serverless environment: ${imagePath}. This image will be skipped.`)
+    // Return the path as-is - the calling code should handle null/empty values
+    return imagePath
+  }
+  
+  // Resolve to absolute path first (local development only)
   let absolutePath: string
   if (imagePath.startsWith('/')) {
     // Public folder path - resolve relative to public folder
@@ -715,56 +732,111 @@ async function generateSingleFrame(
     
     console.log(`[Generate Frames] Total image inputs being sent: ${imageInputs.length} images (${referenceImages.length} product + ${hookFirstFrameUrl ? 1 : 0} hook first + ${(previousFrameImage && includePreviousFrameInInput) ? 1 : 0} previous frame)`)
     
-    const nanoResult = await callReplicateMCP('generate_image', {
-      model: 'google/nano-banana-pro',
-      prompt: nanoPrompt,
-      image_input: imageInputs.length > 0 ? imageInputs : undefined,
-      aspect_ratio: aspectRatio,
-      output_format: 'jpg',
-    })
-
-    const nanoPredictionId = nanoResult.predictionId || nanoResult.id
-    if (!nanoPredictionId) {
-      console.error(`[Generate Frames] No prediction ID returned for ${frameName}`)
-      return null
+    let nanoResult: any
+    let nanoPredictionId: string | undefined
+    
+    try {
+      nanoResult = await callReplicateMCP('generate_image', {
+        model: 'google/nano-banana-pro',
+        prompt: nanoPrompt,
+        image_input: imageInputs.length > 0 ? imageInputs : undefined,
+        aspect_ratio: aspectRatio,
+        output_format: 'jpg',
+      })
+      
+      nanoPredictionId = nanoResult.predictionId || nanoResult.id
+      if (!nanoPredictionId) {
+        console.error(`[Generate Frames] No prediction ID returned for ${frameName}`)
+        console.error(`[Generate Frames] Result:`, JSON.stringify(nanoResult, null, 2))
+        return null
+      }
+      
+      console.log(`[Generate Frames] Created prediction ${nanoPredictionId} for ${frameName}`)
+    } catch (error: any) {
+      console.error(`[Generate Frames] Failed to create prediction for ${frameName}:`, error)
+      console.error(`[Generate Frames] Error message:`, error.message)
+      console.error(`[Generate Frames] Error stack:`, error.stack)
+      // Re-throw to be caught by outer catch block
+      throw error
     }
 
       // Poll for Nano-banana result
       let nanoStatus = 'starting'
       let nanoAttempts = 0
-      while (nanoStatus !== 'succeeded' && nanoStatus !== 'failed' && nanoAttempts < 60) {
+      const maxAttempts = 60
+      
+      while (nanoStatus !== 'succeeded' && nanoStatus !== 'failed' && nanoAttempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 2000))
-        const statusResult = await callReplicateMCP('check_prediction_status', { predictionId: nanoPredictionId })
-        nanoStatus = statusResult.status || 'starting'
-        nanoAttempts++
-
-        if (nanoStatus === 'succeeded') {
-          const nanoResultData = await callReplicateMCP('get_prediction_result', { predictionId: nanoPredictionId })
-          const nanoImageUrl = nanoResultData.videoUrl
-
-        if (!nanoImageUrl) {
-          console.error(`[Generate Frames] No image URL in nano-banana result for ${frameName}`)
-          return null
+        
+        try {
+          const statusResult = await callReplicateMCP('check_prediction_status', { predictionId: nanoPredictionId })
+          nanoStatus = statusResult.status || 'starting'
+          nanoAttempts++
+          
+          // Log progress every 10 attempts
+          if (nanoAttempts % 10 === 0) {
+            console.log(`[Generate Frames] Polling ${frameName}: status=${nanoStatus}, attempts=${nanoAttempts}/${maxAttempts}`)
+          }
+          
+          // Check for errors in status result
+          if (statusResult.error) {
+            console.error(`[Generate Frames] Prediction error for ${frameName}:`, statusResult.error)
+            nanoStatus = 'failed'
+            break
+          }
+        } catch (statusError: any) {
+          console.error(`[Generate Frames] Failed to check prediction status for ${frameName}:`, statusError)
+          // Continue polling unless it's a critical error
+          if (statusError.message?.includes('not found') || statusError.message?.includes('404')) {
+            nanoStatus = 'failed'
+            break
+          }
+          nanoAttempts++
+          continue
         }
 
-        console.log(`[Generate Frames] Nano-banana succeeded for ${frameName}: ${nanoImageUrl}`)
-            
+        if (nanoStatus === 'succeeded') {
+          try {
+            const nanoResultData = await callReplicateMCP('get_prediction_result', { predictionId: nanoPredictionId })
+            // For images, Replicate returns URL in different fields - try all possibilities
+            const nanoImageUrl = nanoResultData.videoUrl || nanoResultData.url || nanoResultData.audioUrl || 
+                                (typeof nanoResultData === 'string' ? nanoResultData : null) ||
+                                (Array.isArray(nanoResultData) ? nanoResultData[0] : null)
+
+            if (!nanoImageUrl) {
+              console.error(`[Generate Frames] No image URL in nano-banana result for ${frameName}`)
+              console.error(`[Generate Frames] Result data:`, JSON.stringify(nanoResultData, null, 2))
+              return null
+            }
+
+            console.log(`[Generate Frames] Nano-banana succeeded for ${frameName}: ${nanoImageUrl}`)
+                
             // NOTE: Seedream-4 enhancement is now optional and handled via separate API endpoint
             // This allows faster frame generation (nano-banana only) with optional enhancement
             const finalImageUrl = await enforceImageResolution(nanoImageUrl, dimensions.width, dimensions.height)
             const modelSource: 'nano-banana' | 'seedream-4' = 'nano-banana'
             const seedreamImageUrl: string | undefined = undefined
-        
-        return {
-          segmentIndex: 0, // Will be set by caller
-          frameType: 'first' as const, // Will be set by caller
+            
+            return {
+              segmentIndex: 0, // Will be set by caller
+              frameType: 'first' as const, // Will be set by caller
               imageUrl: finalImageUrl,
               modelSource,
               nanoImageUrl,
               seedreamImageUrl,
+            }
+          } catch (resultError: any) {
+            console.error(`[Generate Frames] Failed to get prediction result for ${frameName}:`, resultError)
+            console.error(`[Generate Frames] Error message:`, resultError.message)
+            return null
+          }
+        }
+        
+        if (nanoStatus === 'failed') {
+          console.error(`[Generate Frames] Prediction failed for ${frameName} after ${nanoAttempts} attempts`)
+          return null
         }
       }
-    }
     
     console.error(`[Generate Frames] ✗✗✗ Nano-banana failed or timed out for ${frameName}`)
     console.error(`[Generate Frames] Final status: ${nanoStatus}, attempts: ${nanoAttempts}`)
@@ -924,8 +996,24 @@ export default defineEventHandler(async (event) => {
     
     // Add product images first (resolve paths and convert to URLs)
     if (productImages.length > 0) {
-      const resolvedProductImages = await Promise.all(productImages.slice(0, 12).map(resolveImagePath))
-      referenceImages.push(...resolvedProductImages)
+      try {
+        const resolvedProductImages = await Promise.all(
+          productImages.slice(0, 12).map(async (img) => {
+            try {
+              return await resolveImagePath(img)
+            } catch (error: any) {
+              console.error(`[Generate Frames] Failed to resolve product image ${img}:`, error.message)
+              return null
+            }
+          })
+        )
+        const validResolvedImages = resolvedProductImages.filter((img): img is string => img !== null)
+        referenceImages.push(...validResolvedImages)
+        console.log(`[Generate Frames] Added ${validResolvedImages.length} product image(s) to reference images`)
+      } catch (error: any) {
+        console.error(`[Generate Frames] Error resolving product images:`, error.message)
+        // Continue without product images rather than failing entirely
+      }
     }
     
     // Add avatar reference images (resolve public folder paths and convert to URLs)
@@ -959,19 +1047,39 @@ export default defineEventHandler(async (event) => {
         
         if (avatarImagesToAdd.length > 0) {
           console.log(`[Generate Frames] Avatar reference images before resolution:`, avatarImagesToAdd)
-          const resolvedAvatarImages = await Promise.all(avatarImagesToAdd.map(resolveImagePath))
-          console.log(`[Generate Frames] Avatar reference images after resolution:`, resolvedAvatarImages)
-          referenceImages.push(...resolvedAvatarImages)
-          console.log(`[Generate Frames] Added ${resolvedAvatarImages.length} avatar reference image(s) to nano-banana inputs`)
+          try {
+            const resolvedAvatarImages = await Promise.all(
+              avatarImagesToAdd.map(async (img) => {
+                try {
+                  return await resolveImagePath(img)
+                } catch (error: any) {
+                  console.error(`[Generate Frames] Failed to resolve avatar image ${img}:`, error.message)
+                  return null
+                }
+              })
+            )
+            const validResolvedImages = resolvedAvatarImages.filter((img): img is string => img !== null)
+            console.log(`[Generate Frames] Avatar reference images after resolution:`, validResolvedImages)
+            referenceImages.push(...validResolvedImages)
+            console.log(`[Generate Frames] Added ${validResolvedImages.length} avatar reference image(s) to nano-banana inputs`)
+          } catch (error: any) {
+            console.error(`[Generate Frames] Error resolving avatar images:`, error.message)
+            // Continue without avatar images rather than failing entirely
+          }
         }
       }
     }
     
     // Add person reference (subjectReference) if available from storyboard meta (resolve path and convert to URL)
     if (storyboard.meta.subjectReference && referenceImages.length < MAX_REFERENCE_IMAGES) {
-      const resolvedSubjectRef = await resolveImagePath(storyboard.meta.subjectReference)
-      console.log(`[Generate Frames] Adding person reference to nano-banana inputs: ${resolvedSubjectRef}`)
-      referenceImages.push(resolvedSubjectRef)
+      try {
+        const resolvedSubjectRef = await resolveImagePath(storyboard.meta.subjectReference)
+        console.log(`[Generate Frames] Adding person reference to nano-banana inputs: ${resolvedSubjectRef}`)
+        referenceImages.push(resolvedSubjectRef)
+      } catch (error: any) {
+        console.error(`[Generate Frames] Failed to resolve subject reference image:`, error.message)
+        // Continue without subject reference rather than failing entirely
+      }
     }
 
     // Get characters from storyboard for consistency
@@ -1061,7 +1169,9 @@ export default defineEventHandler(async (event) => {
         frames.push(hookFirstFrameResult)
         console.log(`[Generate Frames] ✓ Hook first frame generated (${hookFirstFrameResult.modelSource}): ${hookFirstFrameResult.imageUrl}`)
       } else {
-        console.error('[Generate Frames] ✗ Hook first frame generation failed')
+        console.error('[Generate Frames] ✗ Hook first frame generation failed - this will cause all subsequent frames to fail')
+        // In production, we should still try to continue, but log the issue
+        // The frontend will handle empty frames array
       }
     }
     
@@ -1940,6 +2050,22 @@ export default defineEventHandler(async (event) => {
       // Don't fail the request if validation fails
     }
 
+    // Validate that at least one frame was generated
+    if (frames.length === 0) {
+      console.error('[Generate Frames] ❌ No frames were generated - all frame generation attempts failed')
+      throw createError({
+        statusCode: 500,
+        message: 'Failed to generate any frames. This may be due to Replicate API issues, invalid image references, or network problems. Please check your REPLICATE_API_KEY environment variable and try again.',
+        data: {
+          storyboardId: storyboard.id,
+          mode: generationMode,
+          seamless: seamlessTransition,
+        },
+      })
+    }
+    
+    console.log(`[Generate Frames] ✓ Successfully generated ${frames.length} frame(s)`)
+    
     return {
       frames,
       storyboardId: storyboard.id,
@@ -1960,9 +2086,58 @@ export default defineEventHandler(async (event) => {
     }
   } catch (error: any) {
     console.error('[Generate Frames] Error:', error)
+    console.error('[Generate Frames] Error message:', error.message)
+    console.error('[Generate Frames] Error code:', error.code)
+    console.error('[Generate Frames] Error stack:', error.stack)
+    
+    // Check for MCP/child process errors
+    if (error.message?.includes('MCP') || 
+        error.message?.includes('spawn') || 
+        error.message?.includes('child process') ||
+        error.code === 'EPIPE' ||
+        error.code === 'ENOENT') {
+      throw createError({
+        statusCode: 500,
+        message: `Frame generation failed: MCP server unavailable. This may be a serverless environment limitation. Please check server logs.`,
+        data: {
+          originalError: error.message,
+          code: error.code,
+        },
+      })
+    }
+    
+    // Check for filesystem errors (common on Vercel)
+    if (error.code === 'EROFS' || error.code === 'EACCES' || error.message?.includes('read-only') || error.message?.includes('ENOENT')) {
+      console.error('[Generate Frames] Filesystem error detected - this may be a Vercel serverless environment issue')
+      throw createError({
+        statusCode: 500,
+        message: 'Server configuration error. Please check server logs.',
+        data: {
+          originalError: error.message,
+          code: error.code,
+        },
+      })
+    }
+    
+    // Check for invalid image path errors
+    if (error.message?.includes('Invalid image path in serverless')) {
+      throw createError({
+        statusCode: 400,
+        message: error.message,
+        data: {
+          originalError: error.message,
+        },
+      })
+    }
+    
     throw createError({
-      statusCode: 500,
+      statusCode: error.statusCode || 500,
       message: error.message || 'Failed to generate frames',
+      data: {
+        originalError: error.message,
+        code: error.code,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      },
     })
   }
 })

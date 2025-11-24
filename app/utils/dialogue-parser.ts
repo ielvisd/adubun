@@ -22,7 +22,9 @@ export function parseDialogue(audioNotes: string | undefined | null): ParsedDial
   }
 
   // Match format: "Dialogue: [Character] says: '[text]'"
-  // Also handles variations like "Dialogue: [Character] says in a soft voice: '[text]'"
+  // Also handles variations like:
+  // - "Dialogue: [Character] says in a soft voice: '[text]'"
+  // - "Dialogue: [Character] in a warm, confident voice with an American accent says: '[text]'"
   // Use a more robust pattern that captures complete dialogue text until the last matching quote
   // First, find the pattern up to the opening quote
   const prefixMatch = audioNotes.match(/Dialogue:\s*(.+?)\s+says(?:[^:]+)?:\s*['"]/i)
@@ -36,23 +38,58 @@ export function parseDialogue(audioNotes: string | undefined | null): ParsedDial
   const quoteChar = audioNotes[prefixEnd - 1] // The quote character used (' or ")
   
   // Find the last matching quote character from the end
+  // Improved: Look for quote that's likely the closing quote of the dialogue
+  // This handles cases like: "Dialogue: Character says: 'Text!' (with excitement)"
   let lastQuoteIndex = -1
   for (let i = audioNotes.length - 1; i >= prefixEnd; i--) {
     if (audioNotes[i] === quoteChar) {
       // Check if it's not escaped (not preceded by backslash)
       if (i === 0 || audioNotes[i - 1] !== '\\') {
-        lastQuoteIndex = i
-        break
+        // Check if this quote is likely the closing quote by checking what follows it
+        // Valid closing quote is followed by: end of string, whitespace, comma, period, closing paren, or semicolon
+        // This ensures we capture dialogue ending with ! or ? even if there's text after
+        const charAfter = i < audioNotes.length - 1 ? audioNotes[i + 1] : ''
+        if (charAfter === '' || /[\s,.)\s;]/.test(charAfter) || i === audioNotes.length - 1) {
+          lastQuoteIndex = i
+          break
+        }
+      }
+    }
+  }
+  
+  // If we didn't find a quote with the validation above, fall back to finding any unescaped quote
+  // This handles edge cases where the quote might be followed by unexpected characters
+  if (lastQuoteIndex === -1) {
+    for (let i = audioNotes.length - 1; i >= prefixEnd; i--) {
+      if (audioNotes[i] === quoteChar) {
+        if (i === 0 || audioNotes[i - 1] !== '\\') {
+          lastQuoteIndex = i
+          break
+        }
       }
     }
   }
   
   if (lastQuoteIndex === -1) {
-    // No closing quote found, try the original regex as fallback
-    const dialogueMatch = audioNotes.match(/Dialogue:\s*(.+?)\s+says(?:[^:]+)?:\s*['"](.+?)['"]/i)
-    if (dialogueMatch) {
+    // No closing quote found, try improved regex fallback
+    // Use a more robust pattern that captures dialogue including trailing punctuation
+    // Use [^'"]* to match everything except quotes - this ensures we capture ! and ? correctly
+    const dialogueMatch = audioNotes.match(/Dialogue:\s*(.+?)\s+says(?:[^:]+)?:\s*['"]([^'"]*)['"]/i)
+    if (dialogueMatch && dialogueMatch[2]) {
       const character = dialogueMatch[1].trim()
       const dialogueText = dialogueMatch[2].trim()
+      
+      // Validate punctuation preservation - check if original had ! or ? within the match
+      const matchStart = dialogueMatch.index || 0
+      const matchEnd = matchStart + dialogueMatch[0].length
+      const matchSection = audioNotes.substring(matchStart, matchEnd)
+      const originalHasQuestion = matchSection.includes('?')
+      const originalHasExclamation = matchSection.includes('!')
+      
+      if ((originalHasQuestion && !dialogueText.endsWith('?')) || (originalHasExclamation && !dialogueText.endsWith('!'))) {
+        console.warn('[Dialogue Parser] Punctuation may have been lost during regex fallback extraction. Original section:', matchSection, 'Extracted:', dialogueText)
+      }
+      
       return {
         character,
         dialogueText,
@@ -70,6 +107,20 @@ export function parseDialogue(audioNotes: string | undefined | null): ParsedDial
   if (dialogueText.length === 0) {
     console.warn('[Dialogue Parser] Dialogue text is empty after extraction')
     return null
+  }
+  
+  // Validate punctuation preservation - check if original had ! or ? and ensure they're preserved
+  // Check the extracted dialogue text directly for punctuation that should be at the end
+  const originalText = audioNotes.substring(prefixEnd, lastQuoteIndex)
+  const hasQuestionInOriginal = originalText.includes('?')
+  const hasExclamationInOriginal = originalText.includes('!')
+  
+  if (hasQuestionInOriginal && !dialogueText.endsWith('?')) {
+    console.warn('[Dialogue Parser] Question mark detected in original dialogue but missing from extracted text. Original:', originalText, 'Extracted:', dialogueText)
+  }
+  
+  if (hasExclamationInOriginal && !dialogueText.endsWith('!')) {
+    console.warn('[Dialogue Parser] Exclamation mark detected in original dialogue but missing from extracted text. Original:', originalText, 'Extracted:', dialogueText)
   }
   
   // Check for incomplete/corrupted dialogue indicators

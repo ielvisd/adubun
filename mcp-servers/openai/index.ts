@@ -1214,7 +1214,9 @@ Definitions:
   * Provide variety in visual style while staying true to the segment's purpose
   * Maintain story continuity with previous segments (for body and CTA segments)
   * ${sceneDescription ? `🚨 CRITICAL: For the hook segment, ALL alternative prompts MUST also start with the same sceneDescription: "${sceneDescription}". They can vary camera angle (close-up, wide, overhead, side), lighting (soft, dramatic, natural, studio), composition, or perspective, but the product placement and scene must match the reference image. DO NOT create alternatives that change the product placement (e.g., from "wearing on wrist" to "on table" or "in case") - these are different scenes, not alternatives. Example: If sceneDescription is "a man wearing a watch on his wrist", all alternatives must show "person/man wearing watch on wrist", not "watch on table" or "watch in case".` : ''}
-- audioNotes: Format as "Dialogue: [character name/description] says: '[actual script text]'" OR "Voiceover: [actual script text to be spoken by off-screen narrator]" OR "Music: [description of music/sound effects]". 
+- audioNotes: Format as "Dialogue: [character name/description] in a warm, confident voice with an American accent says: '[actual script text]'" OR "Voiceover: [actual script text to be spoken by off-screen narrator]" OR "Music: [description of music/sound effects]". 
+  
+  🚨 CRITICAL VOICE CONSISTENCY: The hook scene MUST establish the voice description "in a warm, confident voice with an American accent". ALL subsequent scenes (body, CTA) MUST use the EXACT SAME voice description to ensure voice consistency across all scenes. 
   
   🚨 CRITICAL: ONLY generate dialogue in audioNotes if the user has explicitly provided dialogue text. If no dialogue is provided by the user, set audioNotes to an empty string (""). DO NOT auto-generate dialogue based on the story content. Only include dialogue when the user has explicitly specified it.
   
@@ -1242,7 +1244,8 @@ Definitions:
   
   🚨🚨🚨 CRITICAL: DIALOGUE REQUIREMENT - MANDATORY FOR ALL SCENES (NO EXCEPTIONS) 🚨🚨🚨:
   - **MANDATORY DIALOGUE**: EVERY scene (hook, body, CTA) MUST include character dialogue in the audioNotes field. NO EXCEPTIONS - dialogue is required for ALL scenes, including product reveals and transitions. No scene should be silent.
-  - **DIALOGUE FORMAT**: Use "Dialogue: [character] says: '[text]'" format (e.g., "Dialogue: The woman says: 'How am I going to finish all of this?'")
+  - **DIALOGUE FORMAT**: Use "Dialogue: [character] in a warm, confident voice with an American accent says: '[text]'" format (e.g., "Dialogue: The woman in a warm, confident voice with an American accent says: 'How am I going to finish all of this?'")
+  - **CRITICAL VOICE CONSISTENCY**: The hook scene MUST establish the voice description "in a warm, confident voice with an American accent". ALL subsequent scenes (body, CTA) MUST use the EXACT SAME voice description to ensure voice consistency across all scenes.
   - **VOICEOVER**: Use only for off-screen narration if absolutely necessary. Format: "Voiceover: [text]" (e.g., "Voiceover: Discover the luxury watch collection...")
   - **PREFER DIALOGUE**: For most ads, use Dialogue format so characters speak on-camera. Only use Voiceover if explicitly needed for off-screen narration.
   - **CRITICAL**: If the user has not provided dialogue, you MUST generate appropriate dialogue for each scene that matches the story content and scene purpose. Dialogue should:
@@ -1257,10 +1260,10 @@ Definitions:
   - Ensure the character is shown speaking on-camera, not just reacting
   
   CORRECT examples:
-  - "Dialogue: The woman says: 'How am I going to finish all of this?'"
-  - "Dialogue: The young woman says: 'Are you going to help me with this?' (slight laugh)"
-  - "Dialogue: She says: 'Finally, a little balance in my life.'"
-  - "Music: Upbeat electronic music. Dialogue: The man says: 'This changes everything.'"
+  - "Dialogue: The woman in a warm, confident voice with an American accent says: 'How am I going to finish all of this?'"
+  - "Dialogue: The young woman in a warm, confident voice with an American accent says: 'Are you going to help me with this?' (slight laugh)"
+  - "Dialogue: The same woman in a warm, confident voice with an American accent says: 'Finally, a little balance in my life.'"
+  - "Music: Upbeat electronic music. Dialogue: The man in a warm, confident voice with an American accent says: 'This changes everything.'"
   
   INCORRECT examples (DO NOT USE):
   - "Voiceover: A narrator describes the product features" (this is a description, not script)
@@ -1268,7 +1271,7 @@ Definitions:
   - "A professional voiceover discusses the product" (this is a description, not script)
   - "Dialogue: The woman thinks about her problems" (this is not dialogue, it's a thought)
   
-  If there's both music and dialogue/voiceover, format as: "Music: [description]. Dialogue: [character] says: '[text]'" OR "Music: [description]. Voiceover: [text]"
+  If there's both music and dialogue/voiceover, format as: "Music: [description]. Dialogue: [character] in a warm, confident voice with an American accent says: '[text]'" OR "Music: [description]. Voiceover: [text]"
   If there's only music, format as: "Music: [description of music/sound effects]"
 
 Duration: ${duration}s

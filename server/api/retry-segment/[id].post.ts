@@ -172,14 +172,22 @@ export default defineEventHandler(async (event) => {
           }
         }
         
-        // Extract tone/voice descriptions
+        // Extract tone/voice descriptions (e.g., "soft, concerned voice", "confident, clear voice", "in a warm, confident voice with an American accent")
         let toneDescription = ''
         if (toneFromSays) {
           toneDescription = toneFromSays
         } else {
-          const toneMatch = characterDescription.match(/(?:,\s*)?(?:in\s+a\s+)?([^,]+(?:,\s*[^,]+)*\s+voice)/i)
+          // Extract voice description pattern including "with an American accent"
+          const toneMatch = characterDescription.match(/(?:,\s*)?(?:in\s+a\s+)?([^,]+(?:,\s*[^,]+)*\s+voice(?:\s+with\s+an\s+American\s+accent)?)/i)
           if (toneMatch) {
             toneDescription = toneMatch[1].trim()
+          } else {
+            // Fallback: try to extract from audioNotes directly
+            const audioNotesVoiceMatch = segment.audioNotes.match(/in\s+a\s+[^,]+(?:,\s*[^,]+)*\s+voice\s+with\s+an\s+American\s+accent/i)
+            if (audioNotesVoiceMatch) {
+              toneDescription = audioNotesVoiceMatch[0].trim()
+              console.log(`[Retry Segment ${segmentId}] Extracted voice description from audioNotes: "${toneDescription}"`)
+            }
           }
         }
         
@@ -219,9 +227,21 @@ export default defineEventHandler(async (event) => {
         // Build explicit speaking instructions with timecodes
         const toneInstruction = toneDescription ? ` CRITICAL: TONE MATCHING - The character must speak with the tone/emotion: "${toneDescription}". Match the intended delivery style (e.g., "soft, concerned voice" means speak softly with concern, "confident, clear voice" means speak with confidence). Preserve the emotional delivery style specified.` : ''
         
+        // Detect punctuation type and add explicit intonation instructions
+        const trimmedDialogue = dialogueText.trim()
+        const endsWithQuestion = trimmedDialogue.endsWith('?')
+        const endsWithExclamation = trimmedDialogue.endsWith('!')
+        
+        let punctuationInstruction = ''
+        if (endsWithQuestion) {
+          punctuationInstruction = ` 🚨🚨🚨 CRITICAL PUNCTUATION HANDLING - QUESTION MARK 🚨🚨🚨: The dialogue ends with a question mark (?). The character must speak this as a complete, clear question with proper rising intonation. Do NOT generate gibberish, do NOT corrupt the words, do NOT add extra sounds, do NOT add unintelligible speech. Speak the complete question clearly and naturally: "${dialogueText}". The question mark indicates a question - speak with appropriate question intonation (rising tone at the end), but keep ALL words clear, complete, and intelligible.`
+        } else if (endsWithExclamation) {
+          punctuationInstruction = ` 🚨🚨🚨 CRITICAL PUNCTUATION HANDLING - EXCLAMATION MARK 🚨🚨🚨: The dialogue ends with an exclamation mark (!). The character must speak this as a complete, clear exclamation with proper emphasis. Do NOT generate gibberish, do NOT corrupt the words, do NOT add extra sounds, do NOT add unintelligible speech. Speak the complete exclamation clearly and naturally: "${dialogueText}". The exclamation mark indicates emphasis - speak with appropriate exclamatory intonation (stronger emphasis), but keep ALL words clear, complete, and intelligible.`
+        }
+        
         dialogueInstructions = ` CRITICAL LANGUAGE REQUIREMENT: The dialogue "${dialogueText}" must be spoken in English ONLY. NO other languages allowed. CRITICAL ON-CAMERA SPOKEN DIALOGUE REQUIREMENT - NOT VOICEOVER, NOT THOUGHTS: [${startTimecode}-${endTimecode}] The ${characterDescription} SPEAKS ALOUD directly on-camera: "${dialogueText}". 
 
-CRITICAL: EXACT DIALOGUE MATCHING - The character must speak the EXACT words: "${dialogueText}". Do not paraphrase, do not change words, do not add words, do not remove words. Speak each word clearly and precisely. The character must say exactly: "${dialogueText}" - no substitutions, no variations, no gibberish, no made-up words.${toneInstruction}
+CRITICAL: EXACT DIALOGUE MATCHING - The character must speak the EXACT words: "${dialogueText}". Do not paraphrase, do not change words, do not add words, do not remove words. Speak each word clearly and precisely - no substitutions, no variations, no gibberish, no made-up words. CRITICAL: Speak the COMPLETE dialogue text from start to finish. Do NOT cut off, truncate, or corrupt any words. Every single word must be spoken clearly and fully.${toneInstruction}${punctuationInstruction}
 
 ABSOLUTELY NO VOICEOVER OR INTERNAL THOUGHTS:
 - This is SPOKEN DIALOGUE, not internal thoughts, not voiceover, not narration
@@ -231,19 +251,20 @@ ABSOLUTELY NO VOICEOVER OR INTERNAL THOUGHTS:
 - The character must be HEARD speaking these words with their voice coming from their mouth
 
 MANDATORY VISUAL REQUIREMENTS:
-- The character's MOUTH MUST MOVE clearly and naturally as they SPEAK each word ALOUD
-- The character's LIPS MUST SYNC with the spoken words "${dialogueText}"
+- The character's MOUTH MUST MOVE clearly and naturally as they SPEAK each word ALOUD during [${startTimecode}-${endTimecode}]
+- The character's LIPS MUST SYNC with the spoken words during the dialogue timecode
 - The character MUST be shown SPEAKING on-camera, not just reacting, thinking, or expressing
 - Use CLOSE-UP or MEDIUM SHOT to clearly show the character's face and mouth movements
 - The character's FACE must be clearly visible with mouth movements matching the dialogue
 - Show the character actively SPEAKING with visible speaking gestures, mouth movements, and facial expressions
 - The character must be looking at the camera or at other visible characters while SPEAKING
-- Do NOT show the character silent or with closed mouth during this dialogue timecode
+- Do NOT show the character silent or with closed mouth during [${startTimecode}-${endTimecode}]
 - The character's voice must be AUDIBLE and come from their MOUTH, not as thoughts or narration
+- CRITICAL: Mouth movements MUST STOP at [${endTimecode}] - after this timecode, the character's mouth must be closed/neutral with NO further movements
 
-The character's mouth movements must match the words being SPOKEN ALOUD: "${dialogueText}". This is SPOKEN DIALOGUE, not thoughts or voiceover. CRITICAL: Speak the COMPLETE phrase "${dialogueText}" from beginning to end. Do NOT cut off mid-word, mid-phrase, or truncate the dialogue. Say every word completely and clearly.
+This is SPOKEN DIALOGUE, not thoughts or voiceover. CRITICAL: Speak the COMPLETE phrase from beginning to end within the timecode range [${startTimecode}-${endTimecode}]. Do NOT cut off mid-word, mid-phrase, or truncate the dialogue. Say every word completely and clearly.
 
-${segment.type === 'cta' ? `🚨🚨🚨 CRITICAL: CTA DIALOGUE - STOP SPEAKING IMMEDIATELY AFTER DIALOGUE ENDS - ABSOLUTE MANDATORY REQUIREMENT (ZERO TOLERANCE) 🚨🚨🚨: This is a CTA (Call-to-Action) segment. After [${endTimecode}], the character MUST STOP speaking IMMEDIATELY and COMPLETELY. The character must be ABSOLUTELY SILENT for the remainder of the segment. Do NOT continue speaking, do NOT add extra words, do NOT generate gibberish, do NOT make sounds, do NOT speak beyond the dialogue timecode, do NOT add any additional speech, do NOT continue the dialogue, do NOT extend the dialogue, do NOT add filler words, do NOT add random sounds, do NOT add unintelligible speech. The character must remain COMPLETELY SILENT after saying "${dialogueText}". This is a HARD REQUIREMENT with ZERO TOLERANCE - any speech, sounds, gibberish, or additional words after [${endTimecode}] will result in video rejection. The CTA dialogue "${dialogueText}" must be the FINAL and ONLY words spoken in this segment.` : `🚨🚨🚨 CRITICAL: STOP SPEAKING AFTER DIALOGUE ENDS - ABSOLUTE MANDATORY REQUIREMENT 🚨🚨🚨: After [${endTimecode}], the character must STOP speaking completely. The character must be SILENT for the remainder of the segment. Do NOT continue speaking, do NOT add extra words, do NOT generate gibberish, do NOT make sounds, do NOT speak beyond the dialogue timecode. The character must remain completely silent after saying "${dialogueText}". This is a HARD REQUIREMENT - any speech, sounds, or gibberish after [${endTimecode}] will result in video rejection.`}`
+${segment.type === 'cta' ? `🚨🚨🚨 CRITICAL: CTA DIALOGUE - STOP SPEAKING AND MOUTH MOVEMENTS IMMEDIATELY AFTER DIALOGUE ENDS - ABSOLUTE MANDATORY REQUIREMENT (ZERO TOLERANCE) 🚨🚨🚨: This is a CTA (Call-to-Action) segment. At EXACTLY [${endTimecode}], the character MUST STOP speaking IMMEDIATELY and COMPLETELY. The character's MOUTH MUST STOP MOVING at [${endTimecode}] - mouth must be closed/neutral with NO further mouth movements after this timecode. The character must be ABSOLUTELY SILENT for the remainder of the segment. Do NOT continue speaking, do NOT add extra words, do NOT generate gibberish, do NOT make sounds, do NOT speak beyond the dialogue timecode, do NOT add any additional speech, do NOT continue the dialogue, do NOT extend the dialogue, do NOT add filler words, do NOT add random sounds, do NOT add unintelligible speech, do NOT continue mouth movements after [${endTimecode}]. The character must remain COMPLETELY SILENT with CLOSED/NEUTRAL MOUTH after saying "${dialogueText}". This is a HARD REQUIREMENT with ZERO TOLERANCE - any speech, sounds, gibberish, additional words, or mouth movements after [${endTimecode}] will result in video rejection. The CTA dialogue "${dialogueText}" must be the FINAL and ONLY words spoken in this segment.` : `🚨🚨🚨 CRITICAL: STOP SPEAKING AND MOUTH MOVEMENTS AFTER DIALOGUE ENDS - ABSOLUTE MANDATORY REQUIREMENT 🚨🚨🚨: At EXACTLY [${endTimecode}], the character must STOP speaking completely. The character's MOUTH MUST STOP MOVING at [${endTimecode}] - mouth must be closed/neutral with NO further mouth movements after this timecode. The character must be SILENT for the remainder of the segment. Do NOT continue speaking, do NOT add extra words, do NOT generate gibberish, do NOT make sounds, do NOT speak beyond the dialogue timecode, do NOT continue mouth movements after [${endTimecode}]. The character must remain completely silent with closed/neutral mouth after saying "${dialogueText}". This is a HARD REQUIREMENT - any speech, sounds, gibberish, or mouth movements after [${endTimecode}] will result in video rejection.`}`
         
         // Add the actual dialogue text in Veo format
         const toneSuffix = toneDescription ? `, ${toneDescription}` : ''
@@ -251,8 +272,9 @@ ${segment.type === 'cta' ? `🚨🚨🚨 CRITICAL: CTA DIALOGUE - STOP SPEAKING 
         
         // Enhance visual prompt to explicitly include dialogue text and state character is SPEAKING
         if (!sanitizedPrompt.includes(`"${dialogueText}"`) && !sanitizedPrompt.includes(`'${dialogueText}'`)) {
+          // Reduced repetition: mention dialogue text only once to prevent word repetition in generated audio
           const toneContext = toneDescription ? ` with ${toneDescription}` : ''
-          const dialogueInVisualPrompt = ` [${startTimecode}-${endTimecode}] The ${characterDescription} speaks directly on-camera in English only, saying the EXACT words "${dialogueText}"${toneContext} with clear mouth movements. The character's lips move in sync with each word: "${dialogueText}". The character must speak these exact words precisely - no substitutions, no variations.`
+          const dialogueInVisualPrompt = ` [${startTimecode}-${endTimecode}] The ${characterDescription} speaks directly on-camera in English only, saying the EXACT words "${dialogueText}"${toneContext} with clear mouth movements synchronized to each word. The character must speak these exact words precisely - no substitutions, no variations. CRITICAL: Mouth movements MUST STOP immediately at [${endTimecode}] - the character's mouth must be closed/neutral after this timecode with NO further mouth movements.`
           
           sanitizedPrompt = `${sanitizedPrompt}${dialogueInVisualPrompt}`
           

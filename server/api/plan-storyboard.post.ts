@@ -30,14 +30,23 @@ export default defineEventHandler(async (event) => {
     
     console.log(`[Plan Storyboard] Found ${referenceImages.length} reference image(s) to analyze`)
     
-    // Generate storyboard with OpenAI MCP (pass reference images for analysis)
-    const storyboardData = await callOpenAIMCP('plan_storyboard', {
-      parsed,
-      duration: parsed.meta.duration,
-      style: parsed.meta.style,
-      referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
-      adType: parsed.meta.adType,
-    })
+    // Generate storyboard with OpenAI MCP (or direct API fallback in serverless environments)
+    // The MCP client will automatically use direct API on Vercel/serverless
+    let storyboardData: any
+    try {
+      storyboardData = await callOpenAIMCP('plan_storyboard', {
+        parsed,
+        duration: parsed.meta.duration,
+        style: parsed.meta.style,
+        referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
+        adType: parsed.meta.adType,
+      })
+    } catch (mcpError: any) {
+      console.error('[Plan Storyboard] MCP call failed:', mcpError)
+      // The MCP client should have already tried direct API fallback
+      // If we get here, both MCP and direct API failed
+      throw new Error(`Failed to plan storyboard: ${mcpError.message || 'Unknown error'}. Please check your OPENAI_API_KEY environment variable.`)
+    }
     
     // Ensure storyboardData is an object
     const data = typeof storyboardData === 'string' ? JSON.parse(storyboardData) : storyboardData
@@ -66,15 +75,44 @@ export default defineEventHandler(async (event) => {
       createdAt: Date.now(),
     }
 
-    // Save to local storage
-    await saveStoryboard(storyboard)
+    // Save to local storage (non-critical, will fail gracefully on Vercel)
+    try {
+      await saveStoryboard(storyboard)
+    } catch (saveError: any) {
+      // Don't fail the request if saving fails (e.g., on Vercel)
+      console.warn('[Plan Storyboard] Failed to save storyboard to disk:', saveError.message)
+    }
 
     return storyboard
   } catch (error: any) {
-    console.error('Plan storyboard error:', error)
+    console.error('[Plan Storyboard] Error:', error)
+    console.error('[Plan Storyboard] Error message:', error.message)
+    console.error('[Plan Storyboard] Error code:', error.code)
+    console.error('[Plan Storyboard] Error stack:', error.stack)
+    
+    // Check for MCP/child process errors
+    if (error.message?.includes('MCP') || 
+        error.message?.includes('spawn') || 
+        error.message?.includes('child process') ||
+        error.code === 'EPIPE' ||
+        error.code === 'ENOENT') {
+      throw createError({
+        statusCode: 500,
+        message: `Storyboard planning failed: MCP server unavailable. This may be a serverless environment limitation. Please check server logs.`,
+        data: {
+          originalError: error.message,
+          code: error.code,
+        },
+      })
+    }
+    
     throw createError({
       statusCode: 500,
       message: `Failed to plan storyboard: ${error.message}`,
+      data: {
+        originalError: error.message,
+        code: error.code,
+      },
     })
   }
 })

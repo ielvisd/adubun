@@ -48,17 +48,28 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // If asset generation failed, mark video job as failed
+  // Check if we have any completed segments with video URLs
+  const completedSegmentsWithVideos = assetJob.assets?.filter(
+    a => a.status === 'completed' && a.videoUrl
+  ) || []
+  
+  // If asset generation failed but we have completed segments, allow composition
   if (assetJob.status === 'failed') {
-    videoJob.status = 'failed'
-    videoJob.error = assetJob.error || 'Asset generation failed'
-    videoJob.progress = 50
-    await saveVideoJob(videoJob)
-    return {
-      status: 'failed',
-      progress: 50,
-      error: videoJob.error,
-      step: 'generating-assets',
+    if (completedSegmentsWithVideos.length === 0) {
+      // No completed segments, mark video job as failed
+      videoJob.status = 'failed'
+      videoJob.error = assetJob.error || 'Asset generation failed - no segments completed'
+      videoJob.progress = 50
+      await saveVideoJob(videoJob)
+      return {
+        status: 'failed',
+        progress: 50,
+        error: videoJob.error,
+        step: 'generating-assets',
+      }
+    } else {
+      // We have some completed segments, allow composition to proceed
+      console.log(`[Generate Video Status] Asset job marked as failed, but ${completedSegmentsWithVideos.length} segments completed. Proceeding with composition.`)
     }
   }
 
@@ -134,8 +145,9 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Assets are completed, now compose video
-  if (assetJob.status === 'completed' && videoJob.step === 'generating-assets') {
+  // Assets are completed (or partially completed with at least one video), now compose video
+  const hasCompletedSegments = completedSegmentsWithVideos.length > 0
+  if ((assetJob.status === 'completed' || (assetJob.status === 'failed' && hasCompletedSegments)) && videoJob.step === 'generating-assets') {
     try {
       console.log('[Generate Video Status] Assets completed, starting video composition')
       videoJob.step = 'composing-video'

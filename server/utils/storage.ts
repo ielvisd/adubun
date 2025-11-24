@@ -48,11 +48,24 @@ export async function saveAsset(fileBuffer: Buffer, extension: string = 'tmp'): 
 }
 
 export async function saveStoryboard(storyboard: any): Promise<string> {
-  await ensureDirectories()
   const storyboardId = storyboard.id || nanoid()
   const filePath = path.join(STORYBOARDS_DIR, `${storyboardId}.json`)
-  await fs.writeFile(filePath, JSON.stringify(storyboard, null, 2))
-  return filePath
+  
+  try {
+    await ensureDirectories()
+    await fs.writeFile(filePath, JSON.stringify(storyboard, null, 2))
+    return filePath
+  } catch (error: any) {
+    // In serverless environments (like Vercel), filesystem writes may fail
+    // Log the error but don't throw - storyboard saving is non-critical for functionality
+    if (error.code === 'EROFS' || error.code === 'EACCES' || error.message?.includes('read-only')) {
+      console.warn('[Storage] Cannot save storyboard (read-only filesystem):', error.message)
+      // Return a virtual path for compatibility, but don't actually save
+      return filePath
+    }
+    // For other errors, still throw (might be a real issue)
+    throw error
+  }
 }
 
 export async function readStoryboard(storyboardId: string): Promise<any> {

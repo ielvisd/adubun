@@ -1,6 +1,19 @@
-import { uploadFileToS3 } from '../utils/s3-upload'
+import { uploadBufferToS3 } from '../utils/s3-upload'
+import { getHeader, setHeader } from 'h3'
 
 export default defineEventHandler(async (event) => {
+  // Set CORS headers to allow cross-origin requests
+  const origin = getHeader(event, 'origin')
+  setHeader(event, 'Access-Control-Allow-Origin', origin || '*')
+  setHeader(event, 'Access-Control-Allow-Methods', 'POST, OPTIONS')
+  setHeader(event, 'Access-Control-Allow-Headers', 'Content-Type')
+  setHeader(event, 'Access-Control-Allow-Credentials', 'true')
+  
+  // Handle preflight OPTIONS request
+  if (event.node.req.method === 'OPTIONS') {
+    return { status: 'ok' }
+  }
+
   try {
     const formData = await readMultipartFormData(event)
     
@@ -16,18 +29,13 @@ export default defineEventHandler(async (event) => {
 
     for (const file of files) {
       if (file.data && file.filename) {
-        // Save file temporarily
-        const { saveAsset } = await import('../utils/storage')
-        const extension = file.filename.split('.').pop() || 'jpg'
-        const tempPath = await saveAsset(Buffer.from(file.data), extension)
+        // Convert file data to Buffer and upload directly to S3
+        // This avoids filesystem writes which fail on Vercel serverless functions
+        const fileBuffer = Buffer.from(file.data)
         
-      // Upload to S3 in product_images folder
-      const s3Url = await uploadFileToS3(tempPath, 'product_images')
-      uploadedUrls.push(s3Url)
-        
-        // Clean up temp file
-        const { deleteFile } = await import('../utils/storage')
-        await deleteFile(tempPath)
+        // Upload directly to S3 in product_images folder
+        const s3Url = await uploadBufferToS3(fileBuffer, file.filename, 'product_images')
+        uploadedUrls.push(s3Url)
       }
     }
 

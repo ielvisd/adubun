@@ -91,6 +91,76 @@ export async function uploadFileToS3(filePath: string, folder: string = 'assets'
   }
 }
 
+/**
+ * Upload a buffer directly to S3 and return a public URL
+ * This function is optimized for serverless environments (like Vercel) where filesystem writes are not allowed
+ * @param buffer - File buffer to upload
+ * @param filename - Original filename (used to determine extension and content type)
+ * @param folder - Optional S3 folder prefix (e.g., 'product_images', 'scene_images', 'ai_videos')
+ */
+export async function uploadBufferToS3(buffer: Buffer, filename: string, folder: string = 'assets'): Promise<string> {
+  try {
+    const bucketName = process.env.AWS_S3_BUCKET_NAME
+    if (!bucketName) {
+      throw new Error('AWS_S3_BUCKET_NAME environment variable is not set')
+    }
+
+    // Extract extension from filename
+    let ext = path.extname(filename)
+    if (!ext && filename.includes('.')) {
+      const parts = filename.split('.')
+      ext = parts.length > 1 ? `.${parts[parts.length - 1]}` : '.jpg'
+    }
+    if (!ext) {
+      ext = '.jpg' // Default extension
+    }
+    const extension = ext.startsWith('.') ? ext.substring(1) : ext
+    
+    // Generate a unique key for the file
+    // Format: {folder}/{timestamp}-{random}.{ext}
+    // S3 automatically creates "folders" when you use / in the key
+    const key = `${folder}/${Date.now()}-${nanoid()}.${extension}`
+    
+    // Determine content type from filename
+    const contentType = getContentType(filename)
+    
+    // Upload to S3
+    const client = getS3Client()
+    
+    // Don't use ACL - modern S3 buckets often have ACLs disabled
+    // Instead, rely on bucket policies for public access
+    const command = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+      // Note: ACL removed - use bucket policy for public access instead
+    })
+
+    await client.send(command)
+    
+    // Always use presigned URLs (bucket doesn't allow ACLs and may not have public policy)
+    // This ensures files are accessible without requiring bucket policy configuration
+    // Presigned URLs work with private buckets and don't require any bucket policy changes
+    console.log('[S3 Upload] Generating presigned URL (works with private buckets)')
+    
+    // Generate presigned URL (valid for 7 days - Replicate may take time to process)
+    const getCommand = new GetObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+    })
+    
+    // 7 days = 604800 seconds
+    const presignedUrl = await getSignedUrl(client, getCommand, { expiresIn: 604800 })
+    console.log(`[S3 Upload] Buffer uploaded to S3: ${folder}/ (presigned URL, valid for 7 days)`)
+    console.log('[S3 Upload] URL starts with:', presignedUrl.substring(0, 80) + '...')
+    return presignedUrl
+  } catch (error: any) {
+    console.error('[S3 Upload] Failed to upload buffer:', error)
+    throw new Error(`Failed to upload buffer to S3: ${error.message}`)
+  }
+}
+
 function getContentType(filename: string): string {
   const ext = filename.split('.').pop()?.toLowerCase()
   const contentTypes: Record<string, string> = {

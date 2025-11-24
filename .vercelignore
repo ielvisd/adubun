@@ -1,0 +1,75 @@
+# Node modules (installed during build)
+node_modules/
+
+# Build outputs and cache
+.output/
+.nuxt/
+.nitro/
+.cache/
+dist/
+
+# Generated data (3.8GB+ of videos, assets, jobs)
+# These should be stored in S3, not in the repository
+data/
+
+# Test files
+tests/
+*.test.ts
+*.spec.ts
+playwright.config.ts
+
+# MCP servers (not needed in serverless - we use direct API)
+mcp-servers/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Development files
+.cursor/
+.cursorrules/
+.taskmaster/
+memory-bank/
+.playwright-mcp/
+
+# Large video files in public (if not needed for deployment)
+# Uncomment if you have very large videos in public/
+# public/**/*.mp4
+# public/**/*.MP4
+# public/**/*.webm
+# public/**/*.WEBM
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker files (not needed for Vercel)
+Dockerfile
+docker-compose.yml
+railway.json
+
+# Scripts (not needed in production)
+scripts/
+
+# PWA service worker files (generated during build)
+sw.js
+sw.js.map
+workbox-*.js
+workbox-*.js.map
+

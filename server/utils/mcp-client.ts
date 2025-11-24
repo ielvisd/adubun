@@ -2,6 +2,8 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { spawn } from 'child_process'
 import path from 'path'
+import { parsePromptDirect, planStoryboardDirect, isServerlessEnvironment } from './openai-direct'
+import { generateImageDirect, checkPredictionStatusDirect, getPredictionResultDirect } from './replicate-direct'
 
 interface MCPClients {
   replicate?: Client
@@ -13,6 +15,13 @@ let clients: MCPClients = {}
 
 export async function initializeMCPClients(): Promise<MCPClients> {
   if (Object.keys(clients).length > 0) {
+    return clients
+  }
+
+  // Check if we're in a serverless environment - MCP won't work there
+  if (isServerlessEnvironment()) {
+    console.warn('[MCP Client] Serverless environment detected - MCP clients cannot be initialized (child processes not supported)')
+    // Return empty clients object - callers should handle this with fallbacks
     return clients
   }
 
@@ -70,15 +79,31 @@ export async function initializeMCPClients(): Promise<MCPClients> {
 
     return clients
   } catch (error: any) {
-    console.error('Failed to initialize MCP clients:', error)
+    console.error('[MCP Client] Failed to initialize MCP clients:', error)
+    console.error('[MCP Client] Error code:', error.code)
+    console.error('[MCP Client] Error message:', error.message)
+    
+    // Check if this is a spawn/child process error (common on serverless)
+    if (error.code === 'ENOENT' || 
+        error.message?.includes('spawn') || 
+        error.message?.includes('child process') ||
+        error.message?.includes('Cannot find module') ||
+        isServerlessEnvironment()) {
+      console.warn('[MCP Client] Child process spawn failed - likely serverless environment')
+      // Return empty clients - callers should use fallbacks
+      return clients
+    }
     
     // Handle EPIPE errors during initialization
     if (error.code === 'EPIPE' || error.message?.includes('EPIPE')) {
-      console.error('EPIPE error during MCP client initialization')
-      throw new Error('MCP server connection failed. Please try again.')
+      console.error('[MCP Client] EPIPE error during MCP client initialization')
+      // Return empty clients - callers should use fallbacks
+      return clients
     }
     
-    throw new Error(`MCP client initialization failed: ${error.message || 'Unknown error'}`)
+    // For other errors, still return empty clients but log the error
+    console.error('[MCP Client] MCP initialization failed, returning empty clients')
+    return clients
   }
 }
 
@@ -90,9 +115,102 @@ export async function callReplicateMCP(
   tool: string,
   args: Record<string, any>
 ): Promise<any> {
+  // For generate_image, check_prediction_status, and get_prediction_result in serverless environments, use direct API
+  if ((tool === 'generate_image' || tool === 'check_prediction_status' || tool === 'get_prediction_result') && isServerlessEnvironment()) {
+    console.log(`[MCP Client] Using direct Replicate API for ${tool} (serverless environment detected)`)
+    try {
+      if (tool === 'generate_image') {
+        return await generateImageDirect(
+          args.model,
+          args.prompt,
+          args.image_input,
+          args.size,
+          args.aspect_ratio,
+          args.width,
+          args.height,
+          args.sequential_image_generation,
+          args.max_images,
+          args.enhance_prompt,
+          args.output_format
+        )
+      } else if (tool === 'check_prediction_status') {
+        return await checkPredictionStatusDirect(args.predictionId)
+      } else if (tool === 'get_prediction_result') {
+        return await getPredictionResultDirect(args.predictionId)
+      }
+    } catch (error: any) {
+      console.error('[MCP Client] Direct API call failed:', error)
+      throw error
+    }
+  }
+
   try {
-    const clients = await initializeMCPClients()
+    // Try to initialize MCP clients
+    let clients: MCPClients
+    try {
+      clients = await initializeMCPClients()
+    } catch (initError: any) {
+      // If MCP initialization fails and we're in serverless, fallback to direct API
+      if ((tool === 'generate_image' || tool === 'check_prediction_status' || tool === 'get_prediction_result') && 
+          (isServerlessEnvironment() || initError.message?.includes('spawn') || initError.code === 'ENOENT')) {
+        console.warn(`[MCP Client] MCP initialization failed, falling back to direct API for ${tool}:`, initError.message)
+        try {
+          if (tool === 'generate_image') {
+            return await generateImageDirect(
+              args.model,
+              args.prompt,
+              args.image_input,
+              args.size,
+              args.aspect_ratio,
+              args.width,
+              args.height,
+              args.sequential_image_generation,
+              args.max_images,
+              args.enhance_prompt,
+              args.output_format
+            )
+          } else if (tool === 'check_prediction_status') {
+            return await checkPredictionStatusDirect(args.predictionId)
+          } else if (tool === 'get_prediction_result') {
+            return await getPredictionResultDirect(args.predictionId)
+          }
+        } catch (directError: any) {
+          console.error('[MCP Client] Direct API fallback also failed:', directError)
+          throw directError
+        }
+      }
+      throw initError
+    }
+
     if (!clients.replicate) {
+      // Fallback to direct API for supported tools if client not available
+      if (tool === 'generate_image' || tool === 'check_prediction_status' || tool === 'get_prediction_result') {
+        console.warn(`[MCP Client] Replicate MCP client not available, using direct API for ${tool}`)
+        try {
+          if (tool === 'generate_image') {
+            return await generateImageDirect(
+              args.model,
+              args.prompt,
+              args.image_input,
+              args.size,
+              args.aspect_ratio,
+              args.width,
+              args.height,
+              args.sequential_image_generation,
+              args.max_images,
+              args.enhance_prompt,
+              args.output_format
+            )
+          } else if (tool === 'check_prediction_status') {
+            return await checkPredictionStatusDirect(args.predictionId)
+          } else if (tool === 'get_prediction_result') {
+            return await getPredictionResultDirect(args.predictionId)
+          }
+        } catch (directError: any) {
+          console.error('[MCP Client] Direct API fallback failed:', directError)
+          throw directError
+        }
+      }
       throw new Error('Replicate MCP client not initialized')
     }
 
@@ -122,17 +240,61 @@ export async function callReplicateMCP(
 
     return parsed
   } catch (error: any) {
-    console.error(`[Replicate MCP Client] Call to ${tool} failed:`, error)
-    console.error(`[Replicate MCP Client] Tool: ${tool}, Args:`, JSON.stringify(args, null, 2))
+    console.error(`[MCP Client] Replicate MCP call error:`, error)
+    console.error(`[MCP Client] Tool: ${tool}, Args:`, JSON.stringify(args, null, 2))
+    
+    // For supported tools, try direct API as fallback if MCP fails
+    if (tool === 'generate_image' || tool === 'check_prediction_status' || tool === 'get_prediction_result') {
+      // Check if error is related to MCP/child process issues
+      const isMCPError = error.code === 'EPIPE' || 
+                        error.message?.includes('EPIPE') ||
+                        error.message?.includes('spawn') ||
+                        error.message?.includes('child process') ||
+                        error.code === -32001 ||
+                        error.message?.includes('MCP') ||
+                        error.message?.includes('not initialized')
+      
+      if (isMCPError) {
+        console.warn(`[MCP Client] MCP error detected for ${tool}, falling back to direct API`)
+        try {
+          let result: any
+          if (tool === 'generate_image') {
+            result = await generateImageDirect(
+              args.model,
+              args.prompt,
+              args.image_input,
+              args.size,
+              args.aspect_ratio,
+              args.width,
+              args.height,
+              args.sequential_image_generation,
+              args.max_images,
+              args.enhance_prompt,
+              args.output_format
+            )
+          } else if (tool === 'check_prediction_status') {
+            result = await checkPredictionStatusDirect(args.predictionId)
+          } else if (tool === 'get_prediction_result') {
+            result = await getPredictionResultDirect(args.predictionId)
+          }
+          console.log(`[MCP Client] Direct API fallback succeeded for ${tool}`)
+          return result
+        } catch (directError: any) {
+          console.error('[MCP Client] Direct API fallback also failed:', directError)
+          // Throw the original MCP error with context
+          throw new Error(`MCP call failed and direct API fallback also failed: ${error.message}. Direct API error: ${directError.message}`)
+        }
+      }
+    }
     
     // Handle EPIPE errors gracefully
     if (error.code === 'EPIPE' || error.message?.includes('EPIPE')) {
-      console.error('EPIPE error detected - MCP server connection closed unexpectedly')
+      console.error('[MCP Client] EPIPE error detected - MCP server connection closed unexpectedly')
       throw new Error('MCP server connection closed unexpectedly. Please try again.')
     }
     
     if (error.stack) {
-      console.error(`[Replicate MCP Client] Stack trace:`, error.stack)
+      console.error(`[MCP Client] Stack trace:`, error.stack)
     }
     throw new Error(`Replicate MCP call failed: ${error.message || 'Unknown error'}`)
   }
@@ -142,10 +304,103 @@ export async function callOpenAIMCP(
   tool: string,
   args: Record<string, any>
 ): Promise<any> {
+  // For parse_prompt in serverless environments, use direct API
+  if (tool === 'parse_prompt' && isServerlessEnvironment()) {
+    console.log('[MCP Client] Using direct OpenAI API for parse_prompt (serverless environment detected)')
+    try {
+      const result = await parsePromptDirect(args.prompt, args.adType)
+      return result
+    } catch (error: any) {
+      console.error('[MCP Client] Direct API call failed:', error)
+      throw error
+    }
+  }
+
+  // For plan_storyboard in serverless environments, use direct API
+  if (tool === 'plan_storyboard' && isServerlessEnvironment()) {
+    console.log('[MCP Client] Using direct OpenAI API for plan_storyboard (serverless environment detected)')
+    try {
+      const result = await planStoryboardDirect(
+        args.parsed,
+        args.duration,
+        args.style,
+        args.referenceImages,
+        args.adType
+      )
+      return result
+    } catch (error: any) {
+      console.error('[MCP Client] Direct API call failed:', error)
+      throw error
+    }
+  }
+
   try {
-    const clients = await initializeMCPClients()
+    // Try to initialize MCP clients
+    let clients: MCPClients
+    try {
+      clients = await initializeMCPClients()
+    } catch (initError: any) {
+      // If MCP initialization fails and we're in serverless, fallback to direct API
+      if (tool === 'parse_prompt' && (isServerlessEnvironment() || initError.message?.includes('spawn') || initError.code === 'ENOENT')) {
+        console.warn('[MCP Client] MCP initialization failed, falling back to direct API for parse_prompt:', initError.message)
+        try {
+          const result = await parsePromptDirect(args.prompt, args.adType)
+          return result
+        } catch (directError: any) {
+          console.error('[MCP Client] Direct API fallback also failed:', directError)
+          throw directError
+        }
+      }
+      if (tool === 'plan_storyboard' && (isServerlessEnvironment() || initError.message?.includes('spawn') || initError.code === 'ENOENT')) {
+        console.warn('[MCP Client] MCP initialization failed, falling back to direct API for plan_storyboard:', initError.message)
+        try {
+          const result = await planStoryboardDirect(
+            args.parsed,
+            args.duration,
+            args.style,
+            args.referenceImages,
+            args.adType
+          )
+          return result
+        } catch (directError: any) {
+          console.error('[MCP Client] Direct API fallback also failed:', directError)
+          throw directError
+        }
+      }
+      throw initError
+    }
+
     if (!clients.openai) {
-      throw new Error('OpenAI MCP client not initialized')
+      // Fallback to direct API for parse_prompt if client not available
+      if (tool === 'parse_prompt') {
+        console.warn('[MCP Client] OpenAI MCP client not available, using direct API for parse_prompt')
+        try {
+          const result = await parsePromptDirect(args.prompt, args.adType)
+          return result
+        } catch (directError: any) {
+          console.error('[MCP Client] Direct API fallback failed:', directError)
+          throw directError
+        }
+      }
+      // Fallback to direct API for plan_storyboard if client not available
+      if (tool === 'plan_storyboard') {
+        console.warn('[MCP Client] OpenAI MCP client not available, using direct API for plan_storyboard')
+        try {
+          const result = await planStoryboardDirect(
+            args.parsed,
+            args.duration,
+            args.style,
+            args.referenceImages,
+            args.adType
+          )
+          return result
+        } catch (directError: any) {
+          console.error('[MCP Client] Direct API fallback failed:', directError)
+          throw directError
+        }
+      }
+      // For other tools, provide a clear error message
+      throw new Error(`OpenAI MCP client not initialized. Tool '${tool}' requires MCP servers which are not available in serverless environments. Please use a different deployment platform or implement a direct API fallback for this tool.`)
     }
 
     // Use longer timeouts for operations that can take a while
@@ -222,25 +477,64 @@ export async function callOpenAIMCP(
       return { content: text }
     }
   } catch (error: any) {
-    console.error('OpenAI MCP call error:', error)
-    console.error('Tool:', tool, 'Args:', args)
+    console.error('[MCP Client] OpenAI MCP call error:', error)
+    console.error('[MCP Client] Tool:', tool, 'Args:', args)
+    
+    // For parse_prompt and plan_storyboard, try direct API as fallback if MCP fails
+    if (tool === 'parse_prompt' || tool === 'plan_storyboard') {
+      // Check if error is related to MCP/child process issues
+      const isMCPError = error.code === 'EPIPE' || 
+                        error.message?.includes('EPIPE') ||
+                        error.message?.includes('spawn') ||
+                        error.message?.includes('child process') ||
+                        error.code === -32001 ||
+                        error.message?.includes('MCP') ||
+                        error.message?.includes('not initialized')
+      
+      if (isMCPError) {
+        console.warn(`[MCP Client] MCP error detected for ${tool}, falling back to direct API`)
+        try {
+          let result: any
+          if (tool === 'parse_prompt') {
+            result = await parsePromptDirect(args.prompt, args.adType)
+          } else if (tool === 'plan_storyboard') {
+            result = await planStoryboardDirect(
+              args.parsed,
+              args.duration,
+              args.style,
+              args.referenceImages,
+              args.adType
+            )
+          }
+          console.log(`[MCP Client] Direct API fallback succeeded for ${tool}`)
+          return result
+        } catch (directError: any) {
+          console.error('[MCP Client] Direct API fallback also failed:', directError)
+          // Throw the original MCP error with context
+          throw new Error(`MCP call failed and direct API fallback also failed: ${error.message}. Direct API error: ${directError.message}`)
+        }
+      }
+    }
     
     // Handle MCP SDK timeout errors (error code -32001)
     if (error.code === -32001 || 
         error.message?.includes('-32001') ||
         error.message?.includes('Request timed out')) {
-      console.error('MCP SDK timeout detected')
-      throw new Error(`Request timed out after ${timeoutMs / 1000} seconds`)
+      console.error('[MCP Client] MCP SDK timeout detected')
+      // Calculate timeout from error message or use default
+      const timeoutMatch = error.message?.match(/(\d+) seconds/)
+      const timeoutSeconds = timeoutMatch ? parseInt(timeoutMatch[1]) : 60
+      throw new Error(`Request timed out after ${timeoutSeconds} seconds`)
     }
     
     // Handle EPIPE errors gracefully
     if (error.code === 'EPIPE' || error.message?.includes('EPIPE')) {
-      console.error('EPIPE error detected - MCP server connection closed unexpectedly')
+      console.error('[MCP Client] EPIPE error detected - MCP server connection closed unexpectedly')
       throw new Error('MCP server connection closed unexpectedly. Please try again.')
     }
     
     if (error.stack) {
-      console.error('Stack trace:', error.stack)
+      console.error('[MCP Client] Stack trace:', error.stack)
     }
     throw new Error(`OpenAI MCP call failed: ${error.message || 'Unknown error'}`)
   }

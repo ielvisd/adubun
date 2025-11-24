@@ -1,39 +1,39 @@
 import { parsePromptSchema } from '../utils/validation'
 import { callOpenAIMCP } from '../utils/mcp-client'
 import { trackCost } from '../utils/cost-tracker'
+import { uploadBufferToS3 } from '../utils/s3-upload'
 
 export default defineEventHandler(async (event) => {
   try {
     // Handle multipart form data for image uploads
     const formData = await readMultipartFormData(event)
     let body: any = {}
-    const { saveAsset } = await import('../utils/storage')
     
     if (formData) {
       // Parse multipart form data
       for (const item of formData) {
         if (item.filename && item.data) {
-          // It's a file - save it and get the path
-          const extension = item.filename.split('.').pop() || 'jpg'
-          const filePath = await saveAsset(Buffer.from(item.data), extension)
+          // It's a file - upload directly to S3 (no filesystem writes for Vercel compatibility)
+          const fileBuffer = Buffer.from(item.data)
+          const s3Url = await uploadBufferToS3(fileBuffer, item.filename, 'product_images')
           
-          // Store the file path in body
+          // Store the S3 URL in body (downstream code handles both URLs and file paths)
           // Veo 3.1 fields
           if (item.name === 'image') {
-            if (!body.image) body.image = filePath
+            if (!body.image) body.image = s3Url
           } else if (item.name === 'lastFrame') {
-            body.lastFrame = filePath
+            body.lastFrame = s3Url
           } else if (item.name === 'referenceImages') {
             if (!body.referenceImages) body.referenceImages = []
-            body.referenceImages.push(filePath)
+            body.referenceImages.push(s3Url)
           }
           // Legacy fields
           else if (item.name === 'firstFrameImage') {
-            body.firstFrameImage = filePath
+            body.firstFrameImage = s3Url
           } else if (item.name === 'subjectReference') {
-            body.subjectReference = filePath
+            body.subjectReference = s3Url
           } else if (item.name === 'inputImage') {
-            body.inputImage = filePath
+            body.inputImage = s3Url
           }
         } else if (item.name) {
           // It's a form field
@@ -65,11 +65,20 @@ export default defineEventHandler(async (event) => {
     
     const validated = parsePromptSchema.parse(body)
 
-    // Parse with OpenAI MCP first (this is the slow part)
-    const parsed = await callOpenAIMCP('parse_prompt', {
-      prompt: validated.prompt,
-      adType: validated.adType, // Pass adType to prompt parser context
-    })
+    // Parse with OpenAI MCP (or direct API fallback in serverless environments)
+    // The MCP client will automatically use direct API on Vercel/serverless
+    let parsed: any
+    try {
+      parsed = await callOpenAIMCP('parse_prompt', {
+        prompt: validated.prompt,
+        adType: validated.adType, // Pass adType to prompt parser context
+      })
+    } catch (mcpError: any) {
+      console.error('[Parse Prompt] MCP call failed:', mcpError)
+      // The MCP client should have already tried direct API fallback
+      // If we get here, both MCP and direct API failed
+      throw new Error(`Failed to parse prompt: ${mcpError.message || 'Unknown error'}. Please check your OPENAI_API_KEY environment variable.`)
+    }
 
     // Debug: log the raw response
     console.log('Raw parsed response from MCP:', JSON.stringify(parsed, null, 2))
@@ -209,8 +218,10 @@ export default defineEventHandler(async (event) => {
       },
     }
   } catch (error: any) {
-    console.error('Parse prompt error:', error)
-    console.error('Error stack:', error.stack)
+    console.error('[Parse Prompt] Error:', error)
+    console.error('[Parse Prompt] Error message:', error.message)
+    console.error('[Parse Prompt] Error code:', error.code)
+    console.error('[Parse Prompt] Error stack:', error.stack)
     
     // If it's a validation error, return 400 with helpful message
     if (error.name === 'ZodError' || error.issues) {
@@ -229,11 +240,25 @@ export default defineEventHandler(async (event) => {
       })
     }
     
+    // Check for filesystem errors (common on Vercel)
+    if (error.code === 'EROFS' || error.code === 'EACCES' || error.message?.includes('read-only') || error.message?.includes('ENOENT')) {
+      console.error('[Parse Prompt] Filesystem error detected - this may be a Vercel serverless environment issue')
+      throw createError({
+        statusCode: 500,
+        message: 'Server configuration error. Please check server logs.',
+        data: {
+          originalError: error.message,
+          code: error.code,
+        },
+      })
+    }
+    
     throw createError({
       statusCode: error.statusCode || 500,
       message: error.message || 'Failed to parse prompt',
       data: {
         originalError: error.message,
+        code: error.code,
         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
     })
