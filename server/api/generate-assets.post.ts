@@ -505,11 +505,11 @@ export default defineEventHandler(async (event) => {
             if (segment.type === 'cta') {
               const wordCount = dialogueText.split(/\s+/).filter((word: string) => word.length > 0).length
               if (wordCount > 5) {
-                console.error(`[Segment ${idx}] ❌ CTA dialogue has ${wordCount} words (exceeds 5-word limit): "${dialogueText}"`)
-                console.error(`[Segment ${idx}] ❌ This should NOT happen - the AI model should never generate CTA dialogue exceeding 5 words.`)
-                console.error(`[Segment ${idx}] ❌ The segment will be marked as failed. The storyboard should have been validated and retried during generation.`)
-                // DO NOT truncate - reject the segment instead
-                throw new Error(`CTA dialogue exceeds 5-word limit: "${dialogueText}" (${wordCount} words). The storyboard generation should have prevented this. Please regenerate the storyboard - the system will automatically retry with stronger instructions if CTA dialogue exceeds 5 words.`)
+                console.warn(`[Segment ${idx}] ⚠️ CTA dialogue has ${wordCount} words (exceeds 5-word limit): "${dialogueText}"`)
+                console.warn(`[Segment ${idx}] ⚠️ Auto-truncating to 5 words to prevent generation failure`)
+                const words = dialogueText.split(/\s+/).filter((word: string) => word.length > 0)
+                dialogueText = words.slice(0, 5).join(' ')
+                console.log(`[Segment ${idx}] ✓ Truncated CTA dialogue to: "${dialogueText}"`)
               } else {
                 console.log(`[Segment ${idx}] ✓ CTA dialogue word count validated: ${wordCount} words - "${dialogueText}"`)
               }
@@ -531,11 +531,11 @@ export default defineEventHandler(async (event) => {
                   // Re-validate word count after cleanup
                   const cleanedWordCount = dialogueText.split(/\s+/).filter((word: string) => word.length > 0).length
                   if (cleanedWordCount > 5) {
-                    console.error(`[Segment ${idx}] ❌ CTA dialogue still has ${cleanedWordCount} words after cleanup (exceeds 5-word limit): "${dialogueText}"`)
-                    console.error(`[Segment ${idx}] ❌ This should NOT happen - the AI model should never generate CTA dialogue exceeding 5 words.`)
-                    console.error(`[Segment ${idx}] ❌ The segment will be marked as failed. The storyboard should have been validated and retried during generation.`)
-                    // DO NOT truncate - reject the segment instead
-                    throw new Error(`CTA dialogue exceeds 5-word limit after cleanup: "${dialogueText}" (${cleanedWordCount} words). The storyboard generation should have prevented this. Please regenerate the storyboard - the system will automatically retry with stronger instructions if CTA dialogue exceeds 5 words.`)
+                    console.warn(`[Segment ${idx}] ⚠️ CTA dialogue still has ${cleanedWordCount} words after cleanup (exceeds 5-word limit): "${dialogueText}"`)
+                    console.warn(`[Segment ${idx}] ⚠️ Auto-truncating to 5 words to prevent generation failure`)
+                    const words = dialogueText.split(/\s+/).filter((word: string) => word.length > 0)
+                    dialogueText = words.slice(0, 5).join(' ')
+                    console.log(`[Segment ${idx}] ✓ Truncated CTA dialogue after cleanup to: "${dialogueText}"`)
                   }
                 }
               }
