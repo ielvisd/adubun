@@ -10,16 +10,17 @@ export const usePromptSubmission = () => {
     // Check authentication - in dev mode, allow demo login
     // Only check process.dev on client side to avoid hydration issues
     const isDev = process.client ? process.dev : false
-    if (!user.value && !isDev) {
-      toast.add({
-        title: 'Authentication Required',
-        description: 'Please sign in to create an ad',
-        color: 'warning',
-        icon: 'i-heroicons-lock-closed',
-      })
-      await router.push('/auth/login')
-      return
-    }
+    // Auth check disabled - allow public access
+    // if (!user.value && !isDev) {
+    //   toast.add({
+    //     title: 'Authentication Required',
+    //     description: 'Please sign in to create an ad',
+    //     color: 'warning',
+    //     icon: 'i-heroicons-lock-closed',
+    //   })
+    //   await router.push('/auth/login')
+    //   return
+    // }
 
     // In dev mode, if no user, use demo login
     if (!user.value && isDev) {

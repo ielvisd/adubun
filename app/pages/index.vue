@@ -56,10 +56,10 @@ const showContent = ref(true)
 onMounted(() => {
   if (process.client) {
     const isDev = process.dev
-    if (!authLoading.value && !user.value && !isDev) {
-      // Redirect to login if not authenticated (only in production)
-      router.push('/auth/login')
-    }
+    // Auth redirect disabled - allow public access
+    // if (!authLoading.value && !user.value && !isDev) {
+    //   router.push('/auth/login')
+    // }
   }
 })
 </script>
