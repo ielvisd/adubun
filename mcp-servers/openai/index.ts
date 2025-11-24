@@ -544,20 +544,36 @@ Return ONLY valid JSON, no other text. Example format:
         
         // If it's a local file path, read it
         const fs = await import('fs/promises')
+        const path = await import('path')
         
         // Validate it's a reasonable file path (not too short)
         if (urlOrPath.length < 3) {
           throw new Error(`Invalid file path: path too short (${urlOrPath.length} chars)`)
         }
         
-        // Check if file exists before reading
-        try {
-          await fs.access(urlOrPath)
-        } catch (accessError) {
-          throw new Error(`File not found or not accessible: ${urlOrPath}`)
+        // Resolve path - handle both absolute and relative paths
+        let resolvedPath = urlOrPath
+        
+        // If path starts with /avatars, /assets, etc. (public folder paths)
+        // resolve them relative to the public directory
+        if (urlOrPath.startsWith('/avatars') || urlOrPath.startsWith('/assets')) {
+          // In production, public files are in /app/public/
+          // In development, they're in ./public/
+          const publicDir = process.env.NODE_ENV === 'production' 
+            ? '/app/public' 
+            : path.join(process.cwd(), 'public')
+          resolvedPath = path.join(publicDir, urlOrPath)
+          console.error(`[OpenAI MCP] Resolved public path: ${urlOrPath} -> ${resolvedPath}`)
         }
         
-        const fileBuffer = await fs.readFile(urlOrPath)
+        // Check if file exists before reading
+        try {
+          await fs.access(resolvedPath)
+        } catch (accessError) {
+          throw new Error(`File not found or not accessible: ${urlOrPath} (resolved: ${resolvedPath})`)
+        }
+        
+        const fileBuffer = await fs.readFile(resolvedPath)
         return fileBuffer.toString('base64')
       }
 
