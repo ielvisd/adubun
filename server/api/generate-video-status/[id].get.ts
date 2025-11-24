@@ -196,7 +196,15 @@ export default defineEventHandler(async (event) => {
         } else {
           const filename = path.basename(musicUrl)
           const config = useRuntimeConfig()
-          const baseUrl = config.public.appUrl || 'http://localhost:3000'
+          // Get base URL from environment or construct from request
+          let baseUrl = config.public.appUrl || process.env.APP_URL
+          if (!baseUrl || baseUrl.includes('localhost')) {
+            // Fallback: use request headers to construct URL
+            const headers = getRequestHeaders(event)
+            const host = headers.host || headers['x-forwarded-host']
+            const protocol = headers['x-forwarded-proto'] || (host?.includes('localhost') ? 'http' : 'https')
+            baseUrl = host ? `${protocol}://${host}` : 'http://localhost:3000'
+          }
           backgroundMusicUrl = `${baseUrl}/api/assets/${filename}`
         }
       }
