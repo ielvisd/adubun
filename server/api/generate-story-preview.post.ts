@@ -16,9 +16,9 @@ export default defineEventHandler(async (event) => {
     // Build nano-banana prompt
     const nanoPrompt = `${hookText}, professional product photography, cinematic lighting, high quality, detailed scene`
 
-    // Generate preview image using nano-banana
+    // Generate preview image using nano-banana-pro
     const nanoResult = await callReplicateMCP('generate_image', {
-      model: 'google/nano-banana',
+      model: 'google/nano-banana-pro',
       prompt: nanoPrompt,
       aspect_ratio: aspectRatio,
       output_format: 'jpg',

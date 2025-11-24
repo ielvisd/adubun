@@ -11,7 +11,7 @@ The AdUbun generation pipeline transforms a user's product story into a complete
 
 **Key Technologies:**
 -   **Story/TTS**: OpenAI (GPT-4o, TTS-1)
--   **Image Generation**: Replicate / Google Nano-banana (for fast, consistent frames)
+-   **Image Generation**: Replicate / Google Nano-banana Pro (for fast, consistent frames)
 -   **Video Generation**: Replicate / Google Veo (Veo-3.1 or Veo-3-Fast)
 
 ---
@@ -40,7 +40,7 @@ The AdUbun generation pipeline transforms a user's product story into a complete
     -   Frame $N$ uses Frame $N-1$ as an image input (except the very first frame).
     -   **Transitions**: For "Last Frames" (Hook Last, Body1 Last, Body2 Last), the prompt enforces "CRITICAL VISUAL CONTINUITY" to keep composition similar to the previous frame.
     -   **Scene Progression**: For the CTA frame, the logic changes to "SCENE PROGRESSION," forcing a different angle or composition while keeping the same characters/setting.
--   **Model**: Google `nano-banana` (via Replicate) is used for high-speed image generation.
+-   **Model**: Google `nano-banana-pro` (via Replicate) is used for high-speed image generation.
 
 ### C. Video & Audio Generation (Assets)
 -   **File**: `server/api/generate-assets.post.ts`

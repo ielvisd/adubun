@@ -77,6 +77,28 @@ export default defineEventHandler(async (event) => {
     
     // Extract scene videos from assets
     const sceneVideos: Record<number, string> = {}
+    // Build detailed segment status array
+    const segmentStatuses = assetJob.assets?.map((asset) => {
+      const metadata = asset.metadata || {}
+      const elapsedTime = metadata.elapsedTime || 0
+      const predictionId = metadata.predictionId || asset.metadata?.predictionId
+      const predictionStatus = metadata.predictionStatus || 'unknown'
+      
+      return {
+        segmentId: asset.segmentId,
+        status: asset.status,
+        error: asset.error,
+        videoUrl: asset.videoUrl,
+        predictionId,
+        predictionStatus,
+        elapsedTime: Math.round(elapsedTime / 1000), // Convert to seconds
+        segmentType: metadata.segmentType || 'unknown',
+        startTime: metadata.startTime,
+        endTime: metadata.endTime,
+        duration: metadata.duration,
+      }
+    }) || []
+    
     if (assetJob.assets) {
       assetJob.assets.forEach((asset) => {
         if (asset.status === 'completed' && asset.videoUrl) {
@@ -85,14 +107,30 @@ export default defineEventHandler(async (event) => {
       })
     }
     
+    // Calculate estimated time remaining (average time per segment * remaining segments)
+    const processingSegments = segmentStatuses.filter(s => s.status === 'processing')
+    const avgProcessingTime = processingSegments.length > 0
+      ? processingSegments.reduce((sum, s) => sum + (s.elapsedTime || 0), 0) / processingSegments.length
+      : 0
+    const remainingSegments = totalSegments - completedSegments
+    const estimatedTimeRemaining = avgProcessingTime > 0 && remainingSegments > 0
+      ? Math.round(avgProcessingTime * remainingSegments)
+      : null
+    
     return {
       status: 'processing',
       progress: assetProgress,
       step: 'generating-assets',
       message: `Generating assets: ${completedSegments}/${totalSegments} segments completed`,
       assets: assetJob.assets,
+      segmentStatuses, // Detailed segment-level status
       sceneVideos,
       assetJobId: videoJob.assetJobId,
+      estimatedTimeRemaining, // In seconds
+      totalSegments,
+      completedSegments,
+      failedSegments: segmentStatuses.filter(s => s.status === 'failed').length,
+      processingSegments: processingSegments.length,
     }
   }
 
@@ -208,6 +246,24 @@ export default defineEventHandler(async (event) => {
         })
       }
       
+      // Build detailed segment status for completed job
+      const completedSegmentStatuses = assetJob.assets?.map((asset) => {
+        const metadata = asset.metadata || {}
+        return {
+          segmentId: asset.segmentId,
+          status: asset.status,
+          error: asset.error,
+          videoUrl: asset.videoUrl,
+          predictionId: metadata.predictionId,
+          predictionStatus: 'succeeded',
+          elapsedTime: metadata.elapsedTime ? Math.round(metadata.elapsedTime / 1000) : null,
+          segmentType: metadata.segmentType || 'unknown',
+          startTime: metadata.startTime,
+          endTime: metadata.endTime,
+          duration: metadata.duration,
+        }
+      }) || []
+      
       return {
         status: 'completed',
         progress: 100,
@@ -215,6 +271,7 @@ export default defineEventHandler(async (event) => {
         videoId: composeResult.videoId,
         step: 'completed',
         assets: assetJob.assets,
+        segmentStatuses: completedSegmentStatuses,
         sceneVideos,
         assetJobId: videoJob.assetJobId,
       }
@@ -248,10 +305,32 @@ export default defineEventHandler(async (event) => {
   // Try to get assets if available
   let sceneVideos: Record<number, string> = {}
   let assets = undefined
+  let segmentStatuses = []
   try {
     const assetJob = await getJob(videoJob.assetJobId)
     if (assetJob?.assets) {
       assets = assetJob.assets
+      segmentStatuses = assetJob.assets.map((asset) => {
+        const metadata = asset.metadata || {}
+        const elapsedTime = metadata.elapsedTime || 0
+        const predictionId = metadata.predictionId || asset.metadata?.predictionId
+        const predictionStatus = metadata.predictionStatus || 'unknown'
+        
+        return {
+          segmentId: asset.segmentId,
+          status: asset.status,
+          error: asset.error,
+          videoUrl: asset.videoUrl,
+          predictionId,
+          predictionStatus,
+          elapsedTime: Math.round(elapsedTime / 1000), // Convert to seconds
+          segmentType: metadata.segmentType || 'unknown',
+          startTime: metadata.startTime,
+          endTime: metadata.endTime,
+          duration: metadata.duration,
+        }
+      })
+      
       assetJob.assets.forEach((asset) => {
         if (asset.status === 'completed' && asset.videoUrl) {
           sceneVideos[asset.segmentId] = asset.videoUrl
@@ -267,6 +346,7 @@ export default defineEventHandler(async (event) => {
     progress: videoJob.progress,
     step: videoJob.step,
     assets,
+    segmentStatuses, // Detailed segment-level status
     sceneVideos,
     assetJobId: videoJob.assetJobId,
   }

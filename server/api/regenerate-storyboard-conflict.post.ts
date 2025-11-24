@@ -66,9 +66,10 @@ export default defineEventHandler(async (event) => {
     switch (selectedAdType) {
       case 'lifestyle':
         adTypeInstruction = `LIFESTYLE AD STRATEGY:
-- Focus on the product being used in real-life situations
+- Focus on the product being held and discussed in real-life situations
+- Characters hold the product and talk about its benefits, never actually using it
 - Emphasize human interaction, social context, and environmental details
-- Show the benefits and emotional payoff of using the product
+- Show the benefits and emotional payoff through discussion and dialogue
 - Use natural lighting and authentic settings`
         break
       case 'product':
@@ -98,16 +99,17 @@ export default defineEventHandler(async (event) => {
 - Visual style should feel authentic and user-generated (UGC)
 - Use "selfie-style" angles or intimate interview setups
 - Focus on facial expressions of satisfaction and trust
-- Show the user interacting with the product naturally`
+- Show the user holding the product and talking about their experience, never actually using it`
         break
       case 'tutorial':
         adTypeInstruction = `TUTORIAL AD STRATEGY:
-- Structure as a clear step-by-step guide:
+- Structure as a clear discussion guide:
   1. Hook: The problem or the "before" state
-  2. Body 1: Step 1 of using the product (clear action)
-  3. Body 2: Step 2/Result of using the product
-  4. CTA: The final result/benefit achieved
-- Visuals must be instructional and clear (no distracting elements)`
+  2. Body 1: Character holds product and discusses step 1 (clear discussion, no usage)
+  3. Body 2: Character continues discussing benefits and results
+  4. CTA: Final benefit discussion and call to action
+- Visuals must be instructional and clear (no distracting elements)
+- Character holds product and talks about it, never actually using it`
         break
       case 'brand_story':
         adTypeInstruction = `BRAND STORY AD STRATEGY:

@@ -180,13 +180,13 @@ class ReplicateMCPServer {
         },
         {
           name: 'generate_image',
-          description: 'Generate image(s) using Seedream 4.0 or Nano Banana model',
+          description: 'Generate image(s) using Seedream 4.0 or Nano Banana Pro model',
           inputSchema: {
             type: 'object',
             properties: {
               model: {
                 type: 'string',
-                enum: ['bytedance/seedream-4', 'google/nano-banana'],
+                enum: ['bytedance/seedream-4', 'google/nano-banana', 'google/nano-banana-pro'],
                 description: 'Model to use for image generation',
                 default: 'bytedance/seedream-4',
               },
@@ -241,7 +241,7 @@ class ReplicateMCPServer {
               output_format: {
                 type: 'string',
                 enum: ['jpg', 'png'],
-                description: 'Output format (Nano Banana only). Format of the output image.',
+                description: 'Output format (Nano Banana and Nano Banana Pro only). Format of the output image.',
                 default: 'jpg',
               },
             },
@@ -682,7 +682,7 @@ class ReplicateMCPServer {
       if (sequentialImageGeneration === 'auto') {
         input.max_images = maxImages
       }
-    } else if (modelId === 'google/nano-banana') {
+    } else if (modelId === 'google/nano-banana' || modelId === 'google/nano-banana-pro') {
       input.aspect_ratio = aspectRatio
       input.output_format = outputFormat
     }

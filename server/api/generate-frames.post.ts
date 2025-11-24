@@ -59,6 +59,7 @@ const generateFramesSchema = z.object({
     callToAction: z.string(),
   }),
   mode: z.enum(['demo', 'production']).optional(),
+  price: z.number().optional(), // Sale price for CTA text overlay
 })
 
 const ALLOWED_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp'])
@@ -279,15 +280,15 @@ function buildNanoPrompt(
   let characterInstruction = ''
   if (characters.length > 0) {
     const characterDescriptions = formatCharactersForPrompt(characters)
-    characterInstruction = `CRITICAL CHARACTER CONSISTENCY: The exact same characters from previous scenes must appear with IDENTICAL appearance: ${characterDescriptions}. Maintain exact same gender, age, physical features (hair color/style, build), and clothing style for each character. Do NOT change character gender, age, or physical appearance. Use phrases like "the same [age] [gender] person with [features]" to ensure consistency. `
+    characterInstruction = `🚨🚨🚨 CRITICAL: FOREGROUND CONSISTENCY - CHARACTER CONSISTENCY (MANDATORY): The exact same characters from previous scenes must appear with IDENTICAL appearance: ${characterDescriptions}. Maintain exact same gender, age, physical features (hair color/style, build), and clothing style for each character. Do NOT change character gender, age, or physical appearance. Characters must maintain the EXACT same clothing (same shirt, same pants, same colors, same style), EXACT same physical features (same hair, same build, same facial features), and EXACT same position in the foreground across ALL frames. Only camera angles, poses, and compositions may change - foreground character elements must remain pixel-perfect consistent. Use phrases like "the same [age] [gender] person with [features]" to ensure consistency. `
   }
   
   // Add previous frame continuity instruction if we have a previous frame
   let previousFrameInstruction = ''
   if (previousFrameImage) {
     if (isTransition) {
-      // For transitions between scenes: maintain continuous flow but ALLOW pose changes
-    previousFrameInstruction = `CRITICAL CONTINUOUS FLOW - MANDATORY VISUAL PROGRESSION: Use the previous frame image as a visual reference to maintain CONTINUOUS story flow. Keep the same characters (IDENTICAL appearance - same clothing, same physical features), same environment, same lighting style. 🚨🚨🚨 CRITICAL: Maintain the EXACT same background, environment, and setting - do NOT change scenes, backgrounds, or environments. The same room, same location, same background elements must appear consistently. 🚨🚨🚨 MANDATORY VISUAL PROGRESSION: This frame MUST show natural progression from the previous frame. The character MUST have a DIFFERENT pose, gesture, or body position. The character MUST show movement or progression - different hand position, different facial expression, different body orientation, or different action. Do NOT create an identical or nearly identical frame. Examples of progression: character moving from holding product to applying it, character changing facial expression from neutral to smiling, character shifting body position or gesture, character moving hands to a different position. The scene should feel like ONE continuous shot with NO cuts, jumps, or scene changes, but the character MUST show clear visual progression and movement. `
+      // For transitions between scenes: maintain continuous flow but REQUIRE visual distinction
+    previousFrameInstruction = `CRITICAL CONTINUOUS FLOW - MANDATORY VISUAL PROGRESSION: Use the previous frame image as a visual reference to maintain CONTINUOUS story flow. Keep the same characters (IDENTICAL appearance - same clothing, same physical features), same environment, same lighting style. 🚨🚨🚨 CRITICAL: Maintain the EXACT same background, environment, and setting - do NOT change scenes, backgrounds, or environments. The same room, same location, same background elements must appear consistently. 🚨🚨🚨 MANDATORY VISUAL PROGRESSION - SIGNIFICANT VISUAL DISTINCTION - ABSOLUTE REQUIREMENT: This frame MUST be SIGNIFICANTLY visually different from the previous frame. While maintaining the EXACT SAME background, environment, and setting, at least 2 of the following MUST differ: 1) Camera angle (MUST switch from close-up to medium/wide, or front to side/three-quarter, or change elevation - DO NOT use the same angle), 2) Character pose (MUST be different - different standing/sitting position, different gesture like pointing or holding product, different facial expression, different body orientation - DO NOT copy the same pose), 3) Composition/framing (MUST be different - different character placement in frame, different focal point, different depth of field, different framing style - DO NOT use the same composition). The character MUST have a DIFFERENT pose AND different action. Do NOT create an identical or nearly identical frame. Examples of progression: ✅ character moving from standing to sitting, ✅ character changing from holding product to applying it, ✅ character changing facial expression from neutral to smiling, ✅ character shifting from one gesture to another, ✅ character moving hands from one position to another. The scene should feel like ONE continuous shot with NO cuts, jumps, or scene changes, but the character MUST show clear visual progression with different poses, different actions, and different camera angles/compositions. This is a MANDATORY requirement - frames must show evolving poses, actions, and visual composition. Any frame that looks similar to the previous frame will be rejected. `
     } else {
       // For progression within same scene: FORCE different angle/composition while maintaining character consistency
       previousFrameInstruction = `CRITICAL SCENE PROGRESSION - MANDATORY VISUAL VARIATION WITH CHARACTER AND BACKGROUND CONSISTENCY: This final frame MUST be SIGNIFICANTLY visually different from the previous frame in composition, camera angle, and pose. However, you MUST maintain IDENTICAL character appearance AND IDENTICAL background/environment from the previous frame: EXACT same clothing (same shirt, same pants, same colors, same style), EXACT same physical features (same hair, same build, same facial features), NO glasses if previous frame had no glasses, SAME glasses if previous frame had glasses. 🚨🚨🚨 CRITICAL: You MUST also maintain the EXACT same background, environment, and setting - same room, same location, same background elements, same walls, same surfaces, same lighting environment. Do NOT change scenes, backgrounds, or environments. The background must be EXACTLY the same as the previous frame. You MUST create a DISTINCT visual composition by: 1) Using a DIFFERENT camera angle (switch from medium to close-up, or wide to over-shoulder, or front to side/three-quarter angle), 2) Changing character pose and body language (different standing/sitting position, different gesture, different facial expression, different body orientation), 3) Altering composition and framing (different character placement in frame, different focal point, different depth of field, different framing style). The previous frame image is for character AND background/setting reference - DO NOT copy its composition, camera angle, pose, or framing, but DO copy the exact character appearance (clothing, accessories, physical features) AND the exact background/environment. Show a DISTINCT later moment with CLEAR visual progression while maintaining the SAME character AND SAME background. Text changes alone are NOT sufficient - the entire visual composition must be different, but the character AND background must look IDENTICAL. Do NOT create stylized backgrounds, graphic overlays, or different environments. `
@@ -311,12 +312,54 @@ function buildNanoPrompt(
   }
   
   // REVISED: Use positive, affirmative language for anatomy (placed at beginning for highest priority)
-  const bodyPartPrevention = `ANATOMICALLY CORRECT HUMAN: The character in this scene is a normal human being with standard human anatomy. They have: two hands (one left, one right), two arms (one left, one right), two legs, and one head. All body parts are properly proportioned and naturally positioned. This is a realistic photograph of a real person with normal human body structure. The character's hands and arms are clearly visible and correctly numbered. `
+  const bodyPartPrevention = `🚨🚨🚨 CRITICAL BODY PROPORTIONS - ABSOLUTE MANDATORY REQUIREMENT 🚨🚨🚨: The character in this scene is a normal human being with standard human anatomy and CORRECT body proportions. They have EXACTLY: two hands (one left, one right), two arms (one left, one right), two legs, and one head. All body parts are properly proportioned, naturally sized, and correctly positioned. This is a realistic photograph of a real person with normal human body structure. 
+
+ABSOLUTELY DO NOT GENERATE:
+❌ Multiple limbs: NO extra arms, NO extra legs, NO more than 2 arms, NO more than 2 legs, NO duplicate limbs
+❌ Disproportionate body parts: NO huge arms, NO oversized hands, NO abnormally large limbs, NO tiny arms, NO disproportionate body parts
+❌ Anatomical deformities: NO deformed anatomy, NO abnormal proportions, NO malformed limbs, NO incorrect body structure
+❌ Examples of REJECTED anatomy: character with 3 arms, character with huge oversized arm, character with multiple hands, character with disproportionate limbs
+
+MUST GENERATE:
+✅ Exactly 2 arms (one left, one right) - properly proportioned and naturally sized
+✅ Exactly 2 hands (one left, one right) - properly proportioned and naturally sized  
+✅ Exactly 2 legs - properly proportioned and naturally sized
+✅ All body parts in correct proportions relative to the character's body size
+✅ Natural, realistic human anatomy with standard body proportions
+✅ Character's hands and arms are clearly visible, correctly numbered, and properly proportioned
+
+This is a MANDATORY requirement - any frame showing multiple limbs, disproportionate body parts, or anatomical deformities will be REJECTED. `
 
   // Add character visibility requirement (always visible, especially for CTA frames)
   let characterVisibilityInstruction = ''
   // Always require character visibility, especially for CTA frames
   characterVisibilityInstruction = `🚨🚨🚨 CRITICAL CHARACTER VISIBILITY - ABSOLUTE MANDATORY REQUIREMENT: The main character MUST be VISIBLE in this frame at all times. Even when zooming on products, showing product close-ups, text overlays, logo lockups, or focusing on product details, the character must remain visible in the frame. The character can be in the background, side, foreground, or any position, but MUST be present and visible. DO NOT create frames that show only the product without the character visible. This is a MANDATORY requirement - the character must appear in EVERY frame, including CTA frames. For CTA frames specifically, the character MUST be visible even when text overlays and logos are present. `
+
+  // Add product visibility requirement (product must be visible when product is part of the story)
+  let productVisibilityInstruction = ''
+  // Check if product is mentioned in story or visual prompt, or if reference images exist
+  const hasProduct = hasReferenceImages || 
+    /product|bottle|container|item|package|tube|jar|pump|dropper|serum|cream|moisturizer|makeup|cosmetic|lipstick|foundation/i.test(`${storyText} ${visualPrompt}`)
+  
+  if (hasProduct) {
+    productVisibilityInstruction = `🚨🚨🚨 CRITICAL PRODUCT VISIBILITY - ABSOLUTE MANDATORY REQUIREMENT: The product MUST be VISIBLE in this frame at all times. Even when focusing on the character, showing character close-ups, text overlays, logo lockups, or character actions, the product must remain visible in the frame. The product can be in the character's hands, on a surface, in the background, foreground, or any position, but MUST be present and visible. DO NOT create frames that show only the character without the product visible. This is a MANDATORY requirement - the product must appear in EVERY frame, including CTA frames. For CTA frames specifically, the product MUST be visible even when text overlays and logos are present. Both the character AND the product must be visible together in the same frame. `
+  }
+
+  // Add hand consistency instruction if product is present
+  let handConsistencyInstruction = ''
+  if (hasProduct) {
+    // Extract hand preference from visual prompt
+    const productHand = extractProductHand(visualPrompt)
+    if (productHand) {
+      handConsistencyInstruction = `🚨🚨🚨 CRITICAL PRODUCT HAND CONSISTENCY - ABSOLUTE MANDATORY REQUIREMENT: The character MUST hold the product in the ${productHand} hand throughout this frame. This maintains continuity from previous frames. Do NOT switch hands - the product must remain in the ${productHand} hand. If this is a subsequent frame, the product MUST be in the same ${productHand} hand as in previous frames. This is a MANDATORY requirement for visual consistency. `
+    } else if (previousFrameImage) {
+      // If we have a previous frame but no explicit hand in current prompt, enforce consistency
+      handConsistencyInstruction = `🚨🚨🚨 CRITICAL PRODUCT HAND CONSISTENCY - ABSOLUTE MANDATORY REQUIREMENT: The character MUST hold the product in the SAME hand as shown in the previous frame. Maintain hand consistency - if the product was in the left hand in the previous frame, it must remain in the left hand. If it was in the right hand, it must remain in the right hand. Do NOT switch hands between frames. This is a MANDATORY requirement for visual continuity. `
+    } else {
+      // First frame with product - establish hand preference
+      handConsistencyInstruction = `🚨🚨🚨 CRITICAL PRODUCT HAND CONSISTENCY - ABSOLUTE MANDATORY REQUIREMENT: Once the character holds the product in a specific hand (left or right), they MUST maintain that same hand across ALL subsequent frames. Do NOT switch hands between frames. Establish a consistent hand preference and maintain it throughout all frames. This is a MANDATORY requirement for visual consistency. `
+    }
+  }
 
   // Add mirror/reflection exclusion instruction
   const mirrorExclusionInstruction = `🚨🚨🚨 CRITICAL - NO MIRRORS OR REFLECTIONS (ABSOLUTE MANDATORY): DO NOT include mirrors, reflections, reflective surfaces, bathroom mirrors, or people looking at their reflection in this frame. DO NOT generate images with mirrors visible. DO NOT describe mirrors in the visual prompt. This is a MANDATORY requirement - any frame containing mirrors or reflections will be rejected. The generated image must NOT show any mirrors or reflective surfaces. `
@@ -325,42 +368,36 @@ function buildNanoPrompt(
   const backgroundConsistencyInstruction = `🚨🚨🚨 CRITICAL - BACKGROUND/SCENE CONSISTENCY (ABSOLUTE MANDATORY - ZERO TOLERANCE): Maintain the EXACT same background, environment, and setting as the previous frame. Do NOT change scenes, backgrounds, or environments. Do NOT change rooms, locations, or background elements. The same room, same location, same background elements, same walls, same surfaces, same lighting environment must appear EXACTLY the same. ONLY camera angles, character poses, and product positions may change - the background/scene/environment must remain IDENTICAL. If the previous frame was in a bathroom with a white sink, this frame MUST be in the SAME bathroom with the SAME white sink. If the previous frame was in a kitchen with a countertop, this frame MUST be in the SAME kitchen with the SAME countertop. Do NOT create stylized backgrounds, graphic overlays, or different environments. The background must be EXACTLY the same as the previous frame - copy the background from the previous frame image. This is a HARD REQUIREMENT - any frame with a different background will be rejected. `
   
   // Add skin imperfection prevention (apply to ALL ads, including hook/opening frames)
-  const skinQualityInstruction = `🚨🚨🚨 CRITICAL SKIN QUALITY - ABSOLUTE MANDATORY REQUIREMENT 🚨🚨🚨: ALL characters in this frame MUST have PERFECT, FLAWLESS, HEALTHY skin with ZERO imperfections. This applies to EVERY frame including hook/opening frames, body frames, and CTA frames. This is a HARD REQUIREMENT with ZERO TOLERANCE. DO NOT show ANY of the following: pimples, acne, blemishes, blackheads, whiteheads, spots, marks, scars, discoloration, redness, irritation, rashes, skin texture issues, pores, wrinkles (unless character is elderly), age spots, freckles (unless naturally part of character description), moles (unless naturally part of character description), or ANY other skin imperfections or defects. ALL characters must have: smooth, clear, radiant, healthy, perfect, flawless skin with even tone, perfect complexion, and professional-quality appearance. This applies to EVERY character visible in the frame - no exceptions. CRITICAL: This requirement applies to hook/opening frames as well - characters must have perfect skin from the very first frame. Any frame showing skin imperfections (including blemishes, acne, redness, or any marks) will be REJECTED. Examples of what NOT to show: ❌ pimples on face, ❌ acne marks, ❌ blemishes, ❌ skin discoloration, ❌ redness, ❌ visible pores, ❌ skin texture issues, ❌ any marks or spots. Examples of what TO show: ✅ smooth, clear, perfect skin, ✅ even skin tone, ✅ flawless complexion, ✅ professional-quality appearance. This is a MANDATORY requirement for ALL characters in ALL frames, including the opening/hook frame. `
+  const skinQualityInstruction = `🚨🚨🚨 CRITICAL SKIN QUALITY - ABSOLUTE MANDATORY REQUIREMENT 🚨🚨🚨: ALL characters in this frame MUST have PERFECT, FLAWLESS, HEALTHY skin with ZERO imperfections. This applies to EVERY frame including hook/opening frames, body frames, and CTA frames. This is a HARD REQUIREMENT with ZERO TOLERANCE. DO NOT show ANY of the following: pimples, acne, blemishes, blackheads, whiteheads, spots, marks, scars, discoloration, redness, irritation, rashes, skin texture issues, pores, wrinkles (unless character is elderly), age spots, freckles (unless naturally part of character description), moles (unless naturally part of character description), or ANY other skin imperfections or defects. ALL characters must have: smooth, clear, radiant, healthy, perfect, flawless skin with even tone, perfect complexion, and professional-quality appearance. This applies to EVERY character visible in the frame - no exceptions. CRITICAL: This requirement applies to hook/opening frames as well - characters must have perfect skin from the very first frame. Any frame showing skin imperfections (including blemishes, pimples, acne, blackheads, whiteheads, spots, marks, scars, redness, or any marks) will be REJECTED. Examples of what NOT to show: ❌ pimples on face, ❌ acne marks, ❌ blemishes, ❌ blackheads, ❌ whiteheads, ❌ skin discoloration, ❌ redness, ❌ visible pores, ❌ skin texture issues, ❌ any marks or spots. Examples of what TO show: ✅ smooth, clear, perfect skin, ✅ even skin tone, ✅ flawless complexion, ✅ professional-quality appearance. This is a MANDATORY requirement for ALL characters in ALL frames, including the opening/hook frame. `
   
   // Add makeup product application instructions if detected
   let makeupApplicationInstruction = ''
   if (isMakeupProduct) {
-    makeupApplicationInstruction = `🚨🚨🚨 CRITICAL: MAKEUP/COSMETICS PRODUCT APPLICATION REQUIREMENT 🚨🚨🚨
-For makeup/cosmetics products, you MUST show the proper application sequence:
+    makeupApplicationInstruction = `🚨🚨🚨 CRITICAL: MAKEUP/COSMETICS PRODUCT HOLDING REQUIREMENT 🚨🚨🚨
+For makeup/cosmetics products, you MUST show the character holding the product and talking about it:
 1. **Product Container Visible**: The character MUST be shown HOLDING the product container (bottle, tube, palette, compact, applicator, etc.) in their hand(s) - the container must be clearly visible
-2. **Active Application Motion**: The character MUST be shown ACTIVELY APPLYING the product FROM the container TO the appropriate body part:
-   - For face makeup (foundation, concealer, blush, bronzer, highlighter): apply to face (cheeks, forehead, chin, etc.) - show the application motion with hands/fingers/applicator moving product from container to face
-   - For eye makeup (mascara, eyeliner, eyeshadow): apply to eyes/eyelids - show the application motion with applicator/brush moving from container to eyes
-   - For lip makeup (lipstick, lip gloss, lip balm): apply to lips - show the application motion with product moving from container to lips
-3. **Complete Sequence**: You MUST show the complete sequence: product container in hand → character applying product from container to body part → product visible on face/eyes/lips
-4. **NO RANDOM APPEARANCE**: The product should NOT randomly appear on the character's face/body. It MUST be shown being actively applied from the container. Do NOT show the product already on the face without showing the application process.
-5. **Application Details**: Describe the application method (fingers, brush, applicator, etc.) and the target area (cheeks, lips, eyes, etc.) explicitly in the visual description.
-Example for foundation: ✅ "The character holds a foundation bottle in hand, squeezes product onto fingers, and applies it to cheeks and forehead with smooth, blending motion" ❌ "The character's face has foundation on it" (REJECTED - too vague, doesn't show application)
-Example for lipstick: ✅ "The character holds a lipstick tube, applies it to lips with precise motion, showing the application process from container to lips" ❌ "The character has lipstick on her lips" (REJECTED - too vague, doesn't show application)
-This is a MANDATORY requirement - any frame showing makeup products without proper application sequence will be rejected. `
+2. **NO APPLICATION**: The character must NEVER apply the product to their face, eyes, lips, or any body part. NO application motion, NO product on skin/face, NO using the product.
+3. **Holding and Talking**: The character must hold the product container clearly visible in hand(s) and talk about the product. The visual description MUST describe the character holding the product and discussing it.
+4. **Product Details**: The character can gesture with the product, point to it, or show it to the camera while talking, but must NEVER apply it.
+Example for foundation: ✅ "The character holds a foundation bottle in hand, clearly visible, and talks about how it provides coverage and benefits" ❌ "The character applies foundation to face" (FORBIDDEN - no application)
+Example for lipstick: ✅ "The character holds a lipstick tube, clearly visible, and talks about the color and formula" ❌ "The character applies lipstick to lips" (FORBIDDEN - no application)
+This is a MANDATORY requirement - any frame showing makeup products being applied will be rejected. `
   }
   
   // Add skincare product application instructions if detected
   let skincareApplicationInstruction = ''
   if (isSkincareProduct) {
-    skincareApplicationInstruction = `🚨🚨🚨 CRITICAL: SKINCARE PRODUCT APPLICATION REQUIREMENT 🚨🚨🚨
-For skincare products (serum, acne treatment, moisturizer, cream, etc.), you MUST show the proper application sequence:
+    skincareApplicationInstruction = `🚨🚨🚨 CRITICAL: SKINCARE PRODUCT HOLDING REQUIREMENT 🚨🚨🚨
+For skincare products (serum, acne treatment, moisturizer, cream, etc.), you MUST show the character holding the product and talking about it:
 1. **Product Container Visible**: The character MUST be shown HOLDING the product container (bottle, tube, pump, jar, dropper, etc.) in their hand(s) - the container must be clearly visible
-2. **Active Application Motion**: The character MUST be shown ACTIVELY APPLYING the product FROM the container TO the appropriate skin area:
-   - For face skincare (serum, moisturizer, cream, acne treatment): apply to face (cheeks, forehead, chin, nose, etc.) - show the application motion with hands/fingers moving product from container to face
-   - For spot treatments: apply to specific areas (blemishes, dark spots, etc.) - show precise application from container to target area
-   - For full-face products: show application motion covering face areas (forehead, cheeks, chin) with product from container
-3. **Complete Sequence**: You MUST show the complete sequence: product container in hand → character applying product from container to skin → product visible on skin
-4. **NO RANDOM APPEARANCE**: The product should NOT randomly appear on the character's face/skin. It MUST be shown being actively applied from the container. Do NOT show the product already on the face without showing the application process. The product should NOT appear on the face from fingers/hands without showing the container first.
-5. **Application Details**: Describe the application method (fingers, dropper, pump, etc.) and the target skin area (cheeks, forehead, chin, face, etc.) explicitly in the visual description.
-Example for serum: ✅ "The character holds a serum bottle in hand, dispenses product onto fingers, and applies it to cheeks and forehead with smooth, upward motion" ❌ "The character's face has serum on it" (REJECTED - too vague, doesn't show application)
-Example for acne treatment: ✅ "The character holds an acne treatment tube, squeezes product onto finger, and applies it to specific blemish areas on the face with precise motion" ❌ "The character has treatment on their face" (REJECTED - too vague, doesn't show application)
-This is a MANDATORY requirement - any frame showing skincare products without proper application sequence will be rejected. `
+2. **NO APPLICATION**: The character must NEVER apply the product to their face, skin, or any body part. NO application motion, NO product on skin/face, NO using the product.
+3. **Holding and Talking**: The character must hold the product container clearly visible in hand(s) and talk about the product. The visual description MUST describe the character holding the product and discussing it.
+4. **Product Details**: The character can gesture with the product, point to it, or show it to the camera while talking, but must NEVER apply it.
+5. **🚨🚨🚨 NO DROPPER WATER DROPLETS - ABSOLUTE MANDATORY REQUIREMENT**: DO NOT show water droplets coming out of droppers, dropper tips with liquid drops, or liquid being dispensed from droppers. When showing dropper bottles, the dropper should be shown in the container or being held, but DO NOT show any visible water droplets, liquid drops, or liquid being dispensed from the dropper tip. The dropper should appear dry and without any visible liquid drops. This is a MANDATORY requirement - any frame showing water droplets from droppers will be REJECTED.
+6. **🚨 NO PRODUCT ON SKIN - ABSOLUTE MANDATORY REQUIREMENT**: The product must NEVER appear on the character's skin, face, or any body part. The skin should always appear clean and natural. NO visible product on skin, NO application residue, NO product visible on face/body. The skin should maintain a natural, matte, clean appearance without any visible product residue. This applies to ALL skin areas - face, neck, hands, arms, body, etc. This is a MANDATORY requirement - any frame showing product on skin will be REJECTED.
+Example for serum: ✅ "The character holds a serum bottle in hand, clearly visible, and talks about how it improves skin texture and benefits" ❌ "The character applies serum to face" (FORBIDDEN - no application)
+Example for acne treatment: ✅ "The character holds an acne treatment tube, clearly visible, and talks about how it targets blemishes" ❌ "The character applies treatment to face" (FORBIDDEN - no application)
+This is a MANDATORY requirement - any frame showing skincare products being applied will be rejected. `
   }
 
   // Add hook first frame comparison instruction for CTA frames (highest priority)
@@ -374,16 +411,16 @@ This is a MANDATORY requirement - any frame showing skincare products without pr
   const singleProductInstruction = `🚨🚨🚨 CRITICAL: ONLY ONE PRODUCT - ABSOLUTE MANDATORY REQUIREMENT: Show exactly ONE product/item in the frame. Do NOT show duplicate products, multiple identical items, or repeated products. If a product appears in the frame, it must appear only ONCE. Do NOT show two of the same product, multiple bottles, multiple containers, or any duplicate items. There must be exactly ONE product visible in the entire frame. This is a MANDATORY requirement - any frame showing duplicate products will be rejected. `
 
   // Add closing anatomy reminder for reinforcement (recency effect)
-  const closingAnatomyReminder = `Professional photograph of anatomically correct human with two hands, two arms. `
+  const closingAnatomyReminder = `Professional photograph of anatomically correct human with exactly two hands (properly proportioned), exactly two arms (properly proportioned, no huge arms, no oversized limbs), correct body proportions, no multiple limbs, no extra arms, no extra legs, no disproportionate body parts. `
 
   // Add product consistency and reference image instructions if we have reference images
   if (hasReferenceImages) {
-    const productConsistencyInstruction = `CRITICAL INSTRUCTIONS: Do not add new products to the scene. Only enhance existing products shown in the reference images. Keep product design and style exactly as shown in references. The reference images provided are the EXACT product you must recreate. You MUST copy the product from the reference images with pixel-perfect accuracy. Do NOT create a different product, do NOT use different colors, do NOT change the design, do NOT hallucinate new products. The product in your generated image must be visually IDENTICAL to the product in the reference images. Study every detail: exact color codes, exact design patterns, exact text/fonts, exact materials, exact textures, exact proportions, exact placement. The reference images are your ONLY source of truth for the product appearance. Ignore any text in the prompt that contradicts the reference images - the reference images take absolute priority. Generate the EXACT same product as shown in the reference images. `
-    // Place body part prevention FIRST for highest priority, then hook comparison, then makeup/skincare application (if applicable), then duplicate prevention, then mirror exclusion, then background consistency, then skin quality, then character visibility, then avatar, then character, then single product, then product consistency
-    return `${bodyPartPrevention}${hookComparisonInstruction}${makeupApplicationInstruction}${skincareApplicationInstruction}${duplicatePrevention}${mirrorExclusionInstruction}${backgroundConsistencyInstruction}${skinQualityInstruction}${characterVisibilityInstruction}${avatarInstruction}${characterInstruction}${noTextInstruction}${previousFrameInstruction}${singleProductInstruction}${productConsistencyInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality, ${closingAnatomyReminder}product must be pixel-perfect match to reference images, product appearance must be identical to reference images ${variationReinforcement}`
+    const productConsistencyInstruction = `🚨🚨🚨 CRITICAL: FOREGROUND CONSISTENCY - PRODUCT CONSISTENCY (MANDATORY): Do not add new products to the scene. Only enhance existing products shown in the reference images. Keep product design and style exactly as shown in references. The reference images provided are the EXACT product you must recreate. You MUST copy the product from the reference images with pixel-perfect accuracy. Do NOT create a different product, do NOT use different colors, do NOT change the design, do NOT hallucinate new products. The product in your generated image must be visually IDENTICAL to the product in the reference images. The product must maintain the EXACT same design, color, size, and placement in the foreground across ALL frames. Only camera angles, poses, and compositions may change - foreground product elements must remain pixel-perfect consistent. Study every detail: exact color codes, exact design patterns, exact text/fonts, exact materials, exact textures, exact proportions, exact placement. The reference images are your ONLY source of truth for the product appearance. Ignore any text in the prompt that contradicts the reference images - the reference images take absolute priority. Generate the EXACT same product as shown in the reference images. `
+    // Place body part prevention FIRST for highest priority, then hook comparison, then makeup/skincare application (if applicable), then duplicate prevention, then mirror exclusion, then background consistency, then skin quality, then character visibility, then product visibility, then hand consistency, then avatar, then character, then single product, then product consistency
+    return `${bodyPartPrevention}${hookComparisonInstruction}${makeupApplicationInstruction}${skincareApplicationInstruction}${duplicatePrevention}${mirrorExclusionInstruction}${backgroundConsistencyInstruction}${skinQualityInstruction}${characterVisibilityInstruction}${productVisibilityInstruction}${handConsistencyInstruction}${avatarInstruction}${characterInstruction}${noTextInstruction}${previousFrameInstruction}${singleProductInstruction}${productConsistencyInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality, ${closingAnatomyReminder}product must be pixel-perfect match to reference images, product appearance must be identical to reference images ${variationReinforcement}`
   } else {
-    // Place body part prevention FIRST for highest priority, then hook comparison, then makeup/skincare application (if applicable), then duplicate prevention, then mirror exclusion, then background consistency, then skin quality, then character visibility, then avatar, then character, then single product
-    return `${bodyPartPrevention}${hookComparisonInstruction}${makeupApplicationInstruction}${skincareApplicationInstruction}${duplicatePrevention}${mirrorExclusionInstruction}${backgroundConsistencyInstruction}${skinQualityInstruction}${characterVisibilityInstruction}${avatarInstruction}${characterInstruction}${noTextInstruction}${previousFrameInstruction}${singleProductInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality, ${closingAnatomyReminder}${variationReinforcement}`
+    // Place body part prevention FIRST for highest priority, then hook comparison, then makeup/skincare application (if applicable), then duplicate prevention, then mirror exclusion, then background consistency, then skin quality, then character visibility, then product visibility, then hand consistency, then avatar, then character, then single product
+    return `${bodyPartPrevention}${hookComparisonInstruction}${makeupApplicationInstruction}${skincareApplicationInstruction}${duplicatePrevention}${mirrorExclusionInstruction}${backgroundConsistencyInstruction}${skinQualityInstruction}${characterVisibilityInstruction}${productVisibilityInstruction}${handConsistencyInstruction}${avatarInstruction}${characterInstruction}${noTextInstruction}${previousFrameInstruction}${singleProductInstruction}${basePrompt}, ${moodStyle}, professional product photography, high quality, ${closingAnatomyReminder}${variationReinforcement}`
   }
 }
 
@@ -391,6 +428,133 @@ This is a MANDATORY requirement - any frame showing skincare products without pr
 function isRobotInHook(hookSegment: Segment): boolean {
   const hookText = `${hookSegment.description} ${hookSegment.visualPrompt}`.toLowerCase()
   return /(?:robot|product|humanoid|unitree|g1|device|machine|assistant|helper)/i.test(hookText)
+}
+
+// Top-level helper to extract which hand holds the product from visual prompt
+function extractProductHand(visualPrompt: string): 'left' | 'right' | null {
+  const promptLower = visualPrompt.toLowerCase()
+  // Check for explicit hand mentions
+  if (/\b(left\s+hand|left\s+arm|in\s+left|left\s+side|left\s+grip|left\s+grasp)\b/.test(promptLower)) {
+    return 'left'
+  }
+  if (/\b(right\s+hand|right\s+arm|in\s+right|right\s+side|right\s+grip|right\s+grasp)\b/.test(promptLower)) {
+    return 'right'
+  }
+  return null
+}
+
+// Top-level helper to validate hand consistency across frames
+function validateHandConsistency(
+  frames: Array<{ segmentIndex: number; frameType: string; visualPrompt?: string }>,
+  segments: Segment[]
+): { isValid: boolean; warnings: string[] } {
+  const warnings: string[] = []
+  let firstProductHand: 'left' | 'right' | null = null
+  let firstFrameWithProduct: { segmentIndex: number; frameType: string } | null = null
+  
+  // Find first frame where product appears and extract hand
+  for (const frame of frames) {
+    const segment = segments[frame.segmentIndex]
+    if (!segment) continue
+    
+    const visualPrompt = frame.visualPrompt || segment.visualPrompt
+    const hasProduct = /(?:product|bottle|container|item|package|tube|jar|pump|dropper|serum|cream|moisturizer|makeup|cosmetic|lipstick|foundation|holds?|holding|grasps?|grasping)/i.test(visualPrompt)
+    
+    if (hasProduct) {
+      const hand = extractProductHand(visualPrompt)
+      if (hand && !firstProductHand) {
+        firstProductHand = hand
+        firstFrameWithProduct = { segmentIndex: frame.segmentIndex, frameType: frame.frameType }
+      } else if (hand && firstProductHand && hand !== firstProductHand) {
+        warnings.push(
+          `⚠️ Hand inconsistency detected: Product was in ${firstProductHand} hand in segment ${firstFrameWithProduct?.segmentIndex} (${firstFrameWithProduct?.frameType}), but is in ${hand} hand in segment ${frame.segmentIndex} (${frame.frameType}). This violates hand consistency requirement.`
+        )
+      }
+    }
+  }
+  
+  // Also check all segments for hand consistency
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i]
+    const hand = extractProductHand(segment.visualPrompt)
+    const hasProduct = /(?:product|bottle|container|item|package|tube|jar|pump|dropper|serum|cream|moisturizer|makeup|cosmetic|lipstick|foundation|holds?|holding|grasps?|grasping)/i.test(segment.visualPrompt)
+    
+    if (hasProduct && hand) {
+      if (!firstProductHand) {
+        firstProductHand = hand
+      } else if (hand !== firstProductHand) {
+        warnings.push(
+          `⚠️ Hand inconsistency in storyboard: Product is in ${hand} hand in segment ${i} (${segment.type}), but was in ${firstProductHand} hand in earlier segment. This violates hand consistency requirement.`
+        )
+      }
+    }
+  }
+  
+  return {
+    isValid: warnings.length === 0,
+    warnings
+  }
+}
+
+// Top-level helper to validate frame progression (different poses/actions)
+function validateFrameProgression(
+  frames: Array<{ segmentIndex: number; frameType: string; visualPrompt?: string }>,
+  segments: Segment[]
+): { isValid: boolean; warnings: string[] } {
+  const warnings: string[] = []
+  
+  // Compare consecutive frames to ensure different poses/actions
+  for (let i = 1; i < frames.length; i++) {
+    const prevFrame = frames[i - 1]
+    const currFrame = frames[i]
+    
+    const prevSegment = segments[prevFrame.segmentIndex]
+    const currSegment = segments[currFrame.segmentIndex]
+    
+    if (!prevSegment || !currSegment) continue
+    
+    const prevPrompt = prevFrame.visualPrompt || prevSegment.visualPrompt
+    const currPrompt = currFrame.visualPrompt || currSegment.visualPrompt
+    
+    // Extract key action/pose words from prompts
+    const extractActions = (prompt: string): string[] => {
+      const lower = prompt.toLowerCase()
+      const actions: string[] = []
+      
+      // Common action verbs
+      const actionVerbs = ['standing', 'sitting', 'walking', 'holding', 'applying', 'looking', 'smiling', 'frowning', 'pointing', 'reaching', 'touching', 'using', 'grasping', 'extending', 'offering']
+      actionVerbs.forEach(verb => {
+        if (lower.includes(verb)) actions.push(verb)
+      })
+      
+      // Pose descriptors
+      const poses = ['close-up', 'wide shot', 'medium shot', 'front view', 'side view', 'three-quarter', 'profile']
+      poses.forEach(pose => {
+        if (lower.includes(pose)) actions.push(pose)
+      })
+      
+      return actions
+    }
+    
+    const prevActions = extractActions(prevPrompt)
+    const currActions = extractActions(currPrompt)
+    
+    // Check if frames have significantly different actions/poses
+    const commonActions = prevActions.filter(a => currActions.includes(a))
+    const similarityRatio = commonActions.length / Math.max(prevActions.length, currActions.length, 1)
+    
+    // If similarity is too high (>70%), warn about lack of progression
+    if (similarityRatio > 0.7 && prevActions.length > 0 && currActions.length > 0) {
+      warnings.push(
+        `⚠️ Frame progression issue: Frame ${i} (segment ${currFrame.segmentIndex}, ${currFrame.frameType}) shows similar pose/action to previous frame (segment ${prevFrame.segmentIndex}, ${prevFrame.frameType}). Frames should show different poses and actions for natural progression.`
+      )
+    }
+  }
+  
+  return {
+    isValid: warnings.length === 0,
+    warnings
+  }
 }
 
 // Top-level async function to extract and locate all story items
@@ -552,7 +716,7 @@ async function generateSingleFrame(
     console.log(`[Generate Frames] Total image inputs being sent: ${imageInputs.length} images (${referenceImages.length} product + ${hookFirstFrameUrl ? 1 : 0} hook first + ${(previousFrameImage && includePreviousFrameInInput) ? 1 : 0} previous frame)`)
     
     const nanoResult = await callReplicateMCP('generate_image', {
-      model: 'google/nano-banana',
+      model: 'google/nano-banana-pro',
       prompt: nanoPrompt,
       image_input: imageInputs.length > 0 ? imageInputs : undefined,
       aspect_ratio: aspectRatio,
@@ -623,7 +787,7 @@ export default defineEventHandler(async (event) => {
       console.log(`[Generate Frames] Raw body received - first 3 productImages:`, body.productImages.slice(0, 3))
     }
     
-    const { storyboard, productImages = [], subjectReference, avatarReference = [], avatarId, story, mode } = generateFramesSchema.parse(body)
+    const { storyboard, productImages = [], subjectReference, avatarReference = [], avatarId, story, mode, price } = generateFramesSchema.parse(body)
     
     // Set subjectReference on storyboard meta if provided and not already set
     if (subjectReference && !storyboard.meta.subjectReference) {
@@ -754,29 +918,57 @@ export default defineEventHandler(async (event) => {
       console.log(`[Generate Frames] Product image URLs:`, productImages)
     }
     
-    // Use all available reference images (up to model limit of 10)
+    // Use all available reference images (up to model limit of 14 for product and character references)
     const referenceImages: string[] = []
+    const MAX_REFERENCE_IMAGES = 14
     
     // Add product images first (resolve paths and convert to URLs)
     if (productImages.length > 0) {
-      const resolvedProductImages = await Promise.all(productImages.slice(0, 10).map(resolveImagePath))
+      const resolvedProductImages = await Promise.all(productImages.slice(0, 12).map(resolveImagePath))
       referenceImages.push(...resolvedProductImages)
     }
     
     // Add avatar reference images (resolve public folder paths and convert to URLs)
+    // Ensure both preview.jpg and reference.jpg are included when both are present
     if (avatarReference.length > 0) {
-      const remainingSlots = 10 - referenceImages.length
+      const remainingSlots = MAX_REFERENCE_IMAGES - referenceImages.length
       if (remainingSlots > 0) {
-        console.log(`[Generate Frames] Avatar reference images before resolution:`, avatarReference.slice(0, remainingSlots))
-        const resolvedAvatarImages = await Promise.all(avatarReference.slice(0, remainingSlots).map(resolveImagePath))
-        console.log(`[Generate Frames] Avatar reference images after resolution:`, resolvedAvatarImages)
-        referenceImages.push(...resolvedAvatarImages)
-        console.log(`[Generate Frames] Added ${Math.min(avatarReference.length, remainingSlots)} avatar reference image(s) to nano-banana inputs`)
+        // Check if both preview.jpg and reference.jpg are present
+        const hasPreview = avatarReference.some(img => img.includes('preview.jpg'))
+        const hasReference = avatarReference.some(img => img.includes('reference.jpg'))
+        const hasBoth = hasPreview && hasReference
+        
+        let avatarImagesToAdd: string[] = []
+        
+        if (hasBoth && remainingSlots >= 2) {
+          // Prioritize both preview.jpg and reference.jpg together
+          const previewImg = avatarReference.find(img => img.includes('preview.jpg'))
+          const referenceImg = avatarReference.find(img => img.includes('reference.jpg'))
+          
+          if (previewImg && referenceImg) {
+            avatarImagesToAdd = [previewImg, referenceImg]
+            console.log(`[Generate Frames] Both avatar images detected - including preview.jpg and reference.jpg together`)
+          } else {
+            // Fallback: add as many as fit
+            avatarImagesToAdd = avatarReference.slice(0, remainingSlots)
+          }
+        } else {
+          // Add as many as fit in remaining slots
+          avatarImagesToAdd = avatarReference.slice(0, remainingSlots)
+        }
+        
+        if (avatarImagesToAdd.length > 0) {
+          console.log(`[Generate Frames] Avatar reference images before resolution:`, avatarImagesToAdd)
+          const resolvedAvatarImages = await Promise.all(avatarImagesToAdd.map(resolveImagePath))
+          console.log(`[Generate Frames] Avatar reference images after resolution:`, resolvedAvatarImages)
+          referenceImages.push(...resolvedAvatarImages)
+          console.log(`[Generate Frames] Added ${resolvedAvatarImages.length} avatar reference image(s) to nano-banana inputs`)
+        }
       }
     }
     
     // Add person reference (subjectReference) if available from storyboard meta (resolve path and convert to URL)
-    if (storyboard.meta.subjectReference && referenceImages.length < 10) {
+    if (storyboard.meta.subjectReference && referenceImages.length < MAX_REFERENCE_IMAGES) {
       const resolvedSubjectRef = await resolveImagePath(storyboard.meta.subjectReference)
       console.log(`[Generate Frames] Adding person reference to nano-banana inputs: ${resolvedSubjectRef}`)
       referenceImages.push(resolvedSubjectRef)
@@ -1005,9 +1197,9 @@ export default defineEventHandler(async (event) => {
       console.log('\n[Generate Frames] === FRAME 2: Hook Last Frame ===')
       
       // Add hook progression instruction to ensure visual progression from hook first to hook last
-      // CRITICAL: Background must remain IDENTICAL, only character pose/expression can change
-      const hookBackgroundConsistencyInstruction = `🚨🚨🚨 CRITICAL BACKGROUND CONSISTENCY - ABSOLUTE MANDATORY REQUIREMENT 🚨🚨🚨: The background and environment in this hook last frame MUST be IDENTICAL to the hook first frame. This is a HARD REQUIREMENT with ZERO TOLERANCE. The background, environment, setting, location, room, walls, surfaces, objects in background, lighting style, and ALL environmental elements must remain EXACTLY THE SAME as the hook first frame. DO NOT change: background elements, room layout, wall colors, surfaces, furniture placement, environmental objects, lighting style, or ANY background details. The ONLY elements that can change are: character pose, character expression, character body language, and subtle camera movement (same angle, slight movement only). The background must be PIXEL-PERFECT IDENTICAL to the opening shot. Any frame showing a different background will be REJECTED. Examples of what MUST stay the same: ✅ exact same background, ✅ same room/environment, ✅ same wall colors, ✅ same surfaces, ✅ same objects in background, ✅ same lighting style. Examples of what CAN change: ✅ character pose, ✅ character expression, ✅ character body language, ✅ subtle camera movement (same angle). This is a MANDATORY requirement - the hook opening and closing shots must have IDENTICAL backgrounds. `
-      const hookProgressionInstruction = `CRITICAL HOOK PROGRESSION: This hook last frame should show subtle visual progression from the hook first frame. Show a slightly different moment - character expression may have evolved, character pose may have changed slightly, or camera may have moved subtly. However, maintain the EXACT SAME background, same environment, same setting, same characters, and same overall composition. The progression should be subtle but noticeable, focusing on character movement and expression changes ONLY, NOT background changes. `
+      // CRITICAL: Background must remain IDENTICAL, but visual elements must differ
+      const hookBackgroundConsistencyInstruction = `🚨🚨🚨 CRITICAL BACKGROUND CONSISTENCY - ABSOLUTE MANDATORY REQUIREMENT 🚨🚨🚨: The background and environment in this hook last frame MUST be IDENTICAL to the hook first frame. This is a HARD REQUIREMENT with ZERO TOLERANCE. The background, environment, setting, location, room, walls, surfaces, objects in background, lighting style, and ALL environmental elements must remain EXACTLY THE SAME as the hook first frame. DO NOT change: background elements, room layout, wall colors, surfaces, furniture placement, environmental objects, lighting style, or ANY background details. The background must be PIXEL-PERFECT IDENTICAL to the opening shot. Any frame showing a different background will be REJECTED. Examples of what MUST stay the same: ✅ exact same background, ✅ same room/environment, ✅ same wall colors, ✅ same surfaces, ✅ same objects in background, ✅ same lighting style. This is a MANDATORY requirement - the hook opening and closing shots must have IDENTICAL backgrounds. `
+      const hookProgressionInstruction = `🚨🚨🚨 CRITICAL HOOK PROGRESSION - MANDATORY VISUAL DISTINCTION - ABSOLUTE REQUIREMENT: This hook last frame MUST be SIGNIFICANTLY visually different from the hook first frame. While maintaining the EXACT SAME background, environment, and setting, at least 2 of the following MUST differ: 1) Camera angle (MUST switch from close-up to medium/wide, or front to side/three-quarter, or change elevation - DO NOT use the same angle), 2) Character pose (MUST be different - different standing/sitting position, different gesture like pointing or holding product, different facial expression, different body orientation - DO NOT copy the same pose), 3) Composition/framing (MUST be different - different character placement in frame, different focal point, different depth of field, different framing style - DO NOT use the same composition). The frame must show a clear "later moment" with DISTINCT visual progression. Do NOT create an identical or nearly identical frame to the opening shot - the composition, camera angle, and pose MUST be clearly and obviously different. This is a MANDATORY requirement - any frame that looks similar to the opening shot will be rejected. `
       let hookLastVisualPrompt = hookBackgroundConsistencyInstruction + hookProgressionInstruction + hookSegment.visualPrompt
       
       const nanoPrompt = buildNanoPrompt(
@@ -1090,7 +1282,7 @@ export default defineEventHandler(async (event) => {
         }
         
         // Add body segment progression requirement - body last frame must show natural progression from body first frame
-        const bodyProgressionInstruction = ` 🚨🚨🚨 CRITICAL BODY SEGMENT PROGRESSION - MANDATORY REQUIREMENT: This is the body segment's closing frame. It MUST show natural progression from the body segment's opening frame. The character MUST have a DIFFERENT pose, gesture, or body position. The character MUST show movement or progression - different hand position, different facial expression, different body orientation, or different action. Do NOT create an identical or nearly identical frame to the opening frame. Examples of required progression: character moving from holding product to applying it, character changing facial expression (e.g., from neutral to smiling, from concerned to confident), character shifting body position or gesture, character moving hands to a different position, character showing product application progress. The frame must show a clear "later moment" in the same continuous action - the story must progress visually. `
+        const bodyProgressionInstruction = ` 🚨🚨🚨 CRITICAL BODY SEGMENT PROGRESSION - MANDATORY VISUAL DISTINCTION - ABSOLUTE REQUIREMENT: This is the body segment's closing frame. It MUST be SIGNIFICANTLY visually different from the body segment's opening frame. While maintaining the EXACT SAME background, environment, and setting, at least 2 of the following MUST differ: 1) Camera angle (MUST switch from close-up to medium/wide, or front to side/three-quarter, or change elevation - DO NOT use the same angle), 2) Character pose (MUST be different - different standing/sitting position, different gesture like pointing or holding product, different facial expression, different body orientation - DO NOT copy the same pose), 3) Composition/framing (MUST be different - different character placement in frame, different focal point, different depth of field, different framing style - DO NOT use the same composition). The frame must show a clear "later moment" with DISTINCT visual progression. Do NOT create an identical or nearly identical frame to the opening frame - the composition, camera angle, and pose MUST be clearly and obviously different. Examples of required progression: character moving from holding product to applying it, character changing facial expression (e.g., from neutral to smiling, from concerned to confident), character shifting body position or gesture, character moving hands to a different position, character showing product application progress. This is a MANDATORY requirement - any frame that looks similar to the opening frame will be rejected. `
         body1VisualPrompt = bodyProgressionInstruction + body1VisualPrompt
         
         const nanoPrompt = buildNanoPrompt(
@@ -1152,7 +1344,7 @@ export default defineEventHandler(async (event) => {
         }
         
         // Add body segment progression requirement - body1 last frame must show natural progression from body1 first frame
-        const body1ProgressionInstruction = ` 🚨🚨🚨 CRITICAL BODY1 SEGMENT PROGRESSION - MANDATORY REQUIREMENT: This is the body1 segment's closing frame. It MUST show natural progression from the body1 segment's opening frame. The character MUST have a DIFFERENT pose, gesture, or body position. The character MUST show movement or progression - different hand position, different facial expression, different body orientation, or different action. Do NOT create an identical or nearly identical frame to the opening frame. Examples of required progression: character moving from holding product to applying it, character changing facial expression (e.g., from neutral to smiling, from concerned to confident), character shifting body position or gesture, character moving hands to a different position, character showing product application progress. The frame must show a clear "later moment" in the same continuous action - the story must progress visually. `
+        const body1ProgressionInstruction = ` 🚨🚨🚨 CRITICAL BODY1 SEGMENT PROGRESSION - MANDATORY VISUAL DISTINCTION - ABSOLUTE REQUIREMENT: This is the body1 segment's closing frame. It MUST be SIGNIFICANTLY visually different from the body1 segment's opening frame. While maintaining the EXACT SAME background, environment, and setting, at least 2 of the following MUST differ: 1) Camera angle (MUST switch from close-up to medium/wide, or front to side/three-quarter, or change elevation - DO NOT use the same angle), 2) Character pose (MUST be different - different standing/sitting position, different gesture like pointing or holding product, different facial expression, different body orientation - DO NOT copy the same pose), 3) Composition/framing (MUST be different - different character placement in frame, different focal point, different depth of field, different framing style - DO NOT use the same composition). The frame must show a clear "later moment" with DISTINCT visual progression. Do NOT create an identical or nearly identical frame to the opening frame - the composition, camera angle, and pose MUST be clearly and obviously different. Examples of required progression: character moving from holding product to applying it, character changing facial expression (e.g., from neutral to smiling, from concerned to confident), character shifting body position or gesture, character moving hands to a different position, character showing product application progress. This is a MANDATORY requirement - any frame that looks similar to the opening frame will be rejected. `
         body1VisualPrompt = body1ProgressionInstruction + body1VisualPrompt
         
         const nanoPrompt = buildNanoPrompt(
@@ -1213,7 +1405,7 @@ export default defineEventHandler(async (event) => {
         }
         
         // Add body segment progression requirement - body2 last frame must show natural progression from body2 first frame
-        const body2ProgressionInstruction = ` 🚨🚨🚨 CRITICAL BODY2 SEGMENT PROGRESSION - MANDATORY REQUIREMENT: This is the body2 segment's closing frame. It MUST show natural progression from the body2 segment's opening frame. The character MUST have a DIFFERENT pose, gesture, or body position. The character MUST show movement or progression - different hand position, different facial expression, different body orientation, or different action. Do NOT create an identical or nearly identical frame to the opening frame. Examples of required progression: character moving from holding product to applying it, character changing facial expression (e.g., from neutral to smiling, from concerned to confident), character shifting body position or gesture, character moving hands to a different position, character showing product application progress. The frame must show a clear "later moment" in the same continuous action - the story must progress visually. `
+        const body2ProgressionInstruction = ` 🚨🚨🚨 CRITICAL BODY2 SEGMENT PROGRESSION - MANDATORY VISUAL DISTINCTION - ABSOLUTE REQUIREMENT: This is the body2 segment's closing frame. It MUST be SIGNIFICANTLY visually different from the body2 segment's opening frame. While maintaining the EXACT SAME background, environment, and setting, at least 2 of the following MUST differ: 1) Camera angle (MUST switch from close-up to medium/wide, or front to side/three-quarter, or change elevation - DO NOT use the same angle), 2) Character pose (MUST be different - different standing/sitting position, different gesture like pointing or holding product, different facial expression, different body orientation - DO NOT copy the same pose), 3) Composition/framing (MUST be different - different character placement in frame, different focal point, different depth of field, different framing style - DO NOT use the same composition). The frame must show a clear "later moment" with DISTINCT visual progression. Do NOT create an identical or nearly identical frame to the opening frame - the composition, camera angle, and pose MUST be clearly and obviously different. Examples of required progression: character moving from holding product to applying it, character changing facial expression (e.g., from neutral to smiling, from concerned to confident), character shifting body position or gesture, character moving hands to a different position, character showing product application progress. This is a MANDATORY requirement - any frame that looks similar to the opening frame will be rejected. `
         body2VisualPrompt = body2ProgressionInstruction + body2VisualPrompt
         
         const nanoPrompt = buildNanoPrompt(
@@ -1289,7 +1481,7 @@ export default defineEventHandler(async (event) => {
         ? ` 🚨 CRITICAL VISUAL REFERENCE: The opening shot (hook first frame) image is included in your image inputs. Study it carefully. It shows a specific composition, camera angle, and character pose. You MUST create a DIFFERENT composition while maintaining the same character and setting. `
         : ` 🚨 CRITICAL: The opening shot (hook first frame) establishes the initial composition. `
       
-      const ctaVariationInstruction = ` 🚨🚨🚨 CTA FINAL FRAME - MANDATORY VISUAL DISTINCTION FROM OPENING SHOT - ABSOLUTE REQUIREMENT: ${hookFrameReference}${hookComparisonText}1) Camera angle (MUST switch from close-up to medium/wide, or front to side/three-quarter, or change elevation - DO NOT use the same angle), 2) Character pose (MUST be different - different standing/sitting position, different gesture like pointing or holding product, different facial expression, different body orientation - DO NOT copy the same pose), 3) Composition/framing (MUST be different - different character placement in frame, different focal point, different depth of field, different framing style - DO NOT use the same composition). While maintaining the SAME character (identical appearance, clothing, physical features) and SAME general setting/environment, you MUST create a DISTINCT final composition. The final frame should feel like a natural progression or hero shot moment while maintaining character and scene continuity. DO NOT create an identical or similar frame to the opening shot - the composition, camera angle, and pose MUST be clearly and obviously different. This is a MANDATORY requirement - any frame that looks similar to the opening shot will be rejected. `
+      const ctaVariationInstruction = ` 🚨🚨🚨 CTA FINAL FRAME - MANDATORY VISUAL DISTINCTION FROM BOTH OPENING SHOT AND PREVIOUS FRAME - ABSOLUTE REQUIREMENT: ${hookFrameReference}${hookComparisonText}1) Camera angle (MUST switch from close-up to medium/wide, or front to side/three-quarter, or change elevation - DO NOT use the same angle), 2) Character pose (MUST be different - different standing/sitting position, different gesture like pointing or holding product, different facial expression, different body orientation - DO NOT copy the same pose), 3) Composition/framing (MUST be different - different character placement in frame, different focal point, different depth of field, different framing style - DO NOT use the same composition). 🚨🚨🚨 CRITICAL: This CTA last frame MUST also be SIGNIFICANTLY visually different from the CTA first frame (previous frame). While maintaining the EXACT SAME background, environment, and setting, at least 2 of the above elements (camera angle, character pose, composition/framing) MUST differ from BOTH the opening shot AND the previous frame. While maintaining the SAME character (identical appearance, clothing, physical features) and SAME general setting/environment, you MUST create a DISTINCT final composition. The final frame should feel like a natural progression or hero shot moment while maintaining character and scene continuity. DO NOT create an identical or similar frame to either the opening shot or the previous frame - the composition, camera angle, and pose MUST be clearly and obviously different from both. This is a MANDATORY requirement - any frame that looks similar to the opening shot or previous frame will be rejected. `
       
       // Add character speaking instruction if dialogue is present in CTA
       let characterSpeakingInstruction = ''
@@ -1302,7 +1494,13 @@ export default defineEventHandler(async (event) => {
         }
       }
       
-      const enhancedCtaVisualPrompt = ctaSegment.visualPrompt + ctaVariationInstruction + characterSpeakingInstruction
+      // Add price text overlay instruction for CTA frames
+      let priceOverlayInstruction = ''
+      if (price && price > 0) {
+        priceOverlayInstruction = ` 🚨🚨🚨 CRITICAL PRICE TEXT OVERLAY - ABSOLUTE MANDATORY REQUIREMENT: This CTA frame MUST include a price text overlay displaying "$${price}". The price text should be clearly visible, legible, and professionally styled. Use clean, elegant, modern typeface (sans-serif like Helvetica, Futura, Gotham for contemporary brands OR serif like Didot, Bodoni for luxury brands). High contrast for maximum legibility: crisp white text on dark background OR bold black text on light background. Large, bold, professional font size with generous spacing. Centered or elegantly positioned with balanced composition. The price "$${price}" must be visible in the final frame. This is a MANDATORY requirement - the price text overlay must appear in the CTA frame. `
+      }
+      
+      const enhancedCtaVisualPrompt = ctaSegment.visualPrompt + ctaVariationInstruction + characterSpeakingInstruction + priceOverlayInstruction
       
       const nanoPrompt = buildNanoPrompt(
         sanitizedStory.callToAction, 
@@ -1696,6 +1894,50 @@ export default defineEventHandler(async (event) => {
         // Don't fail the entire request if conflict detection fails
         conflictDetected = false
       }
+    }
+
+    // Validate hand consistency across frames
+    try {
+      const handValidation = validateHandConsistency(
+        frames.map(f => ({
+          segmentIndex: f.segmentIndex,
+          frameType: f.frameType,
+          visualPrompt: storyboard.segments[f.segmentIndex]?.visualPrompt
+        })),
+        storyboard.segments
+      )
+      
+      if (!handValidation.isValid && handValidation.warnings.length > 0) {
+        console.warn('[Generate Frames] ⚠️ HAND CONSISTENCY WARNINGS:')
+        handValidation.warnings.forEach(warning => console.warn(`  ${warning}`))
+      } else {
+        console.log('[Generate Frames] ✓ Hand consistency validated: Product hand is consistent across all frames')
+      }
+    } catch (error: any) {
+      console.warn('[Generate Frames] Could not validate hand consistency:', error.message)
+      // Don't fail the request if validation fails
+    }
+    
+    // Validate frame progression (different poses/actions)
+    try {
+      const progressionValidation = validateFrameProgression(
+        frames.map(f => ({
+          segmentIndex: f.segmentIndex,
+          frameType: f.frameType,
+          visualPrompt: storyboard.segments[f.segmentIndex]?.visualPrompt
+        })),
+        storyboard.segments
+      )
+      
+      if (!progressionValidation.isValid && progressionValidation.warnings.length > 0) {
+        console.warn('[Generate Frames] ⚠️ FRAME PROGRESSION WARNINGS:')
+        progressionValidation.warnings.forEach(warning => console.warn(`  ${warning}`))
+      } else {
+        console.log('[Generate Frames] ✓ Frame progression validated: Frames show different poses and actions')
+      }
+    } catch (error: any) {
+      console.warn('[Generate Frames] Could not validate frame progression:', error.message)
+      // Don't fail the request if validation fails
     }
 
     return {

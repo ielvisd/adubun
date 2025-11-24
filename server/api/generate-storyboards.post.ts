@@ -45,9 +45,10 @@ export default defineEventHandler(async (event) => {
     switch (selectedAdType) {
       case 'lifestyle':
         adTypeInstruction = `LIFESTYLE AD STRATEGY:
-- Focus on the product being used in real-life situations
+- Focus on the product being held and discussed in real-life situations
+- Characters hold the product and talk about its benefits, never actually using it
 - Emphasize human interaction, social context, and environmental details
-- Show the benefits and emotional payoff of using the product
+- Show the benefits and emotional payoff through discussion and dialogue
 - Use natural lighting and authentic settings`
         break
       case 'product':
@@ -77,16 +78,17 @@ export default defineEventHandler(async (event) => {
 - Visual style should feel authentic and user-generated (UGC)
 - Use "selfie-style" angles or intimate interview setups
 - Focus on facial expressions of satisfaction and trust
-- Show the user interacting with the product naturally`
+- Show the user holding the product and talking about their experience, never actually using it`
         break
       case 'tutorial':
         adTypeInstruction = `TUTORIAL AD STRATEGY:
-- Structure as a clear step-by-step guide:
+- Structure as a clear discussion guide:
   1. Hook: The problem or the "before" state
-  2. Body 1: Step 1 of using the product (clear action)
-  3. Body 2: Step 2/Result of using the product
-  4. CTA: The final result/benefit achieved
-- Visuals must be instructional and clear (no distracting elements)`
+  2. Body 1: Character holds product and discusses step 1 (clear discussion, no usage)
+  3. Body 2: Character continues discussing benefits and results
+  4. CTA: Final benefit discussion and call to action
+- Visuals must be instructional and clear (no distracting elements)
+- Character holds product and talks about it, never actually using it`
         break
       case 'brand_story':
         adTypeInstruction = `BRAND STORY AD STRATEGY:
@@ -122,13 +124,23 @@ export default defineEventHandler(async (event) => {
     }
 
     const systemPrompt = `You are an expert at creating emotionally captivating video storyboards for ad content.
+
+🚨🚨🚨 CRITICAL CTA DIALOGUE WORD LIMIT - READ THIS FIRST - ABSOLUTE MANDATORY (ZERO TOLERANCE) 🚨🚨🚨
+For CTA segments, any dialogue MUST be EXACTLY 5 words or less. This is a HARD REQUIREMENT with ZERO TOLERANCE.
+- You MUST NEVER generate CTA dialogue with more than 5 words
+- BEFORE writing any CTA dialogue, COUNT the words FIRST
+- If your intended dialogue exceeds 5 words, shorten it to 5 words or less BEFORE writing it
+- Examples: ✅ "Buy now to transform." (5 words) ✅ "Shop now and save." (4 words) ✅ "Get yours today." (3 words)
+- Examples to NEVER generate: ❌ "Purchase now to enjoy 60% off." (6 words - FORBIDDEN) ❌ "Buy now to transform your skin." (7 words - FORBIDDEN)
+- Any CTA dialogue exceeding 5 words will cause the ENTIRE storyboard to be REJECTED and regenerated
+- COUNT WORDS BEFORE WRITING, NOT AFTER
     
 ${adTypeInstruction}
 
 🚨 FORMAT: 16-Second "Lego Block" Structure (Default)
 Generate a single storyboard for a 16-second ad. The storyboard must have 3 segments with ZERO cuts inside each clip:
 1. Hook (0-6s): Attention-grabbing opening - can be problem-focused (frustrated face, spilled coffee, sweaty gym guy) or any compelling opening. Start extreme close-up or compelling angle. Camera slowly pushes in or circles while action/problem escalates. End clip on the peak of emotion/action. 🚨🚨🚨 ABSOLUTE REQUIREMENT: Single continuous shot with NO cuts, NO transitions, NO edits, NO scene changes. This must be ONE unbroken shot from start to finish.
-2. Product Intro (6-12s): Product introduction + transformation - one continuous shot delivering the "oh shit" moment. Camera continues moving (match the energy of clip 1), product enters frame magically or talent uses it in real-time → instant before/after inside the shot. Slow-motion reveal at second 4-5 of this clip (around 10-11s total timeline). CRITICAL: The character must be actively moving and performing actions throughout the ENTIRE segment - reaching for products, applying items, moving hands, changing expressions, evolving body language. Do NOT show the character as still or motionless. Show continuous motion and dynamic action. 🚨🚨🚨 ABSOLUTE REQUIREMENT: Single continuous shot with NO cuts, NO transitions, NO edits, NO scene changes. This must be ONE unbroken shot from start to finish.
+2. Product Intro (6-12s): Product introduction + discussion - one continuous shot delivering the "oh shit" moment. Camera continues moving (match the energy of clip 1), product enters frame magically or talent holds it and talks about it in real-time → character discusses benefits and transformation. Slow-motion reveal at second 4-5 of this clip (around 10-11s total timeline). CRITICAL: The character must be actively moving and performing actions throughout the ENTIRE segment - holding the product, gesturing with it, moving hands, changing expressions, evolving body language while talking. Do NOT show the character as still or motionless. Show continuous motion and dynamic action. The character holds the product and talks about it, never actually using it. 🚨🚨🚨 ABSOLUTE REQUIREMENT: Single continuous shot with NO cuts, NO transitions, NO edits, NO scene changes. This must be ONE unbroken shot from start to finish.
 3. CTA (12-16s): Hero shot + CTA + logo lockup - static or very slow push. Freeze on perfect product/after state. Text + logo slam in. One punchy tagline (spoken or on-screen). Ends exactly at 16.000s. 🚨🚨🚨 ABSOLUTE REQUIREMENT: Single continuous shot with NO cuts, NO transitions, NO edits, NO scene changes. This must be ONE unbroken shot from start to finish.
 
 🚨 CINEMATIC FLOW REQUIREMENTS:
@@ -146,13 +158,18 @@ Generate a single storyboard for a 16-second ad. The storyboard must have 3 segm
   - Example: ✅ "Achieve a clear complexion" ❌ "Get clear skin"
   - **🚨 OPENING/CLOSING DISTINCTION (CRITICAL)**: The hook (opening) and CTA (closing) segments MUST have moderate visual distinction - at least 2 of the following must differ: 1) Camera angle (e.g., if hook is close-up, CTA should be medium/wide; if hook is front-facing, CTA should be side/three-quarter; or change elevation), 2) Character pose (different body position, gesture, expression, orientation), 3) Composition (different framing, focal point, depth of field). This applies to ALL ad types. Hook should establish the scene/problem with one style. CTA should conclude with a visually distinct style while maintaining the same character and setting. DO NOT create identical opening and closing shots - they must be visually different.
   - **🚨🚨🚨 CRITICAL CTA DIALOGUE WORD LIMIT (ABSOLUTE MANDATORY - ZERO TOLERANCE)**: For CTA segments, any dialogue MUST be EXACTLY 5 words or less. This is a HARD REQUIREMENT with ZERO TOLERANCE. You MUST NEVER generate CTA dialogue with more than 5 words. Before generating any dialogue in the CTA segment's audioNotes field, you MUST:
-    1. FIRST, count the words in your intended dialogue text BEFORE writing it
-    2. If your intended dialogue exceeds 5 words, you MUST shorten it to 5 words or less BEFORE including it
+    1. FIRST, count the words in your intended dialogue text BEFORE writing it - count each word carefully
+    2. If your intended dialogue exceeds 5 words, you MUST shorten it to 5 words or less BEFORE including it - take only the first 5 words
     3. Generate ONLY dialogue that is 5 words or less - do NOT generate dialogue and then truncate it
     4. Examples of VALID CTA dialogue: "Buy now to transform." (5 words), "Shop now and save." (4 words), "Get yours today." (3 words), "Transform your life now." (5 words)
-    5. Examples of INVALID dialogue that you MUST NOT generate: "Buy now to transform your skin overnight!" (7 words - DO NOT GENERATE THIS), "Purchase now to transform your skin." (7 words - DO NOT GENERATE THIS), "Shop now and save big today!" (6 words - DO NOT GENERATE THIS)
-    6. CRITICAL: If the user provides dialogue that exceeds 5 words, you MUST shorten it to 5 words or less BEFORE including it. Do NOT include the original long dialogue.
-  - This requirement applies to ALL CTA segments. Any dialogue exceeding 5 words will cause the storyboard to be REJECTED and the entire response will be regenerated. You MUST count words BEFORE generating dialogue, not after.
+    5. Examples of INVALID dialogue that you MUST NOT generate: 
+       ❌ "Purchase now to enjoy 60% off." (6 words - DO NOT GENERATE THIS - FORBIDDEN)
+       ❌ "Buy now to transform your skin overnight!" (8 words - DO NOT GENERATE THIS - FORBIDDEN)
+       ❌ "Purchase now to transform your skin." (7 words - DO NOT GENERATE THIS - FORBIDDEN)
+       ❌ "Shop now and save big today!" (6 words - DO NOT GENERATE THIS - FORBIDDEN)
+    6. CRITICAL: If the user provides dialogue that exceeds 5 words, you MUST shorten it to 5 words or less BEFORE including it. Take only the first 5 words. Do NOT include the original long dialogue.
+    7. COUNT WORDS BEFORE WRITING: Always count words BEFORE you write the dialogue in audioNotes. Do not write dialogue first and then count - count first, then write only if it's 5 words or less.
+  - This requirement applies to ALL CTA segments. Any dialogue exceeding 5 words will cause the storyboard to be REJECTED and the entire response will be regenerated. You MUST count words BEFORE generating dialogue, not after. If you generate dialogue with more than 5 words, the ENTIRE storyboard will be rejected.
 - **🚨🚨🚨 HARD REJECTION RULE - NO MIRRORS/REFLECTIONS (ABSOLUTE MANDATORY)**: DO NOT use mirrors, reflections, reflective surfaces, bathroom mirrors, or people looking at their reflection. DO NOT include mirrors in visual prompts. DO NOT generate images with mirrors visible. Any storyboard containing these elements will be automatically rejected. This is a hard requirement that applies to ALL storyboard generations. The visualPrompt MUST explicitly avoid any mention of mirrors, reflections, or reflective surfaces. Generated images must NOT show mirrors or reflections.
 - **CRITICAL: NO CHILDREN**: DO NOT include children in any scenes. No children visible in any part of the storyboard. All characters must be adults.
 - **CRITICAL: NO ELECTRONIC DEVICES**: DO NOT use laptops, phones, tablets, computers, screens, monitors, or ANY electronic devices in scenes. ABSOLUTELY NO technology interfaces, NO devices, NO screens of any kind. This is a hard requirement - if you include any electronic device, the storyboard will be rejected.
@@ -197,8 +214,8 @@ Definitions:
 - Veo 3.1 supports native audio generation with rich audio & dialogue capabilities. You MUST include audio cues within the visualPrompt if applicable.
 - **Timestamp prompting**: Use precise timecodes for actions: "[00:00-00:02] The woman smiles. [00:02-00:04] She turns to the camera." This allows you to direct complete sequences with precise cinematic pacing.
 - For DIALOGUE:
-  - **🚨 CRITICAL: ONLY generate dialogue in audioNotes if the user has explicitly provided dialogue text. If no dialogue is provided by the user, set audioNotes to an empty string (""). DO NOT auto-generate dialogue based on the story content. Only include dialogue when the user has explicitly specified it.**
-  - If a character speaks (and dialogue is explicitly provided), write it explicitly in the 'audioNotes' field using format: "Dialogue: [character] says: '[text]'"
+  - **🚨🚨🚨 CRITICAL: DIALOGUE REQUIREMENT - MANDATORY FOR ALL SCENES (NO EXCEPTIONS) 🚨🚨🚨**: EVERY scene (hook, body, CTA) MUST include character dialogue in the audioNotes field. NO EXCEPTIONS - dialogue is required for ALL scenes, including product reveals and transitions. No scene should be silent. If the user has not provided dialogue, you MUST generate appropriate dialogue for each scene that matches the story content and scene purpose. Dialogue should: Hook scene - introduce the problem or situation; Body scene(s) - develop the story, show product interaction; CTA scene - conclude with call to action (5 words or less for CTA). If a scene would naturally be silent, add dialogue that fits the context (e.g., character thinking aloud, reacting, or speaking to themselves).
+  - Write dialogue explicitly in the 'audioNotes' field using format: "Dialogue: [character] says: '[text]'"
   - Use ellipses (...) for natural pauses.
   - Include audio actions: "(laughs)", "(sighs)", "(claps)".
   - **CRITICAL: Only one character should speak per segment. Different characters can speak in different segments, but within a single segment, only one character speaks.**
@@ -256,7 +273,7 @@ Return ONLY valid JSON with this structure:
         "type": "hook",
         "description": "Hook scene description - attention-grabbing opening",
         "visualPrompt": "Detailed visual prompt for hook scene following the 5-part formula. 🚨🚨🚨 ABSOLUTE REQUIREMENT: Single continuous shot with NO cuts, NO transitions, NO edits, NO scene changes. This must be ONE unbroken shot from start to finish. End on mini-resolve. 🚨 CRITICAL SKIN QUALITY: ALL characters in the hook/opening frame MUST have PERFECT, FLAWLESS, HEALTHY skin with ZERO imperfections (no blemishes, acne, marks, redness, or any skin defects). This applies to the opening frame - characters must have perfect skin from the very first frame.",
-        "audioNotes": "ONLY include dialogue if explicitly provided by user. If no dialogue is provided, set to empty string (\"\"). Do NOT auto-generate dialogue.",
+        "audioNotes": "🚨 MANDATORY: This scene MUST include character dialogue. Generate appropriate dialogue that matches the story content and scene purpose. Format: 'Dialogue: [character] says: [text]'. If user provided dialogue, use it. If not, generate dialogue that fits the scene context.",
         "startTime": 0,
         "endTime": 6
       },
@@ -264,7 +281,7 @@ Return ONLY valid JSON with this structure:
         "type": "body",
         "description": "Product introduction + transformation scene - delivers 'oh shit' moment",
         "visualPrompt": "Detailed visual prompt for product intro scene following the 5-part formula. 🚨🚨🚨 ABSOLUTE REQUIREMENT: Single continuous shot with NO cuts, NO transitions, NO edits, NO scene changes. This must be ONE unbroken shot from start to finish. 🚨🚨🚨 CRITICAL: Maintain the EXACT same background, environment, and setting as the hook segment - same room, same location, same background elements. Do NOT change scenes, backgrounds, or environments. The background must remain IDENTICAL throughout. Camera matches momentum from hook. Slow-motion reveal at 4-5s of this clip. CRITICAL: Show continuous motion and active action throughout - character reaching, applying, moving hands, changing expressions. Do NOT show character as still or motionless. ${isMakeupProduct ? 'CRITICAL FOR MAKEUP PRODUCTS: The character must be shown HOLDING the product container and ACTIVELY APPLYING the product FROM the container TO the appropriate body part (face, lips, eyes, etc.). Show the complete application sequence: product in hand → applying to body part → product visible. Do NOT show the product randomly appearing on the character - it must be shown being applied.' : ''}${isSkincareProduct ? 'CRITICAL FOR SKINCARE PRODUCTS: The character must be shown HOLDING the product container (bottle, tube, pump, etc.) and ACTIVELY APPLYING the product FROM the container TO the appropriate skin area (face, cheeks, forehead, etc.). Show the complete application sequence: product container in hand → applying to skin → product visible on skin. Do NOT show the product randomly appearing on the character\'s face/skin from fingers/hands without showing the container first - it must be shown being applied from the container.' : ''} End on mini-resolve.",
-        "audioNotes": "ONLY include dialogue if explicitly provided by user. If no dialogue is provided, set to empty string (\"\"). Do NOT auto-generate dialogue.",
+        "audioNotes": "🚨 MANDATORY: This scene MUST include character dialogue. Generate appropriate dialogue that matches the story content and scene purpose. Format: 'Dialogue: [character] says: [text]'. If user provided dialogue, use it. If not, generate dialogue that fits the scene context.",
         "startTime": 6,
         "endTime": 12
       },
@@ -272,7 +289,7 @@ Return ONLY valid JSON with this structure:
         "type": "cta",
         "description": "Hero shot + CTA + logo lockup scene - MUST be visually distinct from hook opening (at least 2 of: different camera angle, different pose, or different composition)",
         "visualPrompt": "Detailed visual prompt for CTA scene following the 5-part formula. 🚨🚨🚨 ABSOLUTE REQUIREMENT: Single continuous shot with NO cuts, NO transitions, NO edits, NO scene changes. This must be ONE unbroken shot from start to finish. Freeze on perfect product/after state. Text + logo slam in. One punchy tagline. Ends exactly at 16.000s. CRITICAL: This closing shot must be visually distinct from the opening hook shot - use at least 2 of: different camera angle, different character pose, or different composition while maintaining the same character and setting. IMPORTANT: For beauty/skincare products, prefer terms like 'complexion', 'appearance', 'radiant results', 'visible transformation' over 'skin' in CTA descriptions. Focus on product benefits and results rather than skin appearance changes. 🚨 CRITICAL PRICING REQUIREMENT: If the prompt mentions pricing (e.g., 'Now only $X (was $Y)'), you MUST use ONLY the SALE PRICE ($X) in any pricing displays, text overlays, or descriptions. DO NOT use the original price ($Y) or any calculated price. The sale price is the price that appears after 'Now only' or 'only $'. This is MANDATORY - any pricing display must show the sale price only.",
-        "audioNotes": "ONLY include dialogue if explicitly provided by user. If no dialogue is provided, set to empty string (\"\"). Do NOT auto-generate dialogue. 🚨🚨🚨 CRITICAL CTA DIALOGUE WORD LIMIT - ABSOLUTE MANDATORY: If dialogue is provided for the CTA segment, it MUST be EXACTLY 5 words or less. You MUST NEVER generate CTA dialogue with more than 5 words. BEFORE including any dialogue, you MUST: 1) Count the words in the dialogue text, 2) If it exceeds 5 words, shorten it to 5 words or less BEFORE including it, 3) Generate ONLY dialogue that is 5 words or less. Examples of VALID CTA dialogue: 'Buy now to transform.' (5 words), 'Shop now and save.' (4 words), 'Get yours today.' (3 words). Examples of INVALID dialogue you MUST NOT generate: 'Purchase now to transform your skin.' (7 words - DO NOT GENERATE), 'Buy now to transform your skin overnight!' (8 words - DO NOT GENERATE). This is a MANDATORY requirement - any CTA dialogue exceeding 5 words will cause the storyboard to be REJECTED. IMPORTANT: For CTA dialogue, if the user provides dialogue mentioning 'skin', prefer alternatives like 'complexion', 'appearance', or 'results' to avoid content moderation filters.",
+        "audioNotes": "ONLY include dialogue if explicitly provided by user. If no dialogue is provided, set to empty string (\"\"). Do NOT auto-generate dialogue. 🚨🚨🚨 CRITICAL CTA DIALOGUE WORD LIMIT - ABSOLUTE MANDATORY (ZERO TOLERANCE): If dialogue is provided for the CTA segment, it MUST be EXACTLY 5 words or less. You MUST NEVER generate CTA dialogue with more than 5 words. BEFORE including any dialogue, you MUST: 1) COUNT the words in the dialogue text FIRST (before writing), 2) If it exceeds 5 words, shorten it to 5 words or less BEFORE including it (take only first 5 words), 3) Generate ONLY dialogue that is 5 words or less. Examples of VALID CTA dialogue: 'Buy now to transform.' (5 words), 'Shop now and save.' (4 words), 'Get yours today.' (3 words). Examples of INVALID dialogue you MUST NOT generate: ❌ 'Purchase now to enjoy 60% off.' (6 words - FORBIDDEN - DO NOT GENERATE), ❌ 'Purchase now to transform your skin.' (7 words - FORBIDDEN - DO NOT GENERATE), ❌ 'Buy now to transform your skin overnight!' (8 words - FORBIDDEN - DO NOT GENERATE). This is a MANDATORY requirement - any CTA dialogue exceeding 5 words will cause the storyboard to be REJECTED and regenerated. COUNT WORDS BEFORE WRITING, NOT AFTER. IMPORTANT: For CTA dialogue, if the user provides dialogue mentioning 'skin', prefer alternatives like 'complexion', 'appearance', or 'results' to avoid content moderation filters.",
         "startTime": 12,
         "endTime": 16
       }
@@ -300,42 +317,36 @@ Return ONLY valid JSON with this structure:
     
     // Add makeup-specific instructions if detected
     const makeupInstructions = isMakeupProduct ? `
-🚨🚨🚨 CRITICAL: MAKEUP/COSMETICS PRODUCT APPLICATION REQUIREMENTS 🚨🚨🚨
-For makeup/cosmetics products, the visualPrompt MUST explicitly describe the proper application sequence:
-1. **Product Container Visible**: The character must be shown HOLDING the product container (bottle, tube, palette, compact, applicator, etc.) in their hand(s)
-2. **Application Motion**: The character must be shown ACTIVELY APPLYING the product FROM the container TO the appropriate body part:
-   - For face makeup (foundation, concealer, blush, bronzer, highlighter): apply to face (cheeks, forehead, chin, etc.) - show the application motion with hands/fingers/applicator
-   - For eye makeup (mascara, eyeliner, eyeshadow): apply to eyes/eyelids - show the application motion
-   - For lip makeup (lipstick, lip gloss, lip balm): apply to lips - show the application motion
-3. **Sequence Requirement**: The visualPrompt MUST show the complete sequence: product container in hand → character applying product from container → product visible on face/eyes/lips
-4. **NO RANDOM APPEARANCE**: The product should NOT randomly appear on the character's face/body. It MUST be shown being actively applied from the container.
-5. **Body Segment Focus**: In the body segment (Product Intro), the visualPrompt MUST include explicit application instructions like:
-   - "The character holds [product name] in hand and applies it to [body part]"
-   - "The character uses [product name] to apply [product type] to [body part]"
-   - "The character applies [product name] from the container to [body part] with smooth, deliberate motion"
-6. **Application Details**: Describe the application method (fingers, brush, applicator, etc.) and the target area (cheeks, lips, eyes, etc.)
-Example for foundation: ✅ "The character holds a foundation bottle in hand, squeezes product onto fingers, and applies it to cheeks and forehead with smooth, blending motion" ❌ "The character's face has foundation on it" (too vague - doesn't show application)
-Example for lipstick: ✅ "The character holds a lipstick tube, applies it to lips with precise motion, showing the application process" ❌ "The character has lipstick on her lips" (too vague - doesn't show application)
+🚨🚨🚨 CRITICAL: MAKEUP/COSMETICS PRODUCT HOLDING REQUIREMENTS 🚨🚨🚨
+For makeup/cosmetics products, the visualPrompt MUST explicitly describe the character holding the product and talking about it:
+1. **Product Container Visible**: The character must be shown HOLDING the product container (bottle, tube, palette, compact, applicator, etc.) in their hand(s) - the container must be clearly visible
+2. **NO APPLICATION**: The character must NEVER apply the product to their face, eyes, lips, or any body part. NO application motion, NO product on skin/face, NO using the product.
+3. **Holding and Talking**: The character must hold the product container clearly visible in hand(s) and talk about the product. The visualPrompt MUST describe the character holding the product and discussing it.
+4. **Body Segment Focus**: In the body segment (Product Intro), the visualPrompt MUST include explicit holding and discussion instructions like:
+   - "The character holds [product name] in hand and talks about its benefits"
+   - "The character holds [product name] and discusses how it works"
+   - "The character holds [product name] container, clearly visible, and talks about the product"
+5. **Product Details**: The character can gesture with the product, point to it, or show it to the camera while talking, but must NEVER apply it.
+Example for foundation: ✅ "The character holds a foundation bottle in hand, clearly visible, and talks about how it provides coverage and benefits" ❌ "The character applies foundation to face" (FORBIDDEN - no application)
+Example for lipstick: ✅ "The character holds a lipstick tube, clearly visible, and talks about the color and formula" ❌ "The character applies lipstick to lips" (FORBIDDEN - no application)
 ` : ''
     
     // Add skincare-specific instructions if detected
     const skincareInstructions = isSkincareProduct ? `
-🚨🚨🚨 CRITICAL: SKINCARE PRODUCT APPLICATION REQUIREMENTS 🚨🚨🚨
-For skincare products (serum, acne treatment, moisturizer, cream, etc.), the visualPrompt MUST explicitly describe the proper application sequence:
-1. **Product Container Visible**: The character must be shown HOLDING the product container (bottle, tube, pump, jar, dropper, etc.) in their hand(s)
-2. **Application Motion**: The character must be shown ACTIVELY APPLYING the product FROM the container TO the appropriate skin area:
-   - For face skincare (serum, moisturizer, cream, acne treatment): apply to face (cheeks, forehead, chin, nose, etc.) - show the application motion with hands/fingers moving product from container to face
-   - For spot treatments: apply to specific areas (blemishes, dark spots, etc.) - show precise application from container to target area
-   - For full-face products: show application motion covering face areas (forehead, cheeks, chin) with product from container
-3. **Sequence Requirement**: The visualPrompt MUST show the complete sequence: product container in hand → character applying product from container → product visible on skin
-4. **NO RANDOM APPEARANCE**: The product should NOT randomly appear on the character's face/skin. It MUST be shown being actively applied from the container. The product should NOT appear on the face from fingers/hands without showing the container first.
-5. **Body Segment Focus**: In the body segment (Product Intro), the visualPrompt MUST include explicit application instructions like:
-   - "The character holds [product name] in hand and applies it to [skin area]"
-   - "The character uses [product name] to apply [product type] to [skin area]"
-   - "The character applies [product name] from the container to [skin area] with smooth, deliberate motion"
-6. **Application Details**: Describe the application method (fingers, dropper, pump, etc.) and the target skin area (cheeks, forehead, chin, face, etc.)
-Example for serum: ✅ "The character holds a serum bottle in hand, dispenses product onto fingers, and applies it to cheeks and forehead with smooth, upward motion" ❌ "The character's face has serum on it" (too vague - doesn't show application)
-Example for acne treatment: ✅ "The character holds an acne treatment tube, squeezes product onto finger, and applies it to specific blemish areas on the face with precise motion" ❌ "The character has treatment on their face" (too vague - doesn't show application)
+🚨🚨🚨 CRITICAL: SKINCARE PRODUCT HOLDING REQUIREMENTS 🚨🚨🚨
+For skincare products (serum, acne treatment, moisturizer, cream, etc.), the visualPrompt MUST explicitly describe the character holding the product and talking about it:
+1. **Product Container Visible**: The character must be shown HOLDING the product container (bottle, tube, pump, jar, dropper, etc.) in their hand(s) - the container must be clearly visible
+2. **NO APPLICATION**: The character must NEVER apply the product to their face, skin, or any body part. NO application motion, NO product on skin/face, NO using the product.
+3. **Holding and Talking**: The character must hold the product container clearly visible in hand(s) and talk about the product. The visualPrompt MUST describe the character holding the product and discussing it.
+4. **Body Segment Focus**: In the body segment (Product Intro), the visualPrompt MUST include explicit holding and discussion instructions like:
+   - "The character holds [product name] in hand and talks about its benefits"
+   - "The character holds [product name] and discusses how it works"
+   - "The character holds [product name] container, clearly visible, and talks about the product"
+5. **Product Details**: The character can gesture with the product, point to it, or show it to the camera while talking, but must NEVER apply it.
+6. **🚨🚨🚨 NO DROPPER WATER DROPLETS - ABSOLUTE MANDATORY REQUIREMENT**: DO NOT show water droplets coming out of droppers, dropper tips with liquid drops, or liquid being dispensed from droppers. When showing dropper bottles, the dropper should be shown in the container or being held, but DO NOT show any visible water droplets, liquid drops, or liquid being dispensed from the dropper tip. The dropper should appear dry and without any visible liquid drops. This is a MANDATORY requirement - any visualPrompt describing water droplets from droppers will be REJECTED.
+7. **🚨 NO PRODUCT ON SKIN**: The product must NEVER appear on the character's skin, face, or any body part. The skin should always appear clean and natural. NO visible product on skin, NO application residue, NO product visible on face/body.
+Example for serum: ✅ "The character holds a serum bottle in hand, clearly visible, and talks about how it improves skin texture and benefits" ❌ "The character applies serum to face" (FORBIDDEN - no application)
+Example for acne treatment: ✅ "The character holds an acne treatment tube, clearly visible, and talks about how it targets blemishes" ❌ "The character applies treatment to face" (FORBIDDEN - no application)
 ` : ''
     
     const userPrompt = `Create an emotionally captivating storyboard based on this story:
@@ -353,14 +364,23 @@ ${skincareInstructions}
 
 🚨 CRITICAL PRICING REQUIREMENT: If the Original Prompt mentions pricing (e.g., "Now only $X (was $Y)" or "only $X"), you MUST use ONLY the SALE PRICE ($X) in any pricing displays, text overlays, or descriptions in the CTA segment. The sale price is the price that appears after "Now only" or "only $". DO NOT use the original price ($Y) or any calculated price. When displaying pricing in the CTA segment's visualPrompt or description, use ONLY the sale price. This is MANDATORY - any pricing display must show the sale price only.
 
-🚨🚨🚨 CRITICAL CTA DIALOGUE WORD LIMIT REQUIREMENT - ABSOLUTE MANDATORY (ZERO TOLERANCE): For the CTA segment, any dialogue in the audioNotes field MUST be EXACTLY 5 words or less. This is a HARD REQUIREMENT with ZERO TOLERANCE. You MUST NEVER generate CTA dialogue with more than 5 words. Before including dialogue in the CTA segment:
-1. FIRST, count the words in your intended dialogue text BEFORE writing it
-2. If your intended dialogue exceeds 5 words, you MUST shorten it to 5 words or less BEFORE including it
+🚨🚨🚨 CRITICAL CTA DIALOGUE WORD LIMIT REQUIREMENT - ABSOLUTE MANDATORY (ZERO TOLERANCE) 🚨🚨🚨
+For the CTA segment, any dialogue in the audioNotes field MUST be EXACTLY 5 words or less. This is a HARD REQUIREMENT with ZERO TOLERANCE. You MUST NEVER generate CTA dialogue with more than 5 words. 
+
+BEFORE including dialogue in the CTA segment, you MUST:
+1. FIRST, count the words in your intended dialogue text BEFORE writing it - count each word carefully
+2. If your intended dialogue exceeds 5 words, you MUST shorten it to 5 words or less BEFORE including it - take only the first 5 words
 3. Generate ONLY dialogue that is 5 words or less - do NOT generate dialogue and then truncate it
 4. Examples of VALID CTA dialogue: ✅ "Buy now to transform." (5 words), ✅ "Shop now and save." (4 words), ✅ "Get yours today." (3 words)
-5. Examples of INVALID dialogue you MUST NOT generate: ❌ "Purchase now to transform your skin." (7 words - DO NOT GENERATE), ❌ "Buy now to transform your skin overnight!" (8 words - DO NOT GENERATE), ❌ "Shop now and save big today!" (6 words - DO NOT GENERATE)
-6. CRITICAL: If the user provides dialogue that exceeds 5 words, you MUST shorten it to 5 words or less BEFORE including it. Do NOT include the original long dialogue.
-This requirement applies to ALL CTA segments. Any dialogue exceeding 5 words will cause the storyboard to be REJECTED and the entire response will be regenerated. You MUST count words BEFORE generating dialogue, not after.
+5. Examples of INVALID dialogue you MUST NOT generate: 
+   ❌ "Purchase now to enjoy 60% off." (6 words - FORBIDDEN - DO NOT GENERATE)
+   ❌ "Purchase now to transform your skin." (7 words - FORBIDDEN - DO NOT GENERATE)
+   ❌ "Buy now to transform your skin overnight!" (8 words - FORBIDDEN - DO NOT GENERATE)
+   ❌ "Shop now and save big today!" (6 words - FORBIDDEN - DO NOT GENERATE)
+6. CRITICAL: If the user provides dialogue that exceeds 5 words, you MUST shorten it to 5 words or less BEFORE including it. Take only the first 5 words. Do NOT include the original long dialogue.
+7. COUNT WORDS BEFORE WRITING: Always count words BEFORE you write the dialogue in audioNotes. Do not write dialogue first and then count - count first, then write only if it's 5 words or less.
+
+This requirement applies to ALL CTA segments. Any dialogue exceeding 5 words will cause the storyboard to be REJECTED and the entire response will be regenerated. You MUST count words BEFORE generating dialogue, not after. If you generate dialogue with more than 5 words, the ENTIRE storyboard will be rejected.
 
 🚨 CHARACTER CONSISTENCY REQUIREMENT:
 - Extract all characters from the hook scene and ensure they maintain IDENTICAL appearance (gender, age, physical features, clothing) across all segments
@@ -374,48 +394,88 @@ Stay true to the story content. Focus on creating emotionally compelling visuals
 
 🚨 REMEMBER: This is a 16-second format with 3 segments (6s + 6s + 4s). Each segment must be a single continuous shot with zero cuts. Match camera momentum between segments. End each clip on a mini-resolve. The CTA segment must end exactly at 16.000s.`
 
-    // Use OpenAI chat completion via MCP
-    const storyboardsData = await callOpenAIMCP('chat_completion', {
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
-    })
+    // Retry logic for CTA dialogue validation
+    const maxRetries = 3
+    let attempt = 0
+    let segments: Segment[] = []
+    let lastError: Error | null = null
+    
+    while (attempt < maxRetries) {
+      attempt++
+      try {
+        // Add rejection feedback if this is a retry
+        let currentUserPrompt = userPrompt
+        if (attempt > 1 && lastError) {
+          const errorMessage = lastError.message
+          const dialogueMatch = errorMessage.match(/"(.+?)" \((\d+) words\)/)
+          if (dialogueMatch) {
+            const failedDialogue = dialogueMatch[1]
+            const wordCount = dialogueMatch[2]
+            currentUserPrompt = `${userPrompt}
 
-    // Handle response - chat_completion returns content wrapped in JSON
-    let data = storyboardsData
-    if (storyboardsData.content && typeof storyboardsData.content === 'string') {
-      // Parse the content string which contains JSON
-      const parsedContent = JSON.parse(storyboardsData.content)
-      if (parsedContent.content) {
-        // Parse the actual content
-        data = JSON.parse(parsedContent.content)
-      } else {
-        data = parsedContent
-      }
-    } else if (storyboardsData.content && Array.isArray(storyboardsData.content) && storyboardsData.content[0]?.text) {
-      const parsedContent = JSON.parse(storyboardsData.content[0].text)
-      if (parsedContent.content) {
-        data = JSON.parse(parsedContent.content)
-      } else {
-        data = parsedContent
-      }
-    } else if (typeof storyboardsData === 'string') {
-      data = JSON.parse(storyboardsData)
-    } else if (storyboardsData.choices && storyboardsData.choices[0]?.message?.content) {
-      data = JSON.parse(storyboardsData.choices[0].message.content)
-    }
+🚨🚨🚨 REGENERATION REQUEST - PREVIOUS ATTEMPT REJECTED 🚨🚨🚨
+Your previous CTA dialogue was REJECTED because it exceeded the 5-word limit.
+- Previous CTA dialogue: "${failedDialogue}" (${wordCount} words)
+- Required: EXACTLY 5 words or less (ZERO TOLERANCE)
+- You MUST count the words before submitting. The word count MUST be 5 or fewer.
+- CRITICAL: Count each word individually. Contractions count as one word (e.g., "don't" = 1 word, "you're" = 1 word).
+- Examples of VALID CTA dialogue:
+  ✅ "Buy now to transform." (5 words)
+  ✅ "Shop now and save." (4 words)
+  ✅ "Get yours today." (3 words)
+  ✅ "Purchase now to save." (4 words)
+- Examples of INVALID dialogue that must be fixed:
+  ❌ "${failedDialogue}" (${wordCount} words - TOO LONG - DO NOT GENERATE THIS AGAIN)
+  ❌ "Purchase now to enjoy 60% off." (6 words - TOO LONG)
+  ❌ "Buy now to transform your skin." (7 words - TOO LONG)
+- If the original dialogue exceeds 5 words, you MUST shorten it to the first 5 words only.
+- Generate a NEW dialogue that is EXACTLY 5 words or less. COUNT YOUR WORDS CAREFULLY before submitting.
+- This is attempt ${attempt} of ${maxRetries}. The storyboard will be rejected if CTA dialogue exceeds 5 words.`
+          }
+        }
 
-    // Extract storyboard from response
-    const sbData = data.storyboard || data
-    const segments: Segment[] = (sbData.segments || []).map((seg: any) => {
-      // Validate audioNotes: if it's a placeholder or generic instruction, set to empty
+        // Use OpenAI chat completion via MCP
+        const storyboardsData = await callOpenAIMCP('chat_completion', {
+          model: 'gpt-4o',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: currentUserPrompt },
+          ],
+          response_format: { type: 'json_object' },
+        })
+
+        // Handle response - chat_completion returns content wrapped in JSON
+        let data = storyboardsData
+        if (storyboardsData.content && typeof storyboardsData.content === 'string') {
+          // Parse the content string which contains JSON
+          const parsedContent = JSON.parse(storyboardsData.content)
+          if (parsedContent.content) {
+            // Parse the actual content
+            data = JSON.parse(parsedContent.content)
+          } else {
+            data = parsedContent
+          }
+        } else if (storyboardsData.content && Array.isArray(storyboardsData.content) && storyboardsData.content[0]?.text) {
+          const parsedContent = JSON.parse(storyboardsData.content[0].text)
+          if (parsedContent.content) {
+            data = JSON.parse(parsedContent.content)
+          } else {
+            data = parsedContent
+          }
+        } else if (typeof storyboardsData === 'string') {
+          data = JSON.parse(storyboardsData)
+        } else if (storyboardsData.choices && storyboardsData.choices[0]?.message?.content) {
+          data = JSON.parse(storyboardsData.choices[0].message.content)
+        }
+
+        // Extract storyboard from response
+        const sbData = data.storyboard || data
+        segments = (sbData.segments || []).map((seg: any) => {
+      // Validate audioNotes: ensure dialogue exists (mandatory for all scenes)
       let audioNotes = seg.audioNotes || ''
       // Check if audioNotes is a placeholder/instruction rather than actual dialogue
       const placeholderPatterns = [
-        /^(Spoken dialogue|dialogue|voiceover|script|audio|notes|ONLY include|Do NOT auto-generate)/i,
+        /^(Spoken dialogue|dialogue|voiceover|script|audio|notes|ONLY include|Do NOT auto-generate|MANDATORY|🚨)/i,
         /^(Spoken dialogue or voiceover script for this scene)$/i,
         /^(ONLY include dialogue if explicitly provided)/i,
       ]
@@ -423,33 +483,27 @@ Stay true to the story content. Focus on creating emotionally compelling visuals
         audioNotes = ''
       }
       
-      // Validate and truncate CTA dialogue word count - safety net to ensure 5 words or less
+      // Validate that dialogue exists (mandatory for all scenes)
+      const hasDialogue = audioNotes && (
+        /Dialogue:\s*[^:]+?\s+says:\s*['"]/i.test(audioNotes) ||
+        /Voiceover:/i.test(audioNotes)
+      )
+      
+      if (!hasDialogue) {
+        console.warn(`[Generate Storyboards] ⚠️ Missing dialogue in ${seg.type} segment - this violates mandatory dialogue requirement`)
+      }
+      
+      // Validate CTA dialogue word count - do not truncate, will retry if invalid
       if (seg.type === 'cta' && audioNotes) {
         const dialogueMatch = audioNotes.match(/Dialogue:\s*[^:]+?\s+says:\s*['"](.+?)['"]/i)
         if (dialogueMatch) {
-          let dialogueText = dialogueMatch[1].trim()
+          const dialogueText = dialogueMatch[1].trim()
           const wordCount = dialogueText.split(/\s+/).filter(word => word.length > 0).length
           
           if (wordCount > 5) {
             console.warn(`[Generate Storyboards] ⚠️ CTA dialogue has ${wordCount} words (exceeds 5-word limit): "${dialogueText}"`)
-            console.warn(`[Generate Storyboards] Truncating to first 5 words as safety net.`)
-            
-            // Truncate to first 5 words
-            const words = dialogueText.split(/\s+/).filter(word => word.length > 0)
-            const truncatedWords = words.slice(0, 5)
-            dialogueText = truncatedWords.join(' ')
-            
-            console.log(`[Generate Storyboards] ✓ CTA dialogue truncated to 5 words: "${dialogueText}"`)
-            
-            // Update audioNotes with truncated dialogue
-            const characterMatch = audioNotes.match(/Dialogue:\s*([^:]+?)\s+says:/i)
-            if (characterMatch) {
-              const character = characterMatch[1].trim()
-              audioNotes = `Dialogue: ${character} says: '${dialogueText}'`
-            } else {
-              // Fallback if character extraction fails
-              audioNotes = audioNotes.replace(/Dialogue:\s*[^:]+?\s+says:\s*['"](.+?)['"]/i, `Dialogue: The character says: '${dialogueText}'`)
-            }
+            // Don't truncate - will trigger retry with stronger instructions
+            throw new Error(`CTA dialogue exceeds 5-word limit: "${dialogueText}" (${wordCount} words). The AI model should never generate CTA dialogue exceeding 5 words.`)
           }
         }
       }
@@ -464,7 +518,60 @@ Stay true to the story content. Focus on creating emotionally compelling visuals
         audioNotes,
         status: 'pending' as const,
       }
-    })
+        })
+        
+        // Validate that all segments have dialogue (mandatory requirement)
+        const allSegmentsHaveDialogue = segments.every((seg: any) => {
+          const audioNotes = seg.audioNotes || ''
+          return audioNotes && (
+            /Dialogue:\s*[^:]+?\s+says:\s*['"]/i.test(audioNotes) ||
+            /Voiceover:/i.test(audioNotes)
+          )
+        })
+        
+        if (!allSegmentsHaveDialogue) {
+          const missingSegments = segments
+            .map((seg: any, idx: number) => {
+              const audioNotes = seg.audioNotes || ''
+              const hasDialogue = audioNotes && (
+                /Dialogue:\s*[^:]+?\s+says:\s*['"]/i.test(audioNotes) ||
+                /Voiceover:/i.test(audioNotes)
+              )
+              return hasDialogue ? null : `${seg.type} (segment ${idx})`
+            })
+            .filter(Boolean)
+          
+          console.warn(`[Generate Storyboards] ⚠️ Missing dialogue in segments: ${missingSegments.join(', ')} - this violates mandatory dialogue requirement`)
+          if (attempt < maxRetries) {
+            console.warn(`[Generate Storyboards] Will retry to ensure all segments have dialogue (attempt ${attempt + 1}/${maxRetries})`)
+            throw new Error(`Missing dialogue in segments: ${missingSegments.join(', ')}. All scenes must have dialogue.`)
+          } else {
+            console.error(`[Generate Storyboards] ✗ All ${maxRetries} attempts failed. Missing dialogue in segments: ${missingSegments.join(', ')}`)
+            throw new Error(`Failed to generate storyboard with dialogue in all segments after ${maxRetries} attempts. Missing dialogue in: ${missingSegments.join(', ')}`)
+          }
+        }
+        
+        // If we get here, validation passed
+        console.log(`[Generate Storyboards] ✓ CTA dialogue validation passed on attempt ${attempt}`)
+        console.log(`[Generate Storyboards] ✓ All segments have dialogue (mandatory requirement satisfied)`)
+        break // Exit retry loop
+      } catch (error: any) {
+        lastError = error
+        if (error.message && error.message.includes('CTA dialogue exceeds 5-word limit')) {
+          console.warn(`[Generate Storyboards] ✗ Attempt ${attempt} failed: ${error.message}`)
+          if (attempt < maxRetries) {
+            console.log(`[Generate Storyboards] Retrying with stronger instructions (attempt ${attempt + 1}/${maxRetries})...`)
+            continue // Retry with stronger instructions
+          } else {
+            console.error(`[Generate Storyboards] ✗ All ${maxRetries} attempts failed. CTA dialogue validation failed.`)
+            throw new Error(`Failed to generate storyboard with valid CTA dialogue after ${maxRetries} attempts. Last error: ${error.message}`)
+          }
+        } else {
+          // Non-validation error, don't retry
+          throw error
+        }
+      }
+    }
 
     // Ensure we have exactly 3 segments for 16-second format
     if (segments.length !== 3) {
@@ -510,6 +617,15 @@ Stay true to the story content. Focus on creating emotionally compelling visuals
         if (!segment.visualPrompt.includes('CHARACTER VISIBILITY') && !segment.visualPrompt.includes('character must be visible')) {
           const visibilityInstruction = `🚨🚨🚨 CRITICAL CHARACTER VISIBILITY - MANDATORY REQUIREMENT: The main character MUST be VISIBLE in this frame at all times. Even when showing products, text overlays, or logo lockups, the character must remain visible in the frame. The character can be in the background, side, foreground, or any position, but MUST be present and visible. DO NOT create frames that show only the product without the character visible. This is a MANDATORY requirement - the character must appear in EVERY frame. `
           segment.visualPrompt = `${visibilityInstruction}${segment.visualPrompt}`
+        }
+        
+        // Add product visibility requirement for all segments when product is part of the story
+        const hasProductInStory = productImages.length > 0 || 
+          /product|bottle|container|item|package|tube|jar|pump|dropper|serum|cream|moisturizer|makeup|cosmetic|lipstick|foundation/i.test(`${story.description} ${story.hook} ${bodyContent} ${story.callToAction} ${prompt} ${segment.visualPrompt}`)
+        
+        if (hasProductInStory && !segment.visualPrompt.includes('PRODUCT VISIBILITY') && !segment.visualPrompt.includes('product must be visible')) {
+          const productVisibilityInstruction = `🚨🚨🚨 CRITICAL PRODUCT VISIBILITY - MANDATORY REQUIREMENT: The product MUST be VISIBLE in this frame at all times. Even when focusing on the character, showing character close-ups, text overlays, logo lockups, or character actions, the product must remain visible in the frame. The product can be in the character's hands, on a surface, in the background, foreground, or any position, but MUST be present and visible. DO NOT create frames that show only the character without the product visible. This is a MANDATORY requirement - the product must appear in EVERY frame. Both the character AND the product must be visible together in the same frame. `
+          segment.visualPrompt = `${productVisibilityInstruction}${segment.visualPrompt}`
         }
         
         // Add character speaking requirement for CTA if dialogue is provided

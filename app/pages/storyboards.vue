@@ -2373,12 +2373,27 @@ const generateFrames = async () => {
       }, 5 * 60 * 1000)
     })
 
+    // Extract price from categoryFlow or promptData
+    let price: number | undefined = undefined
+    try {
+      const categoryFlowStr = sessionStorage.getItem('categoryFlow')
+      if (categoryFlowStr) {
+        const categoryFlow = JSON.parse(categoryFlowStr)
+        if (categoryFlow.salePrice) {
+          price = categoryFlow.salePrice
+        }
+      }
+    } catch (e) {
+      console.warn('[Storyboards] Could not extract price from categoryFlow:', e)
+    }
+    
     const requestBody = {
       storyboard: selectedStoryboard.value,
       productImages: promptData.value.productImages || [],
       subjectReference: promptData.value.subjectReference, // Add person reference for nano-banana
       story: selectedStory.value,
       mode: selectedStoryboard.value.meta.mode || 'production',
+      price, // Add price for CTA text overlay
     }
     console.log('[Storyboards] Request body productImages:', requestBody.productImages)
     console.log('[Storyboards] Request body productImages count:', requestBody.productImages.length)

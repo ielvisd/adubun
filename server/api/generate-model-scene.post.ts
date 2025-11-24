@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { callReplicateMCP } from '../utils/mcp-client'
+import { SKIN_IMPERFECTION_EXCLUSION_TEXT, SKIN_QUALITY_POSITIVE_INSTRUCTION } from '../utils/negative-prompts'
 
 const generateSceneSchema = z.object({
   modelImageUrl: z.string().url(),
@@ -22,6 +23,8 @@ export default defineEventHandler(async (event) => {
     IMPORTANT: Any product or object held must be a PLAIN WHITE PLACEHOLDER OBJECT. 
     Pure white matte finish. No logos, no text, no labels, no branding. 
     Minimalist white prop.
+    ${SKIN_QUALITY_POSITIVE_INSTRUCTION}.
+    ${SKIN_IMPERFECTION_EXCLUSION_TEXT}.
     Photorealistic, 8k, highly detailed, cinematic lighting.
   `.trim().replace(/\s+/g, ' ')
 
@@ -29,7 +32,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const result = await callReplicateMCP('generate_image', {
-      model: 'google/nano-banana',
+      model: 'google/nano-banana-pro',
       prompt: prompt,
       image_input: [modelImageUrl], // Pass model image as reference
       aspect_ratio: '9:16',

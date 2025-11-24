@@ -541,7 +541,18 @@
           <!-- Video Generation Progress -->
           <UCard v-if="videoGenerationStatus === 'processing'" class="bg-mendo-white dark:bg-mendo-black border border-mendo-light-grey dark:border-mendo-light-grey/30">
             <template #header>
-              <h3 class="text-lg font-semibold text-mendo-black dark:text-mendo-white">Video Generation Progress</h3>
+              <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-mendo-black dark:text-mendo-white">Video Generation Progress</h3>
+                <UButton
+                  v-if="videoGenerationStep === 'generating-assets'"
+                  icon="i-heroicons-arrow-path"
+                  size="xs"
+                  variant="ghost"
+                  @click="pollVideoStatus"
+                >
+                  Refresh
+                </UButton>
+              </div>
             </template>
             <div class="space-y-4">
               <div>
@@ -551,7 +562,13 @@
                 </div>
                 <UProgress :value="videoGenerationProgress" class="mb-4" />
               </div>
-              <div class="flex items-center gap-3">
+              
+              <!-- Estimated Time Remaining -->
+              <div v-if="estimatedTimeRemaining !== null && estimatedTimeRemaining > 0" class="text-sm text-mendo-black/70 dark:text-mendo-white/70">
+                Estimated time remaining: {{ formatTime(estimatedTimeRemaining) }}
+              </div>
+              
+              <div class="flex items-center gap-3 mb-4">
                 <UIcon
                   v-if="videoGenerationStep === 'generating-assets'"
                   name="i-heroicons-arrow-path"
@@ -570,6 +587,84 @@
                 <span class="text-sm text-mendo-black/80 dark:text-mendo-white/80">
                   {{ videoGenerationStep === 'generating-assets' ? 'Generating video assets...' : videoGenerationStep === 'composing-video' ? 'Composing final video...' : 'Processing...' }}
                 </span>
+              </div>
+              
+              <!-- Segment-by-Segment Progress -->
+              <div v-if="segmentStatuses.length > 0 && videoGenerationStep === 'generating-assets'" class="space-y-3">
+                <h4 class="text-sm font-semibold text-mendo-black dark:text-mendo-white">Segment Progress</h4>
+                <div class="space-y-2">
+                  <div
+                    v-for="segmentStatus in segmentStatuses"
+                    :key="segmentStatus.segmentId"
+                    class="p-3 rounded-lg border border-mendo-light-grey dark:border-mendo-light-grey/30 bg-mendo-white/50 dark:bg-mendo-black/50"
+                  >
+                    <div class="flex items-center justify-between mb-2">
+                      <div class="flex items-center gap-2">
+                        <UIcon
+                          v-if="segmentStatus.status === 'processing'"
+                          name="i-heroicons-arrow-path"
+                          class="w-4 h-4 text-secondary-500 animate-spin"
+                        />
+                        <UIcon
+                          v-else-if="segmentStatus.status === 'completed'"
+                          name="i-heroicons-check-circle"
+                          class="w-4 h-4 text-green-500"
+                        />
+                        <UIcon
+                          v-else-if="segmentStatus.status === 'failed'"
+                          name="i-heroicons-x-circle"
+                          class="w-4 h-4 text-red-500"
+                        />
+                        <span class="text-sm font-medium text-mendo-black dark:text-mendo-white">
+                          Segment {{ segmentStatus.segmentId + 1 }}
+                          <span v-if="segmentStatus.segmentType" class="text-xs text-mendo-black/50 dark:text-mendo-white/50">
+                            ({{ segmentStatus.segmentType }})
+                          </span>
+                        </span>
+                      </div>
+                      <span
+                        class="text-xs px-2 py-1 rounded"
+                        :class="{
+                          'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200': segmentStatus.status === 'processing',
+                          'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200': segmentStatus.status === 'completed',
+                          'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200': segmentStatus.status === 'failed',
+                        }"
+                      >
+                        {{ segmentStatus.status }}
+                      </span>
+                    </div>
+                    
+                    <!-- Prediction ID and Status -->
+                    <div v-if="segmentStatus.predictionId" class="text-xs text-mendo-black/60 dark:text-mendo-white/60 mb-1">
+                      Prediction: {{ segmentStatus.predictionId.substring(0, 12) }}...
+                      <span v-if="segmentStatus.predictionStatus" class="ml-2">
+                        ({{ segmentStatus.predictionStatus }})
+                      </span>
+                    </div>
+                    
+                    <!-- Elapsed Time -->
+                    <div v-if="segmentStatus.elapsedTime !== undefined && segmentStatus.status === 'processing'" class="text-xs text-mendo-black/60 dark:text-mendo-white/60">
+                      Processing for {{ formatTime(segmentStatus.elapsedTime) }}
+                    </div>
+                    
+                    <!-- Error Message -->
+                    <div v-if="segmentStatus.status === 'failed' && segmentStatus.error" class="mt-2">
+                      <div class="text-xs text-red-600 dark:text-red-400 mb-2">
+                        {{ segmentStatus.error }}
+                      </div>
+                      <UButton
+                        size="xs"
+                        color="red"
+                        variant="outline"
+                        :loading="regeneratingScenes.has(segmentStatus.segmentId)"
+                        @click="regenerateScene(segmentStatus.segmentId)"
+                      >
+                        <UIcon name="i-heroicons-arrow-path" class="w-3 h-3 mr-1" />
+                        Retry Segment
+                      </UButton>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </UCard>
@@ -761,6 +856,17 @@ const sceneVideoChanged = ref(false) // Track if any scene has changed
 const pollingInterval = ref<NodeJS.Timeout | null>(null)
 const assetJobId = ref<string | null>(null) // Store asset job ID for regeneration
 const startingVideoGeneration = ref(false) // Track initial API call state for immediate feedback
+const segmentStatuses = ref<Array<{
+  segmentId: number
+  status: string
+  error?: string
+  videoUrl?: string
+  predictionId?: string
+  predictionStatus?: string
+  elapsedTime?: number
+  segmentType?: string
+}>>([])
+const estimatedTimeRemaining = ref<number | null>(null)
 
 // Poll for storyboard status
 const pollStoryboardStatus = async (jobId: string, meta: any, maxAttempts: number = 60): Promise<Storyboard> => {
@@ -961,6 +1067,20 @@ const generateFrames = async (storyboardData: Storyboard, promptData: any) => {
     console.log('[Preview] Avatar reference:', promptData.avatarReference)
     console.log('[Preview] Avatar ID:', promptData.avatarId)
     
+    // Extract price from categoryFlow
+    let price: number | undefined = undefined
+    try {
+      const categoryFlowStr = sessionStorage.getItem('categoryFlow')
+      if (categoryFlowStr) {
+        const categoryFlow = JSON.parse(categoryFlowStr)
+        if (categoryFlow.salePrice) {
+          price = categoryFlow.salePrice
+        }
+      }
+    } catch (e) {
+      console.warn('[Preview] Could not extract price from categoryFlow:', e)
+    }
+    
     // Call generate-frames API
     const framesResult = await $fetch('/api/generate-frames', {
       method: 'POST',
@@ -972,6 +1092,7 @@ const generateFrames = async (storyboardData: Storyboard, promptData: any) => {
         avatarId: promptData.avatarId,
         story,
         mode: storyboardData.meta.mode || 'production',
+        price, // Add price for CTA text overlay
       },
     }) as { frames: Array<{ segmentIndex: number; frameType: string; imageUrl: string }> }
     
@@ -1133,12 +1254,37 @@ const pollVideoStatus = async () => {
       assets?: Array<{ segmentId: number; videoUrl?: string; status: string }>
       sceneVideos?: Record<number, string>
       assetJobId?: string
+      segmentStatuses?: Array<{
+        segmentId: number
+        status: string
+        error?: string
+        videoUrl?: string
+        predictionId?: string
+        predictionStatus?: string
+        elapsedTime?: number
+        segmentType?: string
+      }>
+      estimatedTimeRemaining?: number | null
+      totalSegments?: number
+      completedSegments?: number
+      failedSegments?: number
+      processingSegments?: number
     }
     
     videoGenerationStatus.value = result.status
     videoGenerationProgress.value = result.progress
     if (result.step) {
       videoGenerationStep.value = result.step
+    }
+    
+    // Store segment statuses for detailed progress display
+    if (result.segmentStatuses) {
+      segmentStatuses.value = result.segmentStatuses
+    }
+    
+    // Store estimated time remaining
+    if (result.estimatedTimeRemaining !== undefined) {
+      estimatedTimeRemaining.value = result.estimatedTimeRemaining
     }
     
     // Store asset job ID for regeneration
@@ -1264,6 +1410,21 @@ const stopPollingVideoStatus = () => {
   if (pollingInterval.value) {
     clearInterval(pollingInterval.value)
     pollingInterval.value = null
+  }
+}
+
+// Format time in seconds to human-readable string
+const formatTime = (seconds: number): string => {
+  if (seconds < 60) {
+    return `${seconds}s`
+  } else if (seconds < 3600) {
+    const minutes = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return secs > 0 ? `${minutes}m ${secs}s` : `${minutes}m`
+  } else {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`
   }
 }
 

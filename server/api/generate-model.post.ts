@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { callReplicateMCP } from '../utils/mcp-client'
+import { SKIN_IMPERFECTION_EXCLUSION_TEXT, SKIN_QUALITY_POSITIVE_INSTRUCTION } from '../utils/negative-prompts'
 
 const generateModelSchema = z.object({
   name: z.string().min(1),
@@ -18,13 +19,13 @@ export default defineEventHandler(async (event) => {
 
   // Construct a detailed prompt for Nano-banana
   // "Professional portrait of a [ageRange] year old [gender], [description]. Style: [lookStyle]. Context: [categories]. Photorealistic, 8k, highly detailed, neutral background."
-  const prompt = `Professional portrait of a ${ageRange} year old ${gender}. ${description}. Style: ${lookStyle}. ${categories ? `Vibe: ${categories}.` : ''} Hands by side, holding nothing, empty hands, neutral pose. Raw photo, f/1.8, 85mm, realistic skin texture, hyper-realistic, 8k, highly detailed, studio lighting, neutral background.`
+  const prompt = `Professional portrait of a ${ageRange} year old ${gender}. ${description}. Style: ${lookStyle}. ${categories ? `Vibe: ${categories}.` : ''} Hands by side, holding nothing, empty hands, neutral pose. Raw photo, f/1.8, 85mm, ${SKIN_QUALITY_POSITIVE_INSTRUCTION}, hyper-realistic, 8k, highly detailed, studio lighting, neutral background. ${SKIN_IMPERFECTION_EXCLUSION_TEXT}.`
 
   console.log(`[Generate Model] Prompt: ${prompt}`)
 
   try {
     const result = await callReplicateMCP('generate_image', {
-      model: 'google/nano-banana',
+      model: 'google/nano-banana-pro',
       prompt: prompt,
       aspect_ratio: '9:16', // Portrait aspect ratio for model generation
       output_format: 'jpg',

@@ -5,6 +5,7 @@ import { trackCost } from '../utils/cost-tracker'
 import { saveAsset, deleteFile } from '../utils/storage'
 import { uploadFileToS3 } from '../utils/s3-upload'
 import { createCharacterConsistencyInstruction, formatCharactersForPrompt } from '../utils/character-extractor'
+import { SKIN_IMPERFECTION_EXCLUSION_TEXT, SKIN_QUALITY_POSITIVE_INSTRUCTION } from '../utils/negative-prompts'
 import type { Storyboard, Segment, Character } from '~/types/generation'
 
 const generateSingleFrameSchema = z.object({
@@ -141,7 +142,7 @@ export default defineEventHandler(async (event) => {
     if (frameType === 'first') {
       // First frame: uses segment description + story
       const characterInstruction = createCharacterConsistencyInstruction(characters, mood)
-      nanoPrompt = `${characterInstruction}${segment.description}. ${story.description}. ${segment.visualPrompt}, ${aspectRatio} aspect ratio, professional product photography, sharp faces, clear facial features, detailed faces, professional portrait quality`
+      nanoPrompt = `${characterInstruction}${segment.description}. ${story.description}. ${segment.visualPrompt}, ${aspectRatio} aspect ratio, professional product photography, sharp faces, clear facial features, detailed faces, professional portrait quality, ${SKIN_QUALITY_POSITIVE_INSTRUCTION}, ${SKIN_IMPERFECTION_EXCLUSION_TEXT}`
       
       // For first frame, no previous frame
       includePreviousFrameInInput = false
@@ -153,9 +154,9 @@ export default defineEventHandler(async (event) => {
         // Hook last → uses hook + body1
         const body1Segment = storyboard.segments.find(s => s.type === 'body')
         if (body1Segment) {
-          nanoPrompt = `${characterInstruction}${segment.description}. ${body1Segment.description}. ${story.description}. ${segment.visualPrompt}, transitioning to ${body1Segment.visualPrompt}, ${aspectRatio} aspect ratio, professional product photography, sharp faces, clear facial features, detailed faces, professional portrait quality`
+          nanoPrompt = `${characterInstruction}${segment.description}. ${body1Segment.description}. ${story.description}. ${segment.visualPrompt}, transitioning to ${body1Segment.visualPrompt}, ${aspectRatio} aspect ratio, professional product photography, sharp faces, clear facial features, detailed faces, professional portrait quality, ${SKIN_QUALITY_POSITIVE_INSTRUCTION}, ${SKIN_IMPERFECTION_EXCLUSION_TEXT}`
         } else {
-          nanoPrompt = `${characterInstruction}${segment.description}. ${story.description}. ${segment.visualPrompt}, ${aspectRatio} aspect ratio, professional product photography, sharp faces, clear facial features, detailed faces, professional portrait quality`
+          nanoPrompt = `${characterInstruction}${segment.description}. ${story.description}. ${segment.visualPrompt}, ${aspectRatio} aspect ratio, professional product photography, sharp faces, clear facial features, detailed faces, professional portrait quality, ${SKIN_QUALITY_POSITIVE_INSTRUCTION}, ${SKIN_IMPERFECTION_EXCLUSION_TEXT}`
         }
         // Use hook first frame as previous
         previousFrameImage = segment.firstFrameImage
@@ -163,16 +164,16 @@ export default defineEventHandler(async (event) => {
         // Body last → uses body + next body or CTA
         const nextSegment = storyboard.segments[segmentIndex + 1]
         if (nextSegment) {
-          nanoPrompt = `${characterInstruction}${segment.description}. ${nextSegment.description}. ${story.description}. ${segment.visualPrompt}, transitioning to ${nextSegment.visualPrompt}, ${aspectRatio} aspect ratio, professional product photography, sharp faces, clear facial features, detailed faces, professional portrait quality`
+          nanoPrompt = `${characterInstruction}${segment.description}. ${nextSegment.description}. ${story.description}. ${segment.visualPrompt}, transitioning to ${nextSegment.visualPrompt}, ${aspectRatio} aspect ratio, professional product photography, sharp faces, clear facial features, detailed faces, professional portrait quality, ${SKIN_QUALITY_POSITIVE_INSTRUCTION}, ${SKIN_IMPERFECTION_EXCLUSION_TEXT}`
         } else {
-          nanoPrompt = `${characterInstruction}${segment.description}. ${story.description}. ${segment.visualPrompt}, ${aspectRatio} aspect ratio, professional product photography, sharp faces, clear facial features, detailed faces, professional portrait quality`
+          nanoPrompt = `${characterInstruction}${segment.description}. ${story.description}. ${segment.visualPrompt}, ${aspectRatio} aspect ratio, professional product photography, sharp faces, clear facial features, detailed faces, professional portrait quality, ${SKIN_QUALITY_POSITIVE_INSTRUCTION}, ${SKIN_IMPERFECTION_EXCLUSION_TEXT}`
         }
         // Use body first frame as previous (which should be hook last)
         previousFrameImage = segment.firstFrameImage
       } else if (segment.type === 'cta') {
         // CTA last → uses CTA only
         const characterInstruction = createCharacterConsistencyInstruction(characters, mood)
-        nanoPrompt = `${characterInstruction}${segment.description}. ${story.description}. ${segment.visualPrompt}, ${aspectRatio} aspect ratio, professional product photography, sharp faces, clear facial features, detailed faces, professional portrait quality`
+        nanoPrompt = `${characterInstruction}${segment.description}. ${story.description}. ${segment.visualPrompt}, ${aspectRatio} aspect ratio, professional product photography, sharp faces, clear facial features, detailed faces, professional portrait quality, ${SKIN_QUALITY_POSITIVE_INSTRUCTION}, ${SKIN_IMPERFECTION_EXCLUSION_TEXT}`
         // Use CTA first frame as previous (which should be body2 last)
         previousFrameImage = segment.firstFrameImage
       }
@@ -191,9 +192,9 @@ export default defineEventHandler(async (event) => {
     console.log(`[Generate Single Frame] Prompt: ${nanoPrompt}`)
     console.log(`[Generate Single Frame] Image inputs: ${imageInputs.length}`)
     
-    // Step 1: Generate with Nano-banana
+    // Step 1: Generate with Nano-banana-pro
     const nanoResult = await callReplicateMCP('generate_image', {
-      model: 'google/nano-banana',
+      model: 'google/nano-banana-pro',
       prompt: nanoPrompt,
       image_input: imageInputs.length > 0 ? imageInputs : undefined,
       aspect_ratio: aspectRatio,
@@ -237,7 +238,7 @@ export default defineEventHandler(async (event) => {
         
         // Seedream should ONLY enhance colors, lighting, and quality - NOT reinterpret the scene
         // Keep the prompt minimal to prevent scene reinterpretation
-        const seedreamPrompt = `${referenceMatchInstruction}Enhance image quality: improve lighting, color saturation, and clarity. Preserve everything else EXACTLY as shown in the input image - same composition, same poses, same actions, same people, same products, same scene. Do not change what people are doing, do not change camera angles, do not change the scene content. Only enhance visual quality: better colors, better lighting, sharper details. Professional product photography quality.`
+        const seedreamPrompt = `${referenceMatchInstruction}Enhance image quality: improve lighting, color saturation, and clarity. Preserve everything else EXACTLY as shown in the input image - same composition, same poses, same actions, same people, same products, same scene. Do not change what people are doing, do not change camera angles, do not change the scene content. Only enhance visual quality: better colors, better lighting, sharper details. Professional product photography quality. ${SKIN_QUALITY_POSITIVE_INSTRUCTION}, ${SKIN_IMPERFECTION_EXCLUSION_TEXT}.`
         
         try {
           console.log(`[Generate Single Frame] Starting Seedream-4 enhancement...`)

@@ -274,6 +274,33 @@ export default defineEventHandler(async (event) => {
   await saveJob(job)
 
   try {
+    // Validate that all segments have dialogue (mandatory requirement)
+    const allSegmentsHaveDialogue = storyboard.segments.every((segment: any) => {
+      const audioNotes = segment.audioNotes || ''
+      return audioNotes && (
+        /Dialogue:\s*[^:]+?\s+says:\s*['"]/i.test(audioNotes) ||
+        /Voiceover:/i.test(audioNotes)
+      )
+    })
+    
+    if (!allSegmentsHaveDialogue) {
+      const missingSegments = storyboard.segments
+        .map((seg: any, idx: number) => {
+          const audioNotes = seg.audioNotes || ''
+          const hasDialogue = audioNotes && (
+            /Dialogue:\s*[^:]+?\s+says:\s*['"]/i.test(audioNotes) ||
+            /Voiceover:/i.test(audioNotes)
+          )
+          return hasDialogue ? null : `${seg.type} (segment ${idx})`
+        })
+        .filter(Boolean)
+      
+      console.error(`[Generate Assets] ❌ Missing dialogue in segments: ${missingSegments.join(', ')} - this violates mandatory dialogue requirement`)
+      throw new Error(`Cannot generate videos: Missing dialogue in segments: ${missingSegments.join(', ')}. All scenes must have dialogue before video generation can proceed.`)
+    }
+    
+    console.log('[Generate Assets] ✓ All segments have dialogue (mandatory requirement satisfied)')
+    
     // Process segments based on storyboard format
     // Check for demo mode - only process first segment (hook) in demo mode
     // Production mode: process all segments (3 for 16s format, 4 for 24s format)
@@ -412,6 +439,28 @@ export default defineEventHandler(async (event) => {
         const mood = storyboard.meta.mood || 'professional'
         const moodInstruction = mood ? ` ${mood.charAt(0).toUpperCase() + mood.slice(1)} tone and mood.` : ''
         
+        // Add hand consistency instruction for video generation
+        // Extract hand preference from first segment where product appears
+        let handConsistencyInstruction = ''
+        let firstProductHand: 'left' | 'right' | null = null
+        for (const seg of storyboard.segments) {
+          const visualPrompt = seg.visualPrompt || ''
+          const hasProduct = /(?:product|bottle|container|item|package|tube|jar|pump|dropper|serum|cream|moisturizer|makeup|cosmetic|lipstick|foundation|holds?|holding|grasps?|grasping)/i.test(visualPrompt)
+          if (hasProduct) {
+            if (/\b(left\s+hand|left\s+arm|in\s+left|left\s+side|left\s+grip|left\s+grasp)\b/i.test(visualPrompt.toLowerCase())) {
+              firstProductHand = 'left'
+              break
+            } else if (/\b(right\s+hand|right\s+arm|in\s+right|right\s+side|right\s+grip|right\s+grasp)\b/i.test(visualPrompt.toLowerCase())) {
+              firstProductHand = 'right'
+              break
+            }
+          }
+        }
+        
+        if (firstProductHand) {
+          handConsistencyInstruction = ` 🚨🚨🚨 CRITICAL PRODUCT HAND CONSISTENCY - MANDATORY: The character MUST hold the product in the ${firstProductHand} hand throughout this entire video segment. This maintains continuity from previous segments. Do NOT switch hands - the product must remain in the ${firstProductHand} hand. This is a MANDATORY requirement for visual consistency. `
+        }
+        
         // Extract dialogue from audioNotes and build speaking instructions
         let dialogueInstructions = ''
         let dialogueTextForPrompt = ''
@@ -458,9 +507,9 @@ export default defineEventHandler(async (event) => {
               if (wordCount > 5) {
                 console.error(`[Segment ${idx}] ❌ CTA dialogue has ${wordCount} words (exceeds 5-word limit): "${dialogueText}"`)
                 console.error(`[Segment ${idx}] ❌ This should NOT happen - the AI model should never generate CTA dialogue exceeding 5 words.`)
-                console.error(`[Segment ${idx}] ❌ The segment will be marked as failed. Please regenerate the storyboard with proper CTA dialogue.`)
+                console.error(`[Segment ${idx}] ❌ The segment will be marked as failed. The storyboard should have been validated and retried during generation.`)
                 // DO NOT truncate - reject the segment instead
-                throw new Error(`CTA dialogue exceeds 5-word limit: "${dialogueText}" (${wordCount} words). The AI model should never generate CTA dialogue exceeding 5 words. Please regenerate the storyboard.`)
+                throw new Error(`CTA dialogue exceeds 5-word limit: "${dialogueText}" (${wordCount} words). The storyboard generation should have prevented this. Please regenerate the storyboard - the system will automatically retry with stronger instructions if CTA dialogue exceeds 5 words.`)
               } else {
                 console.log(`[Segment ${idx}] ✓ CTA dialogue word count validated: ${wordCount} words - "${dialogueText}"`)
               }
@@ -484,9 +533,9 @@ export default defineEventHandler(async (event) => {
                   if (cleanedWordCount > 5) {
                     console.error(`[Segment ${idx}] ❌ CTA dialogue still has ${cleanedWordCount} words after cleanup (exceeds 5-word limit): "${dialogueText}"`)
                     console.error(`[Segment ${idx}] ❌ This should NOT happen - the AI model should never generate CTA dialogue exceeding 5 words.`)
-                    console.error(`[Segment ${idx}] ❌ The segment will be marked as failed. Please regenerate the storyboard with proper CTA dialogue.`)
+                    console.error(`[Segment ${idx}] ❌ The segment will be marked as failed. The storyboard should have been validated and retried during generation.`)
                     // DO NOT truncate - reject the segment instead
-                    throw new Error(`CTA dialogue exceeds 5-word limit after cleanup: "${dialogueText}" (${cleanedWordCount} words). The AI model should never generate CTA dialogue exceeding 5 words. Please regenerate the storyboard.`)
+                    throw new Error(`CTA dialogue exceeds 5-word limit after cleanup: "${dialogueText}" (${cleanedWordCount} words). The storyboard generation should have prevented this. Please regenerate the storyboard - the system will automatically retry with stronger instructions if CTA dialogue exceeds 5 words.`)
                   }
                 }
               }
@@ -570,7 +619,9 @@ MANDATORY VISUAL REQUIREMENTS:
 - Do NOT show the character silent or with closed mouth during this dialogue timecode
 - The character's voice must be AUDIBLE and come from their MOUTH, not as thoughts or narration
 
-The character's mouth movements must match the words being SPOKEN ALOUD: "${dialogueText}". This is SPOKEN DIALOGUE, not thoughts or voiceover. CRITICAL: Speak the COMPLETE phrase "${dialogueText}" from beginning to end. Do NOT cut off mid-word, mid-phrase, or truncate the dialogue. Say every word completely and clearly.`
+The character's mouth movements must match the words being SPOKEN ALOUD: "${dialogueText}". This is SPOKEN DIALOGUE, not thoughts or voiceover. CRITICAL: Speak the COMPLETE phrase "${dialogueText}" from beginning to end. Do NOT cut off mid-word, mid-phrase, or truncate the dialogue. Say every word completely and clearly.
+
+${segment.type === 'cta' ? `🚨🚨🚨 CRITICAL: CTA DIALOGUE - STOP SPEAKING IMMEDIATELY AFTER DIALOGUE ENDS - ABSOLUTE MANDATORY REQUIREMENT (ZERO TOLERANCE) 🚨🚨🚨: This is a CTA (Call-to-Action) segment. After [${endTimecode}], the character MUST STOP speaking IMMEDIATELY and COMPLETELY. The character must be ABSOLUTELY SILENT for the remainder of the segment. Do NOT continue speaking, do NOT add extra words, do NOT generate gibberish, do NOT make sounds, do NOT speak beyond the dialogue timecode, do NOT add any additional speech, do NOT continue the dialogue, do NOT extend the dialogue, do NOT add filler words, do NOT add random sounds, do NOT add unintelligible speech. The character must remain COMPLETELY SILENT after saying "${dialogueText}". This is a HARD REQUIREMENT with ZERO TOLERANCE - any speech, sounds, gibberish, or additional words after [${endTimecode}] will result in video rejection. The CTA dialogue "${dialogueText}" must be the FINAL and ONLY words spoken in this segment.` : `🚨🚨🚨 CRITICAL: STOP SPEAKING AFTER DIALOGUE ENDS - ABSOLUTE MANDATORY REQUIREMENT 🚨🚨🚨: After [${endTimecode}], the character must STOP speaking completely. The character must be SILENT for the remainder of the segment. Do NOT continue speaking, do NOT add extra words, do NOT generate gibberish, do NOT make sounds, do NOT speak beyond the dialogue timecode. The character must remain completely silent after saying "${dialogueText}". This is a HARD REQUIREMENT - any speech, sounds, or gibberish after [${endTimecode}] will result in video rejection.`}`
             
             // Add the actual dialogue text in Veo format so it generates the spoken audio
             // Include tone description if available
@@ -607,12 +658,36 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
           console.log(`[Segment ${idx}] Added explicit no-audio instruction (no dialogue provided)`)
         }
         
+        // Add silence-after-dialogue instruction if dialogue exists
+        let silenceAfterDialogueInstruction = ''
+        if (dialogueInstructions && dialogueTextForPrompt) {
+          // Extract endTimecode from dialogueTextForPrompt or use segment end time
+          const segmentDuration = segment.endTime - segment.startTime
+          const formatTimecode = (seconds: number): string => {
+            const mins = Math.floor(seconds / 60)
+            const secs = Math.floor(seconds % 60)
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+          }
+          const dialogueEndTimecode = formatTimecode(Math.min(segmentDuration - 2, segmentDuration * 0.7))
+          silenceAfterDialogueInstruction = segment.type === 'cta' 
+            ? ` 🚨🚨🚨 CRITICAL: CTA DIALOGUE - ABSOLUTE SILENCE AFTER DIALOGUE ENDS - MANDATORY REQUIREMENT (ZERO TOLERANCE) 🚨🚨🚨: This is a CTA (Call-to-Action) segment. After the dialogue ends (after [${dialogueEndTimecode}]), the character MUST STOP speaking IMMEDIATELY and remain ABSOLUTELY SILENT for the remainder of the segment. Do NOT continue speaking, do NOT add extra words, do NOT generate gibberish, do NOT make sounds, do NOT speak beyond the dialogue timecode, do NOT add any additional speech, do NOT continue the dialogue, do NOT extend the dialogue, do NOT add filler words, do NOT add random sounds, do NOT add unintelligible speech. The character must remain COMPLETELY SILENT after finishing the dialogue. This is a HARD REQUIREMENT with ZERO TOLERANCE - any speech, sounds, gibberish, or additional words after the dialogue ends will result in video rejection. The CTA dialogue must be the FINAL and ONLY words spoken in this segment. `
+            : ` 🚨🚨🚨 CRITICAL: SILENCE AFTER DIALOGUE - ABSOLUTE MANDATORY REQUIREMENT 🚨🚨🚨: After the dialogue ends (after [${dialogueEndTimecode}]), the character must STOP speaking completely and remain SILENT for the remainder of the segment. Do NOT continue speaking, do NOT add extra words, do NOT generate gibberish, do NOT make sounds, do NOT speak beyond the dialogue timecode. The character must remain completely silent after finishing the dialogue. This is a HARD REQUIREMENT - any speech, sounds, or gibberish after the dialogue ends will result in video rejection. `
+          console.log(`[Segment ${idx}] Added silence-after-dialogue instruction`)
+        }
+        
         // Build segment-specific instructions based on segment type
         // CTA segments need visual progression (end of video), hook/body need smooth transitions
         let segmentSpecificInstructions = ''
         let holdFinalFrameInstruction = ''
         let cameraPerspectiveInstruction = ''
         let actionContinuityInstruction = ''
+        let naturalProgressionInstruction = ''
+        
+        // Add natural progression requirement (different poses/actions)
+        if (idx > 0) {
+          // This is not the first segment, so it should show progression from previous
+          naturalProgressionInstruction = ` 🚨🚨🚨 CRITICAL NATURAL PROGRESSION - MANDATORY: This segment MUST show a DIFFERENT pose and/or action from the previous segment while maintaining character and product consistency. The character MUST have a DIFFERENT pose (different standing/sitting position, different gesture, different facial expression, different body orientation) AND/OR a DIFFERENT action (different activity, different movement, different interaction with product). The story must progress with evolving poses and actions. Do NOT repeat the same pose or action from the previous segment. This is a MANDATORY requirement for natural story progression. `
+        }
         
         if (segment.type === 'cta') {
           // CTA is the end of the video, not a transition - need visual progression
@@ -637,7 +712,9 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
         // Insert dialogue text and instructions BEFORE other instructions so they take priority
         // Insert action continuity instruction for body segments BEFORE other instructions
         // Insert no-audio instruction BEFORE other audio instructions if no dialogue exists
-        const videoPrompt = `${sanitizedPrompt}${moodInstruction}${actionContinuityInstruction}${noAudioInstruction}${dialogueTextForPrompt}${dialogueInstructions} CRITICAL CONTINUOUS SHOT REQUIREMENT: This must be a SINGLE CONTINUOUS SHOT in ONE LOCATION. NO scene changes, NO location changes, NO background changes, NO room changes. The entire segment must take place in the exact same location with the same background, same environment, same surroundings from start to finish. ${cameraPerspectiveInstruction} The video should feel like ONE unbroken moment in ONE place - do NOT change locations, rooms, backgrounds, or environments during this segment. ONE continuous shot, ONE location, ONE background. ${holdFinalFrameInstruction}${segmentSpecificInstructions} 🚨 CRITICAL - NO MIRRORS OR REFLECTIONS: DO NOT include mirrors, reflections, reflective surfaces, bathroom mirrors, or people looking at their reflection in this video. This is a MANDATORY requirement - any video containing mirrors or reflections will be rejected. ${noAudioInstruction ? '' : 'AUDIO: 🚨 CRITICAL LANGUAGE REQUIREMENT - ENGLISH ONLY: All spoken dialogue in this video MUST be in English ONLY. ABSOLUTELY NO exceptions. NO foreign languages, NO non-English speech, NO other languages whatsoever. If any character speaks, they must speak ONLY in English. This is a MANDATORY requirement - any non-English speech will result in video rejection. CRITICAL AUDIO REQUIREMENTS - SPOKEN DIALOGUE ONLY: Characters must SPEAK their dialogue ALOUD on-camera - this is SPOKEN DIALOGUE, not voiceover, not thoughts, not narration. Dialogue must come from the character\'s MOUTH as they speak on-camera. CRITICAL: EXACT DIALOGUE MATCHING - Characters must speak the EXACT words specified in the dialogue text. Do not paraphrase, do not change words, do not add words, do not remove words. Speak each word clearly and precisely. No substitutions, no variations, no gibberish, no made-up words. 🚨 ABSOLUTELY NO MUSIC - MANDATORY REQUIREMENT: Do NOT generate ANY background music, soundtrack, instrumental music, background score, musical audio, beats, rhythm, melody, songs, singing, or ANY musical elements whatsoever. Sound effects (SFX) and SPOKEN DIALOGUE are allowed, but ABSOLUTELY NO music of any kind. This is a HARD REQUIREMENT - any music in the generated video will result in rejection. ONLY on-camera characters visible in the scene may speak - their dialogue must be SPOKEN ALOUD, not heard as thoughts or voiceover. ABSOLUTELY NO narration, NO voiceover, NO off-screen announcer, NO background voices. ABSOLUTELY NO internal thoughts, NO internal monologue, NO thought bubbles, NO voiceover narration. If no character is speaking in a scene, there should be NO speech at all - complete silence. Only characters shown on-camera SPEAKING DIRECTLY to the camera or to other visible characters may have dialogue, and they must SPEAK ONLY in English. All dialogue must be SPOKEN ALOUD by the character on-camera - do NOT generate dialogue as thoughts, voiceover, or narration. If dialogue is present, it must end at least 2 seconds before the scene ends to ensure smooth transitions. '}CLOTHING & JEWELRY: Characters should already be wearing their clothes and jewelry from the start of the scene. Do NOT show characters putting on or taking off items. Items should be worn consistently throughout the scene. No wardrobe changes during the scene. TYPOGRAPHY & TEXT: If displaying any text, brand names, or product names: Use clean, elegant, modern typeface (sans-serif like Helvetica, Futura, Gotham for contemporary brands OR serif like Didot, Bodoni for luxury brands). High contrast for maximum legibility: crisp white text on dark background OR bold black text on light background. Large, bold, professional font size with generous spacing. Centered or elegantly positioned with balanced composition. Spell exactly as mentioned in prompt with perfect accuracy. Professional kerning, leading, and letter spacing. Sharp, crisp edges - no blurry or distorted text. Minimize decorative or script fonts unless specifically luxury brand requirement. Text should be perfectly readable at any resolution with cinema-quality typography. FACE QUALITY: Limit scene to 3-4 people maximum. Use close-ups and medium shots to ensure sharp faces, clear facial features, detailed faces, professional portrait quality. Avoid large groups, crowds, or more than 4 people.`
+        // Insert hand consistency instruction for product holding
+        // Insert natural progression instruction for evolving poses/actions
+        const videoPrompt = `${sanitizedPrompt}${moodInstruction}${handConsistencyInstruction}${naturalProgressionInstruction}${actionContinuityInstruction}${noAudioInstruction}${dialogueTextForPrompt}${dialogueInstructions}${silenceAfterDialogueInstruction} 🚨🚨🚨 CRITICAL: FOREGROUND CONSISTENCY (MANDATORY): Maintain the EXACT same foreground elements (characters, products, objects) across ALL scenes/videos. The same character with identical appearance, clothing, and physical features must appear in the same position and state. The same product must appear with identical design, color, and placement. Only camera angles, poses, and compositions may change - foreground elements must remain pixel-perfect consistent. Characters must maintain the EXACT same clothing (same shirt, same pants, same colors, same style), EXACT same physical features (same hair, same build, same facial features), and EXACT same product appearance (same design, same color, same size) across ALL segments. Do NOT change character clothing, physical features, or product appearance between segments. CRITICAL CONTINUOUS SHOT REQUIREMENT: This must be a SINGLE CONTINUOUS SHOT in ONE LOCATION. NO scene changes, NO location changes, NO background changes, NO room changes. The entire segment must take place in the exact same location with the same background, same environment, same surroundings from start to finish. ${cameraPerspectiveInstruction} The video should feel like ONE unbroken moment in ONE place - do NOT change locations, rooms, backgrounds, or environments during this segment. ONE continuous shot, ONE location, ONE background. ${holdFinalFrameInstruction}${segmentSpecificInstructions} 🚨 CRITICAL - NO MIRRORS OR REFLECTIONS: DO NOT include mirrors, reflections, reflective surfaces, bathroom mirrors, or people looking at their reflection in this video. This is a MANDATORY requirement - any video containing mirrors or reflections will be rejected. 🚨🚨🚨 CRITICAL BODY PROPORTIONS - ABSOLUTE MANDATORY REQUIREMENT 🚨🚨🚨: ALL characters in this video MUST have CORRECT body proportions and standard human anatomy. Each character must have EXACTLY: two hands (one left, one right), two arms (one left, one right), two legs, and one head. All body parts must be properly proportioned, naturally sized, and correctly positioned. ABSOLUTELY DO NOT GENERATE: ❌ Multiple limbs (NO extra arms, NO extra legs, NO more than 2 arms, NO more than 2 legs, NO duplicate limbs), ❌ Disproportionate body parts (NO huge arms, NO oversized hands, NO abnormally large limbs, NO tiny arms, NO disproportionate body parts), ❌ Anatomical deformities (NO deformed anatomy, NO abnormal proportions, NO malformed limbs, NO incorrect body structure). MUST GENERATE: ✅ Exactly 2 arms (one left, one right) - properly proportioned and naturally sized, ✅ Exactly 2 hands (one left, one right) - properly proportioned and naturally sized, ✅ Exactly 2 legs - properly proportioned and naturally sized, ✅ All body parts in correct proportions relative to the character's body size, ✅ Natural, realistic human anatomy with standard body proportions. This is a MANDATORY requirement - any video showing multiple limbs, disproportionate body parts, or anatomical deformities will be REJECTED. ${noAudioInstruction ? '' : 'AUDIO: 🚨 CRITICAL LANGUAGE REQUIREMENT - ENGLISH ONLY: All spoken dialogue in this video MUST be in English ONLY. ABSOLUTELY NO exceptions. NO foreign languages, NO non-English speech, NO other languages whatsoever. If any character speaks, they must speak ONLY in English. This is a MANDATORY requirement - any non-English speech will result in video rejection. CRITICAL AUDIO REQUIREMENTS - SPOKEN DIALOGUE ONLY: Characters must SPEAK their dialogue ALOUD on-camera - this is SPOKEN DIALOGUE, not voiceover, not thoughts, not narration. Dialogue must come from the character\'s MOUTH as they speak on-camera. CRITICAL: EXACT DIALOGUE MATCHING - Characters must speak the EXACT words specified in the dialogue text. Do not paraphrase, do not change words, do not add words, do not remove words. Speak each word clearly and precisely. No substitutions, no variations, no gibberish, no made-up words. 🚨 ABSOLUTELY NO MUSIC - MANDATORY REQUIREMENT: Do NOT generate ANY background music, soundtrack, instrumental music, background score, musical audio, beats, rhythm, melody, songs, singing, or ANY musical elements whatsoever. Sound effects (SFX) and SPOKEN DIALOGUE are allowed, but ABSOLUTELY NO music of any kind. This is a HARD REQUIREMENT - any music in the generated video will result in rejection. ONLY on-camera characters visible in the scene may speak - their dialogue must be SPOKEN ALOUD, not heard as thoughts or voiceover. ABSOLUTELY NO narration, NO voiceover, NO off-screen announcer, NO background voices. ABSOLUTELY NO internal thoughts, NO internal monologue, NO thought bubbles, NO voiceover narration. If no character is speaking in a scene, there should be NO speech at all - complete silence. Only characters shown on-camera SPEAKING DIRECTLY to the camera or to other visible characters may have dialogue, and they must SPEAK ONLY in English. All dialogue must be SPOKEN ALOUD by the character on-camera - do NOT generate dialogue as thoughts, voiceover, or narration. If dialogue is present, it must end at least 2 seconds before the scene ends to ensure smooth transitions. '}CLOTHING & JEWELRY: Characters should already be wearing their clothes and jewelry from the start of the scene. Do NOT show characters putting on or taking off items. Items should be worn consistently throughout the scene. No wardrobe changes during the scene. TYPOGRAPHY & TEXT: If displaying any text, brand names, or product names: Use clean, elegant, modern typeface (sans-serif like Helvetica, Futura, Gotham for contemporary brands OR serif like Didot, Bodoni for luxury brands). High contrast for maximum legibility: crisp white text on dark background OR bold black text on light background. Large, bold, professional font size with generous spacing. Centered or elegantly positioned with balanced composition. Spell exactly as mentioned in prompt with perfect accuracy. Professional kerning, leading, and letter spacing. Sharp, crisp edges - no blurry or distorted text. Minimize decorative or script fonts unless specifically luxury brand requirement. Text should be perfectly readable at any resolution with cinema-quality typography. FACE QUALITY: Limit scene to 3-4 people maximum. Use close-ups and medium shots to ensure sharp faces, clear facial features, detailed faces, professional portrait quality. Avoid large groups, crowds, or more than 4 people.`
         
         const videoParams: any = {
           model,
@@ -671,8 +748,8 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
             console.log(`[Segment ${idx}] Using subject reference (person): ${subjectReference}`)
           }
           
-          // Build negative prompt - add children-related terms if detected in frames, scene change terms, language/narration terms, music terms, mirror terms, and default face quality terms
-          const defaultFaceQualityNegative = 'blurry faces, distorted faces, crowds, large groups, more than 4 people, deformed faces, bad anatomy, scene changes, location changes, background changes, different rooms, different locations, multiple settings, changing environments, narration, voiceover, off-screen voices, foreign languages, non-English speech, non-English dialogue, foreign dialogue, foreign speech, background narration, announcer, other languages, background music, soundtrack, instrumental music, background score, music, musical score, musical audio, musical, beats, rhythm, melody, song, songs, singing, vocals, mirrors, reflections, reflective surfaces, bathroom mirrors, people looking at reflection, looking at reflection'
+          // Build negative prompt - add children-related terms if detected in frames, scene change terms, language/narration terms, music terms, mirror terms, skin quality terms, body proportions terms, and default face quality terms
+          const defaultFaceQualityNegative = 'blurry faces, distorted faces, crowds, large groups, more than 4 people, deformed faces, bad anatomy, multiple limbs, extra arms, extra legs, more than 2 arms, more than 2 legs, huge arms, oversized hands, oversized limbs, disproportionate body, disproportionate limbs, abnormal proportions, deformed anatomy, malformed limbs, incorrect body structure, scene changes, location changes, background changes, different rooms, different locations, multiple settings, changing environments, narration, voiceover, off-screen voices, foreign languages, non-English speech, non-English dialogue, foreign dialogue, foreign speech, background narration, announcer, other languages, background music, soundtrack, instrumental music, background score, music, musical score, musical audio, musical, beats, rhythm, melody, song, songs, singing, vocals, mirrors, reflections, reflective surfaces, bathroom mirrors, people looking at reflection, looking at reflection, pimples, acne, blemishes, blackheads, whiteheads, spots, marks, scars, skin discoloration, redness, irritation, rashes, skin texture issues, visible pores, skin imperfections, cream residue on skin, oil on skin, wet skin, shiny product residue, product visible on skin surface, liquid on face, cream on face, serum on face, product on face, visible product on face, wet face, shiny face, glossy face, product residue on face, cream visible on face, liquid visible on face, serum visible on face, product application visible on face, matte finish required, dry skin appearance, gibberish, extra speech, continuing dialogue, speech after dialogue ends, additional words after dialogue, made-up words, nonsense speech, unintelligible speech, random speech, speech beyond dialogue timecode'
           let negativePrompt = defaultFaceQualityNegative
           
           // Add no-audio terms to negative prompt if no dialogue exists
@@ -752,8 +829,8 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
             console.log(`[Segment ${idx}] CTA segment: Using only first frame anchor (no last_frame) to allow visual progression`)
           }
           
-          // Build negative prompt with default face quality terms, music terms, and mirror terms
-          const defaultFaceQualityNegative = 'blurry faces, distorted faces, crowds, large groups, more than 4 people, deformed faces, bad anatomy, scene changes, location changes, background changes, different rooms, different locations, multiple settings, changing environments, narration, voiceover, off-screen voices, foreign languages, non-English speech, non-English dialogue, foreign dialogue, foreign speech, background narration, announcer, other languages, background music, soundtrack, instrumental music, background score, music, musical score, musical audio, musical, beats, rhythm, melody, song, songs, singing, vocals, mirrors, reflections, reflective surfaces, bathroom mirrors, people looking at reflection, looking at reflection'
+          // Build negative prompt with default face quality terms, body proportions terms, music terms, and mirror terms
+          const defaultFaceQualityNegative = 'blurry faces, distorted faces, crowds, large groups, more than 4 people, deformed faces, bad anatomy, multiple limbs, extra arms, extra legs, more than 2 arms, more than 2 legs, huge arms, oversized hands, oversized limbs, disproportionate body, disproportionate limbs, abnormal proportions, deformed anatomy, malformed limbs, incorrect body structure, scene changes, location changes, background changes, different rooms, different locations, multiple settings, changing environments, narration, voiceover, off-screen voices, foreign languages, non-English speech, non-English dialogue, foreign dialogue, foreign speech, background narration, announcer, other languages, background music, soundtrack, instrumental music, background score, music, musical score, musical audio, musical, beats, rhythm, melody, song, songs, singing, vocals, mirrors, reflections, reflective surfaces, bathroom mirrors, people looking at reflection, looking at reflection, pimples, acne, blemishes, blackheads, whiteheads, spots, marks, scars, skin discoloration, redness, irritation, rashes, skin texture issues, visible pores, skin imperfections, cream residue on skin, oil on skin, wet skin, shiny product residue, product visible on skin surface, liquid on face, cream on face, serum on face, product on face, visible product on face, wet face, shiny face, glossy face, product residue on face, cream visible on face, liquid visible on face, serum visible on face, product application visible on face, matte finish required, dry skin appearance, gibberish, extra speech, continuing dialogue, speech after dialogue ends, additional words after dialogue, made-up words, nonsense speech, unintelligible speech, random speech, speech beyond dialogue timecode'
           let negativePrompt = defaultFaceQualityNegative
           
           // Add no-audio terms to negative prompt if no dialogue exists
@@ -882,16 +959,77 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
         
         console.log('[Generate Assets] Starting prediction with ID:', predictionId)
         
+        // Store prediction ID in asset metadata immediately and update job status
+        const initialAsset: Asset = {
+          segmentId: idx,
+          status: 'processing',
+          metadata: {
+            predictionId,
+            segmentIndex: idx,
+            segmentType: segment.type,
+            startTime: segment.startTime,
+            endTime: segment.endTime,
+            duration: segment.endTime - segment.startTime,
+            timestamp: Date.now(),
+          },
+        }
+        
+        // Update job with this asset in processing state so UI can see it
+        if (!job.assets) job.assets = []
+        job.assets[idx] = initialAsset
+        await saveJob(job)
+        console.log(`[Segment ${idx}] Job updated with prediction ID: ${predictionId}`)
+        
         let retryAttempted = false
         let currentVideoParams = videoParams
         let currentPredictionId = predictionId
         let currentPredictionStatus = predictionStatus
+        const predictionStartTime = Date.now()
+        const PREDICTION_TIMEOUT = 10 * 60 * 1000 // 10 minutes in milliseconds
         
+        // Non-blocking polling with incremental job updates
         while (currentPredictionStatus.status === 'starting' || currentPredictionStatus.status === 'processing') {
+          // Check for timeout
+          const elapsedTime = Date.now() - predictionStartTime
+          if (elapsedTime > PREDICTION_TIMEOUT) {
+            console.error(`[Segment ${idx}] Prediction timeout after ${elapsedTime}ms (${Math.round(elapsedTime / 1000)}s)`)
+            const timeoutAsset: Asset = {
+              segmentId: idx,
+              status: 'failed',
+              error: `Prediction timed out after ${Math.round(elapsedTime / 1000)} seconds. Prediction ID: ${currentPredictionId}`,
+              metadata: {
+                predictionId: currentPredictionId,
+                segmentIndex: idx,
+                segmentType: segment.type,
+                timeout: true,
+                elapsedTime,
+                timestamp: Date.now(),
+              },
+            }
+            if (!job.assets) job.assets = []
+            job.assets[idx] = timeoutAsset
+            await saveJob(job)
+            return timeoutAsset
+          }
+          
           await new Promise(resolve => setTimeout(resolve, 2000))
           currentPredictionStatus = await callReplicateMCP('check_prediction_status', {
             predictionId: currentPredictionId,
           })
+          
+          // Update job with current status so UI can see progress
+          if (!job.assets) job.assets = []
+          job.assets[idx] = {
+            ...initialAsset,
+            status: 'processing',
+            metadata: {
+              ...initialAsset.metadata,
+              predictionStatus: currentPredictionStatus.status,
+              elapsedTime: Date.now() - predictionStartTime,
+            },
+          }
+          await saveJob(job)
+          console.log(`[Segment ${idx}] Status check: ${currentPredictionStatus.status} (elapsed: ${Math.round((Date.now() - predictionStartTime) / 1000)}s)`)
         }
 
         // Check for E005 error (sensitive content flagging)
@@ -981,13 +1119,58 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
             retry: true,
           })
           
-          // Poll for retry completion
+          // Poll for retry completion with incremental updates
           currentPredictionStatus = retryVideoResult
+          const retryStartTime = Date.now()
+          const RETRY_TIMEOUT = 10 * 60 * 1000 // 10 minutes
+          
           while (currentPredictionStatus.status === 'starting' || currentPredictionStatus.status === 'processing') {
+            // Check for timeout
+            const elapsedTime = Date.now() - retryStartTime
+            if (elapsedTime > RETRY_TIMEOUT) {
+              console.error(`[Segment ${idx}] Retry prediction timeout after ${elapsedTime}ms`)
+              const timeoutAsset: Asset = {
+                segmentId: idx,
+                status: 'failed',
+                error: `Retry prediction timed out after ${Math.round(elapsedTime / 1000)} seconds. Prediction ID: ${currentPredictionId}`,
+                metadata: {
+                  predictionId: currentPredictionId,
+                  segmentIndex: idx,
+                  segmentType: segment.type,
+                  timeout: true,
+                  retryAttempted: true,
+                  elapsedTime,
+                  timestamp: Date.now(),
+                },
+              }
+              if (!job.assets) job.assets = []
+              job.assets[idx] = timeoutAsset
+              await saveJob(job)
+              return timeoutAsset
+            }
+            
             await new Promise(resolve => setTimeout(resolve, 2000))
             currentPredictionStatus = await callReplicateMCP('check_prediction_status', {
               predictionId: currentPredictionId,
             })
+            
+            // Update job with current retry status
+            if (!job.assets) job.assets = []
+            job.assets[idx] = {
+              segmentId: idx,
+              status: 'processing',
+              metadata: {
+                predictionId: currentPredictionId,
+                segmentIndex: idx,
+                segmentType: segment.type,
+                predictionStatus: currentPredictionStatus.status,
+                retryAttempted: true,
+                elapsedTime: Date.now() - retryStartTime,
+                timestamp: Date.now(),
+              },
+            }
+            await saveJob(job)
+            console.log(`[Segment ${idx}] Retry status check: ${currentPredictionStatus.status} (elapsed: ${Math.round((Date.now() - retryStartTime) / 1000)}s)`)
           }
         }
         
@@ -1006,7 +1189,7 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
             console.error(`[Segment ${idx}] ===========================================`)
             
             // Store error details in asset metadata for frontend access
-            return {
+            const failedAsset: Asset = {
               segmentId: idx,
               status: 'failed',
               error: `Video generation failed${retryAttempted ? ' (after retry)' : ''}: ${errorMsg}`,
@@ -1025,7 +1208,36 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
                 timestamp: Date.now(),
               },
             } as Asset
+            
+            // Update job with failed asset
+            if (!job.assets) job.assets = []
+            job.assets[idx] = failedAsset
+            await saveJob(job)
+            console.log(`[Segment ${idx}] Job updated with failed status`)
+            
+            return failedAsset
           }
+          
+          // Non-E005 error - update job and throw
+          const failedAsset: Asset = {
+            segmentId: idx,
+            status: 'failed',
+            error: `Video generation failed${retryAttempted ? ' (after retry)' : ''}: ${errorMsg}`,
+            metadata: {
+              predictionId: currentPredictionId,
+              segmentIndex: idx,
+              segmentType: segment.type,
+              errorMessage: errorMsg,
+              retryAttempted,
+              timestamp: Date.now(),
+            },
+          }
+          
+          // Update job with failed asset
+          if (!job.assets) job.assets = []
+          job.assets[idx] = failedAsset
+          await saveJob(job)
+          console.log(`[Segment ${idx}] Job updated with failed status`)
           
           throw new Error(`Video generation failed${retryAttempted ? ' (after retry)' : ''}: ${errorMsg}`)
         }
@@ -1054,7 +1266,7 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
           console.error(`[Segment ${idx}] No videoUrl in result:`, JSON.stringify(errorDetails, null, 2))
           
           // Store error details in asset for frontend access
-          return {
+          const noUrlAsset: Asset = {
             segmentId: idx,
             status: 'failed',
             error: `Video generation completed but no video URL was returned`,
@@ -1064,6 +1276,14 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
               finalResult: videoResultFinal,
             },
           } as Asset
+          
+          // Update job with failed asset
+          if (!job.assets) job.assets = []
+          job.assets[idx] = noUrlAsset
+          await saveJob(job)
+          console.log(`[Segment ${idx}] Job updated with failed status (no video URL)`)
+          
+          return noUrlAsset
         }
 
         console.log(`[Segment ${idx}] Video URL obtained from Replicate:`, videoUrl)
@@ -1111,12 +1331,20 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
 
         console.log(`[Segment ${idx}] Asset metadata:`, JSON.stringify(metadata, null, 2))
 
-        return {
+        const completedAsset: Asset = {
           segmentId: idx,
           videoUrl: finalVideoUrl, // Use S3 URL or Replicate fallback (contains embedded audio)
           status: 'completed',
           metadata, // Include metadata for frontend access
         } as Asset
+        
+        // Update job with completed asset
+        if (!job.assets) job.assets = []
+        job.assets[idx] = completedAsset
+        await saveJob(job)
+        console.log(`[Segment ${idx}] Job updated with completed status and video URL`)
+        
+        return completedAsset
       } catch (error: any) {
         const errorMessage = error.message || 'Unknown error occurred'
         console.error(`[Segment ${idx}] Asset generation failed:`, errorMessage)
@@ -1124,11 +1352,26 @@ The character's mouth movements must match the words being SPOKEN ALOUD: "${dial
         if (error.stack) {
           console.error(`[Segment ${idx}] Stack trace:`, error.stack)
         }
-        return {
+        
+        const errorAsset: Asset = {
           segmentId: idx,
           status: 'failed',
           error: errorMessage,
+          metadata: {
+            segmentIndex: idx,
+            segmentType: segment.type,
+            errorDetails: error.stack,
+            timestamp: Date.now(),
+          },
         } as Asset
+        
+        // Update job with failed asset
+        if (!job.assets) job.assets = []
+        job.assets[idx] = errorAsset
+        await saveJob(job)
+        console.log(`[Segment ${idx}] Job updated with failed status (exception)`)
+        
+        return errorAsset
       }
     }
     

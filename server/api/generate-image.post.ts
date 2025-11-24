@@ -2,6 +2,7 @@ import { callReplicateMCP } from '../utils/mcp-client'
 import { uploadFileToReplicate } from '../utils/replicate-upload'
 import { readMultipartFormData } from 'h3'
 import { saveAsset } from '../utils/storage'
+import { SKIN_IMPERFECTION_NEGATIVE_PROMPT } from '../utils/negative-prompts'
 import path from 'path'
 
 export default defineEventHandler(async (event) => {
@@ -175,10 +176,15 @@ export default defineEventHandler(async (event) => {
     // Get model from body (default to seedream for backward compatibility)
     const model = body.model || 'bytedance/seedream-4'
 
+    // Add skin imperfection exclusion to prompt text
+    // Note: Image generation models (Seedream, Nano-banana) don't support negative_prompt parameter,
+    // so we append exclusion terms directly to the prompt text
+    const enhancedPrompt = `${body.prompt}, perfect flawless skin, no pimples, no acne, no blemishes, no blackheads, no whiteheads, no spots, no marks, no scars, no skin discoloration, no redness, no irritation, no rashes, no skin texture issues, no visible pores, no skin imperfections`
+
     // Build parameters for Replicate MCP call
     const params: any = {
       model,
-      prompt: body.prompt,
+      prompt: enhancedPrompt,
     }
 
     // Add image inputs if any
@@ -195,7 +201,7 @@ export default defineEventHandler(async (event) => {
       params.sequential_image_generation = body.sequential_image_generation || 'disabled'
       params.max_images = body.max_images || 1
       params.enhance_prompt = body.enhance_prompt !== undefined ? body.enhance_prompt : true
-    } else if (model === 'google/nano-banana') {
+    } else if (model === 'google/nano-banana' || model === 'google/nano-banana-pro') {
       params.aspect_ratio = body.aspect_ratio || 'match_input_image'
       params.output_format = body.output_format || 'jpg'
     }
